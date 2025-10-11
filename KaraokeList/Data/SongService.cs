@@ -44,6 +44,44 @@ namespace KaraokeList.Data
             }
             return songs;
         }
-        // Add, Update, Delete methods can be added here
+
+        public async Task AddSongAsync(Song song)
+        {
+            using var connection = new SqliteConnection(_connectionString);
+            await connection.OpenAsync();
+            var command = connection.CreateCommand();
+            command.CommandText = @"INSERT INTO Songs (Title, Artist, Genre, Year, SecondaryArtist) VALUES (@Title, @Artist, @Genre, @Year, @SecondaryArtist);";
+            command.Parameters.AddWithValue("@Title", song.Title);
+            command.Parameters.AddWithValue("@Artist", (object?)song.Artist ?? DBNull.Value);
+            command.Parameters.AddWithValue("@Genre", (object?)song.Genre ?? DBNull.Value);
+            command.Parameters.AddWithValue("@Year", (object?)song.Year ?? DBNull.Value);
+            command.Parameters.AddWithValue("@SecondaryArtist", (object?)song.SecondaryArtist ?? DBNull.Value);
+            await command.ExecuteNonQueryAsync();
+        }
+
+        public async Task UpdateSongAsync(Song song)
+        {
+            using var connection = new SqliteConnection(_connectionString);
+            await connection.OpenAsync();
+            var command = connection.CreateCommand();
+            command.CommandText = @"UPDATE Songs SET Title=@Title, Artist=@Artist, Genre=@Genre, Year=@Year, SecondaryArtist=@SecondaryArtist WHERE Id=@Id;";
+            command.Parameters.AddWithValue("@Id", song.Id);
+            command.Parameters.AddWithValue("@Title", song.Title);
+            command.Parameters.AddWithValue("@Artist", (object?)song.Artist ?? DBNull.Value);
+            command.Parameters.AddWithValue("@Genre", (object?)song.Genre ?? DBNull.Value);
+            command.Parameters.AddWithValue("@Year", (object?)song.Year ?? DBNull.Value);
+            command.Parameters.AddWithValue("@SecondaryArtist", (object?)song.SecondaryArtist ?? DBNull.Value);
+            await command.ExecuteNonQueryAsync();
+        }
+
+        public async Task DeleteSongAsync(int id)
+        {
+            using var connection = new SqliteConnection(_connectionString);
+            await connection.OpenAsync();
+            var command = connection.CreateCommand();
+            command.CommandText = @"DELETE FROM Songs WHERE Id=@Id;";
+            command.Parameters.AddWithValue("@Id", id);
+            await command.ExecuteNonQueryAsync();
+        }
     }
 }

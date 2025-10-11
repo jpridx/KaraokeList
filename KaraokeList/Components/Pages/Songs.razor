@@ -1,8 +1,10 @@
 @page "/songs"
+@rendermode InteractiveServer
 @using KaraokeList.Data
 @using Syncfusion.Blazor.Grids
 @using Syncfusion.Blazor.DropDowns
 @using Syncfusion.Blazor.Calendars
+@using Syncfusion.Blazor.Inputs
 @inject IServiceProvider ServiceProvider
 @inject NavigationManager Navigation
 
@@ -10,22 +12,48 @@
 
 <h3>Songs</h3>
 <div class="songs-container">
-    <SfGrid DataSource="@songs" AllowPaging="true" AllowSorting="true" Toolbar="@(new List<string>() { "Add", "Edit", "Delete", "Update", "Cancel" })">
-        <GridEditSettings AllowAdding="true" AllowEditing="true" AllowDeleting="true" Mode="EditMode.Normal"></GridEditSettings>
-        <GridColumns>
-            <GridColumn Field="Id" HeaderText="ID" IsPrimaryKey="true" Visible="false" Width="50" TextAlign="TextAlign.Right" ValidationRules="@(new ValidationRules{ Required=true })" />
-            <GridColumn Field="Title" HeaderText="Title" Width="200" ValidationRules="@(new ValidationRules{ Required=true })" />
-            <GridColumn Field="Artist" HeaderText="Artist" EditType="EditType.DropDownEdit" Width="150" />
-            <GridColumn Field="Genre" HeaderText="Genre" EditType="EditType.DropDownEdit" Width="150" />
-            <GridColumn Field="Year" HeaderText="Year" EditType="EditType.NumericEdit" Width="100" />
-            <GridColumn Field="SecondaryArtist" HeaderText="Secondary Artist" EditType="EditType.DropDownEdit" Width="150" />
-        </GridColumns>
-    </SfGrid>
+    @if (songs.Count > 0 && artistLookups.Count > 0)
+    {
+        <SfGrid @ref="Grid" DataSource="@songs" AllowPaging="true" AllowSorting="true" AllowFiltering="true" AllowSelection="true" Toolbar="@(new List<string>() { "Add", "Edit", "Delete", "Update", "Cancel", "Search" })">
+            <GridEditSettings AllowAdding="true" AllowEditing="true" AllowDeleting="true" Mode="EditMode.Normal"></GridEditSettings>
+            <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.FilterBar"></GridFilterSettings>
+            <GridPageSettings PageSizes="true"></GridPageSettings>
+            <GridSelectionSettings Type="Syncfusion.Blazor.Grids.SelectionType.Multiple"></GridSelectionSettings>
+            <GridColumns>
+                <GridColumn Type="Syncfusion.Blazor.Grids.ColumnType.CheckBox" Width="50"></GridColumn>
+                <GridColumn Field="Id" HeaderText="ID" IsPrimaryKey="true" Visible="false" Width="50" TextAlign="TextAlign.Right" ValidationRules="@(new ValidationRules{ Required=true })" />
+                <GridColumn Field="Title" HeaderText="Title" Width="200" ValidationRules="@(new ValidationRules{ Required=true })" />
+                <GridColumn Field="ArtistName" HeaderText="Artist" Width="200">
+                    <Template Context="context">
+                        @{
+                            var song = context as SongDisplay;
+                        }
+                        <span>@song?.ArtistName</span>
+                    </Template>
+                    <EditTemplate Context="context">
+                        @{
+                            var song = context as SongDisplay;
+                        }
+                        <SfAutoComplete TValue="string" TItem="ArtistLookup" DataSource="@artistLookups" @bind-Value="song.ArtistName" Placeholder="Search artist...">
+                            <AutoCompleteFieldSettings Value="Name" Text="Name" />
+                        </SfAutoComplete>
+                    </EditTemplate>
+                </GridColumn>
+                <GridColumn Field="Genre" HeaderText="Genre" EditType="EditType.DropDownEdit" Width="150" />
+                <GridColumn Field="Year" HeaderText="Year" EditType="EditType.NumericEdit" Width="100" />
+                <GridColumn Field="SecondaryArtist" HeaderText="Secondary Artist" EditType="EditType.DropDownEdit" Width="150" />
+            </GridColumns>
+        </SfGrid>
+    }
+    else
+    {
+        <div>Loading...</div>
+    }
 </div>
 
 <style>
 .songs-container {
-    max-width: 1000px;
+    max-width: 1200px;
     margin: 32px auto 32px auto;
     padding: 24px;
     background: #fff;
@@ -35,10 +63,36 @@
 </style>
 
 @code {
-    private List<Song> songs = new();
+    private List<SongDisplay> songs = new();
+    private List<ArtistLookup> artistLookups = new();
+    private SfGrid<SongDisplay> Grid;
+
     protected override async Task OnInitializedAsync()
     {
-        var songService = new SongService($"Data Source={Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Temp", "Karaoke.sqlite3")}");
-        songs = await songService.GetSongsAsync();
+        var connectionString = $"Data Source={Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Temp", "Karaoke.sqlite3")}";
+        var songService = new SongService(connectionString);
+        var artistService = new ArtistLookupService(connectionString);
+        var rawSongs = await songService.GetSongsAsync();
+        artistLookups = await artistService.GetArtistLookupsAsync();
+        songs = rawSongs.Select(s => new SongDisplay
+        {
+            Id = s.Id,
+            Title = s.Title,
+            Artist = s.Artist,
+            ArtistName = artistLookups.FirstOrDefault(a => a.Id == s.Artist)?.Name ?? "",
+            Genre = s.Genre,
+            Year = s.Year,
+            SecondaryArtist = s.SecondaryArtist
+        }).ToList();
+        StateHasChanged();
+        if (Grid != null)
+        {
+            await Grid.Refresh();
+        }
+    }
+
+    public class SongDisplay : Song
+    {
+        public string ArtistName { get; set; } = string.Empty;
     }
 }
