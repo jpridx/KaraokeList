@@ -1,0 +1,84 @@
+@page "/genres"
+@rendermode InteractiveServer
+@using KaraokeList.Data
+@using Syncfusion.Blazor.Grids
+@inject IServiceProvider ServiceProvider
+@inject NavigationManager Navigation
+
+<PageTitle>Genres</PageTitle>
+
+<h3>Genres</h3>
+<div class="genres-container">
+    <SfGrid @ref="Grid" DataSource="@genres"
+            AllowPaging="true"
+            AllowSorting="true"
+            AllowFiltering="true"
+            AllowReordering="true"
+            AllowResizing="true"
+            AllowGrouping="true"
+            AllowSelection="true"
+            Toolbar="@(new List<string>() { "Add", "Edit", "Delete", "Update", "Cancel", "Search" })"
+            ActionBegin="@OnActionBegin">
+        <GridEditSettings AllowAdding="true" AllowEditing="true" AllowDeleting="true" Mode="EditMode.Normal"></GridEditSettings>
+        <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.FilterBar"></GridFilterSettings>
+        <GridPageSettings PageSizes="true"></GridPageSettings>
+        <GridSelectionSettings Type="Syncfusion.Blazor.Grids.SelectionType.Multiple"></GridSelectionSettings>
+        <GridColumns>
+            <GridColumn Type="Syncfusion.Blazor.Grids.ColumnType.CheckBox" Width="50"></GridColumn>
+            <GridColumn Field="Id" HeaderText="ID" IsPrimaryKey="true" Visible="false" Width="50" TextAlign="TextAlign.Right" ValidationRules="@(new ValidationRules{ Required=true })" />
+            <GridColumn Field="GenreName" HeaderText="Genre Name" Width="300" ValidationRules="@(new ValidationRules{ Required=true })" />
+        </GridColumns>
+    </SfGrid>
+</div>
+
+<style>
+.genres-container {
+    max-width: 1200px;
+    margin: 32px auto 32px auto;
+    padding: 24px;
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    border-radius: 8px;
+}
+</style>
+
+@code {
+    private List<Genre> genres = new();
+    private GenreService genreService;
+    private string connectionString;
+    private SfGrid<Genre> Grid;
+
+    protected override async Task OnInitializedAsync()
+    {
+        connectionString = $"Data Source={Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Temp", "Karaoke.sqlite3")}";
+        genreService = new GenreService(connectionString);
+        genres = await genreService.GetGenresAsync();
+    }
+
+    private async Task OnActionBegin(ActionEventArgs<Genre> args)
+    {
+        if (args.RequestType == Syncfusion.Blazor.Grids.Action.Save)
+        {
+            if (args.Data != null)
+            {
+                if (args.Action == "Add")
+                {
+                    await genreService.AddGenreAsync(args.Data);
+                }
+                else if (args.Action == "Edit")
+                {
+                    await genreService.UpdateGenreAsync(args.Data);
+                }
+                genres = await genreService.GetGenresAsync();
+            }
+        }
+        else if (args.RequestType == Syncfusion.Blazor.Grids.Action.Delete)
+        {
+            if (args.Data != null)
+            {
+                await genreService.DeleteGenreAsync(args.Data.Id);
+                genres = await genreService.GetGenresAsync();
+            }
+        }
+    }
+}

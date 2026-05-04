@@ -33,6 +33,39 @@ The app uses a temporary SQLite file located under `Temp/Karaoke.sqlite3` and pr
 - Supports paging, sorting, filtering, grouping, resizing, selection, and inline add/edit/delete.
 - Uses `ArtistService` to load, add, update, and delete artists.
 
+### Venues
+- File: `Components/Pages/Venues.razor`
+- Route: `/venues`
+- Purpose: manage karaoke venues.
+- Displays a Syncfusion data grid with venue records.
+- Supports paging, sorting, filtering, selection, and inline add/edit/delete.
+- Uses `VenueService` to load, add, update, and delete venues.
+
+### Genres
+- File: `Components/Pages/Genres.razor`
+- Route: `/genres`
+- Purpose: manage music genres.
+- Displays a Syncfusion data grid with genre records.
+- Supports paging, sorting, filtering, selection, and inline add/edit/delete.
+- Uses `GenreService` to load, add, update, and delete genres.
+
+### Singers
+- File: `Components/Pages/Singers.razor`
+- Route: `/singers`
+- Purpose: manage singers.
+- Displays a Syncfusion data grid with singer records.
+- Supports paging, sorting, filtering, selection, and inline add/edit/delete.
+- Uses `SingerService` to load, add, update, and delete singers.
+
+### Singer Songs
+- File: `Components/Pages/SingerSongs.razor`
+- Route: `/singer-songs`
+- Purpose: administrative management of singer song performances.
+- Displays a Syncfusion data grid with singer-song records tracking performances.
+- Tracks singer, song, venue, first performance date, last performance date, and performance count.
+- Supports paging, sorting, filtering, selection, and inline add/edit/delete.
+- Uses `SingerSongService` to manage records. Later, a user-facing page will allow singers to log performances.
+
 ### Auth
 - File: `Components/Pages/Auth.razor`
 - Route: `/auth`

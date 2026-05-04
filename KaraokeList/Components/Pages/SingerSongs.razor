@@ -1,0 +1,122 @@
+@page "/singer-songs"
+@rendermode InteractiveServer
+@using KaraokeList.Data
+@using Syncfusion.Blazor.Grids
+@using Syncfusion.Blazor.DropDowns
+@inject IServiceProvider ServiceProvider
+@inject NavigationManager Navigation
+
+<PageTitle>Singer Songs</PageTitle>
+
+<h3>Singer Songs</h3>
+<div class="singer-songs-container">
+    @if (!isLoading)
+    {
+        @if (singers.Count == 0 || songs.Count == 0 || venues.Count == 0)
+        {
+            <div class="alert alert-warning" role="alert">
+                <strong>Setup Required:</strong> Please create at least one singer, song, and venue before managing singer songs.
+            </div>
+        }
+        else
+        {
+            <SfGrid @ref="Grid" DataSource="@singerSongs"
+                    AllowPaging="true"
+                    AllowSorting="true"
+                    AllowFiltering="true"
+                    AllowSelection="true"
+                    Toolbar="@(new List<string>() { "Add", "Edit", "Delete", "Update", "Cancel", "Search" })"
+                    ActionBegin="@OnActionBegin">
+                <GridEditSettings AllowAdding="true" AllowEditing="true" AllowDeleting="true" Mode="EditMode.Normal"></GridEditSettings>
+                <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.FilterBar"></GridFilterSettings>
+                <GridPageSettings PageSizes="true"></GridPageSettings>
+                <GridSelectionSettings Type="Syncfusion.Blazor.Grids.SelectionType.Multiple"></GridSelectionSettings>
+                <GridColumns>
+                    <GridColumn Type="Syncfusion.Blazor.Grids.ColumnType.CheckBox" Width="50"></GridColumn>
+                    <GridColumn Field="Id" HeaderText="ID" IsPrimaryKey="true" Visible="false" Width="50" TextAlign="TextAlign.Right" ValidationRules="@(new ValidationRules{ Required=true })" />
+                    <GridColumn Field="Singer" HeaderText="Singer" EditType="EditType.DropDownEdit" Width="150" />
+                    <GridColumn Field="Song" HeaderText="Song" EditType="EditType.DropDownEdit" Width="150" />
+                    <GridColumn Field="Venue" HeaderText="Venue" EditType="EditType.DropDownEdit" Width="150" />
+                    <GridColumn Field="FirstSung" HeaderText="First Sung" EditType="EditType.DatePickerEdit" Format="d" Type="Syncfusion.Blazor.Grids.ColumnType.Date" Width="120" />
+                    <GridColumn Field="LastSung" HeaderText="Last Sung" EditType="EditType.DatePickerEdit" Format="d" Type="Syncfusion.Blazor.Grids.ColumnType.Date" Width="120" />
+                    <GridColumn Field="Count" HeaderText="Count" EditType="EditType.NumericEdit" Width="80" />
+                </GridColumns>
+            </SfGrid>
+        }
+    }
+    else
+    {
+        <div class="text-muted">Loading...</div>
+    }
+</div>
+
+<style>
+.singer-songs-container {
+    max-width: 1400px;
+    margin: 32px auto 32px auto;
+    padding: 24px;
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    border-radius: 8px;
+}
+</style>
+
+@code {
+    private List<SingerSong> singerSongs = new();
+    private List<Singer> singers = new();
+    private List<Song> songs = new();
+    private List<Venue> venues = new();
+    private SingerSongService singerSongService;
+    private string connectionString;
+    private SfGrid<SingerSong> Grid;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            connectionString = $"Data Source={Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Temp", "Karaoke.sqlite3")}";
+            singerSongService = new SingerSongService(connectionString);
+            
+            var singerService = new SingerService(connectionString);
+            var songService = new SongService(connectionString);
+            var venueService = new VenueService(connectionString);
+            
+            singerSongs = await singerSongService.GetSingerSongsAsync();
+            singers = await singerService.GetSingersAsync();
+            songs = await songService.GetSongsAsync();
+            venues = await venueService.GetVenuesAsync();
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task OnActionBegin(ActionEventArgs<SingerSong> args)
+    {
+        if (args.RequestType == Syncfusion.Blazor.Grids.Action.Save)
+        {
+            if (args.Data != null)
+            {
+                if (args.Action == "Add")
+                {
+                    await singerSongService.AddSingerSongAsync(args.Data);
+                }
+                else if (args.Action == "Edit")
+                {
+                    await singerSongService.UpdateSingerSongAsync(args.Data);
+                }
+                singerSongs = await singerSongService.GetSingerSongsAsync();
+            }
+        }
+        else if (args.RequestType == Syncfusion.Blazor.Grids.Action.Delete)
+        {
+            if (args.Data != null)
+            {
+                await singerSongService.DeleteSingerSongAsync(args.Data.Id);
+                singerSongs = await singerSongService.GetSingerSongsAsync();
+            }
+        }
+    }
+}
