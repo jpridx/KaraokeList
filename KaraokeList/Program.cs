@@ -43,10 +43,8 @@ if (!string.IsNullOrWhiteSpace(syncfusionKey))
 {
     Syncfusion.Licensing.SyncfusionLicenseProvider.RegisterLicense(syncfusionKey);
 }
-else
-{
-    throw new InvalidOperationException("SyncfusionKey is missing from configuration.");
-}
+// When SyncfusionKey is not present, the application still runs with Syncfusion Blazor components.
+// The license key is optional here so the repository can stay free of private configuration.
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
