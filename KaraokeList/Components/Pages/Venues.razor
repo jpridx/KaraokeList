@@ -61,15 +61,16 @@
         {
             if (args.Data != null)
             {
-                if (args.Action == "Add")
+                if (args.Action?.Equals("Add", StringComparison.OrdinalIgnoreCase) == true)
                 {
                     await venueService.AddVenueAsync(args.Data);
                 }
-                else if (args.Action == "Edit")
+                else if (args.Action?.Equals("Edit", StringComparison.OrdinalIgnoreCase) == true)
                 {
                     await venueService.UpdateVenueAsync(args.Data);
                 }
                 venues = await venueService.GetVenuesAsync();
+                StateHasChanged();
             }
         }
         else if (args.RequestType == Syncfusion.Blazor.Grids.Action.Delete)
@@ -78,6 +79,7 @@
             {
                 await venueService.DeleteVenueAsync(args.Data.Id);
                 venues = await venueService.GetVenuesAsync();
+                StateHasChanged();
             }
         }
     }

@@ -61,15 +61,16 @@
         {
             if (args.Data != null)
             {
-                if (args.Action == "Add")
+                if (args.Action?.Equals("Add", StringComparison.OrdinalIgnoreCase) == true)
                 {
                     await genreService.AddGenreAsync(args.Data);
                 }
-                else if (args.Action == "Edit")
+                else if (args.Action?.Equals("Edit", StringComparison.OrdinalIgnoreCase) == true)
                 {
                     await genreService.UpdateGenreAsync(args.Data);
                 }
                 genres = await genreService.GetGenresAsync();
+                StateHasChanged();
             }
         }
         else if (args.RequestType == Syncfusion.Blazor.Grids.Action.Delete)
@@ -78,6 +79,7 @@
             {
                 await genreService.DeleteGenreAsync(args.Data.Id);
                 genres = await genreService.GetGenresAsync();
+                StateHasChanged();
             }
         }
     }

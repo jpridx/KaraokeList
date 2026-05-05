@@ -34,9 +34,12 @@
                 <GridColumns>
                     <GridColumn Type="Syncfusion.Blazor.Grids.ColumnType.CheckBox" Width="50"></GridColumn>
                     <GridColumn Field="Id" HeaderText="ID" IsPrimaryKey="true" Visible="false" Width="50" TextAlign="TextAlign.Right" ValidationRules="@(new ValidationRules{ Required=true })" />
-                    <GridColumn Field="Singer" HeaderText="Singer" EditType="EditType.DropDownEdit" Width="150" />
-                    <GridColumn Field="Song" HeaderText="Song" EditType="EditType.DropDownEdit" Width="150" />
-                    <GridColumn Field="Venue" HeaderText="Venue" EditType="EditType.DropDownEdit" Width="150" />
+                    <GridColumn Field="Singer" HeaderText="Singer" EditType="EditType.DropDownEdit" Width="150"
+                                DataSource="@singers" ForeignKeyField="Id" ForeignKeyValue="Name" />
+                    <GridColumn Field="Song" HeaderText="Song" EditType="EditType.DropDownEdit" Width="150"
+                                DataSource="@songs" ForeignKeyField="Id" ForeignKeyValue="Title" />
+                    <GridColumn Field="Venue" HeaderText="Venue" EditType="EditType.DropDownEdit" Width="150"
+                                DataSource="@venues" ForeignKeyField="Id" ForeignKeyValue="VenueName" />
                     <GridColumn Field="FirstSung" HeaderText="First Sung" EditType="EditType.DatePickerEdit" Format="d" Type="Syncfusion.Blazor.Grids.ColumnType.Date" Width="120" />
                     <GridColumn Field="LastSung" HeaderText="Last Sung" EditType="EditType.DatePickerEdit" Format="d" Type="Syncfusion.Blazor.Grids.ColumnType.Date" Width="120" />
                     <GridColumn Field="Count" HeaderText="Count" EditType="EditType.NumericEdit" Width="80" />
@@ -99,15 +102,16 @@
         {
             if (args.Data != null)
             {
-                if (args.Action == "Add")
+                if (args.Action?.Equals("Add", StringComparison.OrdinalIgnoreCase) == true)
                 {
                     await singerSongService.AddSingerSongAsync(args.Data);
                 }
-                else if (args.Action == "Edit")
+                else if (args.Action?.Equals("Edit", StringComparison.OrdinalIgnoreCase) == true)
                 {
                     await singerSongService.UpdateSingerSongAsync(args.Data);
                 }
                 singerSongs = await singerSongService.GetSingerSongsAsync();
+                StateHasChanged();
             }
         }
         else if (args.RequestType == Syncfusion.Blazor.Grids.Action.Delete)
@@ -116,6 +120,7 @@
             {
                 await singerSongService.DeleteSingerSongAsync(args.Data.Id);
                 singerSongs = await singerSongService.GetSingerSongsAsync();
+                StateHasChanged();
             }
         }
     }

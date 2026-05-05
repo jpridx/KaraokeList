@@ -64,15 +64,16 @@
         {
             if (args.Data != null)
             {
-                if (args.Action == "Add")
+                if (args.Action?.Equals("Add", StringComparison.OrdinalIgnoreCase) == true)
                 {
                     await artistService.AddArtistAsync(args.Data);
                 }
-                else if (args.Action == "Edit")
+                else if (args.Action?.Equals("Edit", StringComparison.OrdinalIgnoreCase) == true)
                 {
                     await artistService.UpdateArtistAsync(args.Data);
                 }
                 artists = await artistService.GetArtistsAsync();
+                StateHasChanged();
             }
         }
         else if (args.RequestType == Syncfusion.Blazor.Grids.Action.Delete)
@@ -81,6 +82,7 @@
             {
                 await artistService.DeleteArtistAsync(args.Data.Id);
                 artists = await artistService.GetArtistsAsync();
+                StateHasChanged();
             }
         }
     }

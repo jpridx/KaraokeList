@@ -18,7 +18,7 @@
             AllowGrouping="true"
             AllowSelection="true"
             Toolbar="@(new List<string>() { "Add", "Edit", "Delete", "Update", "Cancel", "Search" })"
-            ActionBegin="@OnActionBegin">
+            ActionComplete="@OnActionComplete">
         <GridEditSettings AllowAdding="true" AllowEditing="true" AllowDeleting="true" Mode="EditMode.Normal"></GridEditSettings>
         <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.FilterBar"></GridFilterSettings>
         <GridPageSettings PageSizes="true"></GridPageSettings>
@@ -55,21 +55,22 @@
         singers = await singerService.GetSingersAsync();
     }
 
-    private async Task OnActionBegin(ActionEventArgs<Singer> args)
+    private async Task OnActionComplete(ActionEventArgs<Singer> args)
     {
         if (args.RequestType == Syncfusion.Blazor.Grids.Action.Save)
         {
             if (args.Data != null)
             {
-                if (args.Action == "Add")
+                if (args.Action?.Equals("Add", StringComparison.OrdinalIgnoreCase) == true || args.Data.Id <= 0)
                 {
                     await singerService.AddSingerAsync(args.Data);
                 }
-                else if (args.Action == "Edit")
+                else
                 {
                     await singerService.UpdateSingerAsync(args.Data);
                 }
                 singers = await singerService.GetSingersAsync();
+                StateHasChanged();
             }
         }
         else if (args.RequestType == Syncfusion.Blazor.Grids.Action.Delete)
@@ -78,6 +79,7 @@
             {
                 await singerService.DeleteSingerAsync(args.Data.Id);
                 singers = await singerService.GetSingersAsync();
+                StateHasChanged();
             }
         }
     }
