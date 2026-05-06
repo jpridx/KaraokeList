@@ -17,8 +17,8 @@
             AllowResizing="true"
             AllowGrouping="true"
             AllowSelection="true"
-            Toolbar="@(new List<string>() { "Add", "Edit", "Delete", "Update", "Cancel", "Search" })"
-            ActionComplete="@OnActionComplete">
+            Toolbar="@(new List<string>() { "Add", "Edit", "Delete", "Update", "Cancel", "Search" })">
+        <GridEvents TValue="Singer" OnActionBegin="OnActionBegin"></GridEvents>
         <GridEditSettings AllowAdding="true" AllowEditing="true" AllowDeleting="true" Mode="EditMode.Normal"></GridEditSettings>
         <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.FilterBar"></GridFilterSettings>
         <GridPageSettings PageSizes="true"></GridPageSettings>
@@ -44,9 +44,9 @@
 
 @code {
     private List<Singer> singers = new();
-    private SingerService singerService;
-    private string connectionString;
-    private SfGrid<Singer> Grid;
+    private SingerService? singerService;
+    private string connectionString = string.Empty;
+    private SfGrid<Singer>? Grid;
 
     protected override async Task OnInitializedAsync()
     {
@@ -55,11 +55,11 @@
         singers = await singerService.GetSingersAsync();
     }
 
-    private async Task OnActionComplete(ActionEventArgs<Singer> args)
+    private async Task OnActionBegin(ActionEventArgs<Singer> args)
     {
         if (args.RequestType == Syncfusion.Blazor.Grids.Action.Save)
         {
-            if (args.Data != null)
+            if (args.Data != null && singerService != null)
             {
                 if (args.Action?.Equals("Add", StringComparison.OrdinalIgnoreCase) == true || args.Data.Id <= 0)
                 {
@@ -75,7 +75,7 @@
         }
         else if (args.RequestType == Syncfusion.Blazor.Grids.Action.Delete)
         {
-            if (args.Data != null)
+            if (args.Data != null && singerService != null)
             {
                 await singerService.DeleteSingerAsync(args.Data.Id);
                 singers = await singerService.GetSingersAsync();

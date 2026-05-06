@@ -15,6 +15,7 @@
     @if (songs.Count > 0 && artistLookups.Count > 0)
     {
         <SfGrid @ref="Grid" DataSource="@songs" AllowPaging="true" AllowSorting="true" AllowFiltering="true" AllowSelection="true" Toolbar="@(new List<string>() { "Add", "Edit", "Delete", "Update", "Cancel", "Search" })">
+            <GridEvents TValue="SongDisplay" OnActionBegin="OnActionBegin"></GridEvents>
             <GridEditSettings AllowAdding="true" AllowEditing="true" AllowDeleting="true" Mode="EditMode.Normal"></GridEditSettings>
             <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.FilterBar"></GridFilterSettings>
             <GridPageSettings PageSizes="true"></GridPageSettings>
@@ -34,7 +35,7 @@
                         @{
                             var song = context as SongDisplay;
                         }
-                        <SfAutoComplete TValue="string" TItem="ArtistLookup" DataSource="@artistLookups" @bind-Value="song.ArtistName" Placeholder="Search artist...">
+                        <SfAutoComplete TValue="string" TItem="ArtistLookup" DataSource="@artistLookups" @bind-Value="song!.ArtistName" Placeholder="Search artist...">
                             <AutoCompleteFieldSettings Value="Name" Text="Name" />
                         </SfAutoComplete>
                     </EditTemplate>
@@ -65,15 +66,26 @@
 @code {
     private List<SongDisplay> songs = new();
     private List<ArtistLookup> artistLookups = new();
-    private SfGrid<SongDisplay> Grid;
+    private SongService? songService;
+    private SfGrid<SongDisplay>? Grid;
 
     protected override async Task OnInitializedAsync()
     {
         var connectionString = $"Data Source={Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Temp", "Karaoke.sqlite3")}";
-        var songService = new SongService(connectionString);
+        songService = new SongService(connectionString);
         var artistService = new ArtistLookupService(connectionString);
-        var rawSongs = await songService.GetSongsAsync();
         artistLookups = await artistService.GetArtistLookupsAsync();
+        await LoadSongsAsync();
+    }
+
+    private async Task LoadSongsAsync()
+    {
+        if (songService is null)
+        {
+            return;
+        }
+
+        var rawSongs = await songService.GetSongsAsync();
         songs = rawSongs.Select(s => new SongDisplay
         {
             Id = s.Id,
@@ -88,6 +100,41 @@
         if (Grid != null)
         {
             await Grid.Refresh();
+        }
+    }
+
+    private async Task OnActionBegin(ActionEventArgs<SongDisplay> args)
+    {
+        if (songService is null)
+        {
+            return;
+        }
+
+        if (args.RequestType == Syncfusion.Blazor.Grids.Action.Save)
+        {
+            if (args.Data != null)
+            {
+                args.Data.Artist = artistLookups.FirstOrDefault(a => a.Name == args.Data.ArtistName)?.Id;
+
+                if (args.Data.Id <= 0)
+                {
+                    await songService.AddSongAsync(args.Data);
+                }
+                else
+                {
+                    await songService.UpdateSongAsync(args.Data);
+                }
+
+                await LoadSongsAsync();
+            }
+        }
+        else if (args.RequestType == Syncfusion.Blazor.Grids.Action.Delete)
+        {
+            if (args.Data != null)
+            {
+                await songService.DeleteSongAsync(args.Data.Id);
+                await LoadSongsAsync();
+            }
         }
     }
 

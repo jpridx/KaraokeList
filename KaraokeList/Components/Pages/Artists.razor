@@ -18,8 +18,8 @@
             AllowResizing="true"
             AllowGrouping="true"
             AllowSelection="true"
-            Toolbar="@(new List<string>() { "Add", "Edit", "Delete", "Update", "Cancel", "Search" })"
-            ActionBegin="@OnActionBegin">
+            Toolbar="@(new List<string>() { "Add", "Edit", "Delete", "Update", "Cancel", "Search" })">
+        <GridEvents TValue="Artist" OnActionBegin="OnActionBegin"></GridEvents>
         <GridEditSettings AllowAdding="true" AllowEditing="true" AllowDeleting="true" Mode="EditMode.Normal"></GridEditSettings>
         <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.FilterBar"></GridFilterSettings>
         <GridPageSettings PageSizes="true"></GridPageSettings>
@@ -47,9 +47,9 @@
 
 @code {
     private List<Artist> artists = new();
-    private ArtistService artistService;
-    private string connectionString;
-    private SfGrid<Artist> Grid;
+    private ArtistService? artistService;
+    private string connectionString = string.Empty;
+    private SfGrid<Artist>? Grid;
 
     protected override async Task OnInitializedAsync()
     {
@@ -64,15 +64,15 @@
         {
             if (args.Data != null)
             {
-                if (args.Action?.Equals("Add", StringComparison.OrdinalIgnoreCase) == true)
+                if (args.Data.Id <= 0)
                 {
-                    await artistService.AddArtistAsync(args.Data);
+                    await artistService!.AddArtistAsync(args.Data);
                 }
-                else if (args.Action?.Equals("Edit", StringComparison.OrdinalIgnoreCase) == true)
+                else
                 {
-                    await artistService.UpdateArtistAsync(args.Data);
+                    await artistService!.UpdateArtistAsync(args.Data);
                 }
-                artists = await artistService.GetArtistsAsync();
+                artists = await artistService!.GetArtistsAsync();
                 StateHasChanged();
             }
         }
@@ -80,8 +80,8 @@
         {
             if (args.Data != null)
             {
-                await artistService.DeleteArtistAsync(args.Data.Id);
-                artists = await artistService.GetArtistsAsync();
+                await artistService!.DeleteArtistAsync(args.Data.Id);
+                artists = await artistService!.GetArtistsAsync();
                 StateHasChanged();
             }
         }

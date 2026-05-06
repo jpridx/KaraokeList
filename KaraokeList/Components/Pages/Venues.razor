@@ -17,8 +17,8 @@
             AllowResizing="true"
             AllowGrouping="true"
             AllowSelection="true"
-            Toolbar="@(new List<string>() { "Add", "Edit", "Delete", "Update", "Cancel", "Search" })"
-            ActionBegin="@OnActionBegin">
+            Toolbar="@(new List<string>() { "Add", "Edit", "Delete", "Update", "Cancel", "Search" })">
+        <GridEvents TValue="Venue" OnActionBegin="OnActionBegin"></GridEvents>
         <GridEditSettings AllowAdding="true" AllowEditing="true" AllowDeleting="true" Mode="EditMode.Normal"></GridEditSettings>
         <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.FilterBar"></GridFilterSettings>
         <GridPageSettings PageSizes="true"></GridPageSettings>
@@ -44,13 +44,12 @@
 
 @code {
     private List<Venue> venues = new();
-    private VenueService venueService;
-    private string connectionString;
-    private SfGrid<Venue> Grid;
+    private VenueService? venueService;
+    private SfGrid<Venue>? Grid;
 
     protected override async Task OnInitializedAsync()
     {
-        connectionString = $"Data Source={Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Temp", "Karaoke.sqlite3")}";
+        var connectionString = $"Data Source={Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Temp", "Karaoke.sqlite3")}";
         venueService = new VenueService(connectionString);
         venues = await venueService.GetVenuesAsync();
     }
@@ -61,15 +60,15 @@
         {
             if (args.Data != null)
             {
-                if (args.Action?.Equals("Add", StringComparison.OrdinalIgnoreCase) == true)
+                if (args.Data.Id <= 0)
                 {
-                    await venueService.AddVenueAsync(args.Data);
+                    await venueService!.AddVenueAsync(args.Data);
                 }
-                else if (args.Action?.Equals("Edit", StringComparison.OrdinalIgnoreCase) == true)
+                else
                 {
-                    await venueService.UpdateVenueAsync(args.Data);
+                    await venueService!.UpdateVenueAsync(args.Data);
                 }
-                venues = await venueService.GetVenuesAsync();
+                venues = await venueService!.GetVenuesAsync();
                 StateHasChanged();
             }
         }
@@ -77,7 +76,7 @@
         {
             if (args.Data != null)
             {
-                await venueService.DeleteVenueAsync(args.Data.Id);
+                await venueService!.DeleteVenueAsync(args.Data.Id);
                 venues = await venueService.GetVenuesAsync();
                 StateHasChanged();
             }

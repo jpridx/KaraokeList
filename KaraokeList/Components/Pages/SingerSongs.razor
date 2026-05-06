@@ -25,8 +25,8 @@
                     AllowSorting="true"
                     AllowFiltering="true"
                     AllowSelection="true"
-                    Toolbar="@(new List<string>() { "Add", "Edit", "Delete", "Update", "Cancel", "Search" })"
-                    ActionBegin="@OnActionBegin">
+                    Toolbar="@(new List<string>() { "Add", "Edit", "Delete", "Update", "Cancel", "Search" })">
+                <GridEvents TValue="SingerSong" OnActionBegin="OnActionBegin"></GridEvents>
                 <GridEditSettings AllowAdding="true" AllowEditing="true" AllowDeleting="true" Mode="EditMode.Normal"></GridEditSettings>
                 <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.FilterBar"></GridFilterSettings>
                 <GridPageSettings PageSizes="true"></GridPageSettings>
@@ -69,9 +69,9 @@
     private List<Singer> singers = new();
     private List<Song> songs = new();
     private List<Venue> venues = new();
-    private SingerSongService singerSongService;
-    private string connectionString;
-    private SfGrid<SingerSong> Grid;
+    private SingerSongService? singerSongService;
+    private string connectionString = string.Empty;
+    private SfGrid<SingerSong>? Grid;
     private bool isLoading = true;
 
     protected override async Task OnInitializedAsync()
@@ -98,15 +98,20 @@
 
     private async Task OnActionBegin(ActionEventArgs<SingerSong> args)
     {
+        if (singerSongService == null)
+        {
+            return;
+        }
+
         if (args.RequestType == Syncfusion.Blazor.Grids.Action.Save)
         {
             if (args.Data != null)
             {
-                if (args.Action?.Equals("Add", StringComparison.OrdinalIgnoreCase) == true)
+                if (args.Action?.Equals("Add", StringComparison.OrdinalIgnoreCase) == true || args.Data.Id <= 0)
                 {
                     await singerSongService.AddSingerSongAsync(args.Data);
                 }
-                else if (args.Action?.Equals("Edit", StringComparison.OrdinalIgnoreCase) == true)
+                else
                 {
                     await singerSongService.UpdateSingerSongAsync(args.Data);
                 }
