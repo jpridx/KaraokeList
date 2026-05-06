@@ -44,13 +44,12 @@
 
 @code {
     private List<Singer> singers = new();
-    private SingerService? singerService;
-    private string connectionString = string.Empty;
-    private SfGrid<Singer>? Grid;
+    private SingerService singerService = default!;
+    private SfGrid<Singer> Grid = default!;
 
     protected override async Task OnInitializedAsync()
     {
-        connectionString = $"Data Source={Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Temp", "Karaoke.sqlite3")}";
+        var connectionString = $"Data Source={Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Temp", "Karaoke.sqlite3")}";
         singerService = new SingerService(connectionString);
         singers = await singerService.GetSingersAsync();
     }
@@ -59,9 +58,9 @@
     {
         if (args.RequestType == Syncfusion.Blazor.Grids.Action.Save)
         {
-            if (args.Data != null && singerService != null)
+            if (args.Data != null)
             {
-                if (args.Action?.Equals("Add", StringComparison.OrdinalIgnoreCase) == true || args.Data.Id <= 0)
+                if (args.Data.Id <= 0)
                 {
                     await singerService.AddSingerAsync(args.Data);
                 }
@@ -75,7 +74,7 @@
         }
         else if (args.RequestType == Syncfusion.Blazor.Grids.Action.Delete)
         {
-            if (args.Data != null && singerService != null)
+            if (args.Data != null)
             {
                 await singerService.DeleteSingerAsync(args.Data.Id);
                 singers = await singerService.GetSingersAsync();

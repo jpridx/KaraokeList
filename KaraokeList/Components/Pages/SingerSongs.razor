@@ -69,16 +69,15 @@
     private List<Singer> singers = new();
     private List<Song> songs = new();
     private List<Venue> venues = new();
-    private SingerSongService? singerSongService;
-    private string connectionString = string.Empty;
-    private SfGrid<SingerSong>? Grid;
+    private SingerSongService singerSongService = default!;
+    private SfGrid<SingerSong> Grid = default!;
     private bool isLoading = true;
 
     protected override async Task OnInitializedAsync()
     {
         try
         {
-            connectionString = $"Data Source={Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Temp", "Karaoke.sqlite3")}";
+            var connectionString = $"Data Source={Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Temp", "Karaoke.sqlite3")}";
             singerSongService = new SingerSongService(connectionString);
             
             var singerService = new SingerService(connectionString);
@@ -98,16 +97,11 @@
 
     private async Task OnActionBegin(ActionEventArgs<SingerSong> args)
     {
-        if (singerSongService == null)
-        {
-            return;
-        }
-
         if (args.RequestType == Syncfusion.Blazor.Grids.Action.Save)
         {
             if (args.Data != null)
             {
-                if (args.Action?.Equals("Add", StringComparison.OrdinalIgnoreCase) == true || args.Data.Id <= 0)
+                if (args.Data.Id <= 0)
                 {
                     await singerSongService.AddSingerSongAsync(args.Data);
                 }

@@ -44,8 +44,8 @@
 
 @code {
     private List<Venue> venues = new();
-    private VenueService? venueService;
-    private SfGrid<Venue>? Grid;
+    private VenueService venueService = default!;
+    private SfGrid<Venue> Grid = default!;
 
     protected override async Task OnInitializedAsync()
     {
@@ -76,7 +76,7 @@
         {
             if (args.Data != null)
             {
-                await venueService!.DeleteVenueAsync(args.Data.Id);
+                await venueService.DeleteVenueAsync(args.Data.Id);
                 venues = await venueService.GetVenuesAsync();
                 StateHasChanged();
             }

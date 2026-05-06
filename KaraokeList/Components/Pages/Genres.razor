@@ -45,12 +45,11 @@
 @code {
     private List<Genre> genres = new();
     private GenreService genreService = default!;
-    private string connectionString = string.Empty;
     private SfGrid<Genre> Grid = default!;
 
     protected override async Task OnInitializedAsync()
     {
-        connectionString = $"Data Source={Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Temp", "Karaoke.sqlite3")}";
+        var connectionString = $"Data Source={Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Temp", "Karaoke.sqlite3")}";
         genreService = new GenreService(connectionString);
         genres = await genreService.GetGenresAsync();
     }

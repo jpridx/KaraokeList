@@ -66,8 +66,8 @@
 @code {
     private List<SongDisplay> songs = new();
     private List<ArtistLookup> artistLookups = new();
-    private SongService? songService;
-    private SfGrid<SongDisplay>? Grid;
+    private SongService songService = default!;
+    private SfGrid<SongDisplay> Grid = default!;
 
     protected override async Task OnInitializedAsync()
     {
@@ -80,11 +80,6 @@
 
     private async Task LoadSongsAsync()
     {
-        if (songService is null)
-        {
-            return;
-        }
-
         var rawSongs = await songService.GetSongsAsync();
         songs = rawSongs.Select(s => new SongDisplay
         {
@@ -97,7 +92,7 @@
             SecondaryArtist = s.SecondaryArtist
         }).ToList();
         StateHasChanged();
-        if (Grid != null)
+        if (Grid is not null)
         {
             await Grid.Refresh();
         }
@@ -105,11 +100,6 @@
 
     private async Task OnActionBegin(ActionEventArgs<SongDisplay> args)
     {
-        if (songService is null)
-        {
-            return;
-        }
-
         if (args.RequestType == Syncfusion.Blazor.Grids.Action.Save)
         {
             if (args.Data != null)
