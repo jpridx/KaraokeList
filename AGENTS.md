@@ -52,7 +52,7 @@ Then apply the ASP.NET Identity tables from the migration in `KaraokeList/Data/M
 - **Syncfusion license key** is optional. The app runs without it (shows a trial watermark but is fully functional).
 - **HTTPS redirect** will fail in cloud environments; always use the `http` launch profile.
 - **The SQLite database file** is bundled in the repo and copied to the output directory on build. No migration needed for business data.
-- **CRUD operations do not persist** — The Syncfusion grid's `ActionBegin` handler in the Razor pages (Genres, Artists, Venues, etc.) does not successfully write to the SQLite database. Adds/edits appear in the UI grid temporarily but are lost on navigation. The `AddGenreAsync`/`UpdateGenreAsync` calls are either not reached or silently fail. This is a known application bug (not an environment issue). The SQLite file at `bin/Debug/net10.0/Temp/Karaoke.sqlite3` can be verified with `sqlite3` CLI to confirm writes are not persisted.
+- **CRUD persistence verification** — The editable Syncfusion grids persist through `GridEvents` handlers that call the SQLite services. When changing catalog CRUD behavior, verify with the running app and inspect `bin/Debug/net10.0/Temp/Karaoke.sqlite3` using `sqlite3`.
 
 ### Build & run commands
 
