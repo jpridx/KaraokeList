@@ -44,9 +44,9 @@
 
 @code {
     private List<Genre> genres = new();
-    private GenreService genreService;
-    private string connectionString;
-    private SfGrid<Genre> Grid;
+    private GenreService genreService = default!;
+    private string connectionString = default!;
+    private SfGrid<Genre> Grid = default!;
 
     protected override async Task OnInitializedAsync()
     {

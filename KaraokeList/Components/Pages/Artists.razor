@@ -47,9 +47,9 @@
 
 @code {
     private List<Artist> artists = new();
-    private ArtistService artistService;
-    private string connectionString;
-    private SfGrid<Artist> Grid;
+    private ArtistService artistService = default!;
+    private string connectionString = default!;
+    private SfGrid<Artist> Grid = default!;
 
     protected override async Task OnInitializedAsync()
     {

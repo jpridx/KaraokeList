@@ -33,7 +33,7 @@
                     </Template>
                     <EditTemplate Context="context">
                         @{
-                            var song = context as SongDisplay;
+                            var song = (SongDisplay)context;
                         }
                         <SfAutoComplete TValue="string" TItem="ArtistLookup" DataSource="@artistLookups" @bind-Value="song.ArtistName" Placeholder="Search artist...">
                             <AutoCompleteFieldSettings Value="Name" Text="Name" />
@@ -66,10 +66,10 @@
 @code {
     private List<SongDisplay> songs = new();
     private List<ArtistLookup> artistLookups = new();
-    private SfGrid<SongDisplay> Grid;
-    private SongService songService;
-    private ArtistLookupService artistService;
-    private string connectionString;
+    private SfGrid<SongDisplay> Grid = default!;
+    private SongService songService = default!;
+    private ArtistLookupService artistService = default!;
+    private string connectionString = default!;
 
     protected override async Task OnInitializedAsync()
     {

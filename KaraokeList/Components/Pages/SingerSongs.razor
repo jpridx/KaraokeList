@@ -69,9 +69,9 @@
     private List<Singer> singers = new();
     private List<Song> songs = new();
     private List<Venue> venues = new();
-    private SingerSongService singerSongService;
-    private string connectionString;
-    private SfGrid<SingerSong> Grid;
+    private SingerSongService singerSongService = default!;
+    private string connectionString = default!;
+    private SfGrid<SingerSong> Grid = default!;
     private bool isLoading = true;
 
     protected override async Task OnInitializedAsync()

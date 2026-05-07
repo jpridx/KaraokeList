@@ -44,9 +44,9 @@
 
 @code {
     private List<Singer> singers = new();
-    private SingerService singerService;
-    private string connectionString;
-    private SfGrid<Singer> Grid;
+    private SingerService singerService = default!;
+    private string connectionString = default!;
+    private SfGrid<Singer> Grid = default!;
 
     protected override async Task OnInitializedAsync()
     {

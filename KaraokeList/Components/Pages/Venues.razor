@@ -44,9 +44,9 @@
 
 @code {
     private List<Venue> venues = new();
-    private VenueService venueService;
-    private string connectionString;
-    private SfGrid<Venue> Grid;
+    private VenueService venueService = default!;
+    private string connectionString = default!;
+    private SfGrid<Venue> Grid = default!;
 
     protected override async Task OnInitializedAsync()
     {
