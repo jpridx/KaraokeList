@@ -45,18 +45,19 @@ namespace KaraokeList.Data
             return songs;
         }
 
-        public async Task AddSongAsync(Song song)
+        public async Task<int> AddSongAsync(Song song)
         {
             using var connection = new SqliteConnection(_connectionString);
             await connection.OpenAsync();
             var command = connection.CreateCommand();
-            command.CommandText = @"INSERT INTO Songs (Title, Artist, Genre, Year, SecondaryArtist) VALUES (@Title, @Artist, @Genre, @Year, @SecondaryArtist);";
+            command.CommandText = @"INSERT INTO Songs (Title, Artist, Genre, Year, SecondaryArtist) VALUES (@Title, @Artist, @Genre, @Year, @SecondaryArtist);
+                                    SELECT last_insert_rowid();";
             command.Parameters.AddWithValue("@Title", song.Title);
             command.Parameters.AddWithValue("@Artist", (object?)song.Artist ?? DBNull.Value);
             command.Parameters.AddWithValue("@Genre", (object?)song.Genre ?? DBNull.Value);
             command.Parameters.AddWithValue("@Year", (object?)song.Year ?? DBNull.Value);
             command.Parameters.AddWithValue("@SecondaryArtist", (object?)song.SecondaryArtist ?? DBNull.Value);
-            await command.ExecuteNonQueryAsync();
+            return Convert.ToInt32(await command.ExecuteScalarAsync());
         }
 
         public async Task UpdateSongAsync(Song song)

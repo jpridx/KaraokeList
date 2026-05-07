@@ -38,14 +38,15 @@ namespace KaraokeList.Data
             return genres;
         }
 
-        public async Task AddGenreAsync(Genre genre)
+        public async Task<int> AddGenreAsync(Genre genre)
         {
             using var connection = new SqliteConnection(_connectionString);
             await connection.OpenAsync();
             var command = connection.CreateCommand();
-            command.CommandText = @"INSERT INTO Genres (GenreName) VALUES (@GenreName);";
+            command.CommandText = @"INSERT INTO Genres (GenreName) VALUES (@GenreName);
+                                    SELECT last_insert_rowid();";
             command.Parameters.AddWithValue("@GenreName", genre.GenreName);
-            await command.ExecuteNonQueryAsync();
+            return Convert.ToInt32(await command.ExecuteScalarAsync());
         }
 
         public async Task UpdateGenreAsync(Genre genre)

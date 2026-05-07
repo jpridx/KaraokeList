@@ -15,7 +15,7 @@
     @if (songs.Count > 0 && artistLookups.Count > 0)
     {
         <SfGrid @ref="Grid" DataSource="@songs" AllowPaging="true" AllowSorting="true" AllowFiltering="true" AllowSelection="true" Toolbar="@(new List<string>() { "Add", "Edit", "Delete", "Update", "Cancel", "Search" })">
-            <GridEvents OnActionBegin="OnActionBegin" TValue="SongDisplay"></GridEvents>
+            <GridEvents OnActionComplete="OnActionComplete" TValue="SongDisplay"></GridEvents>
             <GridEditSettings AllowAdding="true" AllowEditing="true" AllowDeleting="true" Mode="EditMode.Normal"></GridEditSettings>
             <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.FilterBar"></GridFilterSettings>
             <GridPageSettings PageSizes="true"></GridPageSettings>
@@ -100,7 +100,7 @@
         }).ToList();
     }
 
-    private async Task OnActionBegin(ActionEventArgs<SongDisplay> args)
+    private async Task OnActionComplete(ActionEventArgs<SongDisplay> args)
     {
         if (args.RequestType == Syncfusion.Blazor.Grids.Action.Save)
         {
@@ -109,7 +109,7 @@
                 var song = ToSong(args.Data);
                 if (args.Action?.Equals("Add", StringComparison.OrdinalIgnoreCase) == true || song.Id <= 0)
                 {
-                    await songService.AddSongAsync(song);
+                    args.Data.Id = await songService.AddSongAsync(song);
                 }
                 else
                 {
@@ -117,6 +117,7 @@
                 }
 
                 await LoadSongsAsync();
+                await Grid.Refresh();
                 StateHasChanged();
             }
         }
@@ -126,6 +127,7 @@
             {
                 await songService.DeleteSongAsync(args.Data.Id);
                 await LoadSongsAsync();
+                await Grid.Refresh();
                 StateHasChanged();
             }
         }

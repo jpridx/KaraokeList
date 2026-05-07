@@ -41,16 +41,17 @@ namespace KaraokeList.Data
             return artists;
         }
 
-        public async Task AddArtistAsync(Artist artist)
+        public async Task<int> AddArtistAsync(Artist artist)
         {
             using var connection = new SqliteConnection(_connectionString);
             await connection.OpenAsync();
             var command = connection.CreateCommand();
-            command.CommandText = @"INSERT INTO Artists (Name, SortableName, MainGenre) VALUES (@Name, @SortableName, @MainGenre);";
+            command.CommandText = @"INSERT INTO Artists (Name, SortableName, MainGenre) VALUES (@Name, @SortableName, @MainGenre);
+                                    SELECT last_insert_rowid();";
             command.Parameters.AddWithValue("@Name", artist.Name);
             command.Parameters.AddWithValue("@SortableName", (object?)artist.SortableName ?? DBNull.Value);
             command.Parameters.AddWithValue("@MainGenre", (object?)artist.MainGenre ?? DBNull.Value);
-            await command.ExecuteNonQueryAsync();
+            return Convert.ToInt32(await command.ExecuteScalarAsync());
         }
 
         public async Task UpdateArtistAsync(Artist artist)

@@ -63,13 +63,14 @@
             {
                 if (args.Action?.Equals("Add", StringComparison.OrdinalIgnoreCase) == true || args.Data.Id <= 0)
                 {
-                    await singerService.AddSingerAsync(args.Data);
+                    args.Data.Id = await singerService.AddSingerAsync(args.Data);
                 }
                 else
                 {
                     await singerService.UpdateSingerAsync(args.Data);
                 }
                 singers = await singerService.GetSingersAsync();
+                await Grid.Refresh();
                 StateHasChanged();
             }
         }
@@ -79,6 +80,7 @@
             {
                 await singerService.DeleteSingerAsync(args.Data.Id);
                 singers = await singerService.GetSingersAsync();
+                await Grid.Refresh();
                 StateHasChanged();
             }
         }

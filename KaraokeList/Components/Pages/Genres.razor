@@ -18,7 +18,7 @@
             AllowGrouping="true"
             AllowSelection="true"
             Toolbar="@(new List<string>() { "Add", "Edit", "Delete", "Update", "Cancel", "Search" })">
-        <GridEvents OnActionBegin="OnActionBegin" TValue="Genre"></GridEvents>
+        <GridEvents OnActionComplete="OnActionComplete" TValue="Genre"></GridEvents>
         <GridEditSettings AllowAdding="true" AllowEditing="true" AllowDeleting="true" Mode="EditMode.Normal"></GridEditSettings>
         <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.FilterBar"></GridFilterSettings>
         <GridPageSettings PageSizes="true"></GridPageSettings>
@@ -55,7 +55,7 @@
         genres = await genreService.GetGenresAsync();
     }
 
-    private async Task OnActionBegin(ActionEventArgs<Genre> args)
+    private async Task OnActionComplete(ActionEventArgs<Genre> args)
     {
         if (args.RequestType == Syncfusion.Blazor.Grids.Action.Save)
         {
@@ -63,13 +63,14 @@
             {
                 if (args.Action?.Equals("Add", StringComparison.OrdinalIgnoreCase) == true || args.Data.Id <= 0)
                 {
-                    await genreService.AddGenreAsync(args.Data);
+                    args.Data.Id = await genreService.AddGenreAsync(args.Data);
                 }
                 else
                 {
                     await genreService.UpdateGenreAsync(args.Data);
                 }
                 genres = await genreService.GetGenresAsync();
+                await Grid.Refresh();
                 StateHasChanged();
             }
         }
@@ -79,6 +80,7 @@
             {
                 await genreService.DeleteGenreAsync(args.Data.Id);
                 genres = await genreService.GetGenresAsync();
+                await Grid.Refresh();
                 StateHasChanged();
             }
         }

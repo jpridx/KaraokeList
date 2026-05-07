@@ -38,14 +38,15 @@ namespace KaraokeList.Data
             return singers;
         }
 
-        public async Task AddSingerAsync(Singer singer)
+        public async Task<int> AddSingerAsync(Singer singer)
         {
             using var connection = new SqliteConnection(_connectionString);
             await connection.OpenAsync();
             var command = connection.CreateCommand();
-            command.CommandText = @"INSERT INTO Singers (Name) VALUES (@Name);";
+            command.CommandText = @"INSERT INTO Singers (Name) VALUES (@Name);
+                                    SELECT last_insert_rowid();";
             command.Parameters.AddWithValue("@Name", singer.Name);
-            await command.ExecuteNonQueryAsync();
+            return Convert.ToInt32(await command.ExecuteScalarAsync());
         }
 
         public async Task UpdateSingerAsync(Singer singer)

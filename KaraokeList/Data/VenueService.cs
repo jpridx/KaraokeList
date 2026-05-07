@@ -38,14 +38,15 @@ namespace KaraokeList.Data
             return venues;
         }
 
-        public async Task AddVenueAsync(Venue venue)
+        public async Task<int> AddVenueAsync(Venue venue)
         {
             using var connection = new SqliteConnection(_connectionString);
             await connection.OpenAsync();
             var command = connection.CreateCommand();
-            command.CommandText = @"INSERT INTO Venues (VenueName) VALUES (@VenueName);";
+            command.CommandText = @"INSERT INTO Venues (VenueName) VALUES (@VenueName);
+                                    SELECT last_insert_rowid();";
             command.Parameters.AddWithValue("@VenueName", venue.VenueName);
-            await command.ExecuteNonQueryAsync();
+            return Convert.ToInt32(await command.ExecuteScalarAsync());
         }
 
         public async Task UpdateVenueAsync(Venue venue)

@@ -18,7 +18,7 @@
             AllowGrouping="true"
             AllowSelection="true"
             Toolbar="@(new List<string>() { "Add", "Edit", "Delete", "Update", "Cancel", "Search" })">
-        <GridEvents OnActionBegin="OnActionBegin" TValue="Venue"></GridEvents>
+        <GridEvents OnActionComplete="OnActionComplete" TValue="Venue"></GridEvents>
         <GridEditSettings AllowAdding="true" AllowEditing="true" AllowDeleting="true" Mode="EditMode.Normal"></GridEditSettings>
         <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.FilterBar"></GridFilterSettings>
         <GridPageSettings PageSizes="true"></GridPageSettings>
@@ -55,7 +55,7 @@
         venues = await venueService.GetVenuesAsync();
     }
 
-    private async Task OnActionBegin(ActionEventArgs<Venue> args)
+    private async Task OnActionComplete(ActionEventArgs<Venue> args)
     {
         if (args.RequestType == Syncfusion.Blazor.Grids.Action.Save)
         {
@@ -63,13 +63,14 @@
             {
                 if (args.Action?.Equals("Add", StringComparison.OrdinalIgnoreCase) == true || args.Data.Id <= 0)
                 {
-                    await venueService.AddVenueAsync(args.Data);
+                    args.Data.Id = await venueService.AddVenueAsync(args.Data);
                 }
                 else
                 {
                     await venueService.UpdateVenueAsync(args.Data);
                 }
                 venues = await venueService.GetVenuesAsync();
+                await Grid.Refresh();
                 StateHasChanged();
             }
         }
@@ -79,6 +80,7 @@
             {
                 await venueService.DeleteVenueAsync(args.Data.Id);
                 venues = await venueService.GetVenuesAsync();
+                await Grid.Refresh();
                 StateHasChanged();
             }
         }

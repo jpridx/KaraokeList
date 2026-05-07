@@ -19,7 +19,7 @@
             AllowGrouping="true"
             AllowSelection="true"
             Toolbar="@(new List<string>() { "Add", "Edit", "Delete", "Update", "Cancel", "Search" })">
-        <GridEvents OnActionBegin="OnActionBegin" TValue="Artist"></GridEvents>
+        <GridEvents OnActionComplete="OnActionComplete" TValue="Artist"></GridEvents>
         <GridEditSettings AllowAdding="true" AllowEditing="true" AllowDeleting="true" Mode="EditMode.Normal"></GridEditSettings>
         <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.FilterBar"></GridFilterSettings>
         <GridPageSettings PageSizes="true"></GridPageSettings>
@@ -58,7 +58,7 @@
         artists = await artistService.GetArtistsAsync();
     }
 
-    private async Task OnActionBegin(ActionEventArgs<Artist> args)
+    private async Task OnActionComplete(ActionEventArgs<Artist> args)
     {
         if (args.RequestType == Syncfusion.Blazor.Grids.Action.Save)
         {
@@ -66,13 +66,14 @@
             {
                 if (args.Action?.Equals("Add", StringComparison.OrdinalIgnoreCase) == true || args.Data.Id <= 0)
                 {
-                    await artistService.AddArtistAsync(args.Data);
+                    args.Data.Id = await artistService.AddArtistAsync(args.Data);
                 }
                 else
                 {
                     await artistService.UpdateArtistAsync(args.Data);
                 }
                 artists = await artistService.GetArtistsAsync();
+                await Grid.Refresh();
                 StateHasChanged();
             }
         }
@@ -82,6 +83,7 @@
             {
                 await artistService.DeleteArtistAsync(args.Data.Id);
                 artists = await artistService.GetArtistsAsync();
+                await Grid.Refresh();
                 StateHasChanged();
             }
         }
