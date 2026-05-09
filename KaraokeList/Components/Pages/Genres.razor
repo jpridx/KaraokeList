@@ -17,8 +17,8 @@
             AllowResizing="true"
             AllowGrouping="true"
             AllowSelection="true"
-            Toolbar="@(new List<string>() { "Add", "Edit", "Delete", "Update", "Cancel", "Search" })"
-            ActionBegin="@OnActionBegin">
+            Toolbar="@(new List<string>() { "Add", "Edit", "Delete", "Update", "Cancel", "Search" })">
+        <GridEvents TValue="Genre" OnActionBegin="OnActionBegin"></GridEvents>
         <GridEditSettings AllowAdding="true" AllowEditing="true" AllowDeleting="true" Mode="EditMode.Normal"></GridEditSettings>
         <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.FilterBar"></GridFilterSettings>
         <GridPageSettings PageSizes="true"></GridPageSettings>
@@ -44,13 +44,12 @@
 
 @code {
     private List<Genre> genres = new();
-    private GenreService genreService;
-    private string connectionString;
-    private SfGrid<Genre> Grid;
+    private GenreService genreService = default!;
+    private SfGrid<Genre> Grid = default!;
 
     protected override async Task OnInitializedAsync()
     {
-        connectionString = $"Data Source={Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Temp", "Karaoke.sqlite3")}";
+        var connectionString = $"Data Source={Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Temp", "Karaoke.sqlite3")}";
         genreService = new GenreService(connectionString);
         genres = await genreService.GetGenresAsync();
     }
@@ -61,11 +60,11 @@
         {
             if (args.Data != null)
             {
-                if (args.Action?.Equals("Add", StringComparison.OrdinalIgnoreCase) == true)
+                if (args.Data.Id <= 0)
                 {
                     await genreService.AddGenreAsync(args.Data);
                 }
-                else if (args.Action?.Equals("Edit", StringComparison.OrdinalIgnoreCase) == true)
+                else
                 {
                     await genreService.UpdateGenreAsync(args.Data);
                 }

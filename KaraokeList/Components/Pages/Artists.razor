@@ -18,8 +18,8 @@
             AllowResizing="true"
             AllowGrouping="true"
             AllowSelection="true"
-            Toolbar="@(new List<string>() { "Add", "Edit", "Delete", "Update", "Cancel", "Search" })"
-            ActionBegin="@OnActionBegin">
+            Toolbar="@(new List<string>() { "Add", "Edit", "Delete", "Update", "Cancel", "Search" })">
+        <GridEvents TValue="Artist" OnActionBegin="OnActionBegin"></GridEvents>
         <GridEditSettings AllowAdding="true" AllowEditing="true" AllowDeleting="true" Mode="EditMode.Normal"></GridEditSettings>
         <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.FilterBar"></GridFilterSettings>
         <GridPageSettings PageSizes="true"></GridPageSettings>
@@ -47,13 +47,12 @@
 
 @code {
     private List<Artist> artists = new();
-    private ArtistService artistService;
-    private string connectionString;
-    private SfGrid<Artist> Grid;
+    private ArtistService artistService = default!;
+    private SfGrid<Artist> Grid = default!;
 
     protected override async Task OnInitializedAsync()
     {
-        connectionString = $"Data Source={Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Temp", "Karaoke.sqlite3")}";
+        var connectionString = $"Data Source={Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Temp", "Karaoke.sqlite3")}";
         artistService = new ArtistService(connectionString);
         artists = await artistService.GetArtistsAsync();
     }
@@ -64,11 +63,11 @@
         {
             if (args.Data != null)
             {
-                if (args.Action?.Equals("Add", StringComparison.OrdinalIgnoreCase) == true)
+                if (args.Data.Id <= 0)
                 {
                     await artistService.AddArtistAsync(args.Data);
                 }
-                else if (args.Action?.Equals("Edit", StringComparison.OrdinalIgnoreCase) == true)
+                else
                 {
                     await artistService.UpdateArtistAsync(args.Data);
                 }
