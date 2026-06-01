@@ -14,9 +14,22 @@
 
 <h3>Songs</h3>
 <div class="songs-container">
-    @if (songs.Count > 0 && artistLookups.Count > 0)
+    @if (isLoading)
     {
-        <SfGrid @ref="Grid" DataSource="@songs" AllowPaging="true" AllowSorting="true" AllowFiltering="true" AllowSelection="true" Toolbar="@(new List<string>() { "Add", "Edit", "Delete", "Update", "Cancel", "Search" })">
+        <div>Loading...</div>
+    }
+    else if (songs.Count == 0)
+    {
+        <div class="alert alert-warning" role="alert">
+            <strong>No songs found.</strong> Add artists/genres first, or run the SQLite → SQL migration tool once to seed catalog data.
+        </div>
+    }
+
+    @if (!isLoading)
+    {
+        <SfGrid @ref="Grid" DataSource="@songs"
+                AllowPaging="true" AllowSorting="true" AllowFiltering="true" AllowSelection="true"
+                Toolbar="@(new List<string>() { "Add", "Edit", "Delete", "Update", "Cancel", "Search" })">
             <GridEvents TValue="SongDisplay" OnActionBegin="OnActionBegin"></GridEvents>
             <GridEditSettings AllowAdding="true" AllowEditing="true" AllowDeleting="true" Mode="EditMode.Normal"></GridEditSettings>
             <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.FilterBar"></GridFilterSettings>
@@ -48,10 +61,6 @@
             </GridColumns>
         </SfGrid>
     }
-    else
-    {
-        <div>Loading...</div>
-    }
 </div>
 
 <style>
@@ -69,11 +78,20 @@
     private List<SongDisplay> songs = new();
     private List<ArtistLookup> artistLookups = new();
     private SfGrid<SongDisplay> Grid = default!;
+    private bool isLoading = true;
 
     protected override async Task OnInitializedAsync()
     {
-        artistLookups = await ArtistLookupService.GetArtistLookupsAsync();
-        await LoadSongsAsync();
+        try
+        {
+            isLoading = true;
+            artistLookups = await ArtistLookupService.GetArtistLookupsAsync();
+            await LoadSongsAsync();
+        }
+        finally
+        {
+            isLoading = false;
+        }
     }
 
     private async Task LoadSongsAsync()

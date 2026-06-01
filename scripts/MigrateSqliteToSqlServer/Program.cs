@@ -1,9 +1,30 @@
 using Microsoft.Data.SqlClient;
 using Microsoft.Data.Sqlite;
 
-var sqlitePath = args.Length > 0
-    ? args[0]
-    : Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "KaraokeList", "Temp", "Karaoke.sqlite3"));
+string? sqlitePathArg = args.Length > 0 ? args[0] : null;
+
+static string? FindFirstExisting(params string[] paths)
+{
+    foreach (var p in paths)
+    {
+        if (File.Exists(p))
+        {
+            return p;
+        }
+    }
+    return null;
+}
+
+var sqlitePath = sqlitePathArg
+    ?? FindFirstExisting(
+        // Typical usage: run from the repo root (where `KaraokeList/Temp/Karaoke.sqlite3` lives).
+        Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "KaraokeList", "Temp", "Karaoke.sqlite3")),
+        // Fallback: relative to output folder.
+        Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "KaraokeList", "Temp", "Karaoke.sqlite3"))
+    )
+    ?? throw new FileNotFoundException(
+        "Could not locate Karaoke.sqlite3. Pass its path as the first argument or run from the repo root.",
+        sqlitePathArg ?? "(none)");
 
 var sqlConnectionString = Environment.GetEnvironmentVariable("KARAOKE_SQL_CONNECTION")
     ?? throw new InvalidOperationException("Set KARAOKE_SQL_CONNECTION to your Azure SQL / SQL Server connection string.");
@@ -53,8 +74,12 @@ static async Task MigrateTableAsync(SqliteConnection sqlite, SqlConnection sql, 
         // Table may not exist yet; app startup creates schema.
     }
 
+    // SQL Server allows a column named Count only with brackets.
+    // (Count is a built-in function name in T-SQL.)
+    var columnListSelect = string.Join(", ", columns.Select(c => c == "Count" ? "[Count]" : c));
+    
     await using var read = sqlite.CreateCommand();
-    read.CommandText = $"SELECT {string.Join(", ", columns)} FROM {table}";
+    read.CommandText = $"SELECT {columnListSelect} FROM {table}";
     await using var reader = await read.ExecuteReaderAsync();
 
     await using var identityOn = sql.CreateCommand();
