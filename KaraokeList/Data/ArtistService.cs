@@ -1,4 +1,4 @@
-using Microsoft.Data.Sqlite;
+using Microsoft.Data.SqlClient;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -23,7 +23,7 @@ namespace KaraokeList.Data
         public async Task<List<Artist>> GetArtistsAsync()
         {
             var artists = new List<Artist>();
-            using var connection = new SqliteConnection(_connectionString);
+            using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
             var command = connection.CreateCommand();
             command.CommandText = "SELECT Id, Name, SortableName, MainGenre FROM Artists";
@@ -43,7 +43,7 @@ namespace KaraokeList.Data
 
         public async Task AddArtistAsync(Artist artist)
         {
-            using var connection = new SqliteConnection(_connectionString);
+            using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
             var command = connection.CreateCommand();
             command.CommandText = @"INSERT INTO Artists (Name, SortableName, MainGenre) VALUES (@Name, @SortableName, @MainGenre);";
@@ -55,7 +55,7 @@ namespace KaraokeList.Data
 
         public async Task UpdateArtistAsync(Artist artist)
         {
-            using var connection = new SqliteConnection(_connectionString);
+            using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
             var command = connection.CreateCommand();
             command.CommandText = @"UPDATE Artists SET Name=@Name, SortableName=@SortableName, MainGenre=@MainGenre WHERE Id=@Id;";
@@ -68,7 +68,7 @@ namespace KaraokeList.Data
 
         public async Task DeleteArtistAsync(int id)
         {
-            using var connection = new SqliteConnection(_connectionString);
+            using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
             var command = connection.CreateCommand();
             command.CommandText = @"DELETE FROM Artists WHERE Id=@Id;";

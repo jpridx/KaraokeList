@@ -1,4 +1,4 @@
-using Microsoft.Data.Sqlite;
+using Microsoft.Data.SqlClient;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -21,7 +21,7 @@ namespace KaraokeList.Data
         public async Task<List<ArtistLookup>> GetArtistLookupsAsync()
         {
             var artists = new List<ArtistLookup>();
-            using var connection = new SqliteConnection(_connectionString);
+            using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
             var command = connection.CreateCommand();
             command.CommandText = "SELECT Id, Name FROM Artists";

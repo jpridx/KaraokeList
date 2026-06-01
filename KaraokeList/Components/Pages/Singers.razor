@@ -1,9 +1,10 @@
 @page "/singers"
+@attribute [Authorize]
 @rendermode InteractiveServer
 @using KaraokeList.Data
+@using Microsoft.AspNetCore.Authorization
 @using Syncfusion.Blazor.Grids
-@inject IServiceProvider ServiceProvider
-@inject NavigationManager Navigation
+@inject SingerService SingerService
 
 <PageTitle>Singers</PageTitle>
 
@@ -44,14 +45,11 @@
 
 @code {
     private List<Singer> singers = new();
-    private SingerService singerService = default!;
     private SfGrid<Singer> Grid = default!;
 
     protected override async Task OnInitializedAsync()
     {
-        var connectionString = $"Data Source={Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Temp", "Karaoke.sqlite3")}";
-        singerService = new SingerService(connectionString);
-        singers = await singerService.GetSingersAsync();
+        singers = await SingerService.GetSingersAsync();
     }
 
     private async Task OnActionBegin(ActionEventArgs<Singer> args)
@@ -62,13 +60,13 @@
             {
                 if (args.Data.Id <= 0)
                 {
-                    await singerService.AddSingerAsync(args.Data);
+                    await SingerService.AddSingerAsync(args.Data);
                 }
                 else
                 {
-                    await singerService.UpdateSingerAsync(args.Data);
+                    await SingerService.UpdateSingerAsync(args.Data);
                 }
-                singers = await singerService.GetSingersAsync();
+                singers = await SingerService.GetSingersAsync();
                 StateHasChanged();
             }
         }
@@ -76,8 +74,8 @@
         {
             if (args.Data != null)
             {
-                await singerService.DeleteSingerAsync(args.Data.Id);
-                singers = await singerService.GetSingersAsync();
+                await SingerService.DeleteSingerAsync(args.Data.Id);
+                singers = await SingerService.GetSingersAsync();
                 StateHasChanged();
             }
         }

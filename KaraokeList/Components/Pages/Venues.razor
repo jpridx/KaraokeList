@@ -1,9 +1,10 @@
 @page "/venues"
+@attribute [Authorize]
 @rendermode InteractiveServer
 @using KaraokeList.Data
+@using Microsoft.AspNetCore.Authorization
 @using Syncfusion.Blazor.Grids
-@inject IServiceProvider ServiceProvider
-@inject NavigationManager Navigation
+@inject VenueService VenueService
 
 <PageTitle>Venues</PageTitle>
 
@@ -44,14 +45,11 @@
 
 @code {
     private List<Venue> venues = new();
-    private VenueService venueService = default!;
     private SfGrid<Venue> Grid = default!;
 
     protected override async Task OnInitializedAsync()
     {
-        var connectionString = $"Data Source={Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Temp", "Karaoke.sqlite3")}";
-        venueService = new VenueService(connectionString);
-        venues = await venueService.GetVenuesAsync();
+        venues = await VenueService.GetVenuesAsync();
     }
 
     private async Task OnActionBegin(ActionEventArgs<Venue> args)
@@ -62,13 +60,13 @@
             {
                 if (args.Data.Id <= 0)
                 {
-                    await venueService!.AddVenueAsync(args.Data);
+                    await VenueService!.AddVenueAsync(args.Data);
                 }
                 else
                 {
-                    await venueService!.UpdateVenueAsync(args.Data);
+                    await VenueService!.UpdateVenueAsync(args.Data);
                 }
-                venues = await venueService!.GetVenuesAsync();
+                venues = await VenueService!.GetVenuesAsync();
                 StateHasChanged();
             }
         }
@@ -76,8 +74,8 @@
         {
             if (args.Data != null)
             {
-                await venueService.DeleteVenueAsync(args.Data.Id);
-                venues = await venueService.GetVenuesAsync();
+                await VenueService.DeleteVenueAsync(args.Data.Id);
+                venues = await VenueService.GetVenuesAsync();
                 StateHasChanged();
             }
         }

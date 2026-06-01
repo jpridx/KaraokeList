@@ -1,4 +1,4 @@
-using Microsoft.Data.Sqlite;
+using Microsoft.Data.SqlClient;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -22,7 +22,7 @@ namespace KaraokeList.Data
         public async Task<List<Genre>> GetGenresAsync()
         {
             var genres = new List<Genre>();
-            using var connection = new SqliteConnection(_connectionString);
+            using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
             var command = connection.CreateCommand();
             command.CommandText = "SELECT Id, GenreName FROM Genres";
@@ -40,7 +40,7 @@ namespace KaraokeList.Data
 
         public async Task AddGenreAsync(Genre genre)
         {
-            using var connection = new SqliteConnection(_connectionString);
+            using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
             var command = connection.CreateCommand();
             command.CommandText = @"INSERT INTO Genres (GenreName) VALUES (@GenreName);";
@@ -50,7 +50,7 @@ namespace KaraokeList.Data
 
         public async Task UpdateGenreAsync(Genre genre)
         {
-            using var connection = new SqliteConnection(_connectionString);
+            using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
             var command = connection.CreateCommand();
             command.CommandText = @"UPDATE Genres SET GenreName=@GenreName WHERE Id=@Id;";
@@ -61,7 +61,7 @@ namespace KaraokeList.Data
 
         public async Task DeleteGenreAsync(int id)
         {
-            using var connection = new SqliteConnection(_connectionString);
+            using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
             var command = connection.CreateCommand();
             command.CommandText = @"DELETE FROM Genres WHERE Id=@Id;";

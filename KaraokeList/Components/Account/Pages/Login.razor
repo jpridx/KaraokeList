@@ -4,11 +4,14 @@
 @using Microsoft.AspNetCore.Authentication
 @using Microsoft.AspNetCore.Identity
 @using KaraokeList.Data
+@using KaraokeList.Security
 
 @inject SignInManager<ApplicationUser> SignInManager
 @inject ILogger<Login> Logger
 @inject NavigationManager NavigationManager
 @inject IdentityRedirectManager RedirectManager
+@inject IRegistrationGate RegistrationGate
+@inject IAuthRateLimiter AuthRateLimiter
 
 <PageTitle>Log in</PageTitle>
 
@@ -41,17 +44,23 @@
                 <div>
                     <button type="submit" class="w-100 btn btn-lg btn-primary">Log in</button>
                 </div>
-                <div>
-                    <p>
-                        <a href="Account/ForgotPassword">Forgot your password?</a>
-                    </p>
+                @if (RegistrationGate.IsPasswordRecoveryAllowed)
+                {
+                    <div>
+                        <p>
+                            <a href="Account/ForgotPassword">Forgot your password?</a>
+                        </p>
+                        <p>
+                            <a href="Account/ResendEmailConfirmation">Resend email confirmation</a>
+                        </p>
+                    </div>
+                }
+                @if (RegistrationGate.IsRegistrationOpen)
+                {
                     <p>
                         <a href="@(NavigationManager.GetUriWithQueryParameters("Account/Register", new Dictionary<string, object?> { ["ReturnUrl"] = ReturnUrl }))">Register as a new user</a>
                     </p>
-                    <p>
-                        <a href="Account/ResendEmailConfirmation">Resend email confirmation</a>
-                    </p>
-                </div>
+                }
             </EditForm>
         </section>
     </div>
@@ -87,9 +96,14 @@
 
     public async Task LoginUser()
     {
-        // This doesn't count login failures towards account lockout
-        // To enable password failures to trigger account lockout, set lockoutOnFailure: true
-        var result = await SignInManager.PasswordSignInAsync(Input.Email, Input.Password, Input.RememberMe, lockoutOnFailure: false);
+        var clientKey = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        if (!AuthRateLimiter.AllowAttempt("login", clientKey, AuthRateLimitPolicies.LoginMaxAttempts, AuthRateLimitPolicies.LoginWindow))
+        {
+            errorMessage = "Error: Too many login attempts. Try again later.";
+            return;
+        }
+
+        var result = await SignInManager.PasswordSignInAsync(Input.Email, Input.Password, Input.RememberMe, lockoutOnFailure: true);
         if (result.Succeeded)
         {
             Logger.LogInformation("User logged in.");
