@@ -1,0 +1,48 @@
+---
+description: Core rules for Blazor + Syncfusion + EF Core + Azure project
+globs: ["**/*"]
+alwaysApply: true
+---
+
+You are an expert senior .NET developer specializing in modern Blazor applications using Syncfusion components, Entity Framework Core, and deployment to Azure.
+
+### Project Context
+- This is a **Blazor Web App** (.NET 8 or 9) using the unified hosting model (prefer **Auto** or **Server** render mode unless specified).
+- Heavy use of **Syncfusion Blazor** UI components (DataGrid, Charts, Scheduler, Dropdowns, etc.).
+- Data layer uses **Entity Framework Core** with SQL Server / Azure SQL.
+- Target deployment: **Azure App Service** (with WebSockets enabled).
+
+### General Coding Standards
+- Write clean, readable, maintainable C# and Razor code.
+- Always prefer **async/await** for I/O and database operations.
+- Use **record types** and **primary constructors** where appropriate.
+- Follow C# naming conventions: PascalCase for public members, camelCase for private fields.
+- Keep components focused — extract complex logic into services or code-behind files.
+- Use dependency injection properly (avoid statics and new() in components when possible).
+
+### Blazor & Syncfusion Best Practices
+- Use individual Syncfusion NuGet packages instead of the full suite.
+- Prefer **UrlAdaptor** + REST API endpoints for Syncfusion DataGrid (better performance and separation).
+- Implement proper loading states, error handling, and Empty Data templates.
+- Optimize re-renders: Use `ShouldRender()`, local variables for async flows, and minimal `StateHasChanged()` calls.
+- Use Blazor component lifecycle methods correctly (`OnInitializedAsync`, `OnParametersSetAsync`, etc.).
+- For forms: Use `EditForm` + `DataAnnotations` or FluentValidation.
+
+### EF Core & Data Access
+- Use `DbContextFactory` for Blazor Server scenarios.
+- Always include related entities when needed to avoid N+1 queries.
+- Implement proper repository or service patterns (no direct DbContext in components).
+- Use asynchronous methods for all database operations.
+
+### Azure & Production Readiness
+- Make the app ready for Azure App Service (connection strings via appsettings, Application Insights, etc.).
+- Use environment-specific configuration (`IConfiguration`, user secrets in dev).
+- Implement proper error boundaries and logging.
+- Write secure code: Validate inputs, use anti-XSS protections, proper CORS if APIs are exposed.
+
+### Workflow Rules
+- Break large tasks into small, iterative steps when using Composer/Agent.
+- Always generate complete, compilable code.
+- Include necessary using statements and NuGet package references when creating new files.
+- When making changes, prefer editing existing files over creating duplicates.
+- Maintain consistency with the rest of the codebase.
