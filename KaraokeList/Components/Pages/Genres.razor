@@ -1,9 +1,10 @@
 @page "/genres"
+@attribute [Authorize]
 @rendermode InteractiveServer
 @using KaraokeList.Data
+@using Microsoft.AspNetCore.Authorization
 @using Syncfusion.Blazor.Grids
-@inject IServiceProvider ServiceProvider
-@inject NavigationManager Navigation
+@inject GenreService GenreService
 
 <PageTitle>Genres</PageTitle>
 
@@ -44,14 +45,11 @@
 
 @code {
     private List<Genre> genres = new();
-    private GenreService genreService = default!;
     private SfGrid<Genre> Grid = default!;
 
     protected override async Task OnInitializedAsync()
     {
-        var connectionString = $"Data Source={Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Temp", "Karaoke.sqlite3")}";
-        genreService = new GenreService(connectionString);
-        genres = await genreService.GetGenresAsync();
+        genres = await GenreService.GetGenresAsync();
     }
 
     private async Task OnActionBegin(ActionEventArgs<Genre> args)
@@ -62,13 +60,13 @@
             {
                 if (args.Data.Id <= 0)
                 {
-                    await genreService.AddGenreAsync(args.Data);
+                    await GenreService.AddGenreAsync(args.Data);
                 }
                 else
                 {
-                    await genreService.UpdateGenreAsync(args.Data);
+                    await GenreService.UpdateGenreAsync(args.Data);
                 }
-                genres = await genreService.GetGenresAsync();
+                genres = await GenreService.GetGenresAsync();
                 StateHasChanged();
             }
         }
@@ -76,8 +74,8 @@
         {
             if (args.Data != null)
             {
-                await genreService.DeleteGenreAsync(args.Data.Id);
-                genres = await genreService.GetGenresAsync();
+                await GenreService.DeleteGenreAsync(args.Data.Id);
+                genres = await GenreService.GetGenresAsync();
                 StateHasChanged();
             }
         }

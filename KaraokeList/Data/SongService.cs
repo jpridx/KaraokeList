@@ -1,4 +1,4 @@
-using Microsoft.Data.Sqlite;
+using Microsoft.Data.SqlClient;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -25,7 +25,7 @@ namespace KaraokeList.Data
         public async Task<List<Song>> GetSongsAsync()
         {
             var songs = new List<Song>();
-            using var connection = new SqliteConnection(_connectionString);
+            using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
             var command = connection.CreateCommand();
             command.CommandText = "SELECT Id, Title, Artist, Genre, Year, SecondaryArtist FROM Songs";
@@ -47,7 +47,7 @@ namespace KaraokeList.Data
 
         public async Task AddSongAsync(Song song)
         {
-            using var connection = new SqliteConnection(_connectionString);
+            using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
             var command = connection.CreateCommand();
             command.CommandText = @"INSERT INTO Songs (Title, Artist, Genre, Year, SecondaryArtist) VALUES (@Title, @Artist, @Genre, @Year, @SecondaryArtist);";
@@ -61,7 +61,7 @@ namespace KaraokeList.Data
 
         public async Task UpdateSongAsync(Song song)
         {
-            using var connection = new SqliteConnection(_connectionString);
+            using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
             var command = connection.CreateCommand();
             command.CommandText = @"UPDATE Songs SET Title=@Title, Artist=@Artist, Genre=@Genre, Year=@Year, SecondaryArtist=@SecondaryArtist WHERE Id=@Id;";
@@ -76,7 +76,7 @@ namespace KaraokeList.Data
 
         public async Task DeleteSongAsync(int id)
         {
-            using var connection = new SqliteConnection(_connectionString);
+            using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
             var command = connection.CreateCommand();
             command.CommandText = @"DELETE FROM Songs WHERE Id=@Id;";

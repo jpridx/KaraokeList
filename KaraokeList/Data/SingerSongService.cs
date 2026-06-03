@@ -1,4 +1,4 @@
-using Microsoft.Data.Sqlite;
+using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -28,7 +28,7 @@ namespace KaraokeList.Data
         public async Task<List<SingerSong>> GetSingerSongsAsync()
         {
             var singerSongs = new List<SingerSong>();
-            using var connection = new SqliteConnection(_connectionString);
+            using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
             var command = connection.CreateCommand();
             command.CommandText = "SELECT Id, Singer, Song, Venue, FirstSung, LastSung, Count FROM SingerSongs";
@@ -51,7 +51,7 @@ namespace KaraokeList.Data
 
         public async Task AddSingerSongAsync(SingerSong singerSong)
         {
-            using var connection = new SqliteConnection(_connectionString);
+            using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
             var command = connection.CreateCommand();
             command.CommandText = @"INSERT INTO SingerSongs (Singer, Song, Venue, FirstSung, LastSung, Count) VALUES (@Singer, @Song, @Venue, @FirstSung, @LastSung, @Count);";
@@ -66,7 +66,7 @@ namespace KaraokeList.Data
 
         public async Task UpdateSingerSongAsync(SingerSong singerSong)
         {
-            using var connection = new SqliteConnection(_connectionString);
+            using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
             var command = connection.CreateCommand();
             command.CommandText = @"UPDATE SingerSongs SET Singer=@Singer, Song=@Song, Venue=@Venue, FirstSung=@FirstSung, LastSung=@LastSung, Count=@Count WHERE Id=@Id;";
@@ -82,7 +82,7 @@ namespace KaraokeList.Data
 
         public async Task DeleteSingerSongAsync(int id)
         {
-            using var connection = new SqliteConnection(_connectionString);
+            using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
             var command = connection.CreateCommand();
             command.CommandText = @"DELETE FROM SingerSongs WHERE Id=@Id;";

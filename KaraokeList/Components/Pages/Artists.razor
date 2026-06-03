@@ -1,10 +1,11 @@
 @page "/artists"
+@attribute [Authorize]
 @rendermode InteractiveServer
 @using KaraokeList.Data
+@using Microsoft.AspNetCore.Authorization
 @using Syncfusion.Blazor.Grids
 @using Syncfusion.Blazor.DropDowns
-@inject IServiceProvider ServiceProvider
-@inject NavigationManager Navigation
+@inject ArtistService ArtistService
 
 <PageTitle>Artists</PageTitle>
 
@@ -47,14 +48,11 @@
 
 @code {
     private List<Artist> artists = new();
-    private ArtistService artistService = default!;
     private SfGrid<Artist> Grid = default!;
 
     protected override async Task OnInitializedAsync()
     {
-        var connectionString = $"Data Source={Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Temp", "Karaoke.sqlite3")}";
-        artistService = new ArtistService(connectionString);
-        artists = await artistService.GetArtistsAsync();
+        artists = await ArtistService.GetArtistsAsync();
     }
 
     private async Task OnActionBegin(ActionEventArgs<Artist> args)
@@ -65,13 +63,13 @@
             {
                 if (args.Data.Id <= 0)
                 {
-                    await artistService.AddArtistAsync(args.Data);
+                    await ArtistService.AddArtistAsync(args.Data);
                 }
                 else
                 {
-                    await artistService.UpdateArtistAsync(args.Data);
+                    await ArtistService.UpdateArtistAsync(args.Data);
                 }
-                artists = await artistService.GetArtistsAsync();
+                artists = await ArtistService.GetArtistsAsync();
                 StateHasChanged();
             }
         }
@@ -79,8 +77,8 @@
         {
             if (args.Data != null)
             {
-                await artistService.DeleteArtistAsync(args.Data.Id);
-                artists = await artistService.GetArtistsAsync();
+                await ArtistService.DeleteArtistAsync(args.Data.Id);
+                artists = await ArtistService.GetArtistsAsync();
                 StateHasChanged();
             }
         }

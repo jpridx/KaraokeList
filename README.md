@@ -10,7 +10,7 @@ KaraokeList is a comprehensive karaoke management system built with .NET Blazor 
 
 - **Framework**: .NET Blazor (Interactive Server Render Mode)
 - **Language**: C#
-- **Database**: SQLite
+- **Database**: Azure SQL / SQL Server (serverless on Azure)
 - **UI Components**: Syncfusion Blazor with Fluent 2 theme
 - **Authentication**: Built-in Identity system
 - **Styling**: Bootstrap CSS with custom styling
@@ -104,14 +104,21 @@ The app will open at `https://localhost:7000` (or configured HTTPS port).
 
 ## Database
 
-The application uses SQLite for data persistence. The database file is located at `Temp/Karaoke.sqlite3`.
+Catalog and Identity data share one SQL Server / Azure SQL database via `ConnectionStrings:DefaultConnection`.
 
-### Connection String
+### Local development
 
-The connection string is built dynamically:
+Default connection (LocalDB):
+
 ```
-Data Source={AppDomain.CurrentDomain.BaseDirectory}Temp/Karaoke.sqlite3
+Server=(localdb)\mssqllocaldb;Database=KaraokeList;Trusted_Connection=True;MultipleActiveResultSets=true;TrustServerCertificate=True
 ```
+
+Catalog tables are created automatically on startup from `scripts/azure-sql/001-karaoke-schema.sql`.
+
+### Azure deployment
+
+See [docs/azure-deployment.md](docs/azure-deployment.md) for App Service + Azure SQL serverless provisioning and publish steps.
 
 ### Tables
 
@@ -137,7 +144,7 @@ All data access is handled through service classes in `KaraokeList.Data`:
 - `VenueService` - Venue management
 - `SingerSongService` - Performance record tracking
 
-Each service provides async CRUD operations using parameterized SQL queries with SQLite.
+Each service provides async CRUD operations using parameterized SQL queries with SQL Server.
 
 ### Adding Data
 
@@ -162,12 +169,11 @@ Detailed documentation for each feature is available in the `docs/` folder:
 
 ## Authentication
 
-The application includes built-in user authentication:
+Friends-only access uses ASP.NET Core Identity with an **invite code**, sign-in lockout, and rate limits. Catalog pages require authentication.
 
-- User registration and login
-- Account management
-- Secure password handling
-- Identity integration with Entity Framework Core
+- Share the site URL and invite code privately (see [docs/security-private-access.md](docs/security-private-access.md))
+- After your group has accounts, disable new registration in Azure (`Security__Registration__AllowRegistration=false`)
+- Deploy and auth setup: [docs/azure-deployment.md](docs/azure-deployment.md)
 
 ## Future Enhancements
 

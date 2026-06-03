@@ -1,4 +1,4 @@
-using Microsoft.Data.Sqlite;
+using Microsoft.Data.SqlClient;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -22,7 +22,7 @@ namespace KaraokeList.Data
         public async Task<List<Venue>> GetVenuesAsync()
         {
             var venues = new List<Venue>();
-            using var connection = new SqliteConnection(_connectionString);
+            using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
             var command = connection.CreateCommand();
             command.CommandText = "SELECT Id, VenueName FROM Venues";
@@ -40,7 +40,7 @@ namespace KaraokeList.Data
 
         public async Task AddVenueAsync(Venue venue)
         {
-            using var connection = new SqliteConnection(_connectionString);
+            using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
             var command = connection.CreateCommand();
             command.CommandText = @"INSERT INTO Venues (VenueName) VALUES (@VenueName);";
@@ -50,7 +50,7 @@ namespace KaraokeList.Data
 
         public async Task UpdateVenueAsync(Venue venue)
         {
-            using var connection = new SqliteConnection(_connectionString);
+            using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
             var command = connection.CreateCommand();
             command.CommandText = @"UPDATE Venues SET VenueName=@VenueName WHERE Id=@Id;";
@@ -61,7 +61,7 @@ namespace KaraokeList.Data
 
         public async Task DeleteVenueAsync(int id)
         {
-            using var connection = new SqliteConnection(_connectionString);
+            using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
             var command = connection.CreateCommand();
             command.CommandText = @"DELETE FROM Venues WHERE Id=@Id;";

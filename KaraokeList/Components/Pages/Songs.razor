@@ -1,20 +1,35 @@
 @page "/songs"
+@attribute [Authorize]
 @rendermode InteractiveServer
 @using KaraokeList.Data
+@using Microsoft.AspNetCore.Authorization
 @using Syncfusion.Blazor.Grids
 @using Syncfusion.Blazor.DropDowns
 @using Syncfusion.Blazor.Calendars
 @using Syncfusion.Blazor.Inputs
-@inject IServiceProvider ServiceProvider
-@inject NavigationManager Navigation
+@inject SongService SongService
+@inject ArtistLookupService ArtistLookupService
 
 <PageTitle>Songs</PageTitle>
 
 <h3>Songs</h3>
 <div class="songs-container">
-    @if (songs.Count > 0 && artistLookups.Count > 0)
+    @if (isLoading)
     {
-        <SfGrid @ref="Grid" DataSource="@songs" AllowPaging="true" AllowSorting="true" AllowFiltering="true" AllowSelection="true" Toolbar="@(new List<string>() { "Add", "Edit", "Delete", "Update", "Cancel", "Search" })">
+        <div>Loading...</div>
+    }
+    else if (songs.Count == 0)
+    {
+        <div class="alert alert-warning" role="alert">
+            <strong>No songs found.</strong> Add artists/genres first, or run the SQLite → SQL migration tool once to seed catalog data.
+        </div>
+    }
+
+    @if (!isLoading)
+    {
+        <SfGrid @ref="Grid" DataSource="@songs"
+                AllowPaging="true" AllowSorting="true" AllowFiltering="true" AllowSelection="true"
+                Toolbar="@(new List<string>() { "Add", "Edit", "Delete", "Update", "Cancel", "Search" })">
             <GridEvents TValue="SongDisplay" OnActionBegin="OnActionBegin"></GridEvents>
             <GridEditSettings AllowAdding="true" AllowEditing="true" AllowDeleting="true" Mode="EditMode.Normal"></GridEditSettings>
             <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.FilterBar"></GridFilterSettings>
@@ -46,10 +61,6 @@
             </GridColumns>
         </SfGrid>
     }
-    else
-    {
-        <div>Loading...</div>
-    }
 </div>
 
 <style>
@@ -66,21 +77,26 @@
 @code {
     private List<SongDisplay> songs = new();
     private List<ArtistLookup> artistLookups = new();
-    private SongService songService = default!;
     private SfGrid<SongDisplay> Grid = default!;
+    private bool isLoading = true;
 
     protected override async Task OnInitializedAsync()
     {
-        var connectionString = $"Data Source={Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Temp", "Karaoke.sqlite3")}";
-        songService = new SongService(connectionString);
-        var artistService = new ArtistLookupService(connectionString);
-        artistLookups = await artistService.GetArtistLookupsAsync();
-        await LoadSongsAsync();
+        try
+        {
+            isLoading = true;
+            artistLookups = await ArtistLookupService.GetArtistLookupsAsync();
+            await LoadSongsAsync();
+        }
+        finally
+        {
+            isLoading = false;
+        }
     }
 
     private async Task LoadSongsAsync()
     {
-        var rawSongs = await songService.GetSongsAsync();
+        var rawSongs = await SongService.GetSongsAsync();
         songs = rawSongs.Select(s => new SongDisplay
         {
             Id = s.Id,
@@ -108,11 +124,11 @@
 
                 if (args.Data.Id <= 0)
                 {
-                    await songService.AddSongAsync(args.Data);
+                    await SongService.AddSongAsync(args.Data);
                 }
                 else
                 {
-                    await songService.UpdateSongAsync(args.Data);
+                    await SongService.UpdateSongAsync(args.Data);
                 }
 
                 await LoadSongsAsync();
@@ -122,7 +138,7 @@
         {
             if (args.Data != null)
             {
-                await songService.DeleteSongAsync(args.Data.Id);
+                await SongService.DeleteSongAsync(args.Data.Id);
                 await LoadSongsAsync();
             }
         }

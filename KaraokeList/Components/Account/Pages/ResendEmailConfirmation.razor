@@ -6,8 +6,10 @@
 @using Microsoft.AspNetCore.Identity
 @using Microsoft.AspNetCore.WebUtilities
 @using KaraokeList.Data
+@using KaraokeList.Security
 
 @inject UserManager<ApplicationUser> UserManager
+@inject IRegistrationGate RegistrationGate
 @inject IEmailSender<ApplicationUser> EmailSender
 @inject NavigationManager NavigationManager
 @inject IdentityRedirectManager RedirectManager
@@ -38,6 +40,14 @@
 
     [SupplyParameterFromForm]
     private InputModel Input { get; set; } = new();
+
+    protected override void OnInitialized()
+    {
+        if (!RegistrationGate.IsPasswordRecoveryAllowed)
+        {
+            RedirectManager.RedirectTo("Account/Login");
+        }
+    }
 
     private async Task OnValidSubmitAsync()
     {

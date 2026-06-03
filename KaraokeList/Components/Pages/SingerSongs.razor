@@ -1,10 +1,14 @@
 @page "/singer-songs"
+@attribute [Authorize]
 @rendermode InteractiveServer
 @using KaraokeList.Data
+@using Microsoft.AspNetCore.Authorization
 @using Syncfusion.Blazor.Grids
 @using Syncfusion.Blazor.DropDowns
-@inject IServiceProvider ServiceProvider
-@inject NavigationManager Navigation
+@inject SingerSongService SingerSongService
+@inject SingerService SingerService
+@inject SongService SongService
+@inject VenueService VenueService
 
 <PageTitle>Singer Songs</PageTitle>
 
@@ -114,7 +118,6 @@
     private List<Singer> singers = new();
     private List<Song> songs = new();
     private List<Venue> venues = new();
-    private SingerSongService singerSongService = default!;
     private SfGrid<SingerSong> Grid = default!;
     private bool isLoading = true;
 
@@ -122,17 +125,10 @@
     {
         try
         {
-            var connectionString = $"Data Source={Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Temp", "Karaoke.sqlite3")}";
-            singerSongService = new SingerSongService(connectionString);
-            
-            var singerService = new SingerService(connectionString);
-            var songService = new SongService(connectionString);
-            var venueService = new VenueService(connectionString);
-            
-            singerSongs = await singerSongService.GetSingerSongsAsync();
-            singers = await singerService.GetSingersAsync();
-            songs = await songService.GetSongsAsync();
-            venues = await venueService.GetVenuesAsync();
+            singerSongs = await SingerSongService.GetSingerSongsAsync();
+            singers = await SingerService.GetSingersAsync();
+            songs = await SongService.GetSongsAsync();
+            venues = await VenueService.GetVenuesAsync();
         }
         finally
         {
@@ -148,13 +144,13 @@
             {
                 if (args.Data.Id <= 0)
                 {
-                    await singerSongService.AddSingerSongAsync(args.Data);
+                    await SingerSongService.AddSingerSongAsync(args.Data);
                 }
                 else
                 {
-                    await singerSongService.UpdateSingerSongAsync(args.Data);
+                    await SingerSongService.UpdateSingerSongAsync(args.Data);
                 }
-                singerSongs = await singerSongService.GetSingerSongsAsync();
+                singerSongs = await SingerSongService.GetSingerSongsAsync();
                 StateHasChanged();
             }
         }
@@ -162,8 +158,8 @@
         {
             if (args.Data != null)
             {
-                await singerSongService.DeleteSingerSongAsync(args.Data.Id);
-                singerSongs = await singerSongService.GetSingerSongsAsync();
+                await SingerSongService.DeleteSingerSongAsync(args.Data.Id);
+                singerSongs = await SingerSongService.GetSingerSongsAsync();
                 StateHasChanged();
             }
         }

@@ -6,6 +6,7 @@
 @using Microsoft.AspNetCore.Identity
 @using Microsoft.AspNetCore.WebUtilities
 @using KaraokeList.Data
+@using KaraokeList.Security
 
 @inject UserManager<ApplicationUser> UserManager
 @inject IUserStore<ApplicationUser> UserStore
@@ -14,48 +15,67 @@
 @inject ILogger<Register> Logger
 @inject NavigationManager NavigationManager
 @inject IdentityRedirectManager RedirectManager
+@inject IRegistrationGate RegistrationGate
+@inject IAuthRateLimiter AuthRateLimiter
 
 <PageTitle>Register</PageTitle>
 
-<h1>Register</h1>
+@if (!RegistrationGate.IsRegistrationOpen)
+{
+    <h1>Registration closed</h1>
+    <p class="text-muted">New accounts are not being accepted. If you already have an account, <a href="Account/Login">sign in</a>.</p>
+}
+else
+{
+    <h1>Register</h1>
+    <p class="text-muted">Invite-only. You need the private invite code from the site owner.</p>
 
-<div class="row">
-    <div class="col-md-4">
-        <StatusMessage Message="@Message" />
-        <EditForm Model="Input" asp-route-returnUrl="@ReturnUrl" method="post" OnValidSubmit="RegisterUser" FormName="register">
-            <DataAnnotationsValidator />
-            <h2>Create a new account.</h2>
-            <hr />
-            <ValidationSummary class="text-danger" role="alert" />
-            <div class="form-floating mb-3">
-                <InputText @bind-Value="Input.Email" id="Input.Email" class="form-control" autocomplete="username" aria-required="true" placeholder="name@example.com" />
-                <label for="Input.Email">Email</label>
-                <ValidationMessage For="() => Input.Email" class="text-danger" />
-            </div>
-            <div class="form-floating mb-3">
-                <InputText type="password" @bind-Value="Input.Password" id="Input.Password" class="form-control" autocomplete="new-password" aria-required="true" placeholder="password" />
-                <label for="Input.Password">Password</label>
-                <ValidationMessage For="() => Input.Password" class="text-danger" />
-            </div>
-            <div class="form-floating mb-3">
-                <InputText type="password" @bind-Value="Input.ConfirmPassword" id="Input.ConfirmPassword" class="form-control" autocomplete="new-password" aria-required="true" placeholder="password" />
-                <label for="Input.ConfirmPassword">Confirm Password</label>
-                <ValidationMessage For="() => Input.ConfirmPassword" class="text-danger" />
-            </div>
-            <button type="submit" class="w-100 btn btn-lg btn-primary">Register</button>
-        </EditForm>
+    <div class="row">
+        <div class="col-md-5">
+            <StatusMessage Message="@Message" />
+            <EditForm Model="Input" asp-route-returnUrl="@ReturnUrl" method="post" OnValidSubmit="RegisterUser" FormName="register">
+                <DataAnnotationsValidator />
+                <h2>Create a new account</h2>
+                <hr />
+                <ValidationSummary class="text-danger" role="alert" />
+                <div class="form-floating mb-3">
+                    <InputText @bind-Value="Input.Email" id="Input.Email" class="form-control" autocomplete="username" aria-required="true" placeholder="name@example.com" />
+                    <label for="Input.Email">Email</label>
+                    <ValidationMessage For="() => Input.Email" class="text-danger" />
+                </div>
+                @if (RegistrationGate.RequiresInviteCode)
+                {
+                    <div class="form-floating mb-3">
+                        <InputText @bind-Value="Input.InviteCode" id="Input.InviteCode" class="form-control" autocomplete="off" aria-required="true" placeholder="Invite code" />
+                        <label for="Input.InviteCode">Invite code</label>
+                        <ValidationMessage For="() => Input.InviteCode" class="text-danger" />
+                    </div>
+                }
+                <div class="form-floating mb-3">
+                    <InputText type="password" @bind-Value="Input.Password" id="Input.Password" class="form-control" autocomplete="new-password" aria-required="true" placeholder="password" />
+                    <label for="Input.Password">Password</label>
+                    <ValidationMessage For="() => Input.Password" class="text-danger" />
+                </div>
+                <div class="form-floating mb-3">
+                    <InputText type="password" @bind-Value="Input.ConfirmPassword" id="Input.ConfirmPassword" class="form-control" autocomplete="new-password" aria-required="true" placeholder="password" />
+                    <label for="Input.ConfirmPassword">Confirm Password</label>
+                    <ValidationMessage For="() => Input.ConfirmPassword" class="text-danger" />
+                </div>
+                <div class="registration-honeypot" aria-hidden="true">
+                    <label for="Input.Website">Website</label>
+                    <InputText @bind-Value="Input.Website" id="Input.Website" tabindex="-1" autocomplete="off" />
+                </div>
+                <button type="submit" class="w-100 btn btn-lg btn-primary">Register</button>
+            </EditForm>
+        </div>
     </div>
-    <div class="col-md-6 col-md-offset-2">
-        <section>
-            <h3>Use another service to register.</h3>
-            <hr />
-            <ExternalLoginPicker />
-        </section>
-    </div>
-</div>
+}
 
 @code {
     private IEnumerable<IdentityError>? identityErrors;
+
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
 
     [SupplyParameterFromForm]
     private InputModel Input { get; set; } = new();
@@ -65,8 +85,36 @@
 
     private string? Message => identityErrors is null ? null : $"Error: {string.Join(", ", identityErrors.Select(error => error.Description))}";
 
+    protected override void OnInitialized()
+    {
+        if (!RegistrationGate.IsRegistrationOpen)
+        {
+            return;
+        }
+
+        if (HttpMethods.IsGet(HttpContext.Request.Method)
+            && !string.IsNullOrWhiteSpace(HttpContext.Request.Query["invite"]))
+        {
+            Input.InviteCode = HttpContext.Request.Query["invite"].ToString();
+        }
+    }
+
     public async Task RegisterUser(EditContext editContext)
     {
+        var clientKey = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        if (!AuthRateLimiter.AllowAttempt("register", clientKey, AuthRateLimitPolicies.RegisterMaxAttempts, AuthRateLimitPolicies.RegisterWindow))
+        {
+            identityErrors = [new IdentityError { Description = "Too many registration attempts. Try again later." }];
+            return;
+        }
+
+        var gateResult = RegistrationGate.ValidateRegistration(Input.Email, Input.InviteCode, Input.Website);
+        if (!gateResult.Allowed)
+        {
+            identityErrors = [new IdentityError { Description = gateResult.ErrorMessage ?? "Registration not allowed." }];
+            return;
+        }
+
         var user = CreateUser();
 
         await UserStore.SetUserNameAsync(user, Input.Email, CancellationToken.None);
@@ -131,8 +179,11 @@
         [Display(Name = "Email")]
         public string Email { get; set; } = "";
 
+        [Display(Name = "Invite code")]
+        public string InviteCode { get; set; } = "";
+
         [Required]
-        [StringLength(100, ErrorMessage = "The {0} must be at least {2} and at max {1} characters long.", MinimumLength = 6)]
+        [StringLength(100, ErrorMessage = "The {0} must be at least {2} and at max {1} characters long.", MinimumLength = 12)]
         [DataType(DataType.Password)]
         [Display(Name = "Password")]
         public string Password { get; set; } = "";
@@ -141,5 +192,7 @@
         [Display(Name = "Confirm password")]
         [Compare("Password", ErrorMessage = "The password and confirmation password do not match.")]
         public string ConfirmPassword { get; set; } = "";
+
+        public string? Website { get; set; }
     }
 }
