@@ -9,7 +9,7 @@ public static class KaraokeServiceCollectionExtensions
         services.AddScoped(_ => new ArtistService(connectionString));
         services.AddScoped(_ => new GenreService(connectionString));
         services.AddScoped(_ => new SingerService(connectionString));
-        services.AddScoped(_ => new SingerSongService(connectionString));
+        services.AddScoped(_ => new PerformanceService(connectionString));
         services.AddScoped(_ => new ArtistLookupService(connectionString));
         return services;
     }

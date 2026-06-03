@@ -40,14 +40,14 @@
 
     private async Task LoginAsync()
     {
-        var response = await Api.LoginAsync(Input);
-        if (response is null)
+        var result = await Api.LoginAsync(Input);
+        if (!result.Succeeded || result.Response is null)
         {
-            errorMessage = "Invalid login attempt.";
+            errorMessage = result.ErrorMessage ?? "Invalid login attempt.";
             return;
         }
 
-        await AuthProvider.MarkUserAsAuthenticatedAsync(response.Token);
+        await AuthProvider.MarkUserAsAuthenticatedAsync(result.Response.Token);
         NavigationManager.NavigateTo(string.IsNullOrWhiteSpace(ReturnUrl) ? "/" : ReturnUrl);
     }
 }

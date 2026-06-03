@@ -1,4 +1,6 @@
 ﻿@page "/"
+@inject JwtAuthenticationStateProvider AuthProvider
+@inject NavigationManager NavigationManager
 
 <PageTitle>KaraokeList</PageTitle>
 
@@ -7,14 +9,24 @@
 
 <AuthorizeView>
     <Authorized>
-        <p>Signed in as <strong>@context.User.Identity?.Name</strong>.</p>
+        <p>Signed in as <strong>@context.User.Identity?.Name</strong>.
+            <button type="button" class="btn btn-link p-0 align-baseline" @onclick="LogoutAsync">Sign out</button>
+        </p>
         <ul>
             <li><a href="songs">Songs</a></li>
             <li><a href="venues">Venues</a></li>
-            <li><a href="singer-songs">Singer Songs</a></li>
+            <li><a href="performances">Performances</a></li>
         </ul>
     </Authorized>
     <NotAuthorized>
         <p><a href="login">Sign in</a> or <a href="register">register</a> to manage catalog data.</p>
     </NotAuthorized>
 </AuthorizeView>
+
+@code {
+    private async Task LogoutAsync()
+    {
+        await AuthProvider.MarkUserAsLoggedOutAsync();
+        NavigationManager.NavigateTo("/login");
+    }
+}

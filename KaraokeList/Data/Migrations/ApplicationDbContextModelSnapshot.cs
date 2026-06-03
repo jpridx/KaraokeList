@@ -67,6 +67,9 @@ namespace KaraokeList.Migrations
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int?>("SingerId")
+                        .HasColumnType("int");
+
                     b.Property<bool>("TwoFactorEnabled")
                         .HasColumnType("bit");
 
@@ -83,6 +86,10 @@ namespace KaraokeList.Migrations
                         .IsUnique()
                         .HasDatabaseName("UserNameIndex")
                         .HasFilter("[NormalizedUserName] IS NOT NULL");
+
+                    b.HasIndex("SingerId")
+                        .IsUnique()
+                        .HasFilter("[SingerId] IS NOT NULL");
 
                     b.ToTable("AspNetUsers", (string)null);
                 });

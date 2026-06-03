@@ -9,6 +9,7 @@
 @using Syncfusion.Blazor.Inputs
 @inject SongService SongService
 @inject ArtistLookupService ArtistLookupService
+@inject GenreService GenreService
 
 <PageTitle>Songs</PageTitle>
 
@@ -55,9 +56,30 @@
                         </SfAutoComplete>
                     </EditTemplate>
                 </GridColumn>
-                <GridColumn Field="Genre" HeaderText="Genre" EditType="EditType.DropDownEdit" Width="150" />
+                <GridColumn Field="GenreName" HeaderText="Genre" Width="150">
+                    <EditTemplate Context="context">
+                        @{
+                            var song = (context as SongDisplay)!;
+                        }
+                        <SfDropDownList TValue="int?" TItem="Genre" DataSource="@genres" @bind-Value="song.Genre"
+                                        Placeholder="Select genre" AllowFiltering="true"
+                                        FilterType="Syncfusion.Blazor.DropDowns.FilterType.Contains">
+                            <DropDownListFieldSettings Value="Id" Text="GenreName" />
+                        </SfDropDownList>
+                    </EditTemplate>
+                </GridColumn>
                 <GridColumn Field="Year" HeaderText="Year" EditType="EditType.NumericEdit" Width="100" />
-                <GridColumn Field="SecondaryArtist" HeaderText="Secondary Artist" EditType="EditType.DropDownEdit" Width="150" />
+                <GridColumn Field="SecondaryArtistName" HeaderText="Secondary Artist" Width="200">
+                    <EditTemplate Context="context">
+                        @{
+                            var song = (context as SongDisplay)!;
+                        }
+                        <SfAutoComplete TValue="string" TItem="ArtistLookup" DataSource="@artistLookups" @bind-Value="song.SecondaryArtistName"
+                                        Placeholder="Search artist...">
+                            <AutoCompleteFieldSettings Value="Name" Text="Name" />
+                        </SfAutoComplete>
+                    </EditTemplate>
+                </GridColumn>
             </GridColumns>
         </SfGrid>
     }
@@ -77,6 +99,7 @@
 @code {
     private List<SongDisplay> songs = new();
     private List<ArtistLookup> artistLookups = new();
+    private List<Genre> genres = new();
     private SfGrid<SongDisplay> Grid = default!;
     private bool isLoading = true;
 
@@ -86,6 +109,7 @@
         {
             isLoading = true;
             artistLookups = await ArtistLookupService.GetArtistLookupsAsync();
+            genres = await GenreService.GetGenresAsync();
             await LoadSongsAsync();
         }
         finally
@@ -104,8 +128,10 @@
             Artist = s.Artist,
             ArtistName = artistLookups.FirstOrDefault(a => a.Id == s.Artist)?.Name ?? "",
             Genre = s.Genre,
+            GenreName = genres.FirstOrDefault(g => g.Id == s.Genre)?.GenreName ?? "",
             Year = s.Year,
-            SecondaryArtist = s.SecondaryArtist
+            SecondaryArtist = s.SecondaryArtist,
+            SecondaryArtistName = artistLookups.FirstOrDefault(a => a.Id == s.SecondaryArtist)?.Name ?? ""
         }).ToList();
         StateHasChanged();
         if (Grid is not null)
@@ -121,6 +147,9 @@
             if (args.Data != null)
             {
                 args.Data.Artist = artistLookups.FirstOrDefault(a => a.Name == args.Data.ArtistName)?.Id;
+                args.Data.SecondaryArtist = string.IsNullOrWhiteSpace(args.Data.SecondaryArtistName)
+                    ? null
+                    : artistLookups.FirstOrDefault(a => a.Name == args.Data.SecondaryArtistName)?.Id;
 
                 if (args.Data.Id <= 0)
                 {
@@ -147,5 +176,7 @@
     public class SongDisplay : Song
     {
         public string ArtistName { get; set; } = string.Empty;
+        public string GenreName { get; set; } = string.Empty;
+        public string SecondaryArtistName { get; set; } = string.Empty;
     }
 }

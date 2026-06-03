@@ -42,13 +42,39 @@ public class ArtistLookupDto
     public string Name { get; set; } = string.Empty;
 }
 
-public class SingerSongDto
+public class PerformanceDto
 {
     public int Id { get; set; }
     public int? Singer { get; set; }
     public int? Song { get; set; }
     public int? Venue { get; set; }
-    public DateTime? FirstSung { get; set; }
-    public DateTime? LastSung { get; set; }
-    public int Count { get; set; }
+    public DateTime PerformedOn { get; set; } = DateTime.Today;
+    public int? KeyChangeSemitones { get; set; }
+}
+
+public class PerformanceHistoryEntryDto
+{
+    public DateTime PerformedOn { get; set; }
+    public string VenueName { get; set; } = string.Empty;
+    public int? KeyChangeSemitones { get; set; }
+}
+
+public class SongPerformanceSummaryDto
+{
+    public int SongId { get; set; }
+    public int PerformanceCount { get; set; }
+    public int? LastKeyChangeSemitones { get; set; }
+    public DateTime? LastPerformedOn { get; set; }
+    public string? LastVenueName { get; set; }
+    public List<PerformanceHistoryEntryDto> History { get; set; } = [];
+}
+
+public static class KeyChangeFormatting
+{
+    public static string Describe(int? semitones) => semitones switch
+    {
+        null or 0 => "Original key",
+        > 0 => $"Up {semitones} half-step{(semitones == 1 ? "" : "s")}",
+        < 0 => $"Down {Math.Abs(semitones.Value)} half-step{(semitones == -1 ? "" : "s")}"
+    };
 }

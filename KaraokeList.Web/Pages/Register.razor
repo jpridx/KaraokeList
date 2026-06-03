@@ -13,6 +13,11 @@
 <EditForm Model="Input" OnValidSubmit="RegisterAsync">
     <DataAnnotationsValidator />
     <div class="mb-3">
+        <label class="form-label">Your name (as a singer)</label>
+        <InputText class="form-control" @bind-Value="Input.Name" />
+        <ValidationMessage For="@(() => Input.Name)" />
+    </div>
+    <div class="mb-3">
         <label class="form-label">Email</label>
         <InputText class="form-control" @bind-Value="Input.Email" />
     </div>
@@ -46,14 +51,14 @@
 
     private async Task RegisterAsync()
     {
-        var response = await Api.RegisterAsync(Input);
-        if (response is null)
+        var result = await Api.RegisterAsync(Input);
+        if (!result.Succeeded || result.Response is null)
         {
-            errorMessage = "Registration failed. Check password rules and invite code.";
+            errorMessage = result.ErrorMessage ?? "Registration failed. Check password rules and invite code.";
             return;
         }
 
-        await AuthProvider.MarkUserAsAuthenticatedAsync(response.Token);
+        await AuthProvider.MarkUserAsAuthenticatedAsync(result.Response.Token);
         NavigationManager.NavigateTo("/");
     }
 }

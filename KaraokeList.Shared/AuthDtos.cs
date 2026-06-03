@@ -13,6 +13,9 @@ public class LoginRequest
 
 public class RegisterRequest
 {
+    [Required, StringLength(128, MinimumLength = 1)]
+    public string Name { get; set; } = string.Empty;
+
     [Required, EmailAddress]
     public string Email { get; set; } = string.Empty;
 
@@ -31,7 +34,22 @@ public class AuthResponse
 {
     public string Token { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
+    public int? SingerId { get; set; }
     public DateTime ExpiresUtc { get; set; }
+}
+
+public class UserProfileDto
+{
+    public string Email { get; set; } = string.Empty;
+    public int? SingerId { get; set; }
+}
+
+public class LinkSingerRequest
+{
+    [StringLength(128, MinimumLength = 1)]
+    public string? Name { get; set; }
+
+    public int? SingerId { get; set; }
 }
 
 public class ApiErrorResponse

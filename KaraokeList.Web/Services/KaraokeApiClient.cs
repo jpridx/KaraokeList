@@ -6,8 +6,8 @@ namespace KaraokeList.Web.Services;
 
 public interface IKaraokeApiClient
 {
-    Task<AuthResponse?> LoginAsync(LoginRequest request);
-    Task<AuthResponse?> RegisterAsync(RegisterRequest request);
+    Task<AuthResult> LoginAsync(LoginRequest request);
+    Task<AuthResult> RegisterAsync(RegisterRequest request);
     Task<List<VenueDto>> GetVenuesAsync();
     Task CreateVenueAsync(VenueDto dto);
     Task UpdateVenueAsync(VenueDto dto);
@@ -29,34 +29,51 @@ public interface IKaraokeApiClient
     Task CreateSongAsync(SongDto dto);
     Task UpdateSongAsync(SongDto dto);
     Task DeleteSongAsync(int id);
-    Task<List<SingerSongDto>> GetSingerSongsAsync();
-    Task CreateSingerSongAsync(SingerSongDto dto);
-    Task UpdateSingerSongAsync(SingerSongDto dto);
-    Task DeleteSingerSongAsync(int id);
+    Task<List<PerformanceDto>> GetPerformancesAsync(int? singerId = null, int? songId = null);
+    Task<UserProfileDto?> GetProfileAsync();
+    Task<AuthResult> LinkSingerAsync(LinkSingerRequest request);
+    Task<SongSummaryResult> GetMySongSummaryAsync(int songId);
+    Task CreatePerformanceAsync(PerformanceDto dto);
+    Task UpdatePerformanceAsync(PerformanceDto dto);
+    Task DeletePerformanceAsync(int id);
 }
 
 public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
 {
-    public async Task<AuthResponse?> LoginAsync(LoginRequest request)
+    public Task<AuthResult> LoginAsync(LoginRequest request) =>
+        PostAuthAsync("api/auth/login", request);
+
+    public Task<AuthResult> RegisterAsync(RegisterRequest request) =>
+        PostAuthAsync("api/auth/register", request);
+
+    private async Task<AuthResult> PostAuthAsync(string url, object request)
     {
-        var response = await http.PostAsJsonAsync("api/auth/login", request);
-        if (!response.IsSuccessStatusCode)
+        try
         {
-            return null;
+            var response = await http.PostAsJsonAsync(url, request);
+            if (response.IsSuccessStatusCode)
+            {
+                var auth = await response.Content.ReadFromJsonAsync<AuthResponse>();
+                return auth is null
+                    ? AuthResult.Fail("Unexpected empty response from the server.")
+                    : AuthResult.Ok(auth);
+            }
+
+            var error = await response.Content.ReadFromJsonAsync<ApiErrorResponse>();
+            var message = error?.Message;
+            if (string.IsNullOrWhiteSpace(message))
+            {
+                message = response.StatusCode == System.Net.HttpStatusCode.Unauthorized
+                    ? "Invalid email or password."
+                    : $"Request failed ({(int)response.StatusCode}). Is the API running at {http.BaseAddress}?";
+            }
+
+            return AuthResult.Fail(message);
         }
-
-        return await response.Content.ReadFromJsonAsync<AuthResponse>();
-    }
-
-    public async Task<AuthResponse?> RegisterAsync(RegisterRequest request)
-    {
-        var response = await http.PostAsJsonAsync("api/auth/register", request);
-        if (!response.IsSuccessStatusCode)
+        catch (HttpRequestException ex)
         {
-            return null;
+            return AuthResult.Fail($"Cannot reach the API at {http.BaseAddress}. Start KaraokeList.Api first. ({ex.Message})");
         }
-
-        return await response.Content.ReadFromJsonAsync<AuthResponse>();
     }
 
     public Task<List<VenueDto>> GetVenuesAsync() => GetListAsync<VenueDto>("api/venues");
@@ -85,10 +102,39 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
     public Task UpdateSongAsync(SongDto dto) => PutAsync($"api/songs/{dto.Id}", dto);
     public Task DeleteSongAsync(int id) => DeleteAsync($"api/songs/{id}");
 
-    public Task<List<SingerSongDto>> GetSingerSongsAsync() => GetListAsync<SingerSongDto>("api/SingerSongs");
-    public Task CreateSingerSongAsync(SingerSongDto dto) => PostAsync("api/SingerSongs", dto);
-    public Task UpdateSingerSongAsync(SingerSongDto dto) => PutAsync($"api/SingerSongs/{dto.Id}", dto);
-    public Task DeleteSingerSongAsync(int id) => DeleteAsync($"api/SingerSongs/{id}");
+    public Task<List<PerformanceDto>> GetPerformancesAsync(int? singerId = null, int? songId = null)
+    {
+        var query = new List<string>();
+        if (singerId is int singer) query.Add($"singerId={singer}");
+        if (songId is int song) query.Add($"songId={song}");
+        var suffix = query.Count == 0 ? string.Empty : "?" + string.Join("&", query);
+        return GetListAsync<PerformanceDto>($"api/performances{suffix}");
+    }
+
+    public async Task<UserProfileDto?> GetProfileAsync() =>
+        await http.GetFromJsonAsync<UserProfileDto>("api/auth/me");
+
+    public Task<AuthResult> LinkSingerAsync(LinkSingerRequest request) =>
+        PostAuthAsync("api/auth/link-singer", request);
+
+    public async Task<SongSummaryResult> GetMySongSummaryAsync(int songId)
+    {
+        var response = await http.GetAsync($"api/performances/my-song-summary?songId={songId}");
+        if (response.IsSuccessStatusCode)
+        {
+            var summary = await response.Content.ReadFromJsonAsync<SongPerformanceSummaryDto>();
+            return summary is null
+                ? SongSummaryResult.Fail("Unexpected empty response from the server.")
+                : SongSummaryResult.Ok(summary);
+        }
+
+        var error = await response.Content.ReadFromJsonAsync<ApiErrorResponse>();
+        return SongSummaryResult.Fail(error?.Message ?? "Could not load song summary.");
+    }
+
+    public Task CreatePerformanceAsync(PerformanceDto dto) => PostAsync("api/performances", dto);
+    public Task UpdatePerformanceAsync(PerformanceDto dto) => PutAsync($"api/performances/{dto.Id}", dto);
+    public Task DeletePerformanceAsync(int id) => DeleteAsync($"api/performances/{id}");
 
     private async Task<List<T>> GetListAsync<T>(string url)
     {

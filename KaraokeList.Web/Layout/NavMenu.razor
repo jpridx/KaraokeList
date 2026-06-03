@@ -28,7 +28,7 @@
             <NavLink class="nav-link" href="singers">Singers</NavLink>
         </div>
         <div class="nav-item px-3">
-            <NavLink class="nav-link" href="singer-songs">Singer Songs</NavLink>
+            <NavLink class="nav-link" href="performances">Performances</NavLink>
         </div>
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="venues">Venues</NavLink>
@@ -40,7 +40,8 @@
                     <span class="nav-link">@context.User.Identity?.Name</span>
                 </div>
                 <div class="nav-item px-3">
-                    <button class="nav-link btn btn-link" @onclick="LogoutAsync">Logout</button>
+                    <button type="button" class="nav-link btn btn-link text-start w-100"
+                            @onclick="LogoutAsync" @onclick:stopPropagation="true">Sign out</button>
                 </div>
             </Authorized>
             <NotAuthorized>

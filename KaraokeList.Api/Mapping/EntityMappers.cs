@@ -55,25 +55,38 @@ public static class EntityMappers
 
     public static ArtistLookupDto ToDto(this ArtistLookup entity) => new() { Id = entity.Id, Name = entity.Name };
 
-    public static SingerSongDto ToDto(this SingerSong entity) => new()
+    public static PerformanceDto ToDto(this Performance entity) => new()
     {
         Id = entity.Id,
         Singer = entity.Singer,
         Song = entity.Song,
         Venue = entity.Venue,
-        FirstSung = entity.FirstSung,
-        LastSung = entity.LastSung,
-        Count = entity.Count
+        PerformedOn = entity.PerformedOn,
+        KeyChangeSemitones = entity.KeyChangeSemitones
     };
 
-    public static SingerSong ToEntity(this SingerSongDto dto) => new()
+    public static Performance ToEntity(this PerformanceDto dto) => new()
     {
         Id = dto.Id,
         Singer = dto.Singer,
         Song = dto.Song,
         Venue = dto.Venue,
-        FirstSung = dto.FirstSung,
-        LastSung = dto.LastSung,
-        Count = dto.Count
+        PerformedOn = dto.PerformedOn,
+        KeyChangeSemitones = dto.KeyChangeSemitones
+    };
+
+    public static SongPerformanceSummaryDto ToDto(this SongPerformanceSummary summary) => new()
+    {
+        SongId = summary.SongId,
+        PerformanceCount = summary.PerformanceCount,
+        LastKeyChangeSemitones = summary.LastKeyChangeSemitones,
+        LastPerformedOn = summary.LastPerformedOn,
+        LastVenueName = summary.LastVenueName,
+        History = summary.History.Select(h => new PerformanceHistoryEntryDto
+        {
+            PerformedOn = h.PerformedOn,
+            VenueName = h.VenueName,
+            KeyChangeSemitones = h.KeyChangeSemitones
+        }).ToList()
     };
 }

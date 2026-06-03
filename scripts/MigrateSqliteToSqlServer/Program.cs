@@ -50,7 +50,7 @@ var tables = new (string Table, string[] Columns, bool HasIdentity)[]
     ("Singers", ["Id", "Name"], true),
     ("Venues", ["Id", "VenueName"], true),
     ("Songs", ["Id", "Title", "Artist", "Genre", "Year", "SecondaryArtist"], true),
-    ("SingerSongs", ["Id", "Singer", "Song", "Venue", "FirstSung", "LastSung", "Count"], true),
+    ("Performances", ["Id", "Singer", "Song", "Venue", "PerformedOn", "KeyChangeSemitones"], true),
 };
 
 foreach (var (table, columns, _) in tables)

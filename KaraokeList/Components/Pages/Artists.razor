@@ -6,6 +6,7 @@
 @using Syncfusion.Blazor.Grids
 @using Syncfusion.Blazor.DropDowns
 @inject ArtistService ArtistService
+@inject GenreService GenreService
 
 <PageTitle>Artists</PageTitle>
 
@@ -30,7 +31,25 @@
             <GridColumn Field="Id" HeaderText="ID" IsPrimaryKey="true" Visible="false" Width="50" TextAlign="TextAlign.Right" ValidationRules="@(new ValidationRules{ Required=true })" />
             <GridColumn Field="Name" HeaderText="Name" Width="200" ValidationRules="@(new ValidationRules{ Required=true })" />
             <GridColumn Field="SortableName" HeaderText="Sortable Name" Width="200" />
-            <GridColumn Field="MainGenre" HeaderText="Main Genre" EditType="EditType.DropDownEdit" Width="150" />
+            <GridColumn Field="MainGenre" HeaderText="Main Genre" Width="180">
+                <Template Context="context">
+                    @{
+                        var artist = context as Artist;
+                        var genreName = genres.FirstOrDefault(g => g.Id == artist?.MainGenre)?.GenreName ?? "";
+                    }
+                    <span>@genreName</span>
+                </Template>
+                <EditTemplate Context="context">
+                    @{
+                        var artist = (context as Artist)!;
+                    }
+                    <SfDropDownList TValue="int?" TItem="Genre" DataSource="@genres" @bind-Value="artist.MainGenre"
+                                    Placeholder="Select genre" AllowFiltering="true"
+                                    FilterType="Syncfusion.Blazor.DropDowns.FilterType.Contains">
+                        <DropDownListFieldSettings Value="Id" Text="GenreName" />
+                    </SfDropDownList>
+                </EditTemplate>
+            </GridColumn>
         </GridColumns>
     </SfGrid>
 </div>
@@ -48,10 +67,12 @@
 
 @code {
     private List<Artist> artists = new();
+    private List<Genre> genres = new();
     private SfGrid<Artist> Grid = default!;
 
     protected override async Task OnInitializedAsync()
     {
+        genres = await GenreService.GetGenresAsync();
         artists = await ArtistService.GetArtistsAsync();
     }
 

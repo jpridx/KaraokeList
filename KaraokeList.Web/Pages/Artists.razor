@@ -16,7 +16,25 @@
                 <GridColumn Field="@nameof(ArtistDto.Id)" IsPrimaryKey="true" Visible="false" />
                 <GridColumn Field="@nameof(ArtistDto.Name)" HeaderText="Name" Width="200" />
                 <GridColumn Field="@nameof(ArtistDto.SortableName)" HeaderText="Sortable Name" Width="200" />
-                <GridColumn Field="@nameof(ArtistDto.MainGenre)" HeaderText="Main Genre" Width="120" />
+                <GridColumn Field="@nameof(ArtistDto.MainGenre)" HeaderText="Main Genre" Width="180">
+                    <Template Context="context">
+                        @{
+                            var artist = (ArtistDto)context!;
+                            var genreName = genres.FirstOrDefault(g => g.Id == artist.MainGenre)?.GenreName ?? "";
+                        }
+                        <span>@genreName</span>
+                    </Template>
+                    <EditTemplate Context="context">
+                        @{
+                            var artist = (ArtistDto)context!;
+                        }
+                        <SfDropDownList TValue="int?" TItem="GenreDto" DataSource="@genres" @bind-Value="artist.MainGenre"
+                                        Placeholder="Select genre" AllowFiltering="true"
+                                        FilterType="Syncfusion.Blazor.DropDowns.FilterType.Contains">
+                            <DropDownListFieldSettings Value="Id" Text="GenreName" />
+                        </SfDropDownList>
+                    </EditTemplate>
+                </GridColumn>
             </GridColumns>
         </SfGrid>
     }
@@ -24,6 +42,7 @@
 
 @code {
     private List<ArtistDto> artists = [];
+    private List<GenreDto> genres = [];
     private bool isLoading = true;
 
     protected override async Task OnInitializedAsync() => await ReloadAsync();
@@ -31,6 +50,7 @@
     private async Task ReloadAsync()
     {
         isLoading = true;
+        genres = await Api.GetGenresAsync();
         artists = await Api.GetArtistsAsync();
         isLoading = false;
     }

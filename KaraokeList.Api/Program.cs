@@ -23,6 +23,7 @@ builder.Services.AddSingleton<IRegistrationGate, RegistrationGate>();
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<IAuthRateLimiter, AuthRateLimiter>();
 builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
+builder.Services.AddScoped<ICurrentUserSingerResolver, CurrentUserSingerResolver>();
 
 var jwtSettings = builder.Configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>()
     ?? throw new InvalidOperationException("Jwt settings are required.");

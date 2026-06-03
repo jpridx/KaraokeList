@@ -29,12 +29,35 @@
                         @{
                             var song = (SongDisplay)context!;
                         }
-                        <SfAutoComplete TValue="string" TItem="ArtistLookupDto" DataSource="@artistLookups" @bind-Value="song.ArtistName">
+                        <SfAutoComplete TValue="string" TItem="ArtistLookupDto" DataSource="@artistLookups" @bind-Value="song.ArtistName"
+                                        Placeholder="Search artist...">
                             <AutoCompleteFieldSettings Value="Name" Text="Name" />
                         </SfAutoComplete>
                     </EditTemplate>
                 </GridColumn>
-                <GridColumn Field="@nameof(SongDisplay.Genre)" HeaderText="Genre" Width="120" />
+                <GridColumn Field="@nameof(SongDisplay.GenreName)" HeaderText="Genre" Width="150">
+                    <EditTemplate Context="context">
+                        @{
+                            var song = (SongDisplay)context!;
+                        }
+                        <SfDropDownList TValue="int?" TItem="GenreDto" DataSource="@genres" @bind-Value="song.Genre"
+                                        Placeholder="Select genre" AllowFiltering="true"
+                                        FilterType="Syncfusion.Blazor.DropDowns.FilterType.Contains">
+                            <DropDownListFieldSettings Value="Id" Text="GenreName" />
+                        </SfDropDownList>
+                    </EditTemplate>
+                </GridColumn>
+                <GridColumn Field="@nameof(SongDisplay.SecondaryArtistName)" HeaderText="Secondary Artist" Width="200">
+                    <EditTemplate Context="context">
+                        @{
+                            var song = (SongDisplay)context!;
+                        }
+                        <SfAutoComplete TValue="string" TItem="ArtistLookupDto" DataSource="@artistLookups" @bind-Value="song.SecondaryArtistName"
+                                        Placeholder="Search artist...">
+                            <AutoCompleteFieldSettings Value="Name" Text="Name" />
+                        </SfAutoComplete>
+                    </EditTemplate>
+                </GridColumn>
                 <GridColumn Field="@nameof(SongDisplay.Year)" HeaderText="Year" Width="100" />
             </GridColumns>
         </SfGrid>
@@ -44,6 +67,7 @@
 @code {
     private List<SongDisplay> songs = [];
     private List<ArtistLookupDto> artistLookups = [];
+    private List<GenreDto> genres = [];
     private bool isLoading = true;
 
     protected override async Task OnInitializedAsync() => await ReloadAsync();
@@ -52,6 +76,7 @@
     {
         isLoading = true;
         artistLookups = await Api.GetArtistLookupsAsync();
+        genres = await Api.GetGenresAsync();
         var raw = await Api.GetSongsAsync();
         songs = raw.Select(s => new SongDisplay
         {
@@ -60,8 +85,10 @@
             Artist = s.Artist,
             ArtistName = artistLookups.FirstOrDefault(a => a.Id == s.Artist)?.Name ?? "",
             Genre = s.Genre,
+            GenreName = genres.FirstOrDefault(g => g.Id == s.Genre)?.GenreName ?? "",
             Year = s.Year,
-            SecondaryArtist = s.SecondaryArtist
+            SecondaryArtist = s.SecondaryArtist,
+            SecondaryArtistName = artistLookups.FirstOrDefault(a => a.Id == s.SecondaryArtist)?.Name ?? ""
         }).ToList();
         isLoading = false;
     }
@@ -71,6 +98,9 @@
         if (args.RequestType == Action.Save && args.Data is not null)
         {
             args.Data.Artist = artistLookups.FirstOrDefault(a => a.Name == args.Data.ArtistName)?.Id;
+            args.Data.SecondaryArtist = string.IsNullOrWhiteSpace(args.Data.SecondaryArtistName)
+                ? null
+                : artistLookups.FirstOrDefault(a => a.Name == args.Data.SecondaryArtistName)?.Id;
             if (args.Data.Id <= 0) await Api.CreateSongAsync(args.Data);
             else await Api.UpdateSongAsync(args.Data);
             await ReloadAsync();
@@ -85,5 +115,7 @@
     private sealed class SongDisplay : SongDto
     {
         public string ArtistName { get; set; } = string.Empty;
+        public string GenreName { get; set; } = string.Empty;
+        public string SecondaryArtistName { get; set; } = string.Empty;
     }
 }

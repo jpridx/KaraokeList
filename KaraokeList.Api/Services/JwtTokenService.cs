@@ -2,6 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using KaraokeList.Data;
+using KaraokeList.Shared;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
@@ -25,6 +26,11 @@ public sealed class JwtTokenService(IOptions<JwtSettings> options) : IJwtTokenSe
             new(ClaimTypes.Name, user.UserName ?? user.Email ?? string.Empty),
             new(ClaimTypes.Email, user.Email ?? string.Empty),
         };
+
+        if (user.SingerId is int singerId)
+        {
+            claims.Add(new Claim(KaraokeClaimTypes.SingerId, singerId.ToString()));
+        }
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_settings.Key));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);

@@ -26,8 +26,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="..\scripts\azure-sql\001-karaoke-schema.sql">
-      <Link>scripts\azure-sql\001-karaoke-schema.sql</Link>
+    <ProjectReference Include="..\KaraokeList.Shared\KaraokeList.Shared.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="..\scripts\azure-sql\*.sql">
+      <Link>scripts\azure-sql\%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>

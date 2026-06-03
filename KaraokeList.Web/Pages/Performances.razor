@@ -1,0 +1,353 @@
+@page "/performances"
+@attribute [Authorize]
+@inject IKaraokeApiClient Api
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject JwtAuthenticationStateProvider AuthProvider
+
+<PageTitle>Performances</PageTitle>
+
+<h3>Performances</h3>
+<p class="text-muted">Log each time you sing a song. One row per performance — not a running count.</p>
+
+@if (isLoading)
+{
+    <p>Loading...</p>
+}
+else if (singers.Count == 0 || songs.Count == 0 || venues.Count == 0)
+{
+    <div class="alert alert-warning">Create at least one singer, song, and venue first.</div>
+}
+else
+{
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">About a song (you)</h5>
+            <div class="row g-3 align-items-end">
+                <div class="col-md-6">
+                    <label class="form-label">Song</label>
+                    <SfDropDownList TValue="int?" TItem="SongDto" DataSource="@songs" @bind-Value="summarySongId"
+                                    Placeholder="Pick a song" AllowFiltering="true"
+                                    FilterType="Syncfusion.Blazor.DropDowns.FilterType.Contains">
+                        <DropDownListFieldSettings Value="Id" Text="Title" />
+                    </SfDropDownList>
+                </div>
+                <div class="col-md-6">
+                    <button class="btn btn-outline-primary" disabled="@(summarySongId is null)" @onclick="LoadSummaryAsync">Show history</button>
+                </div>
+            </div>
+
+            @if (summarySongId is null)
+            {
+                <p class="text-muted mt-3 mb-0">Choose a song to see how many times you've sung it, where, when, and your last key change.</p>
+            }
+            else if (summaryLoading)
+            {
+                <p class="mt-3 mb-0">Loading summary...</p>
+            }
+            else if (!string.IsNullOrEmpty(summaryError))
+            {
+                <p class="text-muted mt-3 mb-0">@summaryError</p>
+            }
+            else if (songSummary is null)
+            {
+                <p class="text-muted mt-3 mb-0">Could not load summary.</p>
+            }
+            else if (songSummary.PerformanceCount == 0)
+            {
+                <p class="mt-3 mb-0">You have not logged any performances of this song yet.</p>
+            }
+            else
+            {
+                <ul class="mt-3 mb-2">
+                    <li><strong>Times sung:</strong> @songSummary.PerformanceCount</li>
+                    <li><strong>Last time:</strong> @songSummary.LastPerformedOn?.ToString("d") at @(songSummary.LastVenueName ?? "unknown venue")</li>
+                    <li><strong>Last key:</strong> @KeyChangeFormatting.Describe(songSummary.LastKeyChangeSemitones)</li>
+                </ul>
+                <table class="table table-sm">
+                    <thead>
+                        <tr><th>Date</th><th>Venue</th><th>Key</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var entry in songSummary.History)
+                        {
+                            <tr>
+                                <td>@entry.PerformedOn.ToString("d")</td>
+                                <td>@entry.VenueName</td>
+                                <td>@KeyChangeFormatting.Describe(entry.KeyChangeSemitones)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+    </div>
+
+    @if (needsSingerLink)
+    {
+        <div class="alert alert-info">
+            <p class="mb-2">Your login is not linked to a singer profile yet, so &quot;my song&quot; history cannot load.</p>
+            <div class="row g-2 align-items-end">
+                <div class="col-md-4">
+                    <label class="form-label">Use existing singer</label>
+                    <SfDropDownList TValue="int?" TItem="SingerDto" DataSource="@singers" @bind-Value="linkSingerId"
+                                    Placeholder="Select your name" AllowFiltering="true"
+                                    FilterType="Syncfusion.Blazor.DropDowns.FilterType.Contains">
+                        <DropDownListFieldSettings Value="Id" Text="Name" />
+                    </SfDropDownList>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Or create new</label>
+                    <input class="form-control" @bind="linkSingerName" placeholder="Your stage name" />
+                </div>
+                <div class="col-md-4">
+                    <button type="button" class="btn btn-primary" @onclick="LinkSingerProfileAsync">Link profile</button>
+                </div>
+            </div>
+            @if (!string.IsNullOrEmpty(linkError))
+            {
+                <p class="text-danger mt-2 mb-0">@linkError</p>
+            }
+        </div>
+    }
+
+    <div class="mb-3 form-check">
+        <InputCheckbox class="form-check-input" @bind-Value="showOnlyMine" @bind-Value:after="ReloadPerformancesAsync" />
+        <label class="form-check-label">Show only my performances</label>
+    </div>
+
+    <div class="catalog-container">
+        <SfGrid DataSource="@performances" AllowPaging="true" AllowSorting="true" AllowFiltering="true"
+                Toolbar="@(new List<string>() { "Add", "Edit", "Delete", "Update", "Cancel", "Search" })">
+            <GridEvents TValue="PerformanceDto" OnActionBegin="OnActionBegin"></GridEvents>
+            <GridEditSettings AllowAdding="true" AllowEditing="true" AllowDeleting="true" Mode="EditMode.Normal"></GridEditSettings>
+            <GridColumns>
+                <GridColumn Field="@nameof(PerformanceDto.Id)" IsPrimaryKey="true" Visible="false" />
+                <GridColumn Field="@nameof(PerformanceDto.Singer)" HeaderText="Singer" Width="180">
+                    <Template Context="context">
+                        @{
+                            var row = (PerformanceDto)context!;
+                            var name = singers.FirstOrDefault(s => s.Id == row.Singer)?.Name ?? "";
+                        }
+                        <span>@name</span>
+                    </Template>
+                    <EditTemplate Context="context">
+                        @{
+                            var row = (PerformanceDto)context!;
+                        }
+                        <SfDropDownList TValue="int?" TItem="SingerDto" DataSource="@singers" @bind-Value="row.Singer"
+                                        Placeholder="Select singer" AllowFiltering="true"
+                                        FilterType="Syncfusion.Blazor.DropDowns.FilterType.Contains">
+                            <DropDownListFieldSettings Value="Id" Text="Name" />
+                        </SfDropDownList>
+                    </EditTemplate>
+                </GridColumn>
+                <GridColumn Field="@nameof(PerformanceDto.Song)" HeaderText="Song" Width="220">
+                    <Template Context="context">
+                        @{
+                            var row = (PerformanceDto)context!;
+                            var title = songs.FirstOrDefault(s => s.Id == row.Song)?.Title ?? "";
+                        }
+                        <span>@title</span>
+                    </Template>
+                    <EditTemplate Context="context">
+                        @{
+                            var row = (PerformanceDto)context!;
+                        }
+                        <SfDropDownList TValue="int?" TItem="SongDto" DataSource="@songs" @bind-Value="row.Song"
+                                        Placeholder="Select song" AllowFiltering="true"
+                                        FilterType="Syncfusion.Blazor.DropDowns.FilterType.Contains">
+                            <DropDownListFieldSettings Value="Id" Text="Title" />
+                        </SfDropDownList>
+                    </EditTemplate>
+                </GridColumn>
+                <GridColumn Field="@nameof(PerformanceDto.Venue)" HeaderText="Venue" Width="180">
+                    <Template Context="context">
+                        @{
+                            var row = (PerformanceDto)context!;
+                            var venueName = venues.FirstOrDefault(v => v.Id == row.Venue)?.VenueName ?? "";
+                        }
+                        <span>@venueName</span>
+                    </Template>
+                    <EditTemplate Context="context">
+                        @{
+                            var row = (PerformanceDto)context!;
+                        }
+                        <SfDropDownList TValue="int?" TItem="VenueDto" DataSource="@venues" @bind-Value="row.Venue"
+                                        Placeholder="Select venue" AllowFiltering="true"
+                                        FilterType="Syncfusion.Blazor.DropDowns.FilterType.Contains">
+                            <DropDownListFieldSettings Value="Id" Text="VenueName" />
+                        </SfDropDownList>
+                    </EditTemplate>
+                </GridColumn>
+                <GridColumn Field="@nameof(PerformanceDto.PerformedOn)" HeaderText="Date" EditType="EditType.DatePickerEdit" Format="d" Type="ColumnType.Date" Width="120" />
+                <GridColumn Field="@nameof(PerformanceDto.KeyChangeSemitones)" HeaderText="Key change" Width="160">
+                    <Template Context="context">
+                        @{
+                            var row = (PerformanceDto)context!;
+                        }
+                        <span>@KeyChangeFormatting.Describe(row.KeyChangeSemitones)</span>
+                    </Template>
+                    <EditTemplate Context="context">
+                        @{
+                            var row = (PerformanceDto)context!;
+                        }
+                        <SfDropDownList TValue="int?" TItem="PerformanceKeyOption" DataSource="@keyOptions" @bind-Value="row.KeyChangeSemitones"
+                                        Placeholder="Original key">
+                            <DropDownListFieldSettings Value="Semitones" Text="Label" />
+                        </SfDropDownList>
+                    </EditTemplate>
+                </GridColumn>
+            </GridColumns>
+        </SfGrid>
+    </div>
+}
+
+@code {
+    private List<PerformanceDto> performances = [];
+    private List<SingerDto> singers = [];
+    private List<SongDto> songs = [];
+    private List<VenueDto> venues = [];
+    private IReadOnlyList<PerformanceKeyOption> keyOptions = PerformanceKeyOption.Choices;
+    private bool isLoading = true;
+    private bool showOnlyMine = true;
+    private int? mySingerId;
+    private int? summarySongId;
+    private SongPerformanceSummaryDto? songSummary;
+    private string? summaryError;
+    private bool summaryLoading;
+    private bool needsSingerLink;
+    private int? linkSingerId;
+    private string linkSingerName = string.Empty;
+    private string? linkError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        mySingerId = authState.User.GetSingerId();
+        await ReloadLookupsAsync();
+
+        var profile = await Api.GetProfileAsync();
+        if (profile?.SingerId is int profileSingerId)
+        {
+            mySingerId = profileSingerId;
+            needsSingerLink = false;
+        }
+        else
+        {
+            needsSingerLink = true;
+        }
+
+        await ReloadPerformancesAsync();
+    }
+
+    private async Task LinkSingerProfileAsync()
+    {
+        linkError = null;
+        var request = new LinkSingerRequest
+        {
+            SingerId = linkSingerId,
+            Name = string.IsNullOrWhiteSpace(linkSingerName) ? null : linkSingerName.Trim()
+        };
+
+        var result = await Api.LinkSingerAsync(request);
+        if (!result.Succeeded || result.Response is null)
+        {
+            linkError = result.ErrorMessage ?? "Could not link singer profile.";
+            return;
+        }
+
+        await AuthProvider.MarkUserAsAuthenticatedAsync(result.Response.Token);
+        mySingerId = result.Response.SingerId;
+        needsSingerLink = false;
+        await ReloadPerformancesAsync();
+        if (summarySongId is not null)
+        {
+            await LoadSummaryAsync();
+        }
+    }
+
+    private async Task ReloadLookupsAsync()
+    {
+        isLoading = true;
+        singers = await Api.GetSingersAsync();
+        songs = await Api.GetSongsAsync();
+        venues = await Api.GetVenuesAsync();
+        isLoading = false;
+    }
+
+    private async Task ReloadPerformancesAsync()
+    {
+        performances = await Api.GetPerformancesAsync(showOnlyMine ? mySingerId : null);
+    }
+
+    private async Task LoadSummaryAsync()
+    {
+        if (summarySongId is null)
+        {
+            return;
+        }
+
+        summaryLoading = true;
+        summaryError = null;
+        songSummary = null;
+        var result = await Api.GetMySongSummaryAsync(summarySongId.Value);
+        if (result.Succeeded && result.Summary is not null)
+        {
+            songSummary = result.Summary;
+        }
+        else
+        {
+            summaryError = result.ErrorMessage;
+            if (result.ErrorMessage?.Contains("not linked", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                needsSingerLink = true;
+            }
+        }
+
+        summaryLoading = false;
+    }
+
+    private async Task OnActionBegin(ActionEventArgs<PerformanceDto> args)
+    {
+        if (args.RequestType == Action.Add && args.Data is not null)
+        {
+            args.Data.PerformedOn = DateTime.Today;
+            if (mySingerId is int singerId)
+            {
+                args.Data.Singer = singerId;
+            }
+        }
+
+        if (args.RequestType == Action.Save && args.Data is not null)
+        {
+            if (args.Data.KeyChangeSemitones == 0)
+            {
+                args.Data.KeyChangeSemitones = null;
+            }
+
+            if (args.Data.Id <= 0)
+            {
+                await Api.CreatePerformanceAsync(args.Data);
+            }
+            else
+            {
+                await Api.UpdatePerformanceAsync(args.Data);
+            }
+
+            await ReloadPerformancesAsync();
+            if (summarySongId == args.Data.Song)
+            {
+                await LoadSummaryAsync();
+            }
+        }
+        else if (args.RequestType == Action.Delete && args.Data is not null)
+        {
+            await Api.DeletePerformanceAsync(args.Data.Id);
+            await ReloadPerformancesAsync();
+            if (summarySongId == args.Data.Song)
+            {
+                await LoadSummaryAsync();
+            }
+        }
+    }
+}
