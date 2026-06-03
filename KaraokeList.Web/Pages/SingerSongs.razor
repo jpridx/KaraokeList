@@ -1,0 +1,96 @@
+@page "/singer-songs"
+@attribute [Authorize]
+@inject IKaraokeApiClient Api
+
+<PageTitle>Singer Songs</PageTitle>
+
+<h3>Singer Songs</h3>
+<div class="catalog-container">
+    @if (isLoading)
+    {
+        <p>Loading...</p>
+    }
+    else if (singers.Count == 0 || songs.Count == 0 || venues.Count == 0)
+    {
+        <div class="alert alert-warning">Create at least one singer, song, and venue first.</div>
+    }
+    else
+    {
+        <SfGrid DataSource="@singerSongs" AllowPaging="true" AllowSorting="true" AllowFiltering="true"
+                Toolbar="@(new List<string>() { "Add", "Edit", "Delete", "Update", "Cancel", "Search" })">
+            <GridEvents TValue="SingerSongDto" OnActionBegin="OnActionBegin"></GridEvents>
+            <GridEditSettings AllowAdding="true" AllowEditing="true" AllowDeleting="true" Mode="EditMode.Normal"></GridEditSettings>
+            <GridColumns>
+                <GridColumn Field="@nameof(SingerSongDto.Id)" IsPrimaryKey="true" Visible="false" />
+                <GridColumn Field="@nameof(SingerSongDto.Singer)" HeaderText="Singer" Width="150">
+                    <EditTemplate Context="context">
+                        @{
+                            var row = (SingerSongDto)context!;
+                        }
+                        <SfDropDownList TValue="int?" TItem="SingerDto" DataSource="@singers" @bind-Value="row.Singer">
+                            <DropDownListFieldSettings Value="Id" Text="Name" />
+                        </SfDropDownList>
+                    </EditTemplate>
+                </GridColumn>
+                <GridColumn Field="@nameof(SingerSongDto.Song)" HeaderText="Song" Width="150">
+                    <EditTemplate Context="context">
+                        @{
+                            var row = (SingerSongDto)context!;
+                        }
+                        <SfDropDownList TValue="int?" TItem="SongDto" DataSource="@songs" @bind-Value="row.Song">
+                            <DropDownListFieldSettings Value="Id" Text="Title" />
+                        </SfDropDownList>
+                    </EditTemplate>
+                </GridColumn>
+                <GridColumn Field="@nameof(SingerSongDto.Venue)" HeaderText="Venue" Width="150">
+                    <EditTemplate Context="context">
+                        @{
+                            var row = (SingerSongDto)context!;
+                        }
+                        <SfDropDownList TValue="int?" TItem="VenueDto" DataSource="@venues" @bind-Value="row.Venue">
+                            <DropDownListFieldSettings Value="Id" Text="VenueName" />
+                        </SfDropDownList>
+                    </EditTemplate>
+                </GridColumn>
+                <GridColumn Field="@nameof(SingerSongDto.FirstSung)" HeaderText="First Sung" EditType="EditType.DatePickerEdit" Format="d" Type="ColumnType.Date" Width="120" />
+                <GridColumn Field="@nameof(SingerSongDto.LastSung)" HeaderText="Last Sung" EditType="EditType.DatePickerEdit" Format="d" Type="ColumnType.Date" Width="120" />
+                <GridColumn Field="@nameof(SingerSongDto.Count)" HeaderText="Count" Width="80" />
+            </GridColumns>
+        </SfGrid>
+    }
+</div>
+
+@code {
+    private List<SingerSongDto> singerSongs = [];
+    private List<SingerDto> singers = [];
+    private List<SongDto> songs = [];
+    private List<VenueDto> venues = [];
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync() => await ReloadAsync();
+
+    private async Task ReloadAsync()
+    {
+        isLoading = true;
+        singerSongs = await Api.GetSingerSongsAsync();
+        singers = await Api.GetSingersAsync();
+        songs = await Api.GetSongsAsync();
+        venues = await Api.GetVenuesAsync();
+        isLoading = false;
+    }
+
+    private async Task OnActionBegin(ActionEventArgs<SingerSongDto> args)
+    {
+        if (args.RequestType == Action.Save && args.Data is not null)
+        {
+            if (args.Data.Id <= 0) await Api.CreateSingerSongAsync(args.Data);
+            else await Api.UpdateSingerSongAsync(args.Data);
+            await ReloadAsync();
+        }
+        else if (args.RequestType == Action.Delete && args.Data is not null)
+        {
+            await Api.DeleteSingerSongAsync(args.Data.Id);
+            await ReloadAsync();
+        }
+    }
+}

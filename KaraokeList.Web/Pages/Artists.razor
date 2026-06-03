@@ -1,0 +1,52 @@
+@page "/artists"
+@attribute [Authorize]
+@inject IKaraokeApiClient Api
+
+<PageTitle>Artists</PageTitle>
+
+<h3>Artists</h3>
+<div class="catalog-container">
+    @if (!isLoading)
+    {
+        <SfGrid DataSource="@artists" AllowPaging="true" AllowSorting="true" AllowFiltering="true"
+                Toolbar="@(new List<string>() { "Add", "Edit", "Delete", "Update", "Cancel", "Search" })">
+            <GridEvents TValue="ArtistDto" OnActionBegin="OnActionBegin"></GridEvents>
+            <GridEditSettings AllowAdding="true" AllowEditing="true" AllowDeleting="true" Mode="EditMode.Normal"></GridEditSettings>
+            <GridColumns>
+                <GridColumn Field="@nameof(ArtistDto.Id)" IsPrimaryKey="true" Visible="false" />
+                <GridColumn Field="@nameof(ArtistDto.Name)" HeaderText="Name" Width="200" />
+                <GridColumn Field="@nameof(ArtistDto.SortableName)" HeaderText="Sortable Name" Width="200" />
+                <GridColumn Field="@nameof(ArtistDto.MainGenre)" HeaderText="Main Genre" Width="120" />
+            </GridColumns>
+        </SfGrid>
+    }
+</div>
+
+@code {
+    private List<ArtistDto> artists = [];
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync() => await ReloadAsync();
+
+    private async Task ReloadAsync()
+    {
+        isLoading = true;
+        artists = await Api.GetArtistsAsync();
+        isLoading = false;
+    }
+
+    private async Task OnActionBegin(ActionEventArgs<ArtistDto> args)
+    {
+        if (args.RequestType == Action.Save && args.Data is not null)
+        {
+            if (args.Data.Id <= 0) await Api.CreateArtistAsync(args.Data);
+            else await Api.UpdateArtistAsync(args.Data);
+            await ReloadAsync();
+        }
+        else if (args.RequestType == Action.Delete && args.Data is not null)
+        {
+            await Api.DeleteArtistAsync(args.Data.Id);
+            await ReloadAsync();
+        }
+    }
+}

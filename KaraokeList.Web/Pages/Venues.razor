@@ -1,0 +1,68 @@
+@page "/venues"
+@attribute [Authorize]
+@inject IKaraokeApiClient Api
+
+<PageTitle>Venues</PageTitle>
+
+<h3>Venues</h3>
+<div class="catalog-container">
+    @if (isLoading)
+    {
+        <p>Loading...</p>
+    }
+    else
+    {
+        <SfGrid @ref="Grid" DataSource="@venues"
+                AllowPaging="true" AllowSorting="true" AllowFiltering="true" AllowSelection="true"
+                Toolbar="@(new List<string>() { "Add", "Edit", "Delete", "Update", "Cancel", "Search" })">
+            <GridEvents TValue="VenueDto" OnActionBegin="OnActionBegin"></GridEvents>
+            <GridEditSettings AllowAdding="true" AllowEditing="true" AllowDeleting="true" Mode="EditMode.Normal"></GridEditSettings>
+            <GridFilterSettings Type="FilterType.FilterBar"></GridFilterSettings>
+            <GridPageSettings PageSizes="true"></GridPageSettings>
+            <GridColumns>
+                <GridColumn Field="@nameof(VenueDto.Id)" HeaderText="ID" IsPrimaryKey="true" Visible="false" />
+                <GridColumn Field="@nameof(VenueDto.VenueName)" HeaderText="Venue Name" Width="300" />
+            </GridColumns>
+        </SfGrid>
+    }
+</div>
+
+@code {
+    private List<VenueDto> venues = [];
+    private SfGrid<VenueDto>? Grid;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
+        isLoading = true;
+        venues = await Api.GetVenuesAsync();
+        isLoading = false;
+    }
+
+    private async Task OnActionBegin(ActionEventArgs<VenueDto> args)
+    {
+        if (args.RequestType == Action.Save && args.Data is not null)
+        {
+            if (args.Data.Id <= 0)
+            {
+                await Api.CreateVenueAsync(args.Data);
+            }
+            else
+            {
+                await Api.UpdateVenueAsync(args.Data);
+            }
+
+            await ReloadAsync();
+        }
+        else if (args.RequestType == Action.Delete && args.Data is not null)
+        {
+            await Api.DeleteVenueAsync(args.Data.Id);
+            await ReloadAsync();
+        }
+    }
+}

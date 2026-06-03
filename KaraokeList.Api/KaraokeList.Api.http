@@ -1,0 +1,6 @@
+@KaraokeList.Api_HostAddress = http://localhost:5186
+
+GET {{KaraokeList.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
