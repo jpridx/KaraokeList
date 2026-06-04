@@ -79,7 +79,7 @@ Optional settings in the Azure portal (Configuration → Application settings):
 | `Security__Registration__InviteCode` | **Required** — long random secret; share only with friends |
 | `Security__Registration__AllowRegistration` | `false` after your group has accounts |
 | `Security__Registration__RequireInviteCode` | `true` in production |
-| `SyncfusionKey` | Remove Syncfusion trial watermark |
+| `SyncfusionKey` | Remove Syncfusion trial watermark (pipeline secret at build time only — not in git) |
 | `Identity__RequireConfirmedAccount` | Set `true` if you add real email (SendGrid, etc.) |
 
 ## 5. Allow your IP for SQL administration (one-time)

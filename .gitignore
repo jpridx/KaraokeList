@@ -362,6 +362,11 @@ MigrationBackup/
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
 
-# Local secrets (Syncfusion license, etc.)
+# Local secrets — never commit license keys or personal config
 **/wwwroot/appsettings.local.json
+**/wwwroot/appsettings.secrets.json
 **/appsettings.local.json
+**/appsettings.secrets.json
+**/appsettings.*.local.json
+**/secrets.json
+**/SyncfusionLicenseKey.g.cs

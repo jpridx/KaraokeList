@@ -36,7 +36,7 @@ Server=localhost,1433;Database=KaraokeList;User Id=sa;Password=<password>;TrustS
 
 - **No test projects exist** in this repo. The only verification is `dotnet build`.
 - **EF Core tools version conflict**: Do not rely on `dotnet ef database update` in all environments — the app runs `Database.MigrateAsync()` on startup.
-- **Syncfusion license key** is optional (`SyncfusionKey` in configuration).
+- **Syncfusion license key** is optional; use `dotnet user-secrets set "SyncfusionKey" "..." --project KaraokeList.Web` (never commit the key in `wwwroot` or appsettings).
 - **HTTPS redirect** can fail in cloud environments; use the `http` launch profile locally.
 - **Catalog pages require sign-in** (`[Authorize]` on Songs, Artists, Genres, Singers, Venues, Singer Songs).
 - **Migrate legacy SQLite data** with `scripts/MigrateSqliteToSqlServer` and `KARAOKE_SQL_CONNECTION`.

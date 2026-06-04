@@ -32,28 +32,35 @@ Listens on **http://localhost:5262** (or the port in `Properties/launchSettings.
 
 ## Syncfusion packages (Web only)
 
-- `Syncfusion.Blazor.Grid` (includes grid date editing)
-- `Syncfusion.Blazor.DropDowns` (dropdowns + autocomplete)
-- `Syncfusion.Blazor.Themes`
+Pinned to **33.1.44** (must match your license key version):
+
+- `Syncfusion.Blazor.Grid` 33.1.44
+- `Syncfusion.Blazor.DropDowns` 33.1.44
+- `Syncfusion.Blazor.Themes` 33.1.44
 
 Sample/demo pages from the old Server template are not included.
 
 ### Remove the trial license banner
 
-The yellow Syncfusion popup means no license key was registered. The app already calls `SyncfusionLicenseProvider.RegisterLicense` when `SyncfusionKey` is set.
+The yellow Syncfusion popup means no license key was registered. **Do not put the key in `wwwroot` or any tracked file** — those JSON files are served to the browser and can be committed by mistake.
 
-1. Get a key (free for many personal/small-team use cases):
-   - [Syncfusion Community License](https://www.syncfusion.com/sales/communitylicense) — qualify by company size/revenue rules on that page, or
-   - Sign in at [Syncfusion downloads](https://www.syncfusion.com/account/downloads) and copy a trial/license key for Essential Studio.
-2. In `KaraokeList.Web/wwwroot`, copy the example file:
+Use **.NET User Secrets** (stored under your user profile, outside the repo). Blazor WASM cannot read user secrets in the browser, so each **build** generates a gitignored `SyncfusionLicenseKey.g.cs` from your secrets (see `SyncfusionLicense.targets`). The key is compiled into the app — it does not appear as `appsettings.secrets.json` in the Network tab.
+
+1. Get a key from [Syncfusion Community License](https://www.syncfusion.com/sales/communitylicense) or your [Syncfusion account downloads](https://www.syncfusion.com/account/downloads).
+2. From the repo root:
    ```powershell
-   cd KaraokeList.Web\wwwroot
-   copy appsettings.local.json.example appsettings.local.json
+   dotnet user-secrets set "SyncfusionKey" "<your-license-key>" --project KaraokeList.Web
    ```
-3. Open `appsettings.local.json` and replace the placeholder with your key (one long string, no quotes inside the value).
-4. Restart the WASM app (`dotnet run` in `KaraokeList.Web`). Hard-refresh the browser (Ctrl+F5).
+3. **Rebuild** (required after changing secrets):
+   ```powershell
+   dotnet build KaraokeList.Web/KaraokeList.Web.csproj
+   dotnet run --project KaraokeList.Web
+   ```
+4. Hard-refresh the browser (Ctrl+F5).
 
-`appsettings.local.json` is gitignored so the key is not committed. For Azure, set `SyncfusionKey` in the Static Web App / build pipeline the same way you inject `ApiBaseUrl` if you publish WASM with a licensed build.
+To verify: `dotnet user-secrets list --project KaraokeList.Web`. The generated `appsettings.secrets.json` is gitignored and must never be committed.
+
+For CI/production, pass `/p:SyncfusionKey=...` at build time instead of user secrets. Note: the key is still present in the published WASM client (normal for Syncfusion in the browser).
 
 ## Auth
 

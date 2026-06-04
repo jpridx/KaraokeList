@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project>
+  <!--
+    Blazor WASM cannot read user secrets in the browser. Embed the key at compile time
+    from dotnet user-secrets (see scripts/write-syncfusion-secrets.ps1).
+  -->
+  <Target Name="GenerateSyncfusionLicenseKey" BeforeTargets="CoreCompile">
+    <PropertyGroup>
+      <_CodegenPath>$(MSBuildProjectDirectory)\SyncfusionLicenseKey.g.cs</_CodegenPath>
+      <_WriteSecretsScript>$(MSBuildThisFileDirectory)..\scripts\write-syncfusion-secrets.ps1</_WriteSecretsScript>
+    </PropertyGroup>
+
+    <Exec
+      Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(_WriteSecretsScript)&quot; -ProjectPath &quot;$(MSBuildProjectFullPath)&quot; -CodegenPath &quot;$(_CodegenPath)&quot; -SyncfusionKey &quot;$(SyncfusionKey)&quot;"
+      IgnoreExitCode="true"
+      Condition="Exists('$(_WriteSecretsScript)')" />
+
+    <Message
+      Importance="high"
+      Text="Syncfusion: license key embedded at build from user secrets (SyncfusionLicenseKey.g.cs is gitignored)."
+      Condition="Exists('$(_CodegenPath)')" />
+    <Message
+      Importance="high"
+      Text="Syncfusion: no SyncfusionKey in user secrets. dotnet user-secrets set SyncfusionKey &lt;key&gt; --project KaraokeList.Web"
+      Condition="!Exists('$(_CodegenPath)')" />
+  </Target>
+</Project>

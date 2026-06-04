@@ -6,8 +6,19 @@ using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Syncfusion.Blazor;
 
+// Key is embedded at build from user secrets (SyncfusionLicenseKey.g.cs). Not loaded from wwwroot.
+if (!string.IsNullOrWhiteSpace(SyncfusionLicenseKey.Value))
+{
+    Syncfusion.Licensing.SyncfusionLicenseProvider.RegisterLicense(SyncfusionLicenseKey.Value);
+}
+else
+{
+    Console.WriteLine(
+        "Syncfusion trial banner: set user secrets, rebuild. scripts/set-syncfusion-key.ps1");
+}
+
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
-builder.Configuration.AddJsonFile("appsettings.local.json", optional: true);
+
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
@@ -25,17 +36,5 @@ builder.Services.AddScoped<IKaraokeApiClient, KaraokeApiClient>();
 builder.Services.AddHttpClient("KaraokeApi", client => client.BaseAddress = new Uri(apiBaseUrl))
     .AddHttpMessageHandler<AuthorizationMessageHandler>();
 builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("KaraokeApi"));
-
-var syncfusionKey = builder.Configuration["SyncfusionKey"];
-if (!string.IsNullOrWhiteSpace(syncfusionKey))
-{
-    Syncfusion.Licensing.SyncfusionLicenseProvider.RegisterLicense(syncfusionKey);
-}
-else if (builder.HostEnvironment.IsDevelopment())
-{
-    Console.WriteLine(
-        "Syncfusion trial banner is shown because SyncfusionKey is not set. " +
-        "Copy wwwroot/appsettings.local.json.example to wwwroot/appsettings.local.json and paste your license key.");
-}
 
 await builder.Build().RunAsync();
