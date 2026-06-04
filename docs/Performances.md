@@ -29,3 +29,18 @@ CREATE TABLE Performances (
 | What key did I use last time? | Latest row by `PerformedOn` for that singer + song |
 
 Legacy `SingerSongs` (FirstSung / LastSung / Count) is migrated by `scripts/azure-sql/002-migrate-singer-songs-to-performances.sql`.
+
+## API (authenticated)
+
+| Endpoint | Purpose |
+|----------|---------|
+| `GET api/performances/my-repertoire?sortBy=&sortDir=&genreId=` | Songs you've performed (aggregated). `sortBy`: `title`, `artist`, `genre`, `lastPerformed`. `sortDir`: `asc`, `desc`. |
+| `GET api/performances/my-repertoire/genres` | Distinct genres in your repertoire (for filter chips). |
+| `GET api/performances/my-song-summary?songId=` | Count, last key/venue/date, full history for one song. |
+| `POST api/performances` | Log a performance; `Singer` defaults from the logged-in user when omitted. |
+
+## Mobile UI (Blazor WASM)
+
+- `/log` — quick log performance, inline new song/venue
+- `/my-songs` — browse repertoire with sort, genre filter, optional group-by-genre
+- `/my-songs/{id}` — performance history for one song

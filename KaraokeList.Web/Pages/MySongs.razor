@@ -1,0 +1,171 @@
+@page "/my-songs"
+@attribute [Authorize]
+@inject IKaraokeApiClient Api
+@inject NavigationManager Navigation
+
+<PageTitle>My Songs</PageTitle>
+
+<div class="mobile-page">
+    <header class="mobile-page-header">
+        <h1 class="h4 mb-1">My Songs</h1>
+        <p class="text-muted small mb-0">Songs you've performed, with sort and genre filter.</p>
+    </header>
+
+    @if (isLoading)
+    {
+        <p class="mt-3">Loading...</p>
+    }
+    else
+    {
+        <SingerLinkPanel Visible="needsSingerLink" OnLinked="OnSingerLinkedAsync" />
+
+        @if (!needsSingerLink)
+        {
+            <div class="mobile-toolbar">
+                <input class="form-control" placeholder="Search title or artist"
+                       @bind="searchText" @bind:event="oninput" />
+            </div>
+
+            <div class="mobile-toolbar">
+                <label class="form-label small text-muted mb-1">Sort</label>
+                <select class="form-select" @bind="sortBy" @bind:after="ReloadAsync">
+                    <option value="lastPerformed">Last performed</option>
+                    <option value="title">Song title</option>
+                    <option value="artist">Artist</option>
+                    <option value="genre">Genre</option>
+                </select>
+                <button type="button" class="btn btn-outline-secondary btn-sm mt-2"
+                        @onclick="ToggleSortDirAsync" title="Toggle sort direction">
+                    @(sortDir == "desc" ? "↓ Newest / Z–A" : "↑ Oldest / A–Z")
+                </button>
+            </div>
+
+            <div class="mobile-toolbar">
+                <label class="form-label small text-muted mb-1">Genre</label>
+                <div class="genre-chips">
+                    <button type="button" class="genre-chip @(filterGenreId is null ? "active" : "")"
+                            @onclick="() => SetGenreFilterAsync(null)">All</button>
+                    @foreach (var genre in filterGenres)
+                    {
+                        <button type="button" class="genre-chip @(filterGenreId == genre.Id ? "active" : "")"
+                                @onclick="() => SetGenreFilterAsync(genre.Id)">@genre.GenreName</button>
+                    }
+                </div>
+                <div class="form-check mt-2">
+                    <input class="form-check-input" type="checkbox" id="groupByGenre" @bind="groupByGenre" />
+                    <label class="form-check-label" for="groupByGenre">Group by genre</label>
+                </div>
+            </div>
+
+            @if (!string.IsNullOrEmpty(loadError))
+            {
+                <p class="text-danger">@loadError</p>
+            }
+            else if (!FilteredSongs.Any())
+            {
+                <div class="empty-state">
+                    <p>No songs match. <a href="log">Log a performance</a> to build your repertoire.</p>
+                </div>
+            }
+            else if (groupByGenre)
+            {
+                @foreach (var group in GroupedSongs)
+                {
+                    <h2 class="repertoire-group-heading">@group.Key</h2>
+                    @foreach (var song in group)
+                    {
+                        <SongListItem Song="song" OnClick="GoToSongAsync" />
+                    }
+                }
+            }
+            else
+            {
+                @foreach (var song in FilteredSongs)
+                {
+                    <SongListItem Song="song" OnClick="GoToSongAsync" />
+                }
+            }
+        }
+    }
+</div>
+
+@code {
+    private bool isLoading = true;
+    private bool needsSingerLink;
+    private string? loadError;
+    private List<RepertoireSongDto> songs = [];
+    private List<GenreDto> filterGenres = [];
+    private string searchText = string.Empty;
+    private string sortBy = "lastPerformed";
+    private string sortDir = "desc";
+    private int? filterGenreId;
+    private bool groupByGenre;
+
+    private IEnumerable<RepertoireSongDto> FilteredSongs =>
+        string.IsNullOrWhiteSpace(searchText)
+            ? songs
+            : songs.Where(s =>
+                s.Title.Contains(searchText, StringComparison.OrdinalIgnoreCase)
+                || s.ArtistName.Contains(searchText, StringComparison.OrdinalIgnoreCase)
+                || s.GenreName.Contains(searchText, StringComparison.OrdinalIgnoreCase));
+
+    private IEnumerable<IGrouping<string, RepertoireSongDto>> GroupedSongs =>
+        FilteredSongs.GroupBy(s => string.IsNullOrWhiteSpace(s.GenreName) ? "(No genre)" : s.GenreName)
+            .OrderBy(g => g.Key);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ReloadAsync();
+    }
+
+    private async Task OnSingerLinkedAsync(int? singerId)
+    {
+        needsSingerLink = false;
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
+        isLoading = true;
+        loadError = null;
+
+        var repertoire = await Api.GetMyRepertoireAsync(sortBy, sortDir, filterGenreId);
+        if (!repertoire.Succeeded)
+        {
+            loadError = repertoire.ErrorMessage;
+            if (repertoire.ErrorMessage?.Contains("not linked", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                needsSingerLink = true;
+            }
+
+            isLoading = false;
+            return;
+        }
+
+        songs = repertoire.Songs;
+        needsSingerLink = false;
+
+        var genresResult = await Api.GetMyRepertoireGenresAsync();
+        if (genresResult.Succeeded)
+        {
+            filterGenres = genresResult.Genres;
+        }
+
+        isLoading = false;
+    }
+
+    private async Task ToggleSortDirAsync()
+    {
+        sortDir = sortDir == "desc" ? "asc" : "desc";
+        await ReloadAsync();
+    }
+
+    private async Task SetGenreFilterAsync(int? genreId)
+    {
+        filterGenreId = genreId;
+        await ReloadAsync();
+    }
+
+    private void GoToSongAsync(RepertoireSongDto song) =>
+        Navigation.NavigateTo($"my-songs/{song.SongId}");
+}

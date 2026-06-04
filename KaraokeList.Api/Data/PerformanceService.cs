@@ -29,6 +29,23 @@ public class SongPerformanceSummary
     public List<PerformanceHistoryEntry> History { get; set; } = [];
 }
 
+public class RepertoireSong
+{
+    public int SongId { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string ArtistName { get; set; } = string.Empty;
+    public int? GenreId { get; set; }
+    public string GenreName { get; set; } = string.Empty;
+    public DateTime LastPerformedOn { get; set; }
+    public int PerformanceCount { get; set; }
+}
+
+public class RepertoireGenre
+{
+    public int Id { get; set; }
+    public string GenreName { get; set; } = string.Empty;
+}
+
 public class PerformanceService(string connectionString)
 {
     private const string SelectColumns = "Id, Singer, Song, Venue, PerformedOn, KeyChangeSemitones";
@@ -61,6 +78,94 @@ public class PerformanceService(string connectionString)
         }
 
         return performances;
+    }
+
+    public async Task<List<RepertoireSong>> GetMyRepertoireAsync(
+        int singerId,
+        string sortBy = "lastPerformed",
+        string sortDir = "desc",
+        int? genreId = null)
+    {
+        var orderColumn = sortBy.ToLowerInvariant() switch
+        {
+            "title" => "s.Title",
+            "artist" => "ISNULL(a.SortableName, a.Name)",
+            "genre" => "ISNULL(g.GenreName, N'')",
+            "lastperformed" => "MAX(p.PerformedOn)",
+            _ => "MAX(p.PerformedOn)"
+        };
+
+        var direction = string.Equals(sortDir, "asc", StringComparison.OrdinalIgnoreCase) ? "ASC" : "DESC";
+
+        await using var connection = new SqlConnection(connectionString);
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = $"""
+            SELECT s.Id,
+                   s.Title,
+                   ISNULL(a.Name, N'') AS ArtistName,
+                   s.Genre,
+                   ISNULL(g.GenreName, N'') AS GenreName,
+                   MAX(p.PerformedOn) AS LastPerformedOn,
+                   COUNT(*) AS PerformanceCount
+            FROM Performances p
+            INNER JOIN Songs s ON s.Id = p.Song
+            LEFT JOIN Artists a ON a.Id = s.Artist
+            LEFT JOIN Genres g ON g.Id = s.Genre
+            WHERE p.Singer = @Singer
+              AND (@GenreId IS NULL OR s.Genre = @GenreId)
+            GROUP BY s.Id, s.Title, a.Name, a.SortableName, s.Genre, g.GenreName
+            ORDER BY {orderColumn} {direction}, s.Title ASC
+            """;
+        command.Parameters.AddWithValue("@Singer", singerId);
+        command.Parameters.AddWithValue("@GenreId", (object?)genreId ?? DBNull.Value);
+
+        var songs = new List<RepertoireSong>();
+        await using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            songs.Add(new RepertoireSong
+            {
+                SongId = reader.GetInt32(0),
+                Title = reader.GetString(1),
+                ArtistName = reader.GetString(2),
+                GenreId = reader.IsDBNull(3) ? null : reader.GetInt32(3),
+                GenreName = reader.GetString(4),
+                LastPerformedOn = reader.GetDateTime(5),
+                PerformanceCount = reader.GetInt32(6)
+            });
+        }
+
+        return songs;
+    }
+
+    public async Task<List<RepertoireGenre>> GetMyRepertoireGenresAsync(int singerId)
+    {
+        await using var connection = new SqlConnection(connectionString);
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT DISTINCT g.Id, g.GenreName
+            FROM Performances p
+            INNER JOIN Songs s ON s.Id = p.Song
+            INNER JOIN Genres g ON g.Id = s.Genre
+            WHERE p.Singer = @Singer
+            ORDER BY g.GenreName
+            """;
+        command.Parameters.AddWithValue("@Singer", singerId);
+
+        var genres = new List<RepertoireGenre>();
+        await using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            genres.Add(new RepertoireGenre
+            {
+                Id = reader.GetInt32(0),
+                GenreName = reader.GetString(1)
+            });
+        }
+
+        return genres;
     }
 
     public async Task<SongPerformanceSummary?> GetSongPerformanceSummaryAsync(int singerId, int songId)

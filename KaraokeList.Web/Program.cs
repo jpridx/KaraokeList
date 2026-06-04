@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Syncfusion.Blazor;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
+builder.Configuration.AddJsonFile("appsettings.local.json", optional: true);
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
@@ -29,6 +30,12 @@ var syncfusionKey = builder.Configuration["SyncfusionKey"];
 if (!string.IsNullOrWhiteSpace(syncfusionKey))
 {
     Syncfusion.Licensing.SyncfusionLicenseProvider.RegisterLicense(syncfusionKey);
+}
+else if (builder.HostEnvironment.IsDevelopment())
+{
+    Console.WriteLine(
+        "Syncfusion trial banner is shown because SyncfusionKey is not set. " +
+        "Copy wwwroot/appsettings.local.json.example to wwwroot/appsettings.local.json and paste your license key.");
 }
 
 await builder.Build().RunAsync();

@@ -69,6 +69,17 @@ public class SongPerformanceSummaryDto
     public List<PerformanceHistoryEntryDto> History { get; set; } = [];
 }
 
+public class RepertoireSongDto
+{
+    public int SongId { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string ArtistName { get; set; } = string.Empty;
+    public int? GenreId { get; set; }
+    public string GenreName { get; set; } = string.Empty;
+    public DateTime LastPerformedOn { get; set; }
+    public int PerformanceCount { get; set; }
+}
+
 public static class KeyChangeFormatting
 {
     public static string Describe(int? semitones) => semitones switch

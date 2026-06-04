@@ -38,6 +38,23 @@ Listens on **http://localhost:5262** (or the port in `Properties/launchSettings.
 
 Sample/demo pages from the old Server template are not included.
 
+### Remove the trial license banner
+
+The yellow Syncfusion popup means no license key was registered. The app already calls `SyncfusionLicenseProvider.RegisterLicense` when `SyncfusionKey` is set.
+
+1. Get a key (free for many personal/small-team use cases):
+   - [Syncfusion Community License](https://www.syncfusion.com/sales/communitylicense) — qualify by company size/revenue rules on that page, or
+   - Sign in at [Syncfusion downloads](https://www.syncfusion.com/account/downloads) and copy a trial/license key for Essential Studio.
+2. In `KaraokeList.Web/wwwroot`, copy the example file:
+   ```powershell
+   cd KaraokeList.Web\wwwroot
+   copy appsettings.local.json.example appsettings.local.json
+   ```
+3. Open `appsettings.local.json` and replace the placeholder with your key (one long string, no quotes inside the value).
+4. Restart the WASM app (`dotnet run` in `KaraokeList.Web`). Hard-refresh the browser (Ctrl+F5).
+
+`appsettings.local.json` is gitignored so the key is not committed. For Azure, set `SyncfusionKey` in the Static Web App / build pipeline the same way you inject `ApiBaseUrl` if you publish WASM with a licensed build.
+
 ## Auth
 
 - Register/login call `api/auth/register` and `api/auth/login`

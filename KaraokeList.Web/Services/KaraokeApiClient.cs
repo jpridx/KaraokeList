@@ -33,6 +33,8 @@ public interface IKaraokeApiClient
     Task<UserProfileDto?> GetProfileAsync();
     Task<AuthResult> LinkSingerAsync(LinkSingerRequest request);
     Task<SongSummaryResult> GetMySongSummaryAsync(int songId);
+    Task<RepertoireResult> GetMyRepertoireAsync(string sortBy = "lastPerformed", string sortDir = "desc", int? genreId = null);
+    Task<RepertoireGenresResult> GetMyRepertoireGenresAsync();
     Task CreatePerformanceAsync(PerformanceDto dto);
     Task UpdatePerformanceAsync(PerformanceDto dto);
     Task DeletePerformanceAsync(int id);
@@ -130,6 +132,41 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
 
         var error = await response.Content.ReadFromJsonAsync<ApiErrorResponse>();
         return SongSummaryResult.Fail(error?.Message ?? "Could not load song summary.");
+    }
+
+    public async Task<RepertoireResult> GetMyRepertoireAsync(
+        string sortBy = "lastPerformed",
+        string sortDir = "desc",
+        int? genreId = null)
+    {
+        var query = $"sortBy={Uri.EscapeDataString(sortBy)}&sortDir={Uri.EscapeDataString(sortDir)}";
+        if (genreId is int genre)
+        {
+            query += $"&genreId={genre}";
+        }
+
+        var response = await http.GetAsync($"api/performances/my-repertoire?{query}");
+        if (response.IsSuccessStatusCode)
+        {
+            var songs = await response.Content.ReadFromJsonAsync<List<RepertoireSongDto>>();
+            return RepertoireResult.Ok(songs ?? []);
+        }
+
+        var error = await response.Content.ReadFromJsonAsync<ApiErrorResponse>();
+        return RepertoireResult.Fail(error?.Message ?? "Could not load repertoire.");
+    }
+
+    public async Task<RepertoireGenresResult> GetMyRepertoireGenresAsync()
+    {
+        var response = await http.GetAsync("api/performances/my-repertoire/genres");
+        if (response.IsSuccessStatusCode)
+        {
+            var genres = await response.Content.ReadFromJsonAsync<List<GenreDto>>();
+            return RepertoireGenresResult.Ok(genres ?? []);
+        }
+
+        var error = await response.Content.ReadFromJsonAsync<ApiErrorResponse>();
+        return RepertoireGenresResult.Fail(error?.Message ?? "Could not load genres.");
     }
 
     public Task CreatePerformanceAsync(PerformanceDto dto) => PostAsync("api/performances", dto);

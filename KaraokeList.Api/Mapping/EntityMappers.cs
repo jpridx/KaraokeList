@@ -75,6 +75,17 @@ public static class EntityMappers
         KeyChangeSemitones = dto.KeyChangeSemitones
     };
 
+    public static RepertoireSongDto ToDto(this RepertoireSong song) => new()
+    {
+        SongId = song.SongId,
+        Title = song.Title,
+        ArtistName = song.ArtistName,
+        GenreId = song.GenreId,
+        GenreName = song.GenreName,
+        LastPerformedOn = song.LastPerformedOn,
+        PerformanceCount = song.PerformanceCount
+    };
+
     public static SongPerformanceSummaryDto ToDto(this SongPerformanceSummary summary) => new()
     {
         SongId = summary.SongId,
