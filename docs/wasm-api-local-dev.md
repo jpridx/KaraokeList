@@ -58,12 +58,24 @@ Use **.NET User Secrets** (stored under your user profile, outside the repo). Bl
    ```
 4. Hard-refresh the browser (Ctrl+F5).
 
-To verify: `dotnet user-secrets list --project KaraokeList.Web`. The generated `appsettings.secrets.json` is gitignored and must never be committed.
+To verify: `dotnet user-secrets list --project KaraokeList.Web`. The generated `SyncfusionLicenseKey.g.cs` is gitignored and must never be committed.
+
+Shortcut (sets secrets, pins package version, rebuilds):
+
+```powershell
+.\scripts\set-syncfusion-key.ps1 -Key "<your-key>" -PackageVersion 33.1.44
+```
 
 For CI/production, pass `/p:SyncfusionKey=...` at build time instead of user secrets. Note: the key is still present in the published WASM client (normal for Syncfusion in the browser).
+
+## Mobile UX
+
+Singer-facing flows (Log, My Songs, copy-for-host): [mobile-ux.md](mobile-ux.md).
 
 ## Auth
 
 - Register/login call `api/auth/register` and `api/auth/login`
+- `GET api/auth/me` — profile and linked `SingerId`
+- `POST api/auth/link-singer` — link login to an existing or new singer
 - JWT is stored in browser local storage and sent on catalog API calls
 - Development: invite code not required (`KaraokeList.Api/appsettings.Development.json`)

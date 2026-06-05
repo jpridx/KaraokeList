@@ -41,6 +41,14 @@ Legacy `SingerSongs` (FirstSung / LastSung / Count) is migrated by `scripts/azur
 
 ## Mobile UI (Blazor WASM)
 
-- `/log` — quick log performance, inline new song/venue
-- `/my-songs` — browse repertoire with sort, genre filter, optional group-by-genre
-- `/my-songs/{id}` — performance history for one song
+Full walkthrough: [mobile-ux.md](mobile-ux.md).
+
+| Route | Purpose |
+|-------|---------|
+| `/log` | Pick song (ComboBox), `QuickLogPerformance` form, + new song/venue |
+| `/log?songId=` | Log with song pre-selected |
+| `/my-songs` | Repertoire browse: search, sort, genre filter, group-by-genre, per-row **Log** |
+| `/my-songs/{id}` | Log again + copy for host + collapsible history |
+| `/more` | Catalog admin hub |
+
+**Copy for host** — `Title - Artist` or `Title - Artist (Down N)` / `(Up N)` via `ShowHostMessageFormatting`.

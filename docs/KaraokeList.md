@@ -1,143 +1,69 @@
 # KaraokeList
 
-## Project overview
+> Include this file in requests about the project. For day-to-day singer use, start with [mobile-ux.md](mobile-ux.md).
 
-`KaraokeList` is a Blazor web application built with Syncfusion Blazor components. It includes a simple karaoke song and artist management interface backed by a local SQLite database, plus several example pages that demonstrate Syncfusion controls.
+## Architecture (current)
 
-> This file is to be included during any request concerning this project and updated as needed.
+| Project | Stack | Use |
+|---------|-------|-----|
+| **KaraokeList.Web** | Blazor WASM + Syncfusion | Primary UI: mobile Log / My Songs + catalog grids |
+| **KaraokeList.Api** | ASP.NET Core Web API, JWT, EF Identity | Auth and catalog/performance API |
+| **KaraokeList.Shared** | DTOs | Shared between Web and Api |
+| **KaraokeList** | Blazor Server (legacy) | Reference; partial parity with WASM |
 
-The app uses a temporary SQLite file located under `Temp/Karaoke.sqlite3` and provides both data management pages and UI component demo pages.
+Catalog and performances live in **Azure SQL / SQL Server**. Legacy SQLite data can be migrated with `scripts/MigrateSqliteToSqlServer`.
 
-## Main pages
+Local development: [wasm-api-local-dev.md](wasm-api-local-dev.md).  
+Azure deploy: [azure-deployment.md](azure-deployment.md).
 
-### Home / Index
-- File: `Components/Pages/Index.razor`
-- Route: `/`
-- Purpose: landing page and navigation hub.
-- Shows grouped links for Syncfusion component demos and the karaoke data pages.
+## Mobile pages (`KaraokeList.Web`)
 
-### Songs
-- File: `Components/Pages/Songs.razor`
-- Route: `/songs`
-- Purpose: manage karaoke songs.
-- Displays a Syncfusion data grid with song records.
-- Supports paging, sorting, filtering, selection, inline add/edit/delete, and search.
-- Uses `SongService` and `ArtistLookupService` to load songs and artist names.
-- Provides an autocomplete editor for selecting the song artist.
+| Route | File | Purpose |
+|-------|------|---------|
+| `/log` | `Pages/Log.razor` | Log performance; optional `?songId=` |
+| `/my-songs` | `Pages/MySongs.razor` | Browse repertoire |
+| `/my-songs/{id}` | `Pages/MySongDetail.razor` | Log again + history |
+| `/more` | `Pages/More.razor` | Catalog hub |
+| `/` | `Pages/Home.razor` | Landing |
 
-### Artists
-- File: `Components/Pages/Artists.razor`
-- Route: `/artists`
-- Purpose: manage karaoke artists.
-- Displays a Syncfusion data grid with artist records.
-- Supports paging, sorting, filtering, grouping, resizing, selection, and inline add/edit/delete.
-- Uses `ArtistService` to load, add, update, and delete artists.
+Details: [mobile-ux.md](mobile-ux.md).
 
-### Venues
-- File: `Components/Pages/Venues.razor`
-- Route: `/venues`
-- Purpose: manage karaoke venues.
-- Displays a Syncfusion data grid with venue records.
-- Supports paging, sorting, filtering, selection, and inline add/edit/delete.
-- Uses `VenueService` to load, add, update, and delete venues.
+## Catalog pages (`KaraokeList.Web`)
 
-### Genres
-- File: `Components/Pages/Genres.razor`
-- Route: `/genres`
-- Purpose: manage music genres.
-- Displays a Syncfusion data grid with genre records.
-- Supports paging, sorting, filtering, selection, and inline add/edit/delete.
-- Uses `GenreService` to load, add, update, and delete genres.
+Syncfusion grids (desktop-friendly; linked from **More**):
 
-### Singers
-- File: `Components/Pages/Singers.razor`
-- Route: `/singers`
-- Purpose: manage singers.
-- Displays a Syncfusion data grid with singer records.
-- Supports paging, sorting, filtering, selection, and inline add/edit/delete.
-- Uses `SingerService` to load, add, update, and delete singers.
+| Route | File |
+|-------|------|
+| `/songs` | `Pages/Songs.razor` |
+| `/artists` | `Pages/Artists.razor` |
+| `/genres` | `Pages/Genres.razor` |
+| `/singers` | `Pages/Singers.razor` |
+| `/venues` | `Pages/Venues.razor` |
+| `/performances` | `Pages/Performances.razor` |
 
-### Singer Songs
-- File: `Components/Pages/SingerSongs.razor`
-- Route: `/singer-songs`
-- Purpose: administrative management of singer song performances.
-- Displays a Syncfusion data grid with singer-song records tracking performances.
-- Tracks singer, song, venue, first performance date, last performance date, and performance count.
-- Supports paging, sorting, filtering, selection, and inline add/edit/delete.
-- Uses `SingerSongService` to manage records. Later, a user-facing page will allow singers to log performances.
+## Performances (not SingerSongs)
 
-### Auth
-- File: `Components/Pages/Auth.razor`
-- Route: `/auth`
-- Purpose: authenticated user page.
-- Requires login via `[Authorize]`.
-- Displays a greeting with the authenticated user name.
+Each performance is **one row** per time a singer sang a song at a venue. Aggregates (count, last date) are computed in API queries.
 
-### Error
-- File: `Components/Pages/Error.razor`
-- Route: `/Error`
-- Purpose: runtime error page.
-- Shows a friendly error message and request ID.
-- Includes guidance about using the `Development` environment for detailed debugging.
+- Schema and API: [Performances.md](Performances.md)
+- Migration from legacy `SingerSongs`: `scripts/azure-sql/002-migrate-singer-songs-to-performances.sql`
 
-## Syncfusion component demo pages
+## Legacy Blazor Server (`KaraokeList/`)
 
-These pages demonstrate individual Syncfusion Blazor controls with sample data and configurations.
+The Server project still contains catalog grids, Identity account pages, and Syncfusion demo pages under `Components/Pages/`. It is **not** the primary deployment path for the Azure learning branch. Data services under `KaraokeList/Data/` mirror the API SQL access pattern.
 
-### AutoComplete
-- File: `Components/Pages/AutoCompleteFeatures.razor`
-- Route: `/autocomplete-features`
-- Demo: `SfAutoComplete` with a searchable game list.
+## Schema reference
 
-### ComboBox
-- File: `Components/Pages/ComboBoxFeatures.razor`
-- Route: `/combobox-features`
-- Demo: `SfComboBox` with a dropdown game selector.
+Table-level docs (still accurate for column shapes):
 
-### Dropdown List
-- File: `Components/Pages/DropdownListFeatures.razor`
-- Route: `/dropdownlist-features`
-- Demo: `SfDropDownList` with a game selection list.
+- [Artists.md](Artists.md)
+- [Genres.md](Genres.md)
+- [Singers.md](Singers.md)
+- [Songs.md](Songs.md)
+- [Venues.md](Venues.md)
+- [Performances.md](Performances.md)
 
-### DataGrid
-- File: `Components/Pages/DataGridFeatures.razor`
-- Route: `/datagrid-features`
-- Demo: `SfGrid` with example order data.
-- Shows filtering, grouping, sorting, selection, paging, resizing, editing, and Excel export.
+## Auth
 
-### DatePicker
-- File: `Components/Pages/DatePickerFeatures.razor`
-- Route: `/datepicker-features`
-- Demo: `SfDatePicker` with date range limits and input masking.
-
-### Checkbox
-- File: `Components/Pages/CheckboxFeatures.razor`
-- Route: `/checkbox-features`
-- Demo: `SfCheckBox` in enabled, disabled, and indeterminate states.
-
-### Radio Button
-- File: `Components/Pages/RadioButtonFeatures.razor`
-- Route: `/radiobutton-features`
-- Demo: `SfRadioButton` set for payment method selection.
-
-### Rating
-- File: `Components/Pages/RatingFeatures.razor`
-- Route: `/rating-features`
-- Demo: `SfRating` with custom icons, tooltip, label, reset, and selection.
-
-### TextBox
-- File: `Components/Pages/TextBoxFeatures.razor`
-- Route: `/textbox-features`
-- Demo: `SfTextBox` fields for first name and last name.
-
-### Weather
-- File: `Components/Pages/Weather.razor`
-- Route: `/weather`
-- Demo: streaming rendering of generated weather forecast data.
-
-## Notes
-
-- Data services are implemented under `KaraokeList/Data`.
-- For schema-level reference, see the data docs in the `docs` folder: `Artists.md`, `Genres.md`, `Singers.md`, `SingerSongs.md`, `Songs.md`, and `Venues.md`.
-- The app combines demo pages with real karaoke song and artist management functionality.
-- This documentation file is intended as the main overview for the project.
+- WASM: JWT via `KaraokeList.Api` (`api/auth/login`, `api/auth/register`, `api/auth/me`)
+- Friends-only registration: [security-private-access.md](security-private-access.md)
