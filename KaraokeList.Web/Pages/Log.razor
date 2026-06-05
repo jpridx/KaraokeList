@@ -1,6 +1,7 @@
 @page "/log"
 @attribute [Authorize]
 @inject IKaraokeApiClient Api
+@inject IJSRuntime Js
 
 <PageTitle>Log performance</PageTitle>
 
@@ -104,6 +105,17 @@
                 </SfDropDownList>
             </div>
 
+            @if (HostMessage is not null)
+            {
+                <div class="mobile-panel host-message-panel">
+                    <label class="form-label">Message for the host</label>
+                    <p class="host-message-text mb-2">@HostMessage</p>
+                    <button type="button" class="btn btn-outline-primary w-100" @onclick="CopyHostMessageAsync">
+                        @(copyFeedback ? "Copied!" : "Copy for host")
+                    </button>
+                </div>
+            }
+
             <button type="button" class="btn btn-primary btn-lg w-100 mobile-primary-action"
                     disabled="@(!CanSave)" @onclick="SavePerformanceAsync">
                 Save performance
@@ -131,6 +143,7 @@
     private string? songHint;
     private string? saveMessage;
     private string? saveError;
+    private bool copyFeedback;
 
     private bool showNewSong;
     private string newSongTitle = string.Empty;
@@ -141,6 +154,13 @@
     private string newVenueName = string.Empty;
 
     private bool CanSave => selectedSongId is not null && selectedVenueId is not null;
+
+    private SongPickItem? SelectedSong =>
+        selectedSongId is int id ? songPickerItems.FirstOrDefault(s => s.Id == id) : null;
+
+    private string? HostMessage => SelectedSong is null
+        ? null
+        : ShowHostMessageFormatting.Format(SelectedSong.Title, SelectedSong.ArtistName, keyChangeSemitones);
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
@@ -342,6 +362,32 @@
 
     private void ToggleNewSong() => showNewSong = !showNewSong;
     private void ToggleNewVenue() => showNewVenue = !showNewVenue;
+
+    private async Task CopyHostMessageAsync()
+    {
+        if (HostMessage is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await Js.InvokeVoidAsync("copyTextToClipboard", HostMessage);
+            copyFeedback = true;
+            _ = ClearCopyFeedbackAsync();
+        }
+        catch
+        {
+            saveError = "Could not copy to clipboard.";
+        }
+    }
+
+    private async Task ClearCopyFeedbackAsync()
+    {
+        await Task.Delay(2000);
+        copyFeedback = false;
+        await InvokeAsync(StateHasChanged);
+    }
 
     private sealed class SongPickItem
     {

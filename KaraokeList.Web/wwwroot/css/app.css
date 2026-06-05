@@ -234,6 +234,17 @@ code {
     margin-top: 0.5rem;
 }
 
+.host-message-panel {
+    background: #f8fbff;
+    border-color: #c5daf5;
+}
+
+.host-message-text {
+    font-size: 1.05rem;
+    font-weight: 600;
+    word-break: break-word;
+}
+
 .genre-chips {
     display: flex;
     flex-wrap: wrap;

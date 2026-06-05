@@ -89,3 +89,24 @@ public static class KeyChangeFormatting
         < 0 => $"Down {Math.Abs(semitones.Value)} half-step{(semitones == -1 ? "" : "s")}"
     };
 }
+
+public static class ShowHostMessageFormatting
+{
+    /// <summary>Title - Artist, with (±N) key change suffix when not original key.</summary>
+    public static string Format(string title, string artistName, int? keyChangeSemitones)
+    {
+        var trimmedTitle = title.Trim();
+        var message = string.IsNullOrWhiteSpace(artistName)
+            ? trimmedTitle
+            : $"{trimmedTitle} - {artistName.Trim()}";
+
+        if (keyChangeSemitones is int key && key != 0)
+        {
+            message += key > 0
+                ? $" (Up {key})"
+                : $" (Down {Math.Abs(key)})";
+        }
+
+        return message;
+    }
+}
