@@ -8,7 +8,7 @@
 <div class="mobile-page">
     <header class="mobile-page-header">
         <h1 class="h4 mb-1">My Songs</h1>
-        <p class="text-muted small mb-0">Tap a song for history, or <strong>Log</strong> to log it tonight.</p>
+        <p class="text-muted small mb-0">Browse the full catalog. Tap for details, or <strong>Log</strong> to record a performance.</p>
     </header>
 
     @if (isLoading)
@@ -22,8 +22,24 @@
         @if (!needsSingerLink)
         {
             <div class="mobile-toolbar">
+                <label class="form-label small text-muted mb-1">Show</label>
+                <div class="genre-chips">
+                    <button type="button" class="genre-chip @(scope == SongScope.All ? "active" : "")"
+                            @onclick="() => SetScopeAsync(SongScope.All)">All songs</button>
+                    <button type="button" class="genre-chip @(scope == SongScope.Logged ? "active" : "")"
+                            @onclick="() => SetScopeAsync(SongScope.Logged)">Logged</button>
+                    <button type="button" class="genre-chip @(scope == SongScope.NotLogged ? "active" : "")"
+                            @onclick="() => SetScopeAsync(SongScope.NotLogged)">Not logged</button>
+                </div>
+            </div>
+
+            <div class="mobile-toolbar">
                 <input class="form-control" placeholder="Search title or artist"
-                       @bind="searchText" @bind:event="oninput" />
+                       @bind="searchText" @bind:event="oninput" @bind:after="RefreshDisplayList" />
+                @if (displaySongs.Count > 0)
+                {
+                    <p class="small text-muted mb-0 mt-2">@displaySongs.Count song@(displaySongs.Count == 1 ? "" : "s")</p>
+                }
             </div>
 
             <div class="mobile-toolbar">
@@ -52,7 +68,8 @@
                     }
                 </div>
                 <div class="form-check mt-2">
-                    <input class="form-check-input" type="checkbox" id="groupByGenre" @bind="groupByGenre" />
+                    <input class="form-check-input" type="checkbox" id="groupByGenre"
+                           @bind="groupByGenre" @bind:after="ResetGroupedPaging" />
                     <label class="form-check-label" for="groupByGenre">Group by genre</label>
                 </div>
             </div>
@@ -64,26 +81,42 @@
             else if (!FilteredSongs.Any())
             {
                 <div class="empty-state">
-                    <p>No songs match. <a href="log">Log a performance</a> to build your repertoire.</p>
+                    @if (scope == SongScope.NotLogged)
+                    {
+                        <p>Every song in the catalog has at least one logged performance.</p>
+                    }
+                    else if (scope == SongScope.Logged)
+                    {
+                        <p>No logged performances yet. <a href="log">Log a performance</a> or switch to <strong>All songs</strong>.</p>
+                    }
+                    else
+                    {
+                        <p>No songs match your search.</p>
+                    }
                 </div>
             }
             else if (groupByGenre)
             {
-                @foreach (var group in GroupedSongs)
+                @foreach (var group in VisibleGroupedSongs)
                 {
                     <h2 class="repertoire-group-heading">@group.Key</h2>
-                    @foreach (var song in group)
+                    @foreach (var song in group.Songs)
                     {
                         <SongListItem Song="song" OnHistory="GoToHistoryAsync" OnLog="GoToLogAsync" />
                     }
                 }
+                @if (HasMoreGroupedSongs)
+                {
+                    <button type="button" class="btn btn-outline-primary w-100 mt-2" @onclick="LoadMoreGroupedSongs">
+                        Load more (@VisibleGroupedSongCount of @displaySongs.Count)
+                    </button>
+                }
             }
             else
             {
-                @foreach (var song in FilteredSongs)
-                {
-                    <SongListItem Song="song" OnHistory="GoToHistoryAsync" OnLog="GoToLogAsync" />
-                }
+                <Virtualize TItem="RepertoireSongDto" Items="displaySongs" ItemSize="88" OverscanCount="6">
+                    <SongListItem Song="context" OnHistory="GoToHistoryAsync" OnLog="GoToLogAsync" />
+                </Virtualize>
             }
         }
     }
@@ -100,18 +133,62 @@
     private string sortDir = "desc";
     private int? filterGenreId;
     private bool groupByGenre;
+    private SongScope scope = SongScope.All;
+    private List<RepertoireSongDto> displaySongs = [];
+    private int visibleGroupedLimit = PageSize;
+
+    private const int PageSize = 40;
+
+    private IEnumerable<RepertoireSongDto> ScopedSongs => scope switch
+    {
+        SongScope.Logged => songs.Where(s => s.PerformanceCount > 0),
+        SongScope.NotLogged => songs.Where(s => s.PerformanceCount == 0),
+        _ => songs
+    };
 
     private IEnumerable<RepertoireSongDto> FilteredSongs =>
         string.IsNullOrWhiteSpace(searchText)
-            ? songs
-            : songs.Where(s =>
+            ? ScopedSongs
+            : ScopedSongs.Where(s =>
                 s.Title.Contains(searchText, StringComparison.OrdinalIgnoreCase)
                 || s.ArtistName.Contains(searchText, StringComparison.OrdinalIgnoreCase)
                 || s.GenreName.Contains(searchText, StringComparison.OrdinalIgnoreCase));
 
     private IEnumerable<IGrouping<string, RepertoireSongDto>> GroupedSongs =>
-        FilteredSongs.GroupBy(s => string.IsNullOrWhiteSpace(s.GenreName) ? "(No genre)" : s.GenreName)
+        displaySongs.GroupBy(s => string.IsNullOrWhiteSpace(s.GenreName) ? "(No genre)" : s.GenreName)
             .OrderBy(g => g.Key);
+
+    private IReadOnlyList<GroupedSongSection> VisibleGroupedSongs
+    {
+        get
+        {
+            var sections = new List<GroupedSongSection>();
+            var remaining = visibleGroupedLimit;
+
+            foreach (var group in GroupedSongs)
+            {
+                if (remaining <= 0)
+                {
+                    break;
+                }
+
+                var songs = group.Take(remaining).ToList();
+                if (songs.Count == 0)
+                {
+                    continue;
+                }
+
+                sections.Add(new GroupedSongSection(group.Key, songs));
+                remaining -= songs.Count;
+            }
+
+            return sections;
+        }
+    }
+
+    private int VisibleGroupedSongCount => VisibleGroupedSongs.Sum(g => g.Songs.Count);
+
+    private bool HasMoreGroupedSongs => VisibleGroupedSongCount < displaySongs.Count;
 
     protected override async Task OnInitializedAsync()
     {
@@ -129,7 +206,8 @@
         isLoading = true;
         loadError = null;
 
-        var repertoire = await Api.GetMyRepertoireAsync(sortBy, sortDir, filterGenreId);
+        var includeAll = scope != SongScope.Logged;
+        var repertoire = await Api.GetMyRepertoireAsync(sortBy, sortDir, filterGenreId, includeAll);
         if (!repertoire.Succeeded)
         {
             loadError = repertoire.ErrorMessage;
@@ -145,14 +223,32 @@
         songs = repertoire.Songs;
         needsSingerLink = false;
 
-        var genresResult = await Api.GetMyRepertoireGenresAsync();
-        if (genresResult.Succeeded)
+        if (includeAll)
         {
-            filterGenres = genresResult.Genres;
+            filterGenres = await Api.GetGenresAsync();
+        }
+        else
+        {
+            var genresResult = await Api.GetMyRepertoireGenresAsync();
+            if (genresResult.Succeeded)
+            {
+                filterGenres = genresResult.Genres;
+            }
         }
 
+        RefreshDisplayList();
         isLoading = false;
     }
+
+    private void RefreshDisplayList()
+    {
+        displaySongs = FilteredSongs.ToList();
+        visibleGroupedLimit = PageSize;
+    }
+
+    private void LoadMoreGroupedSongs() => visibleGroupedLimit += PageSize;
+
+    private void ResetGroupedPaging() => visibleGroupedLimit = PageSize;
 
     private async Task ToggleSortDirAsync()
     {
@@ -165,6 +261,26 @@
         filterGenreId = genreId;
         await ReloadAsync();
     }
+
+    private async Task SetScopeAsync(SongScope newScope)
+    {
+        if (scope == newScope)
+        {
+            return;
+        }
+
+        scope = newScope;
+        await ReloadAsync();
+    }
+
+    private enum SongScope
+    {
+        All,
+        Logged,
+        NotLogged
+    }
+
+    private sealed record GroupedSongSection(string Key, IReadOnlyList<RepertoireSongDto> Songs);
 
     private void GoToHistoryAsync(RepertoireSongDto song) =>
         Navigation.NavigateTo($"my-songs/{song.SongId}");

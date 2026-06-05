@@ -36,7 +36,7 @@ public class RepertoireSong
     public string ArtistName { get; set; } = string.Empty;
     public int? GenreId { get; set; }
     public string GenreName { get; set; } = string.Empty;
-    public DateTime LastPerformedOn { get; set; }
+    public DateTime? LastPerformedOn { get; set; }
     public int PerformanceCount { get; set; }
 }
 
@@ -84,39 +84,67 @@ public class PerformanceService(string connectionString)
         int singerId,
         string sortBy = "lastPerformed",
         string sortDir = "desc",
-        int? genreId = null)
+        int? genreId = null,
+        bool includeAll = false)
     {
         var orderColumn = sortBy.ToLowerInvariant() switch
         {
             "title" => "s.Title",
             "artist" => "ISNULL(a.SortableName, a.Name)",
             "genre" => "ISNULL(g.GenreName, N'')",
-            "lastperformed" => "MAX(p.PerformedOn)",
             _ => "MAX(p.PerformedOn)"
         };
 
         var direction = string.Equals(sortDir, "asc", StringComparison.OrdinalIgnoreCase) ? "ASC" : "DESC";
+        var nullsFirst = string.Equals(sortDir, "asc", StringComparison.OrdinalIgnoreCase);
+        var orderBy = sortBy.Equals("lastPerformed", StringComparison.OrdinalIgnoreCase)
+            ? $"CASE WHEN MAX(p.PerformedOn) IS NULL THEN {(nullsFirst ? 0 : 1)} ELSE {(nullsFirst ? 1 : 0)} END, MAX(p.PerformedOn) {direction}"
+            : $"{orderColumn} {direction}";
 
         await using var connection = new SqlConnection(connectionString);
         await connection.OpenAsync();
         await using var command = connection.CreateCommand();
-        command.CommandText = $"""
-            SELECT s.Id,
-                   s.Title,
-                   ISNULL(a.Name, N'') AS ArtistName,
-                   s.Genre,
-                   ISNULL(g.GenreName, N'') AS GenreName,
-                   MAX(p.PerformedOn) AS LastPerformedOn,
-                   COUNT(*) AS PerformanceCount
-            FROM Performances p
-            INNER JOIN Songs s ON s.Id = p.Song
-            LEFT JOIN Artists a ON a.Id = s.Artist
-            LEFT JOIN Genres g ON g.Id = s.Genre
-            WHERE p.Singer = @Singer
-              AND (@GenreId IS NULL OR s.Genre = @GenreId)
-            GROUP BY s.Id, s.Title, a.Name, a.SortableName, s.Genre, g.GenreName
-            ORDER BY {orderColumn} {direction}, s.Title ASC
-            """;
+
+        if (includeAll)
+        {
+            command.CommandText = $"""
+                SELECT s.Id,
+                       s.Title,
+                       ISNULL(a.Name, N'') AS ArtistName,
+                       s.Genre,
+                       ISNULL(g.GenreName, N'') AS GenreName,
+                       MAX(p.PerformedOn) AS LastPerformedOn,
+                       COUNT(p.Id) AS PerformanceCount
+                FROM Songs s
+                LEFT JOIN Performances p ON p.Song = s.Id AND p.Singer = @Singer
+                LEFT JOIN Artists a ON a.Id = s.Artist
+                LEFT JOIN Genres g ON g.Id = s.Genre
+                WHERE (@GenreId IS NULL OR s.Genre = @GenreId)
+                GROUP BY s.Id, s.Title, a.Name, a.SortableName, s.Genre, g.GenreName
+                ORDER BY {orderBy}, s.Title ASC
+                """;
+        }
+        else
+        {
+            command.CommandText = $"""
+                SELECT s.Id,
+                       s.Title,
+                       ISNULL(a.Name, N'') AS ArtistName,
+                       s.Genre,
+                       ISNULL(g.GenreName, N'') AS GenreName,
+                       MAX(p.PerformedOn) AS LastPerformedOn,
+                       COUNT(*) AS PerformanceCount
+                FROM Performances p
+                INNER JOIN Songs s ON s.Id = p.Song
+                LEFT JOIN Artists a ON a.Id = s.Artist
+                LEFT JOIN Genres g ON g.Id = s.Genre
+                WHERE p.Singer = @Singer
+                  AND (@GenreId IS NULL OR s.Genre = @GenreId)
+                GROUP BY s.Id, s.Title, a.Name, a.SortableName, s.Genre, g.GenreName
+                ORDER BY {orderBy}, s.Title ASC
+                """;
+        }
+
         command.Parameters.AddWithValue("@Singer", singerId);
         command.Parameters.AddWithValue("@GenreId", (object?)genreId ?? DBNull.Value);
 
@@ -131,7 +159,7 @@ public class PerformanceService(string connectionString)
                 ArtistName = reader.GetString(2),
                 GenreId = reader.IsDBNull(3) ? null : reader.GetInt32(3),
                 GenreName = reader.GetString(4),
-                LastPerformedOn = reader.GetDateTime(5),
+                LastPerformedOn = reader.IsDBNull(5) ? null : reader.GetDateTime(5),
                 PerformanceCount = reader.GetInt32(6)
             });
         }

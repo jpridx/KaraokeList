@@ -39,7 +39,8 @@ public class PerformancesController(
     public async Task<ActionResult<List<RepertoireSongDto>>> GetMyRepertoire(
         [FromQuery] string sortBy = "lastPerformed",
         [FromQuery] string sortDir = "desc",
-        [FromQuery] int? genreId = null)
+        [FromQuery] int? genreId = null,
+        [FromQuery] bool includeAll = false)
     {
         var singerId = await RequireSingerIdAsync();
         if (singerId.Result is not null)
@@ -57,7 +58,8 @@ public class PerformancesController(
             return BadRequest(new ApiErrorResponse { Message = "Invalid sortDir. Use asc or desc." });
         }
 
-        var songs = await performanceService.GetMyRepertoireAsync(singerId.Value!.Value, sortBy, sortDir, genreId);
+        var songs = await performanceService.GetMyRepertoireAsync(
+            singerId.Value!.Value, sortBy, sortDir, genreId, includeAll);
         return Ok(songs.Select(s => s.ToDto()).ToList());
     }
 

@@ -1,4 +1,4 @@
-<div class="song-list-item">
+<div class="song-list-item @(Song.PerformanceCount == 0 ? "song-list-item-unlogged" : "")">
     <button type="button" class="song-list-item-body" @onclick="() => OnHistory.InvokeAsync(Song)">
         <div class="song-list-item-main">
             <div class="song-list-item-title">@Song.Title</div>
@@ -9,8 +9,15 @@
             {
                 <span class="song-list-item-genre">@Song.GenreName</span>
             }
-            <span class="song-list-item-date">@Song.LastPerformedOn.ToString("d")</span>
-            <span class="song-list-item-count">@Song.PerformanceCount×</span>
+            @if (Song.PerformanceCount > 0 && Song.LastPerformedOn is DateTime lastOn)
+            {
+                <span class="song-list-item-date">@lastOn.ToString("d")</span>
+                <span class="song-list-item-count">@Song.PerformanceCount×</span>
+            }
+            else
+            {
+                <span class="song-list-item-date song-list-item-unlogged-label">Not logged</span>
+            }
         </div>
     </button>
     <button type="button" class="btn btn-primary btn-sm song-list-item-log" @onclick="() => OnLog.InvokeAsync(Song)">

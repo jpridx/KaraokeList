@@ -1,5 +1,5 @@
-using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Json;
 using KaraokeList.Shared;
 
 namespace KaraokeList.Web.Services;
@@ -33,7 +33,11 @@ public interface IKaraokeApiClient
     Task<UserProfileDto?> GetProfileAsync();
     Task<AuthResult> LinkSingerAsync(LinkSingerRequest request);
     Task<SongSummaryResult> GetMySongSummaryAsync(int songId);
-    Task<RepertoireResult> GetMyRepertoireAsync(string sortBy = "lastPerformed", string sortDir = "desc", int? genreId = null);
+    Task<RepertoireResult> GetMyRepertoireAsync(
+        string sortBy = "lastPerformed",
+        string sortDir = "desc",
+        int? genreId = null,
+        bool includeAll = false);
     Task<RepertoireGenresResult> GetMyRepertoireGenresAsync();
     Task CreatePerformanceAsync(PerformanceDto dto);
     Task UpdatePerformanceAsync(PerformanceDto dto);
@@ -61,8 +65,7 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
                     : AuthResult.Ok(auth);
             }
 
-            var error = await response.Content.ReadFromJsonAsync<ApiErrorResponse>();
-            var message = error?.Message;
+            var message = await ReadApiErrorMessageAsync(response);
             if (string.IsNullOrWhiteSpace(message))
             {
                 message = response.StatusCode == System.Net.HttpStatusCode.Unauthorized
@@ -130,19 +133,25 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
                 : SongSummaryResult.Ok(summary);
         }
 
-        var error = await response.Content.ReadFromJsonAsync<ApiErrorResponse>();
-        return SongSummaryResult.Fail(error?.Message ?? "Could not load song summary.");
+        var message = await ReadApiErrorMessageAsync(response);
+        return SongSummaryResult.Fail(message ?? "Could not load song summary.");
     }
 
     public async Task<RepertoireResult> GetMyRepertoireAsync(
         string sortBy = "lastPerformed",
         string sortDir = "desc",
-        int? genreId = null)
+        int? genreId = null,
+        bool includeAll = false)
     {
         var query = $"sortBy={Uri.EscapeDataString(sortBy)}&sortDir={Uri.EscapeDataString(sortDir)}";
         if (genreId is int genre)
         {
             query += $"&genreId={genre}";
+        }
+
+        if (includeAll)
+        {
+            query += "&includeAll=true";
         }
 
         var response = await http.GetAsync($"api/performances/my-repertoire?{query}");
@@ -152,8 +161,8 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
             return RepertoireResult.Ok(songs ?? []);
         }
 
-        var error = await response.Content.ReadFromJsonAsync<ApiErrorResponse>();
-        return RepertoireResult.Fail(error?.Message ?? "Could not load repertoire.");
+        var message = await ReadApiErrorMessageAsync(response);
+        return RepertoireResult.Fail(message ?? "Could not load repertoire.");
     }
 
     public async Task<RepertoireGenresResult> GetMyRepertoireGenresAsync()
@@ -165,8 +174,8 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
             return RepertoireGenresResult.Ok(genres ?? []);
         }
 
-        var error = await response.Content.ReadFromJsonAsync<ApiErrorResponse>();
-        return RepertoireGenresResult.Fail(error?.Message ?? "Could not load genres.");
+        var message = await ReadApiErrorMessageAsync(response);
+        return RepertoireGenresResult.Fail(message ?? "Could not load genres.");
     }
 
     public Task CreatePerformanceAsync(PerformanceDto dto) => PostAsync("api/performances", dto);
@@ -195,5 +204,29 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
     {
         var response = await http.DeleteAsync(url);
         response.EnsureSuccessStatusCode();
+    }
+
+    private static async Task<string?> ReadApiErrorMessageAsync(HttpResponseMessage response)
+    {
+        var body = await response.Content.ReadAsStringAsync();
+        if (string.IsNullOrWhiteSpace(body))
+        {
+            return null;
+        }
+
+        try
+        {
+            var error = JsonSerializer.Deserialize<ApiErrorResponse>(body);
+            if (!string.IsNullOrWhiteSpace(error?.Message))
+            {
+                return error.Message;
+            }
+        }
+        catch (JsonException)
+        {
+            // Developer exception page or other non-JSON error body
+        }
+
+        return body.Length <= 200 ? body.Trim() : null;
     }
 }

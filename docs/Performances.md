@@ -34,7 +34,7 @@ Legacy `SingerSongs` (FirstSung / LastSung / Count) is migrated by `scripts/azur
 
 | Endpoint | Purpose |
 |----------|---------|
-| `GET api/performances/my-repertoire?sortBy=&sortDir=&genreId=` | Songs you've performed (aggregated). `sortBy`: `title`, `artist`, `genre`, `lastPerformed`. `sortDir`: `asc`, `desc`. |
+| `GET api/performances/my-repertoire?sortBy=&sortDir=&genreId=&includeAll=` | Repertoire list. Default: songs you've performed. `includeAll=true`: entire catalog with `PerformanceCount` / `LastPerformedOn` (null when not logged). `sortBy`: `title`, `artist`, `genre`, `lastPerformed`. `sortDir`: `asc`, `desc`. |
 | `GET api/performances/my-repertoire/genres` | Distinct genres in your repertoire (for filter chips). |
 | `GET api/performances/my-song-summary?songId=` | Count, last key/venue/date, full history for one song. |
 | `POST api/performances` | Log a performance; `Singer` defaults from the logged-in user when omitted. |

@@ -76,7 +76,7 @@ public class RepertoireSongDto
     public string ArtistName { get; set; } = string.Empty;
     public int? GenreId { get; set; }
     public string GenreName { get; set; } = string.Empty;
-    public DateTime LastPerformedOn { get; set; }
+    public DateTime? LastPerformedOn { get; set; }
     public int PerformanceCount { get; set; }
 }
 

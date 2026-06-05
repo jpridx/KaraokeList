@@ -315,6 +315,11 @@ code {
     border-radius: 4px;
 }
 
+.song-list-item-unlogged .song-list-item-unlogged-label {
+    color: #888;
+    font-style: italic;
+}
+
 .repertoire-group-heading {
     font-size: 0.95rem;
     color: #444;

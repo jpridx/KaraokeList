@@ -31,7 +31,7 @@ There is no sidebar. Catalog grids live under `/more`.
 |-------|---------|
 | `/log` | Pick a song (catalog ComboBox), log venue/date/key, copy for host, save |
 | `/log?songId={id}` | Same, with song pre-selected (from My Songs **Log** button) |
-| `/my-songs` | Browse your repertoire: search, sort, genre filter, group-by-genre |
+| `/my-songs` | Browse the full catalog (default) or filter logged / not logged; search, sort, genre; virtualized scroll (flat list) or load-more when grouped |
 | `/my-songs/{id}` | Log again (quick form) + collapsible performance history |
 | `/more` | Hub: tonight links + catalog admin pages |
 | `/` | Home (links to mobile flows when signed in) |
@@ -58,11 +58,17 @@ There is no sidebar. Catalog grids live under `/more`.
 2. Search songs (★ = you've sung it before)
 3. Same venue/date/key/copy/save flow
 
+### Browse the full catalog
+
+1. Open **My Songs** (defaults to **All songs**)
+2. Use **Logged** / **Not logged** to focus on songs with or without recorded performances
+3. Songs without a logged performance show *Not logged* — tap to open detail and log one
+
 ### Browse + history
 
 1. Tap the **song row** (not Log) → `/my-songs/{id}`
 2. Use **Log again** at the top (same quick form as Log)
-3. Expand **Performance history** for past dates/venues/keys
+3. Expand **Performance history** for past dates/venues/keys (only when performances exist)
 
 ## Copy for host
 
