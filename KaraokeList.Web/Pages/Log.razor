@@ -1,14 +1,13 @@
 @page "/log"
 @attribute [Authorize]
 @inject IKaraokeApiClient Api
-@inject IJSRuntime Js
 
 <PageTitle>Log performance</PageTitle>
 
 <div class="mobile-page mobile-page-with-nav">
     <header class="mobile-page-header">
         <h1 class="h4 mb-1">Log performance</h1>
-        <p class="text-muted small mb-0">Quick add at the venue — defaults to today.</p>
+        <p class="text-muted small mb-0">Pick a song, or open one from <a href="my-songs">My Songs</a>.</p>
     </header>
 
     @if (isLoading)
@@ -32,12 +31,21 @@
 
             <div class="mobile-panel">
                 <label class="form-label">Song</label>
-                <SfAutoComplete TValue="int?" TItem="SongPickItem" DataSource="@songPickerItems"
-                                @bind-Value="selectedSongId" Placeholder="Search songs..."
-                                AllowFiltering="true" FilterType="Syncfusion.Blazor.DropDowns.FilterType.Contains"
-                                ValueChange="OnSongChangedAsync">
-                    <AutoCompleteFieldSettings Value="Id" Text="Display" />
-                </SfAutoComplete>
+                @if (songPickerItems.Count == 0)
+                {
+                    <p class="text-muted small mb-0">No songs in the catalog yet. Use + New song below.</p>
+                }
+                else
+                {
+                    <SfComboBox TValue="int?" TItem="SongPickItem" DataSource="@songPickerItems"
+                                @bind-Value="selectedSongId" @bind-Value:after="OnSongSelectedAsync"
+                                Placeholder="Search songs..." AllowFiltering="true" ShowClearButton="true"
+                                FilterType="Syncfusion.Blazor.DropDowns.FilterType.Contains"
+                                PopupHeight="280px">
+                        <ComboBoxFieldSettings Value="Id" Text="Display" />
+                    </SfComboBox>
+                    <p class="small text-muted mt-1 mb-0">@songPickerItems.Count songs · ★ = you've sung it before</p>
+                }
                 @if (selectedSongId is int songId && songHint is not null)
                 {
                     <p class="small text-muted mt-2 mb-0">@songHint</p>
@@ -71,98 +79,52 @@
                 }
             </div>
 
-            <div class="mobile-panel">
-                <label class="form-label">Venue</label>
-                <SfDropDownList TValue="int?" TItem="VenueDto" DataSource="@venues" @bind-Value="selectedVenueId"
-                                Placeholder="Where are you?" AllowFiltering="true"
-                                FilterType="Syncfusion.Blazor.DropDowns.FilterType.Contains">
-                    <DropDownListFieldSettings Value="Id" Text="VenueName" />
-                </SfDropDownList>
-
-                <button type="button" class="btn btn-link btn-sm ps-0 mt-2" @onclick="ToggleNewVenue">
-                    @(showNewVenue ? "Hide new venue" : "+ New venue")
-                </button>
-                @if (showNewVenue)
-                {
-                    <div class="border-top pt-3 mt-2">
-                        <label class="form-label">Venue name</label>
-                        <input class="form-control mb-2" @bind="newVenueName" />
-                        <button type="button" class="btn btn-outline-primary w-100" @onclick="SaveNewVenueAsync">
-                            Add venue
-                        </button>
-                    </div>
-                }
-            </div>
-
-            <div class="mobile-panel">
-                <label class="form-label">Date</label>
-                <InputDate class="form-control" @bind-Value="performedOn" />
-
-                <label class="form-label mt-3">Key</label>
-                <SfDropDownList TValue="int?" TItem="PerformanceKeyOption" DataSource="@keyOptions"
-                                @bind-Value="keyChangeSemitones">
-                    <DropDownListFieldSettings Value="Semitones" Text="Label" />
-                </SfDropDownList>
-            </div>
-
-            @if (HostMessage is not null)
+            @if (SelectedSong is not null && mySingerId is not null)
             {
-                <div class="mobile-panel host-message-panel">
-                    <label class="form-label">Message for the host</label>
-                    <p class="host-message-text mb-2">@HostMessage</p>
-                    <button type="button" class="btn btn-outline-primary w-100" @onclick="CopyHostMessageAsync">
-                        @(copyFeedback ? "Copied!" : "Copy for host")
-                    </button>
-                </div>
+                <QuickLogPerformance SongId="SelectedSong.Id" Title="@SelectedSong.Title"
+                                     ArtistName="@SelectedSong.ArtistName" SingerId="mySingerId"
+                                     OnPerformanceSaved="OnPerformanceSavedAsync" />
             }
-
-            <button type="button" class="btn btn-primary btn-lg w-100 mobile-primary-action"
-                    disabled="@(!CanSave)" @onclick="SavePerformanceAsync">
-                Save performance
-            </button>
         }
     }
 </div>
 
 @code {
+    [SupplyParameterFromQuery]
+    public int? SongId { get; set; }
+
     private bool isLoading = true;
     private bool needsSingerLink;
     private int? mySingerId;
     private List<SongDto> songs = [];
     private List<ArtistLookupDto> artistLookups = [];
-    private List<VenueDto> venues = [];
     private List<GenreDto> genres = [];
     private HashSet<int> repertoireSongIds = [];
     private List<SongPickItem> songPickerItems = [];
-    private IReadOnlyList<PerformanceKeyOption> keyOptions = PerformanceKeyOption.Choices;
 
     private int? selectedSongId;
-    private int? selectedVenueId;
-    private DateTime performedOn = DateTime.Today;
-    private int? keyChangeSemitones;
     private string? songHint;
     private string? saveMessage;
     private string? saveError;
-    private bool copyFeedback;
 
     private bool showNewSong;
     private string newSongTitle = string.Empty;
     private int? newSongArtistId;
     private int? newSongGenreId;
 
-    private bool showNewVenue;
-    private string newVenueName = string.Empty;
-
-    private bool CanSave => selectedSongId is not null && selectedVenueId is not null;
-
     private SongPickItem? SelectedSong =>
         selectedSongId is int id ? songPickerItems.FirstOrDefault(s => s.Id == id) : null;
 
-    private string? HostMessage => SelectedSong is null
-        ? null
-        : ShowHostMessageFormatting.Format(SelectedSong.Title, SelectedSong.ArtistName, keyChangeSemitones);
-
     protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (SongId is int id && !isLoading && selectedSongId != id)
+        {
+            selectedSongId = id;
+            await OnSongChangedAsync(id);
+        }
+    }
 
     private async Task OnSingerLinkedAsync(int? singerId)
     {
@@ -188,7 +150,6 @@
 
         songs = await Api.GetSongsAsync();
         artistLookups = await Api.GetArtistLookupsAsync();
-        venues = await Api.GetVenuesAsync();
         genres = await Api.GetGenresAsync();
 
         var repertoire = await Api.GetMyRepertoireAsync();
@@ -199,6 +160,12 @@
 
         RebuildSongPicker();
         isLoading = false;
+
+        if (SongId is int querySongId)
+        {
+            selectedSongId = querySongId;
+            await OnSongChangedAsync(querySongId);
+        }
     }
 
     private void RebuildSongPicker()
@@ -217,9 +184,10 @@
             .ToList();
     }
 
+    private async Task OnSongSelectedAsync() => await OnSongChangedAsync(selectedSongId);
+
     private async Task OnSongChangedAsync(int? songId)
     {
-        selectedSongId = songId;
         songHint = null;
         if (songId is null)
         {
@@ -229,6 +197,7 @@
         var result = await Api.GetMySongSummaryAsync(songId.Value);
         if (!result.Succeeded || result.Summary is null)
         {
+            songHint = "Ready to log.";
             return;
         }
 
@@ -236,12 +205,6 @@
         if (summary.PerformanceCount > 0)
         {
             songHint = $"You've sung this {summary.PerformanceCount} time(s). Last: {summary.LastPerformedOn:d}";
-            keyChangeSemitones = summary.LastKeyChangeSemitones;
-            if (selectedVenueId is null && !string.IsNullOrWhiteSpace(summary.LastVenueName))
-            {
-                selectedVenueId = venues.FirstOrDefault(v =>
-                    v.VenueName.Equals(summary.LastVenueName, StringComparison.OrdinalIgnoreCase))?.Id;
-            }
         }
         else
         {
@@ -249,43 +212,17 @@
         }
     }
 
-    private async Task SavePerformanceAsync()
+    private async Task OnPerformanceSavedAsync()
     {
+        selectedSongId = null;
+        songHint = null;
         saveMessage = null;
-        saveError = null;
 
-        if (!CanSave)
+        var repertoire = await Api.GetMyRepertoireAsync();
+        if (repertoire.Succeeded)
         {
-            saveError = "Pick a song and venue.";
-            return;
-        }
-
-        try
-        {
-            var dto = new PerformanceDto
-            {
-                Singer = mySingerId,
-                Song = selectedSongId,
-                Venue = selectedVenueId,
-                PerformedOn = performedOn,
-                KeyChangeSemitones = keyChangeSemitones == 0 ? null : keyChangeSemitones
-            };
-
-            await Api.CreatePerformanceAsync(dto);
-            saveMessage = "Performance saved.";
-            selectedSongId = null;
-            songHint = null;
-
-            var repertoire = await Api.GetMyRepertoireAsync();
-            if (repertoire.Succeeded)
-            {
-                repertoireSongIds = repertoire.Songs.Select(s => s.SongId).ToHashSet();
-                RebuildSongPicker();
-            }
-        }
-        catch (Exception ex)
-        {
-            saveError = ex.Message;
+            repertoireSongIds = repertoire.Songs.Select(s => s.SongId).ToHashSet();
+            RebuildSongPicker();
         }
     }
 
@@ -309,7 +246,7 @@
 
             songs = await Api.GetSongsAsync();
             RebuildSongPicker();
-            var created = songs.LastOrDefault(s =>
+            var created = songs.FirstOrDefault(s =>
                 s.Title.Equals(newSongTitle.Trim(), StringComparison.OrdinalIgnoreCase)
                 && s.Artist == newSongArtistId);
             if (created is not null)
@@ -330,64 +267,7 @@
         }
     }
 
-    private async Task SaveNewVenueAsync()
-    {
-        saveError = null;
-        if (string.IsNullOrWhiteSpace(newVenueName))
-        {
-            saveError = "Venue name is required.";
-            return;
-        }
-
-        try
-        {
-            await Api.CreateVenueAsync(new VenueDto { VenueName = newVenueName.Trim() });
-            venues = await Api.GetVenuesAsync();
-            var created = venues.LastOrDefault(v =>
-                v.VenueName.Equals(newVenueName.Trim(), StringComparison.OrdinalIgnoreCase));
-            if (created is not null)
-            {
-                selectedVenueId = created.Id;
-            }
-
-            newVenueName = string.Empty;
-            showNewVenue = false;
-            saveMessage = "Venue added.";
-        }
-        catch (Exception ex)
-        {
-            saveError = ex.Message;
-        }
-    }
-
     private void ToggleNewSong() => showNewSong = !showNewSong;
-    private void ToggleNewVenue() => showNewVenue = !showNewVenue;
-
-    private async Task CopyHostMessageAsync()
-    {
-        if (HostMessage is null)
-        {
-            return;
-        }
-
-        try
-        {
-            await Js.InvokeVoidAsync("copyTextToClipboard", HostMessage);
-            copyFeedback = true;
-            _ = ClearCopyFeedbackAsync();
-        }
-        catch
-        {
-            saveError = "Could not copy to clipboard.";
-        }
-    }
-
-    private async Task ClearCopyFeedbackAsync()
-    {
-        await Task.Delay(2000);
-        copyFeedback = false;
-        await InvokeAsync(StateHasChanged);
-    }
 
     private sealed class SongPickItem
     {
@@ -395,6 +275,6 @@
         public string Title { get; init; } = string.Empty;
         public string ArtistName { get; init; } = string.Empty;
         public bool InRepertoire { get; init; }
-        public string Display => InRepertoire ? $"{Title} — {ArtistName} ★" : $"{Title} — {ArtistName}";
+        public string Display => InRepertoire ? $"{Title} - {ArtistName} ★" : $"{Title} - {ArtistName}";
     }
 }

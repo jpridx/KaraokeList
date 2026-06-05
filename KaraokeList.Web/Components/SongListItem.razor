@@ -1,22 +1,30 @@
-<button type="button" class="song-list-item" @onclick="() => OnClick.InvokeAsync(Song)">
-    <div class="song-list-item-main">
-        <div class="song-list-item-title">@Song.Title</div>
-        <div class="song-list-item-artist">@Song.ArtistName</div>
-    </div>
-    <div class="song-list-item-meta">
-        @if (!string.IsNullOrWhiteSpace(Song.GenreName))
-        {
-            <span class="song-list-item-genre">@Song.GenreName</span>
-        }
-        <span class="song-list-item-date">@Song.LastPerformedOn.ToString("d")</span>
-        <span class="song-list-item-count">@Song.PerformanceCount×</span>
-    </div>
-</button>
+<div class="song-list-item">
+    <button type="button" class="song-list-item-body" @onclick="() => OnHistory.InvokeAsync(Song)">
+        <div class="song-list-item-main">
+            <div class="song-list-item-title">@Song.Title</div>
+            <div class="song-list-item-artist">@Song.ArtistName</div>
+        </div>
+        <div class="song-list-item-meta">
+            @if (!string.IsNullOrWhiteSpace(Song.GenreName))
+            {
+                <span class="song-list-item-genre">@Song.GenreName</span>
+            }
+            <span class="song-list-item-date">@Song.LastPerformedOn.ToString("d")</span>
+            <span class="song-list-item-count">@Song.PerformanceCount×</span>
+        </div>
+    </button>
+    <button type="button" class="btn btn-primary btn-sm song-list-item-log" @onclick="() => OnLog.InvokeAsync(Song)">
+        Log
+    </button>
+</div>
 
 @code {
     [Parameter, EditorRequired]
     public RepertoireSongDto Song { get; set; } = default!;
 
     [Parameter, EditorRequired]
-    public EventCallback<RepertoireSongDto> OnClick { get; set; }
+    public EventCallback<RepertoireSongDto> OnHistory { get; set; }
+
+    [Parameter, EditorRequired]
+    public EventCallback<RepertoireSongDto> OnLog { get; set; }
 }

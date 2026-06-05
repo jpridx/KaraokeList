@@ -8,7 +8,7 @@
 <div class="mobile-page">
     <header class="mobile-page-header">
         <h1 class="h4 mb-1">My Songs</h1>
-        <p class="text-muted small mb-0">Songs you've performed, with sort and genre filter.</p>
+        <p class="text-muted small mb-0">Tap a song for history, or <strong>Log</strong> to log it tonight.</p>
     </header>
 
     @if (isLoading)
@@ -74,7 +74,7 @@
                     <h2 class="repertoire-group-heading">@group.Key</h2>
                     @foreach (var song in group)
                     {
-                        <SongListItem Song="song" OnClick="GoToSongAsync" />
+                        <SongListItem Song="song" OnHistory="GoToHistoryAsync" OnLog="GoToLogAsync" />
                     }
                 }
             }
@@ -82,7 +82,7 @@
             {
                 @foreach (var song in FilteredSongs)
                 {
-                    <SongListItem Song="song" OnClick="GoToSongAsync" />
+                    <SongListItem Song="song" OnHistory="GoToHistoryAsync" OnLog="GoToLogAsync" />
                 }
             }
         }
@@ -166,6 +166,9 @@
         await ReloadAsync();
     }
 
-    private void GoToSongAsync(RepertoireSongDto song) =>
+    private void GoToHistoryAsync(RepertoireSongDto song) =>
         Navigation.NavigateTo($"my-songs/{song.SongId}");
+
+    private void GoToLogAsync(RepertoireSongDto song) =>
+        Navigation.NavigateTo($"log?songId={song.SongId}");
 }

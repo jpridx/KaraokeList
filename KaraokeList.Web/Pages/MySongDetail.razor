@@ -1,110 +1,130 @@
-@page "/my-songs/{SongId:int}"
-@attribute [Authorize]
-@inject IKaraokeApiClient Api
-@inject NavigationManager Navigation
-
-<PageTitle>Song history</PageTitle>
-
-<div class="mobile-page">
-    <header class="mobile-page-header">
-        <button type="button" class="btn btn-link btn-sm ps-0" @onclick="GoBack">← My Songs</button>
-        @if (songMeta is not null)
-        {
-            <h1 class="h4 mb-0">@songMeta.Title</h1>
-            <p class="text-muted mb-0">@songMeta.ArtistName</p>
-        }
-    </header>
-
-    @if (isLoading)
-    {
-        <p>Loading...</p>
-    }
-    else if (!string.IsNullOrEmpty(loadError))
-    {
-        <p class="text-danger">@loadError</p>
-        <SingerLinkPanel Visible="needsSingerLink" OnLinked="OnSingerLinkedAsync" />
-    }
-    else if (summary is null)
-    {
-        <p>Could not load history.</p>
-    }
-    else if (summary.PerformanceCount == 0)
-    {
-        <p class="text-muted">No performances logged for this song yet.</p>
-        <a class="btn btn-primary" href="log">Log performance</a>
-    }
-    else
-    {
-        <div class="mobile-panel mb-3">
-            <p class="mb-1"><strong>@summary.PerformanceCount</strong> performance@(summary.PerformanceCount == 1 ? "" : "s")</p>
-            <p class="mb-0 small text-muted">
-                Last: @summary.LastPerformedOn?.ToString("d")
-                @if (!string.IsNullOrEmpty(summary.LastVenueName))
-                {
-                    <text> at @summary.LastVenueName</text>
-                }
-                · @KeyChangeFormatting.Describe(summary.LastKeyChangeSemitones)
-            </p>
-        </div>
-
-        <ul class="history-list">
-            @foreach (var entry in summary.History)
-            {
-                <li class="history-list-item">
-                    <span class="history-date">@entry.PerformedOn.ToString("d")</span>
-                    <span class="history-venue">@entry.VenueName</span>
-                    <span class="history-key">@KeyChangeFormatting.Describe(entry.KeyChangeSemitones)</span>
-                </li>
-            }
-        </ul>
-
-        <a class="btn btn-primary w-100 mt-3" href="log">Log again</a>
-    }
-</div>
-
-@code {
-    [Parameter]
-    public int SongId { get; set; }
-
-    private bool isLoading = true;
-    private bool needsSingerLink;
-    private string? loadError;
-    private SongPerformanceSummaryDto? summary;
-    private RepertoireSongDto? songMeta;
-
-    protected override async Task OnParametersSetAsync() => await LoadAsync();
-
-    private async Task OnSingerLinkedAsync(int? _) => await LoadAsync();
-
-    private async Task LoadAsync()
-    {
-        isLoading = true;
-        loadError = null;
-        summary = null;
-
-        var repertoire = await Api.GetMyRepertoireAsync();
-        if (repertoire.Succeeded)
-        {
-            songMeta = repertoire.Songs.FirstOrDefault(s => s.SongId == SongId);
-        }
-
-        var result = await Api.GetMySongSummaryAsync(SongId);
-        if (result.Succeeded && result.Summary is not null)
-        {
-            summary = result.Summary;
-            needsSingerLink = false;
-        }
-        else
-        {
-            loadError = result.ErrorMessage;
-            if (result.ErrorMessage?.Contains("not linked", StringComparison.OrdinalIgnoreCase) == true)
-            {
-                needsSingerLink = true;
-            }
-        }
-
-        isLoading = false;
-    }
-
-    private void GoBack() => Navigation.NavigateTo("my-songs");
-}
+@page "/my-songs/{SongId:int}"
+@attribute [Authorize]
+@inject IKaraokeApiClient Api
+@inject NavigationManager Navigation
+
+<PageTitle>Song history</PageTitle>
+
+<div class="mobile-page">
+    <header class="mobile-page-header">
+        <button type="button" class="btn btn-link btn-sm ps-0" @onclick="GoBack">← My Songs</button>
+        @if (songMeta is not null)
+        {
+            <h1 class="h4 mb-0">@songMeta.Title</h1>
+            <p class="text-muted mb-0">@songMeta.ArtistName</p>
+        }
+    </header>
+
+    @if (isLoading)
+    {
+        <p>Loading...</p>
+    }
+    else if (!string.IsNullOrEmpty(loadError))
+    {
+        <p class="text-danger">@loadError</p>
+        <SingerLinkPanel Visible="needsSingerLink" OnLinked="OnSingerLinkedAsync" />
+    }
+    else if (summary is null || songMeta is null)
+    {
+        <p>Could not load song.</p>
+    }
+    else
+    {
+        @if (mySingerId is null)
+        {
+            <SingerLinkPanel Visible="true" OnLinked="OnSingerLinkedAsync" />
+        }
+        else
+        {
+            <QuickLogPerformance SongId="SongId" Title="@songMeta.Title" ArtistName="@songMeta.ArtistName"
+                                 SingerId="mySingerId" SaveButtonText="Log again"
+                                 OnPerformanceSaved="OnPerformanceSavedAsync" />
+        }
+
+        @if (summary.PerformanceCount > 0)
+        {
+            <details class="mobile-panel history-details mt-2">
+                <summary class="history-details-summary">
+                    Performance history (@summary.PerformanceCount)
+                </summary>
+                <p class="small text-muted mt-2 mb-2">
+                    Last: @summary.LastPerformedOn?.ToString("d")
+                    @if (!string.IsNullOrEmpty(summary.LastVenueName))
+                    {
+                        <text> at @summary.LastVenueName</text>
+                    }
+                    · @KeyChangeFormatting.Describe(summary.LastKeyChangeSemitones)
+                </p>
+                <ul class="history-list">
+                    @foreach (var entry in summary.History)
+                    {
+                        <li class="history-list-item">
+                            <span class="history-date">@entry.PerformedOn.ToString("d")</span>
+                            <span class="history-venue">@entry.VenueName</span>
+                            <span class="history-key">@KeyChangeFormatting.Describe(entry.KeyChangeSemitones)</span>
+                        </li>
+                    }
+                </ul>
+            </details>
+        }
+    }
+</div>
+
+@code {
+    [Parameter]
+    public int SongId { get; set; }
+
+    private bool isLoading = true;
+    private bool needsSingerLink;
+    private string? loadError;
+    private SongPerformanceSummaryDto? summary;
+    private RepertoireSongDto? songMeta;
+    private int? mySingerId;
+
+    protected override async Task OnParametersSetAsync() => await LoadAsync();
+
+    private async Task OnSingerLinkedAsync(int? singerId)
+    {
+        mySingerId = singerId;
+        needsSingerLink = false;
+        await LoadAsync();
+    }
+
+    private async Task OnPerformanceSavedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        isLoading = true;
+        loadError = null;
+        summary = null;
+
+        var profile = await Api.GetProfileAsync();
+        mySingerId = profile?.SingerId;
+
+        var repertoire = await Api.GetMyRepertoireAsync();
+        if (repertoire.Succeeded)
+        {
+            songMeta = repertoire.Songs.FirstOrDefault(s => s.SongId == SongId);
+        }
+
+        var result = await Api.GetMySongSummaryAsync(SongId);
+        if (result.Succeeded && result.Summary is not null)
+        {
+            summary = result.Summary;
+            needsSingerLink = false;
+        }
+        else
+        {
+            loadError = result.ErrorMessage;
+            if (result.ErrorMessage?.Contains("not linked", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                needsSingerLink = true;
+            }
+        }
+
+        isLoading = false;
+    }
+
+    private void GoBack() => Navigation.NavigateTo("my-songs");
+}
+

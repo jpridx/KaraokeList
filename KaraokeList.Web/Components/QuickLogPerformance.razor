@@ -1,0 +1,186 @@
+@inject IKaraokeApiClient Api
+
+@if (!string.IsNullOrEmpty(saveMessage))
+{
+    <div class="alert alert-success">@saveMessage</div>
+}
+@if (!string.IsNullOrEmpty(saveError))
+{
+    <div class="alert alert-danger">@saveError</div>
+}
+
+<div class="mobile-panel">
+    <label class="form-label">Venue</label>
+    <SfDropDownList TValue="int?" TItem="VenueDto" DataSource="@venues" @bind-Value="selectedVenueId"
+                    Placeholder="Where are you?" AllowFiltering="true"
+                    FilterType="Syncfusion.Blazor.DropDowns.FilterType.Contains">
+        <DropDownListFieldSettings Value="Id" Text="VenueName" />
+    </SfDropDownList>
+
+    <button type="button" class="btn btn-link btn-sm ps-0 mt-2" @onclick="ToggleNewVenue">
+        @(showNewVenue ? "Hide new venue" : "+ New venue")
+    </button>
+    @if (showNewVenue)
+    {
+        <div class="border-top pt-3 mt-2">
+            <label class="form-label">Venue name</label>
+            <input class="form-control mb-2" @bind="newVenueName" />
+            <button type="button" class="btn btn-outline-primary w-100" @onclick="SaveNewVenueAsync">
+                Add venue
+            </button>
+        </div>
+    }
+</div>
+
+<div class="mobile-panel">
+    <label class="form-label">Date</label>
+    <InputDate class="form-control" @bind-Value="performedOn" />
+
+    <label class="form-label mt-3">Key</label>
+    <SfDropDownList TValue="int?" TItem="PerformanceKeyOption" DataSource="@keyOptions"
+                    @bind-Value="keyChangeSemitones">
+        <DropDownListFieldSettings Value="Semitones" Text="Label" />
+    </SfDropDownList>
+</div>
+
+<HostMessagePanel Title="@Title" ArtistName="@ArtistName"
+                  KeyChangeSemitones="keyChangeSemitones" ShowKeyPicker="false" />
+
+<button type="button" class="btn btn-primary btn-lg w-100 mobile-primary-action"
+        disabled="@(!CanSave)" @onclick="SavePerformanceAsync">
+    @(SaveButtonText)
+</button>
+
+@code {
+    [Parameter, EditorRequired]
+    public int SongId { get; set; }
+
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = string.Empty;
+
+    [Parameter]
+    public string ArtistName { get; set; } = string.Empty;
+
+    [Parameter]
+    public int? SingerId { get; set; }
+
+    [Parameter]
+    public string SaveButtonText { get; set; } = "Save performance";
+
+    [Parameter]
+    public EventCallback OnPerformanceSaved { get; set; }
+
+    private List<VenueDto> venues = [];
+    private IReadOnlyList<PerformanceKeyOption> keyOptions = PerformanceKeyOption.Choices;
+    private int? selectedVenueId;
+    private DateTime performedOn = DateTime.Today;
+    private int? keyChangeSemitones;
+    private string? saveMessage;
+    private string? saveError;
+    private bool showNewVenue;
+    private string newVenueName = string.Empty;
+    private bool defaultsLoaded;
+
+    private bool CanSave => selectedVenueId is not null && SingerId is not null;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (venues.Count == 0)
+        {
+            venues = await Api.GetVenuesAsync();
+        }
+
+        if (!defaultsLoaded || SongId != _loadedSongId)
+        {
+            await LoadDefaultsAsync();
+        }
+    }
+
+    private int _loadedSongId;
+
+    private async Task LoadDefaultsAsync()
+    {
+        defaultsLoaded = true;
+        _loadedSongId = SongId;
+        performedOn = DateTime.Today;
+        saveMessage = null;
+        saveError = null;
+
+        var result = await Api.GetMySongSummaryAsync(SongId);
+        if (!result.Succeeded || result.Summary is null)
+        {
+            return;
+        }
+
+        var summary = result.Summary;
+        keyChangeSemitones = summary.LastKeyChangeSemitones;
+        if (!string.IsNullOrWhiteSpace(summary.LastVenueName))
+        {
+            selectedVenueId = venues.FirstOrDefault(v =>
+                v.VenueName.Equals(summary.LastVenueName, StringComparison.OrdinalIgnoreCase))?.Id;
+        }
+    }
+
+    private async Task SavePerformanceAsync()
+    {
+        saveMessage = null;
+        saveError = null;
+
+        if (!CanSave)
+        {
+            saveError = SingerId is null ? "Link your singer profile first." : "Pick a venue.";
+            return;
+        }
+
+        try
+        {
+            await Api.CreatePerformanceAsync(new PerformanceDto
+            {
+                Singer = SingerId,
+                Song = SongId,
+                Venue = selectedVenueId,
+                PerformedOn = performedOn,
+                KeyChangeSemitones = keyChangeSemitones == 0 ? null : keyChangeSemitones
+            });
+
+            saveMessage = "Performance saved.";
+            await OnPerformanceSaved.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            saveError = ex.Message;
+        }
+    }
+
+    private async Task SaveNewVenueAsync()
+    {
+        saveError = null;
+        if (string.IsNullOrWhiteSpace(newVenueName))
+        {
+            saveError = "Venue name is required.";
+            return;
+        }
+
+        try
+        {
+            await Api.CreateVenueAsync(new VenueDto { VenueName = newVenueName.Trim() });
+            venues = await Api.GetVenuesAsync();
+            var created = venues.FirstOrDefault(v =>
+                v.VenueName.Equals(newVenueName.Trim(), StringComparison.OrdinalIgnoreCase));
+            if (created is not null)
+            {
+                selectedVenueId = created.Id;
+            }
+
+            newVenueName = string.Empty;
+            showNewVenue = false;
+            saveMessage = "Venue added.";
+        }
+        catch (Exception ex)
+        {
+            saveError = ex.Message;
+        }
+    }
+
+    private void ToggleNewVenue() => showNewVenue = !showNewVenue;
+}
