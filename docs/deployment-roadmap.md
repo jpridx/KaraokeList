@@ -167,6 +167,8 @@ Suggested: GitHub Actions workflow `deploy-azure.yml` (manual or `main` trigger)
 
 ## Phase 3 — Winhost.com
 
+**Detailed guide:** [winhost-deployment.md](winhost-deployment.md) — one database, Cloudflare + origin cert HTTPS, pre-flight checklist, production config.
+
 Winhost has no native Azure Key Vault integration. Equivalent:
 
 | Secret | Where |
@@ -248,7 +250,7 @@ If both Winhost and Azure stay up:
 
 - [ ] WASM + API hosted
 - [ ] CI/CD pipeline
-- [ ] Add `docs/winhost-deployment.md` when steps are known
+- [ ] Follow [winhost-deployment.md](winhost-deployment.md) (DB, Cloudflare, secrets)
 
 ### Security (both)
 
@@ -264,6 +266,7 @@ If both Winhost and Azure stay up:
 | Doc | Topic |
 |-----|--------|
 | [wasm-api-local-dev.md](wasm-api-local-dev.md) | Local two-process dev |
+| [winhost-deployment.md](winhost-deployment.md) | Winhost, one DB, Cloudflare HTTPS |
 | [azure-deployment.md](azure-deployment.md) | Azure (legacy Server doc — needs update) |
 | [security-private-access.md](security-private-access.md) | Invite code, registration |
 | [mobile-ux.md](mobile-ux.md) | Singer-facing flows |

@@ -115,6 +115,7 @@ Schema details: `docs/*.md`.
 | [docs/wasm-api-local-dev.md](docs/wasm-api-local-dev.md) | Run WASM + API locally |
 | [docs/azure-deployment.md](docs/azure-deployment.md) | Azure App Service deploy |
 | [docs/deployment-roadmap.md](docs/deployment-roadmap.md) | Winhost + Azure + Key Vault + CI/CD plan |
+| [docs/winhost-deployment.md](docs/winhost-deployment.md) | Winhost hosting, one DB, Cloudflare HTTPS |
 | [docs/security-private-access.md](docs/security-private-access.md) | Invite codes and hardening |
 
 ## License
