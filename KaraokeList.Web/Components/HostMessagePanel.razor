@@ -1,0 +1,73 @@
+@inject IJSRuntime Js
+
+<div class="mobile-panel host-message-panel mb-3">
+    <label class="form-label">Message for the host</label>
+    @if (ShowKeyPicker)
+    {
+        <label class="form-label mt-2 small text-muted mb-1">Key for tonight</label>
+        <SfDropDownList TValue="int?" TItem="PerformanceKeyOption" DataSource="@keyOptions"
+                        Value="KeyChangeSemitones" ValueChanged="OnKeyChangedAsync">
+            <DropDownListFieldSettings Value="Semitones" Text="Label" />
+        </SfDropDownList>
+    }
+    @if (!string.IsNullOrEmpty(Message))
+    {
+        <p class="host-message-text @(ShowKeyPicker ? "mt-3" : "") mb-2">@Message</p>
+    }
+    <button type="button" class="btn btn-outline-primary w-100" disabled="@string.IsNullOrEmpty(Message)"
+            @onclick="CopyAsync">
+        @(copyFeedback ? "Copied!" : "Copy for host")
+    </button>
+</div>
+
+@code {
+    [Parameter]
+    public string Title { get; set; } = string.Empty;
+
+    [Parameter]
+    public string ArtistName { get; set; } = string.Empty;
+
+    [Parameter]
+    public int? KeyChangeSemitones { get; set; }
+
+    [Parameter]
+    public EventCallback<int?> KeyChangeSemitonesChanged { get; set; }
+
+    [Parameter]
+    public bool ShowKeyPicker { get; set; } = true;
+
+    private IReadOnlyList<PerformanceKeyOption> keyOptions = PerformanceKeyOption.Choices;
+    private bool copyFeedback;
+
+    private string? Message => string.IsNullOrWhiteSpace(Title)
+        ? null
+        : ShowHostMessageFormatting.Format(Title, ArtistName, KeyChangeSemitones);
+
+    private Task OnKeyChangedAsync(int? value) => KeyChangeSemitonesChanged.InvokeAsync(value);
+
+    private async Task CopyAsync()
+    {
+        if (Message is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await Js.InvokeVoidAsync("copyTextToClipboard", Message);
+            copyFeedback = true;
+            _ = ClearCopyFeedbackAsync();
+        }
+        catch
+        {
+            // Clipboard may fail without HTTPS; button click should be fine on localhost.
+        }
+    }
+
+    private async Task ClearCopyFeedbackAsync()
+    {
+        await Task.Delay(2000);
+        copyFeedback = false;
+        await InvokeAsync(StateHasChanged);
+    }
+}

@@ -1,0 +1,67 @@
+@inject IKaraokeApiClient Api
+@inject JwtAuthenticationStateProvider AuthProvider
+
+@if (Visible)
+{
+    <div class="alert alert-info mobile-panel mb-3">
+        <p class="mb-2">Link your account to a singer profile to use this feature.</p>
+        <div class="mb-2">
+            <label class="form-label">Use existing singer</label>
+            <SfDropDownList TValue="int?" TItem="SingerDto" DataSource="@singers" @bind-Value="linkSingerId"
+                            Placeholder="Select your name" AllowFiltering="true"
+                            FilterType="Syncfusion.Blazor.DropDowns.FilterType.Contains">
+                <DropDownListFieldSettings Value="Id" Text="Name" />
+            </SfDropDownList>
+        </div>
+        <div class="mb-2">
+            <label class="form-label">Or create new</label>
+            <input class="form-control" @bind="linkSingerName" placeholder="Your stage name" />
+        </div>
+        <button type="button" class="btn btn-primary w-100" @onclick="LinkAsync">Link profile</button>
+        @if (!string.IsNullOrEmpty(linkError))
+        {
+            <p class="text-danger mt-2 mb-0">@linkError</p>
+        }
+    </div>
+}
+
+@code {
+    [Parameter]
+    public bool Visible { get; set; }
+
+    [Parameter]
+    public EventCallback<int?> OnLinked { get; set; }
+
+    private List<SingerDto> singers = [];
+    private int? linkSingerId;
+    private string linkSingerName = string.Empty;
+    private string? linkError;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Visible && singers.Count == 0)
+        {
+            singers = await Api.GetSingersAsync();
+        }
+    }
+
+    private async Task LinkAsync()
+    {
+        linkError = null;
+        var request = new LinkSingerRequest
+        {
+            SingerId = linkSingerId,
+            Name = string.IsNullOrWhiteSpace(linkSingerName) ? null : linkSingerName.Trim()
+        };
+
+        var result = await Api.LinkSingerAsync(request);
+        if (!result.Succeeded || result.Response is null)
+        {
+            linkError = result.ErrorMessage ?? "Could not link singer profile.";
+            return;
+        }
+
+        await AuthProvider.MarkUserAsAuthenticatedAsync(result.Response.Token);
+        await OnLinked.InvokeAsync(result.Response.SingerId);
+    }
+}

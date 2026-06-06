@@ -1,0 +1,64 @@
+@page "/register"
+
+<PageTitle>Register</PageTitle>
+
+<h3>Register</h3>
+<p class="text-muted">Development mode does not require an invite code.</p>
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+
+<EditForm Model="Input" OnValidSubmit="RegisterAsync">
+    <DataAnnotationsValidator />
+    <div class="mb-3">
+        <label class="form-label">Your name (as a singer)</label>
+        <InputText class="form-control" @bind-Value="Input.Name" />
+        <ValidationMessage For="@(() => Input.Name)" />
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Email</label>
+        <InputText class="form-control" @bind-Value="Input.Email" />
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Password</label>
+        <InputText type="password" class="form-control" @bind-Value="Input.Password" />
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Confirm password</label>
+        <InputText type="password" class="form-control" @bind-Value="Input.ConfirmPassword" />
+    </div>
+    <div class="registration-honeypot" aria-hidden="true">
+        <label>Website</label>
+        <InputText @bind-Value="Input.Website" />
+    </div>
+    <button class="btn btn-primary" type="submit">Create account</button>
+</EditForm>
+
+@code {
+    [Inject]
+    private IKaraokeApiClient Api { get; set; } = default!;
+
+    [Inject]
+    private JwtAuthenticationStateProvider AuthProvider { get; set; } = default!;
+
+    [Inject]
+    private NavigationManager NavigationManager { get; set; } = default!;
+
+    private RegisterRequest Input { get; set; } = new();
+    private string? errorMessage;
+
+    private async Task RegisterAsync()
+    {
+        var result = await Api.RegisterAsync(Input);
+        if (!result.Succeeded || result.Response is null)
+        {
+            errorMessage = result.ErrorMessage ?? "Registration failed. Check password rules and invite code.";
+            return;
+        }
+
+        await AuthProvider.MarkUserAsAuthenticatedAsync(result.Response.Token);
+        NavigationManager.NavigateTo("/");
+    }
+}

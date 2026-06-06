@@ -1,0 +1,37 @@
+<div class="song-list-item @(Song.PerformanceCount == 0 ? "song-list-item-unlogged" : "")">
+    <button type="button" class="song-list-item-body" @onclick="() => OnHistory.InvokeAsync(Song)">
+        <div class="song-list-item-main">
+            <div class="song-list-item-title">@Song.Title</div>
+            <div class="song-list-item-artist">@Song.ArtistName</div>
+        </div>
+        <div class="song-list-item-meta">
+            @if (!string.IsNullOrWhiteSpace(Song.GenreName))
+            {
+                <span class="song-list-item-genre">@Song.GenreName</span>
+            }
+            @if (Song.PerformanceCount > 0 && Song.LastPerformedOn is DateTime lastOn)
+            {
+                <span class="song-list-item-date">@lastOn.ToString("d")</span>
+                <span class="song-list-item-count">@Song.PerformanceCount×</span>
+            }
+            else
+            {
+                <span class="song-list-item-date song-list-item-unlogged-label">Not logged</span>
+            }
+        </div>
+    </button>
+    <button type="button" class="btn btn-primary btn-sm song-list-item-log" @onclick="() => OnLog.InvokeAsync(Song)">
+        Log
+    </button>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public RepertoireSongDto Song { get; set; } = default!;
+
+    [Parameter, EditorRequired]
+    public EventCallback<RepertoireSongDto> OnHistory { get; set; }
+
+    [Parameter, EditorRequired]
+    public EventCallback<RepertoireSongDto> OnLog { get; set; }
+}

@@ -9,6 +9,12 @@ using Syncfusion.Blazor;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var syncfusionKey = builder.Configuration["SyncfusionKey"];
+if (!string.IsNullOrWhiteSpace(syncfusionKey))
+{
+    Syncfusion.Licensing.SyncfusionLicenseProvider.RegisterLicense(syncfusionKey);
+}
+
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 builder.Services.AddSyncfusionBlazor();
@@ -56,12 +62,6 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
 builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
 
 var app = builder.Build();
-
-var syncfusionKey = builder.Configuration["SyncfusionKey"];
-if (!string.IsNullOrWhiteSpace(syncfusionKey))
-{
-    Syncfusion.Licensing.SyncfusionLicenseProvider.RegisterLicense(syncfusionKey);
-}
 
 using (var scope = app.Services.CreateScope())
 {

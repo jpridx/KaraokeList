@@ -1,0 +1,60 @@
+﻿@inherits LayoutComponentBase
+@using Microsoft.AspNetCore.Components.Authorization
+@inject NavigationManager NavigationManager
+@inject JwtAuthenticationStateProvider AuthProvider
+
+<div class="app-shell">
+    <header class="app-header">
+        <a class="app-brand" href="">KaraokeList</a>
+
+        <AuthorizeView>
+            <Authorized>
+                <nav class="app-header-nav d-none d-md-flex" aria-label="Primary">
+                    <NavLink class="app-header-link" href="log" Match="NavLinkMatch.Prefix">Log</NavLink>
+                    <NavLink class="app-header-link" href="my-songs" Match="NavLinkMatch.Prefix">My Songs</NavLink>
+                    <NavLink class="app-header-link" href="more" Match="NavLinkMatch.Prefix">Catalog</NavLink>
+                </nav>
+                <div class="app-header-actions ms-auto">
+                    <span class="app-user d-none d-lg-inline text-muted small">@context.User.Identity?.Name</span>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="LogoutAsync">Sign out</button>
+                </div>
+            </Authorized>
+            <NotAuthorized>
+                <div class="app-header-actions ms-auto">
+                    <a class="btn btn-sm btn-outline-primary" href="login">Sign in</a>
+                    <a class="btn btn-sm btn-primary" href="register">Register</a>
+                </div>
+            </NotAuthorized>
+        </AuthorizeView>
+    </header>
+
+    <main class="app-main">
+        <article class="app-content px-3 px-md-4">
+            @Body
+        </article>
+
+        <AuthorizeView>
+            <Authorized>
+                <nav class="mobile-bottom-nav d-md-none" aria-label="Primary">
+                    <NavLink class="mobile-bottom-nav-link" href="log" Match="NavLinkMatch.Prefix">
+                        <span>Log</span>
+                    </NavLink>
+                    <NavLink class="mobile-bottom-nav-link" href="my-songs" Match="NavLinkMatch.Prefix">
+                        <span>My Songs</span>
+                    </NavLink>
+                    <NavLink class="mobile-bottom-nav-link" href="more" Match="NavLinkMatch.Prefix">
+                        <span>More</span>
+                    </NavLink>
+                </nav>
+            </Authorized>
+        </AuthorizeView>
+    </main>
+</div>
+
+@code {
+    private async Task LogoutAsync()
+    {
+        await AuthProvider.MarkUserAsLoggedOutAsync();
+        NavigationManager.NavigateTo("/login");
+    }
+}

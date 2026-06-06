@@ -2,21 +2,40 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "KaraokeList (http)",
+      "name": "KaraokeList.Api",
       "type": "coreclr",
       "request": "launch",
-      "preLaunchTask": "build",
-      "program": "${workspaceFolder}/KaraokeList/bin/Debug/net10.0/KaraokeList.dll",
-      "args": [],
-      "cwd": "${workspaceFolder}/KaraokeList",
-      "stopAtEntry": false,
+      "preLaunchTask": "build-api",
+      "program": "${workspaceFolder}/KaraokeList.Api/bin/Debug/net10.0/KaraokeList.Api.dll",
+      "cwd": "${workspaceFolder}/KaraokeList.Api",
       "env": {
         "ASPNETCORE_ENVIRONMENT": "Development"
-      },
-      "serverReadyAction": {
-        "action": "openExternally",
-        "pattern": "\\bNow listening on:\\s+(https?://\\S+)"
       }
+    },
+    {
+      "name": "KaraokeList.Web (WASM)",
+      "type": "blazorwasm",
+      "request": "launch",
+      "preLaunchTask": "build-web",
+      "cwd": "${workspaceFolder}/KaraokeList.Web",
+      "url": "http://localhost:5262"
+    },
+    {
+      "name": "KaraokeList.Server (legacy)",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build-server",
+      "program": "${workspaceFolder}/KaraokeList/bin/Debug/net10.0/KaraokeList.dll",
+      "cwd": "${workspaceFolder}/KaraokeList",
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  ],
+  "compounds": [
+    {
+      "name": "WASM + API",
+      "configurations": ["KaraokeList.Api", "KaraokeList.Web (WASM)"]
     }
   ]
 }

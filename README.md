@@ -1,83 +1,54 @@
 # KaraokeList
 
-A Blazor web application for managing karaoke song catalogs, venues, and singer performance records.
+A karaoke catalog and performance tracker: mobile-first logging at the venue, plus Syncfusion grids for catalog admin.
 
 ## Overview
 
-KaraokeList is a comprehensive karaoke management system built with .NET Blazor and Syncfusion components. It provides a clean, intuitive interface for managing songs, artists, genres, venues, and tracking singer performances.
+**KaraokeList.Web** (Blazor WebAssembly) is the primary UI for singers — log performances, browse songs you've sung, and copy a formatted message for the KJ. **KaraokeList.Api** provides JWT auth and a SQL-backed catalog/performance API. **KaraokeList** (Blazor Server) remains as a legacy reference app.
 
 ## Technology Stack
 
-- **Framework**: .NET Blazor (Interactive Server Render Mode)
-- **Language**: C#
-- **Database**: Azure SQL / SQL Server (serverless on Azure)
-- **UI Components**: Syncfusion Blazor with Fluent 2 theme
-- **Authentication**: Built-in Identity system
-- **Styling**: Bootstrap CSS with custom styling
+| Layer | Stack |
+|-------|-------|
+| UI (primary) | Blazor WASM, Syncfusion Blazor (Fluent 2), Bootstrap |
+| API | ASP.NET Core Web API, JWT, EF Core Identity |
+| Database | Azure SQL / SQL Server |
+| Shared | `KaraokeList.Shared` DTOs |
 
 ## Features
 
-### Core Pages
+### Mobile (singers)
 
-- **Songs**: Manage karaoke song catalog with artist information
-- **Artists**: Track and manage artists/performers
-- **Genres**: Organize songs by musical genre
-- **Singers**: Maintain a roster of singers
-- **Venues**: Manage karaoke venues/locations
-- **Singer Songs**: Administrative tracking of singer performances (when/where/how often they performed each song)
+- **Log** — pick a song, set venue/date/key, copy for host, save
+- **My Songs** — repertoire browse with search, sort, genre filter
+- **Song detail** — log again + performance history
+- **Copy for host** — `Title - Artist` with `(Up N)` / `(Down N)` when key differs
 
-### Functionality
+See [docs/mobile-ux.md](docs/mobile-ux.md).
 
-- Full CRUD operations (Create, Read, Update, Delete) for all entities
-- Syncfusion data grids with:
-  - Paging and sorting
-  - Filtering and searching
-  - Inline editing
-  - Multi-select capabilities
-- Dropdown lookups for related data
-- Date pickers for performance tracking
-- Numeric fields for performance counts
-- User authentication and account management
+### Catalog admin (grids)
+
+- Songs, Artists, Genres, Singers, Venues, Performances
+- Full CRUD via Syncfusion grids (paging, sort, filter, inline edit)
+- Reachable from **More → Catalog** on mobile layout
+
+### Auth
+
+- Invite-code registration, sign-in required for data pages
+- JWT in WASM; singer linked to login for performance logging
+
+See [docs/security-private-access.md](docs/security-private-access.md).
 
 ## Project Structure
 
 ```
 KaraokeList/
-├── Components/
-│   ├── Pages/               # Blazor pages
-│   │   ├── Songs.razor
-│   │   ├── Artists.razor
-│   │   ├── Genres.razor
-│   │   ├── Singers.razor
-│   │   ├── Venues.razor
-│   │   ├── SingerSongs.razor
-│   │   └── ...
-│   ├── Layout/              # App layout components
-│   │   ├── MainLayout.razor
-│   │   └── NavMenu.razor
-│   └── Account/             # Authentication pages
-├── Data/
-│   ├── ApplicationDbContext.cs
-│   ├── Services/            # Data access services
-│   │   ├── SongService.cs
-│   │   ├── ArtistService.cs
-│   │   ├── GenreService.cs
-│   │   ├── SingerService.cs
-│   │   ├── VenueService.cs
-│   │   └── SingerSongService.cs
-│   └── Models/
-├── Temp/
-│   └── Karaoke.sqlite3      # SQLite database file
-├── docs/                    # Project documentation
-│   ├── KaraokeList.md       # Main documentation
-│   ├── Artists.md
-│   ├── Genres.md
-│   ├── Singers.md
-│   ├── SingerSongs.md
-│   ├── Songs.md
-│   └── Venues.md
-└── Properties/
-    └── launchSettings.json
+├── KaraokeList.Web/          # Blazor WASM (primary UI)
+├── KaraokeList.Api/          # Web API + Identity
+├── KaraokeList.Shared/       # DTOs
+├── KaraokeList/              # Legacy Blazor Server
+├── scripts/                  # SQL schema, migrations, Syncfusion key helper
+└── docs/                     # Documentation
 ```
 
 ## Getting Started
@@ -85,108 +56,67 @@ KaraokeList/
 ### Prerequisites
 
 - .NET 9.0 or .NET 10.0 SDK
-- Visual Studio or VS Code with C# extensions
+- SQL Server LocalDB (or Docker SQL Server)
 
-### Setup
+### Local development (WASM + API)
 
 1. Clone the repository
-2. Open `KaraokeList.sln` in Visual Studio
-3. Restore NuGet packages
-4. Run the application
+2. Restore: `dotnet restore`
+3. Run API and WASM (two terminals):
 
-### Running the App
+```powershell
+dotnet run --project KaraokeList.Api/KaraokeList.Api.csproj
+dotnet run --project KaraokeList.Web/KaraokeList.Web.csproj
+```
 
-Using Visual Studio:
-1. Set `KaraokeList` as the startup project
-2. Press F5 or select Debug → Start Debugging
+- API: `http://localhost:5299`
+- WASM: `http://localhost:5262`
 
-The app will open at `https://localhost:7000` (or configured HTTPS port).
+Full setup (Syncfusion license, auth, CORS): [docs/wasm-api-local-dev.md](docs/wasm-api-local-dev.md).
+
+### Legacy Blazor Server
+
+```powershell
+cd KaraokeList
+dotnet run --launch-profile http
+```
+
+Listens on `http://localhost:5005`.
 
 ## Database
 
-Catalog and Identity data share one SQL Server / Azure SQL database via `ConnectionStrings:DefaultConnection`.
+Catalog and Identity share one SQL Server database via `ConnectionStrings:DefaultConnection`.
 
-### Local development
-
-Default connection (LocalDB):
+**Local default (LocalDB):**
 
 ```
 Server=(localdb)\mssqllocaldb;Database=KaraokeList;Trusted_Connection=True;MultipleActiveResultSets=true;TrustServerCertificate=True
 ```
 
-Catalog tables are created automatically on startup from `scripts/azure-sql/001-karaoke-schema.sql`.
+Catalog tables are applied from `scripts/azure-sql/001-karaoke-schema.sql` on API startup. Performances replace the legacy `SingerSongs` model — see [docs/Performances.md](docs/Performances.md).
 
-### Azure deployment
-
-See [docs/azure-deployment.md](docs/azure-deployment.md) for App Service + Azure SQL serverless provisioning and publish steps.
+**Azure:** [docs/azure-deployment.md](docs/azure-deployment.md)
 
 ### Tables
 
-- **Songs** - Karaoke song catalog
-- **Artists** - Song performers/artists
-- **Genres** - Musical genres/categories
-- **Singers** - Registered singers
-- **Venues** - Karaoke venues/locations
-- **SingerSongs** - Performance history (singer, song, venue, dates, count)
+- **Songs**, **Artists**, **Genres**, **Singers**, **Venues** — catalog
+- **Performances** — one row per time a singer performed a song at a venue
+- **AspNetUsers** / Identity — auth; `SingerId` links login to singer
 
-Refer to the schema documentation in `docs/` for detailed table structures.
-
-## Data Management
-
-### Services
-
-All data access is handled through service classes in `KaraokeList.Data`:
-
-- `SongService` - Song catalog management
-- `ArtistService` - Artist management
-- `GenreService` - Genre management
-- `SingerService` - Singer roster management
-- `VenueService` - Venue management
-- `SingerSongService` - Performance record tracking
-
-Each service provides async CRUD operations using parameterized SQL queries with SQL Server.
-
-### Adding Data
-
-1. Navigate to the respective management page (Songs, Artists, Genres, Singers, Venues)
-2. Click "Add" in the toolbar
-3. Fill in the required fields
-4. Click "Save"
-
-Lookup relationships are automatically enforced through dropdown selectors.
+Schema details: `docs/*.md`.
 
 ## Documentation
 
-Detailed documentation for each feature is available in the `docs/` folder:
-
-- `docs/KaraokeList.md` - Complete project documentation and feature overview
-- `docs/Artists.md` - Artist table schema
-- `docs/Genres.md` - Genre table schema
-- `docs/Singers.md` - Singer table schema
-- `docs/SingerSongs.md` - Singer song performance table schema
-- `docs/Songs.md` - Song table schema
-- `docs/Venues.md` - Venue table schema
-
-## Authentication
-
-Friends-only access uses ASP.NET Core Identity with an **invite code**, sign-in lockout, and rate limits. Catalog pages require authentication.
-
-- Share the site URL and invite code privately (see [docs/security-private-access.md](docs/security-private-access.md))
-- After your group has accounts, disable new registration in Azure (`Security__Registration__AllowRegistration=false`)
-- Deploy and auth setup: [docs/azure-deployment.md](docs/azure-deployment.md)
-
-## Future Enhancements
-
-- User-facing performance logging page for singers to record their own performances
-- Advanced reporting and statistics
-- Search and filter enhancements
-- Export functionality
-- Mobile-optimized views
+| Doc | Contents |
+|-----|----------|
+| [docs/mobile-ux.md](docs/mobile-ux.md) | Log, My Songs, copy-for-host, navigation |
+| [docs/KaraokeList.md](docs/KaraokeList.md) | Architecture and page map |
+| [docs/Performances.md](docs/Performances.md) | Performance schema and API |
+| [docs/wasm-api-local-dev.md](docs/wasm-api-local-dev.md) | Run WASM + API locally |
+| [docs/azure-deployment.md](docs/azure-deployment.md) | Azure App Service deploy |
+| [docs/deployment-roadmap.md](docs/deployment-roadmap.md) | Winhost + Azure + Key Vault + CI/CD plan |
+| [docs/security-private-access.md](docs/security-private-access.md) | Invite codes and hardening |
 
 ## License
 
 [Add your license information here]
-
-## Support
-
-For issues or questions, please refer to the project documentation in the `docs/` folder or contact the development team.

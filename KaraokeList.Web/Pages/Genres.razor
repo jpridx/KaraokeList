@@ -1,0 +1,50 @@
+@page "/genres"
+@attribute [Authorize]
+@inject IKaraokeApiClient Api
+
+<PageTitle>Genres</PageTitle>
+
+<h3>Genres</h3>
+<div class="catalog-container">
+    @if (!isLoading)
+    {
+        <SfGrid DataSource="@genres" AllowPaging="true" AllowSorting="true" AllowFiltering="true"
+                Toolbar="@(new List<string>() { "Add", "Edit", "Delete", "Update", "Cancel", "Search" })">
+            <GridEvents TValue="GenreDto" OnActionBegin="OnActionBegin"></GridEvents>
+            <GridEditSettings AllowAdding="true" AllowEditing="true" AllowDeleting="true" Mode="EditMode.Normal"></GridEditSettings>
+            <GridColumns>
+                <GridColumn Field="@nameof(GenreDto.Id)" IsPrimaryKey="true" Visible="false" />
+                <GridColumn Field="@nameof(GenreDto.GenreName)" HeaderText="Genre" Width="300" />
+            </GridColumns>
+        </SfGrid>
+    }
+</div>
+
+@code {
+    private List<GenreDto> genres = [];
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync() => await ReloadAsync();
+
+    private async Task ReloadAsync()
+    {
+        isLoading = true;
+        genres = await Api.GetGenresAsync();
+        isLoading = false;
+    }
+
+    private async Task OnActionBegin(ActionEventArgs<GenreDto> args)
+    {
+        if (args.RequestType == Action.Save && args.Data is not null)
+        {
+            if (args.Data.Id <= 0) await Api.CreateGenreAsync(args.Data);
+            else await Api.UpdateGenreAsync(args.Data);
+            await ReloadAsync();
+        }
+        else if (args.RequestType == Action.Delete && args.Data is not null)
+        {
+            await Api.DeleteGenreAsync(args.Data.Id);
+            await ReloadAsync();
+        }
+    }
+}
