@@ -28,8 +28,6 @@ CREATE TABLE Performances (
 | Where/when have I sung it? | Rows ordered by `PerformedOn`, join `Venues` |
 | What key did I use last time? | Latest row by `PerformedOn` for that singer + song |
 
-Legacy `SingerSongs` (FirstSung / LastSung / Count) is migrated by `scripts/azure-sql/002-migrate-singer-songs-to-performances.sql`.
-
 ## API (authenticated)
 
 | Endpoint | Purpose |

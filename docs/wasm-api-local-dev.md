@@ -20,6 +20,14 @@ dotnet run --launch-profile http
 
 Listens on **http://localhost:5299**.
 
+Apply schema (first time or after migration changes):
+
+```powershell
+dotnet ef database update --project KaraokeList.Api
+```
+
+See [database.md](database.md) for seed data.
+
 Terminal 2 — WASM client:
 
 ```powershell

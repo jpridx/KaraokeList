@@ -102,10 +102,10 @@ $env:KARAOKE_SQL_CONNECTION = "Server=tcp:<server>.database.windows.net,1433;Dat
 dotnet run --project scripts/MigrateSqliteToSqlServer/MigrateSqliteToSqlServer.csproj
 ```
 
-On first API startup (with or without migration):
+On first API startup (or after `dotnet ef database update --project KaraokeList.Api`):
 
-1. EF Core Identity migrations run
-2. Karaoke schema from `scripts/azure-sql/001-karaoke-schema.sql` is applied
+1. EF Core migrations apply (Identity + catalog tables)
+2. Seed catalog separately if needed — see [database.md](database.md)
 
 ## 5. Publish and deploy
 

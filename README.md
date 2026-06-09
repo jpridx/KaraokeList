@@ -93,7 +93,7 @@ Catalog and Identity share one SQL Server database via `ConnectionStrings:Defaul
 Server=(localdb)\mssqllocaldb;Database=KaraokeList;Trusted_Connection=True;MultipleActiveResultSets=true;TrustServerCertificate=True
 ```
 
-Catalog tables are applied from `scripts/azure-sql/001-karaoke-schema.sql` on API startup. Performances replace the legacy `SingerSongs` model — see [docs/Performances.md](docs/Performances.md).
+All tables (Identity + catalog) are created by **EF Core migrations** — see [docs/database.md](docs/database.md). Seed data is a separate explicit step. Performance history: [docs/Performances.md](docs/Performances.md).
 
 **Azure (primary):** [docs/azure-deployment.md](docs/azure-deployment.md) — Static Web Apps + API App Service + SQL
 
@@ -117,6 +117,7 @@ Schema details: `docs/*.md`.
 | [docs/deployment-roadmap.md](docs/deployment-roadmap.md) | Winhost + Azure + Key Vault + CI/CD plan |
 | [docs/winhost-deployment.md](docs/winhost-deployment.md) | Winhost hosting, one DB, Cloudflare HTTPS |
 | [docs/security-private-access.md](docs/security-private-access.md) | Invite codes and hardening |
+| [docs/database.md](docs/database.md) | EF migrations, seed data |
 
 ## License
 

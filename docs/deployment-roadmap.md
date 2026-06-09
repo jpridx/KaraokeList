@@ -71,7 +71,7 @@ Run **once per target database** (Winhost SQL, Azure SQL). The tool currently mi
 
 ### After migration
 
-1. Ensure schema exists: API startup runs EF Identity migrations + `scripts/azure-sql/001-karaoke-schema.sql`.
+1. Ensure schema exists: `dotnet ef database update --project KaraokeList.Api` (or API startup `MigrateAsync()`). See [database.md](database.md).
 2. Smoke-test: sign in, browse Songs grid, open My Songs (all catalog).
 3. Repeat for the second host if both are live.
 

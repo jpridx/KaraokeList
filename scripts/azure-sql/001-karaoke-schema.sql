@@ -1,6 +1,6 @@
--- Karaoke catalog schema for Azure SQL / SQL Server (run once per database).
--- Identity tables are created by EF Core migrations (ApplicationDbContext).
--- AspNetUsers.SingerId (nullable, unique) links each account to dbo.Singers.Id.
+-- REFERENCE ONLY — catalog schema is created by EF Core migrations (see docs/database.md).
+-- Do not rely on this script for new databases. Kept for documentation and manual comparison.
+-- Identity tables are created by EF migrations. AspNetUsers.SingerId links to dbo.Singers.Id.
 
 IF OBJECT_ID(N'dbo.Genres', N'U') IS NULL
 BEGIN

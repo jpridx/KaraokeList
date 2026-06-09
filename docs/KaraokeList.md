@@ -41,12 +41,9 @@ Syncfusion grids (desktop-friendly; linked from **More**):
 | `/venues` | `Pages/Venues.razor` |
 | `/performances` | `Pages/Performances.razor` |
 
-## Performances (not SingerSongs)
+## Performances
 
-Each performance is **one row** per time a singer sang a song at a venue. Aggregates (count, last date) are computed in API queries.
-
-- Schema and API: [Performances.md](Performances.md)
-- Migration from legacy `SingerSongs`: `scripts/azure-sql/002-migrate-singer-songs-to-performances.sql`
+Each performance is **one row** per time a singer sang a song at a venue. Aggregates (count, last date) are computed in API queries. See [Performances.md](Performances.md).
 
 ## Legacy Blazor Server (`KaraokeList/`)
 

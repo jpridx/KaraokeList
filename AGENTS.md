@@ -13,7 +13,7 @@ KaraokeList is a karaoke catalog and performance app on .NET 10:
 | **KaraokeList.Shared** | Shared DTOs |
 | **KaraokeList** | Legacy Blazor Server (reference) |
 
-Data: **Azure SQL / SQL Server** — catalog tables + `Performances` + EF Identity. Legacy `SingerSongs` was migrated to `Performances`.
+Data: **Azure SQL / SQL Server** — catalog tables + `Performances` + EF Identity.
 
 ### Running locally (primary path)
 
@@ -60,7 +60,7 @@ Details: `docs/Performances.md`.
 ### Database
 
 - Connection string: `ConnectionStrings:DefaultConnection` (LocalDB by default).
-- API startup: EF Identity migrations + `scripts/azure-sql/001-karaoke-schema.sql`.
+- Schema: EF migrations (`dotnet ef database update --project KaraokeList.Api`). Seed: `scripts/MigrateSqliteToSqlServer` or `scripts/seed-catalog.sql`. See `docs/database.md`.
 - Azure: `docs/azure-deployment.md`.
 - Migrate legacy SQLite: `scripts/MigrateSqliteToSqlServer` with `KARAOKE_SQL_CONNECTION`.
 

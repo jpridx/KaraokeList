@@ -1,6 +1,6 @@
 # Venues
 
-Stores performance venues referenced by singer-song records.
+Stores performance venues referenced by `Performances` rows.
 
 ## Schema
 
