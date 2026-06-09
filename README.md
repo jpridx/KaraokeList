@@ -95,7 +95,7 @@ Server=(localdb)\mssqllocaldb;Database=KaraokeList;Trusted_Connection=True;Multi
 
 Catalog tables are applied from `scripts/azure-sql/001-karaoke-schema.sql` on API startup. Performances replace the legacy `SingerSongs` model — see [docs/Performances.md](docs/Performances.md).
 
-**Azure:** [docs/azure-deployment.md](docs/azure-deployment.md)
+**Azure (primary):** [docs/azure-deployment.md](docs/azure-deployment.md) — Static Web Apps + API App Service + SQL
 
 ### Tables
 
@@ -113,7 +113,7 @@ Schema details: `docs/*.md`.
 | [docs/KaraokeList.md](docs/KaraokeList.md) | Architecture and page map |
 | [docs/Performances.md](docs/Performances.md) | Performance schema and API |
 | [docs/wasm-api-local-dev.md](docs/wasm-api-local-dev.md) | Run WASM + API locally |
-| [docs/azure-deployment.md](docs/azure-deployment.md) | Azure App Service deploy |
+| [docs/azure-deployment.md](docs/azure-deployment.md) | Azure WASM + API deploy |
 | [docs/deployment-roadmap.md](docs/deployment-roadmap.md) | Winhost + Azure + Key Vault + CI/CD plan |
 | [docs/winhost-deployment.md](docs/winhost-deployment.md) | Winhost hosting, one DB, Cloudflare HTTPS |
 | [docs/security-private-access.md](docs/security-private-access.md) | Invite codes and hardening |

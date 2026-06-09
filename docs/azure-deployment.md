@@ -1,29 +1,44 @@
 # Deploy KaraokeList to Azure
 
-This guide deploys the Blazor Server app to **Azure App Service (Linux)** with a single **Azure SQL Database (serverless)** database for both ASP.NET Identity and karaoke catalog data.
-
-## Architecture
+This guide deploys the **WASM + API** stack to Azure:
 
 | Component | Azure service |
 |-----------|----------------|
-| Web app | App Service (Linux, .NET 10) |
-| Database | Azure SQL Database (General Purpose serverless, `GP_S_Gen5`) |
-| Auth | ASP.NET Core Identity (email/password registration) |
+| **KaraokeList.Web** (Blazor WASM) | **Azure Static Web Apps** (Free tier) |
+| **KaraokeList.Api** (JWT + SQL) | **App Service** (Linux, .NET 10) |
+| Database | **Azure SQL** (General Purpose serverless) |
 
-Friends sign up at `/Account/Register` with a **private invite code**, sign in, then manage venues and performances on protected pages. See [security-private-access.md](security-private-access.md).
+Friends sign in on the WASM app; the API validates JWTs and stores catalog + performances in SQL. See [wasm-api-local-dev.md](wasm-api-local-dev.md) and [security-private-access.md](security-private-access.md).
+
+## Why Azure instead of nested subdomains on shared hosting
+
+Azure gives you **managed HTTPS per hostname** (`*.azurewebsites.net` out of the box, custom domains with free App Service / SWA certificates). You avoid Winhost origin-cert limits (e.g. a wildcard `*.johnprideaux.net` not covering `karaoke-api.johnprideaux.net`).
+
+Custom domains that work well with Cloudflare Full (strict):
+
+| Role | Suggested hostname |
+|------|-------------------|
+| WASM | `https://karaoke.johnprideaux.net` → Static Web App |
+| API | `https://api.johnprideaux.net` → API App Service |
+
+Start with `*.azurewebsites.net` URLs, then add custom domains when ready.
 
 ## Prerequisites
 
-- [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli)
+- [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) (`az login`)
 - .NET 10 SDK
+- Node.js (for `@azure/static-web-apps-cli`, WASM deploy)
 - An Azure subscription
 
 ## 1. Provision infrastructure
 
 ```powershell
 $rg = "rg-karaokelist"
-$location = "eastus"
+$location = "eastus"   # SQL + API App Service
 az group create --name $rg --location $location
+
+Copy-Item infra/main.parameters.example.json infra/main.parameters.json
+# Edit infra/main.parameters.json — set baseName and sqlAdminPassword
 
 az deployment group create `
   --resource-group $rg `
@@ -31,58 +46,41 @@ az deployment group create `
   --parameters infra/main.parameters.json
 ```
 
-Copy `infra/main.parameters.example.json` to `infra/main.parameters.json` and set:
+Note the outputs:
 
-- `baseName` — globally unique prefix (e.g. `karaokelist-jp`)
-- `sqlAdminPassword` — strong password (store in a password manager)
+| Output | Use |
+|--------|-----|
+| `apiWebAppDefaultHostName` | API URL → `https://<name>/` |
+| `staticWebAppDefaultHostName` | WASM URL → `https://<name>/` |
+| `staticWebAppDeploymentToken` | WASM deploy (store in password manager) |
+| `sqlServerFqdn` | Migration + SSMS |
 
-Note the outputs: `webAppDefaultHostName`, `sqlServerFqdn`.
+`baseName` must be globally unique (e.g. `karaokelist-jp`). Resources created:
 
-## 2. Migrate existing SQLite data (optional)
+- `sql-<baseName>` — Azure SQL server
+- `api-<baseName>` — API App Service
+- `stapp-<baseName>` — Static Web App (in `eastus2` by default)
 
-If you have data in `KaraokeList/Temp/Karaoke.sqlite3`, run the migration tool after the database exists and firewall rules allow your IP:
+## 2. Configure API secrets (portal)
 
-```powershell
-$env:KARAOKE_SQL_CONNECTION = "Server=tcp:<server>.database.windows.net,1433;Database=KaraokeList;User ID=<admin>;Password=<password>;Encrypt=True;TrustServerCertificate=False;"
-dotnet run --project scripts/MigrateSqliteToSqlServer/MigrateSqliteToSqlServer.csproj
-```
+Bicep sets SQL connection string and basic JWT issuer/audience. Add **production secrets** in the API App Service → **Configuration** → Application settings:
 
-## 3. Publish and deploy the web app
+| Setting | Value |
+|---------|--------|
+| `Jwt__Key` | **Required** — 32+ random characters (≠ dev key in repo) |
+| `Security__Registration__InviteCode` | **Required** — share only with friends |
+| `Security__Registration__AllowRegistration` | `true` until everyone has joined |
+| `Cors__Origins__0` | `https://<staticWebAppDefaultHostName>` (no trailing slash) |
 
-```powershell
-cd KaraokeList
-dotnet publish -c Release -o ./publish
+After custom domains:
 
-cd publish
-Compress-Archive -Path * -DestinationPath ../karaokelist.zip -Force
-cd ..
+| Setting | Value |
+|---------|--------|
+| `Cors__Origins__0` | `https://karaoke.johnprideaux.net` |
 
-az webapp deployment source config-zip `
-  --resource-group $rg `
-  --name app-<your-baseName> `
-  --src karaokelist.zip
-```
+Optional later: move secrets to **Key Vault** ([deployment-roadmap.md](deployment-roadmap.md) Phase 2a).
 
-On first startup the app will:
-
-1. Apply EF Core Identity migrations
-2. Create karaoke catalog tables from `scripts/azure-sql/001-karaoke-schema.sql`
-
-## 4. Configure App Service settings
-
-The Bicep template sets `ConnectionStrings__DefaultConnection` and `ASPNETCORE_ENVIRONMENT=Production`.
-
-Optional settings in the Azure portal (Configuration → Application settings):
-
-| Setting | Purpose |
-|---------|---------|
-| `Security__Registration__InviteCode` | **Required** — long random secret; share only with friends |
-| `Security__Registration__AllowRegistration` | `false` after your group has accounts |
-| `Security__Registration__RequireInviteCode` | `true` in production |
-| `SyncfusionKey` | Remove Syncfusion trial watermark (pipeline secret at build time only — not in git) |
-| `Identity__RequireConfirmedAccount` | Set `true` if you add real email (SendGrid, etc.) |
-
-## 5. Allow your IP for SQL administration (one-time)
+## 3. Allow your IP for SQL (one-time admin)
 
 ```powershell
 az sql server firewall-rule create `
@@ -93,41 +91,132 @@ az sql server firewall-rule create `
   --end-ip-address <your-public-ip>
 ```
 
-App Service access is enabled via the `AllowAzureServices` firewall rule in Bicep.
+App Service → SQL is allowed via the `AllowAzureServices` rule in Bicep.
 
-## Authentication options for friends
+## 4. Migrate catalog data (optional)
 
-### Recommended default: ASP.NET Identity + invite code (included)
+If you have data in `KaraokeList/Temp/Karaoke.sqlite3`:
 
-- Each friend registers with email, password, and the **invite code** you set in App Service configuration.
-- After everyone has an account, set `Security__Registration__AllowRegistration` to `false`.
-- `RequireConfirmedAccount` is **off** so sign-up works without SMTP.
-- All catalog routes require sign-in; login has lockout and per-IP rate limits.
+```powershell
+$env:KARAOKE_SQL_CONNECTION = "Server=tcp:<server>.database.windows.net,1433;Database=KaraokeList;User ID=<admin>;Password=<password>;Encrypt=True;TrustServerCertificate=False;MultipleActiveResultSets=true;"
+dotnet run --project scripts/MigrateSqliteToSqlServer/MigrateSqliteToSqlServer.csproj
+```
 
-Full checklist: [security-private-access.md](security-private-access.md).
+On first API startup (with or without migration):
 
-### Optional upgrades
+1. EF Core Identity migrations run
+2. Karaoke schema from `scripts/azure-sql/001-karaoke-schema.sql` is applied
 
-| Option | Best for | Effort |
-|--------|----------|--------|
-| **Microsoft / Google social login** | Friends who prefer OAuth | Medium — add `.AddAuthentication().AddMicrosoftAccount()` / `.AddGoogle()` and App Service auth settings |
-| **Microsoft Entra External ID** | Consumer Microsoft/Google/Apple accounts at scale | Higher — separate tenant, redirect URIs |
-| **Invite-only registration** | Private group | Medium — disable public register, admin creates users |
-| **Azure App Service Authentication (Easy Auth)** | Quick Microsoft login in front of the app | Low for Microsoft only; pairs with Entra app registration |
+## 5. Publish and deploy
 
-For a small friend group, **Identity with open registration** is usually enough. Tighten later with an invite code on `Register.razor` or by disabling registration after the core group has accounts.
+### Option A — helper script (recommended)
 
-## Cost notes (serverless SQL)
+```powershell
+npm install -g @azure/static-web-apps-cli
 
-- Database pauses after `autoPauseDelay` minutes of inactivity (60 in Bicep).
-- `minCapacity` 0.5 vCore keeps cost low while allowing burst.
-- App Service B1 is a modest always-on option; scale down to Free F1 for demos (cold starts).
+.\scripts\deploy-azure.ps1 `
+  -ResourceGroup $rg `
+  -ApiAppName api-<baseName> `
+  -StaticWebAppName stapp-<baseName> `
+  -ApiBaseUrl "https://api-<baseName>.azurewebsites.net" `
+  -StaticWebAppDeploymentToken "<from bicep output>" `
+  -SyncfusionKey "<optional; or set SYNCFUSION_KEY env>"
+```
+
+The script temporarily patches `wwwroot/appsettings.json` `ApiBaseUrl` at publish time, then restores the dev default.
+
+### Option B — manual steps
+
+**API**
+
+```powershell
+dotnet publish KaraokeList.Api -c Release -o ./publish/api
+Compress-Archive -Path ./publish/api/* -DestinationPath ./publish/karaokelist-api.zip -Force
+
+az webapp deployment source config-zip `
+  --resource-group $rg `
+  --name api-<baseName> `
+  --src ./publish/karaokelist-api.zip
+```
+
+**WASM**
+
+Set production API URL in `KaraokeList.Web/wwwroot/appsettings.json` (or patch only for publish):
+
+```json
+{
+  "ApiBaseUrl": "https://api-<baseName>.azurewebsites.net"
+}
+```
+
+```powershell
+dotnet publish KaraokeList.Web -c Release -o ./publish/web /p:SyncfusionKey=<key>
+
+swa deploy ./publish/web/wwwroot `
+  --deployment-token <token> `
+  --env production
+```
+
+`wwwroot/staticwebapp.config.json` enables Blazor client-side routing and correct `.wasm` MIME types on Static Web Apps.
+
+## 6. Smoke test
+
+| Check | Expected |
+|-------|----------|
+| `GET https://api-<baseName>.azurewebsites.net/api/auth/me` | **401** (API healthy, no token) |
+| Open WASM URL | Login page loads |
+| Register with invite code | JWT issued; My Songs / Log work |
+
+## 7. Custom domains (optional)
+
+### API App Service
+
+1. App Service → **Custom domains** → add `api.johnprideaux.net`
+2. Validate DNS (CNAME to `api-<baseName>.azurewebsites.net`)
+3. Add **managed certificate** (App Service → TLS/SSL)
+4. Update `Cors__Origins__0` if WASM uses a custom domain too
+5. Re-publish WASM with `ApiBaseUrl` → `https://api.johnprideaux.net`
+
+### Static Web App
+
+1. SWA → **Custom domains** → add `karaoke.johnprideaux.net`
+2. Add DNS CNAME per portal instructions
+3. SWA provisions its own managed cert
+4. Update API `Cors__Origins__0` → `https://karaoke.johnprideaux.net`
+
+### Cloudflare (if used)
+
+- **Full (strict)** works with Azure-managed origin certs (unlike Winhost shared wildcard limits).
+- Bypass cache for API hostname (same rule pattern as [winhost-deployment.md](winhost-deployment.md)).
+
+## Syncfusion license
+
+- Compiled into WASM at **publish** time (`/p:SyncfusionKey=...`), not a server secret.
+- Local: user secrets or `-SyncfusionKey` on the deploy script.
+- CI: GitHub secret → pipeline publish ([deployment-roadmap.md](deployment-roadmap.md)).
+
+## Cost notes
+
+- **Static Web Apps Free** — sufficient for a friends group.
+- **App Service B1** — modest always-on API (~$13/mo region-dependent).
+- **Azure SQL serverless** — pauses after 60 min idle; `minCapacity` 0.5 vCore keeps cost low.
 
 ## Troubleshooting
 
 | Symptom | Check |
 |---------|--------|
-| Login works, grids empty | Catalog schema — verify `Venues` table exists in Azure SQL |
-| Cannot connect to SQL from App Service | Firewall `AllowAzureServices`; connection string in App Service config |
-| EF migration errors on startup | SQL admin permissions; database exists |
-| Redirect loop on HTTP | Use HTTPS URL from App Service (`httpsOnly: true`) |
+| WASM loads, API calls fail (CORS) | `Cors__Origins__0` matches exact WASM origin (scheme + host, no path) |
+| Login fails / 401 on all API calls | `Jwt__Key` set on API; WASM `ApiBaseUrl` points at same API host |
+| Grids empty after login | SQL schema + catalog migration; API logs in App Service |
+| Deep link 404 on WASM | `staticwebapp.config.json` deployed with `wwwroot` |
+| Cannot connect to SQL from laptop | Firewall rule for your IP |
+| API cannot reach SQL | `AllowAzureServices` rule; connection string in App Service config |
+
+## Related docs
+
+| Doc | Topic |
+|-----|--------|
+| [deployment-roadmap.md](deployment-roadmap.md) | Key Vault, CI/CD, phased checklist |
+| [wasm-api-local-dev.md](wasm-api-local-dev.md) | Local two-process dev |
+| [security-private-access.md](security-private-access.md) | Invite code, registration |
+| [winhost-deployment.md](winhost-deployment.md) | Alternate host (paused) |

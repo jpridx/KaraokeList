@@ -1,8 +1,11 @@
 @description('Base name for Azure resources (letters and numbers, globally unique for SQL server).')
 param baseName string
 
-@description('Azure region for all resources.')
+@description('Azure region for SQL and API App Service.')
 param location string = resourceGroup().location
+
+@description('Region for Static Web App (Free tier: eastus2, westus2, centralus, westeurope, eastasia).')
+param staticWebAppLocation string = 'eastus2'
 
 @description('SQL admin login name.')
 param sqlAdminLogin string
@@ -17,7 +20,8 @@ param appServicePlanSku string = 'B1'
 var sqlServerName = 'sql-${baseName}'
 var databaseName = 'KaraokeList'
 var appServicePlanName = 'asp-${baseName}'
-var webAppName = 'app-${baseName}'
+var apiWebAppName = 'api-${baseName}'
+var staticWebAppName = 'stapp-${baseName}'
 
 resource sqlServer 'Microsoft.Sql/servers@2023-05-01-preview' = {
   name: sqlServerName
@@ -72,8 +76,8 @@ resource appServicePlan 'Microsoft.Web/serverfarms@2023-12-01' = {
   }
 }
 
-resource webApp 'Microsoft.Web/sites@2023-12-01' = {
-  name: webAppName
+resource apiWebApp 'Microsoft.Web/sites@2023-12-01' = {
+  name: apiWebAppName
   location: location
   identity: {
     type: 'SystemAssigned'
@@ -95,12 +99,41 @@ resource webApp 'Microsoft.Web/sites@2023-12-01' = {
           name: 'ConnectionStrings__DefaultConnection'
           value: 'Server=tcp:${sqlServer.properties.fullyQualifiedDomainName},1433;Database=${databaseName};User ID=${sqlAdminLogin};Password=${sqlAdminPassword};Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;MultipleActiveResultSets=true'
         }
+        {
+          name: 'Jwt__Issuer'
+          value: 'KaraokeList'
+        }
+        {
+          name: 'Jwt__Audience'
+          value: 'KaraokeList.Web'
+        }
+        {
+          name: 'Security__Registration__RequireInviteCode'
+          value: 'true'
+        }
       ]
     }
   }
 }
 
-output webAppName string = webApp.name
-output webAppDefaultHostName string = webApp.properties.defaultHostName
+resource staticWebApp 'Microsoft.Web/staticSites@2023-12-01' = {
+  name: staticWebAppName
+  location: staticWebAppLocation
+  sku: {
+    name: 'Free'
+    tier: 'Free'
+  }
+  properties: {
+    stagingEnvironmentPolicy: 'Enabled'
+    allowConfigFileUpdates: true
+  }
+}
+
+output apiWebAppName string = apiWebApp.name
+output apiWebAppDefaultHostName string = apiWebApp.properties.defaultHostName
+output staticWebAppName string = staticWebApp.name
+output staticWebAppDefaultHostName string = staticWebApp.properties.defaultHostname
+@secure()
+output staticWebAppDeploymentToken string = listSecrets(staticWebApp.id, staticWebApp.apiVersion).properties.apiKey
 output sqlServerFqdn string = sqlServer.properties.fullyQualifiedDomainName
 output databaseName string = database.name

@@ -362,6 +362,9 @@ MigrationBackup/
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
 
+# Azure deployment parameters (contains SQL password)
+infra/main.parameters.json
+
 # Local secrets — never commit license keys or personal config
 **/wwwroot/appsettings.local.json
 **/wwwroot/appsettings.secrets.json

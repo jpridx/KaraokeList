@@ -6,8 +6,8 @@
 
 | Target | Purpose |
 |--------|---------|
-| **Winhost.com** | Primary friends-facing site |
-| **Azure** | Learning / alternate host (App Service + SQL) |
+| **Azure** | Primary production host (Static Web Apps + API App Service + SQL) |
+| **Winhost.com** | Paused — SSL / nested-subdomain limits; see [winhost-deployment.md](winhost-deployment.md) |
 | **Key Vault (Azure)** | Store API secrets; supply Syncfusion key at **build** time in CI |
 | **CI/CD** | Repeatable deploys to both hosts without manual zip/FTP mistakes |
 
@@ -86,7 +86,7 @@ Run **once per target database** (Winhost SQL, Azure SQL). The tool currently mi
 
 ## Phase 2 — Azure
 
-Existing Bicep: `infra/main.bicep` (App Service + Azure SQL). **Not yet:** Key Vault, WASM host, API/WASM split.
+Bicep: `infra/main.bicep` — **API App Service** + **Static Web Apps** (WASM) + Azure SQL. Deploy guide: [azure-deployment.md](azure-deployment.md). Helper: `scripts/deploy-azure.ps1`. **Not yet:** Key Vault, GitHub Actions workflow.
 
 ### 2a — Key Vault
 
@@ -137,7 +137,7 @@ API app settings (production):
 | `Security__Registration__AllowRegistration` | `true` until group joined |
 | `ASPNETCORE_ENVIRONMENT` | `Production` |
 
-Update stale guide: [azure-deployment.md](azure-deployment.md) still describes Blazor Server — refresh when Azure work starts.
+Follow [azure-deployment.md](azure-deployment.md) for first deploy (provision → secrets → publish).
 
 ### 2c — CI/CD pipeline (Azure)
 
@@ -244,7 +244,7 @@ If both Winhost and Azure stay up:
 - [ ] Key Vault + API references
 - [ ] WASM + API hosted
 - [ ] CI/CD pipeline
-- [ ] Refresh [azure-deployment.md](azure-deployment.md)
+- [x] Refresh [azure-deployment.md](azure-deployment.md)
 
 ### Winhost
 
@@ -267,7 +267,7 @@ If both Winhost and Azure stay up:
 |-----|--------|
 | [wasm-api-local-dev.md](wasm-api-local-dev.md) | Local two-process dev |
 | [winhost-deployment.md](winhost-deployment.md) | Winhost, one DB, Cloudflare HTTPS |
-| [azure-deployment.md](azure-deployment.md) | Azure (legacy Server doc — needs update) |
+| [azure-deployment.md](azure-deployment.md) | Azure WASM + API deploy |
 | [security-private-access.md](security-private-access.md) | Invite code, registration |
 | [mobile-ux.md](mobile-ux.md) | Singer-facing flows |
 | [Performances.md](Performances.md) | Performance schema / API |
