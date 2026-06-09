@@ -6,6 +6,7 @@ namespace KaraokeList.Data
     public class ApplicationUser : IdentityUser
     {
         public int? SingerId { get; set; }
+        public Singer? Singer { get; set; }
     }
 
 }
