@@ -22,11 +22,23 @@ namespace KaraokeList.Migrations
                 column: "SingerId",
                 unique: true,
                 filter: "[SingerId] IS NOT NULL");
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_AspNetUsers_Singers_SingerId",
+                table: "AspNetUsers",
+                column: "SingerId",
+                principalTable: "Singers",
+                principalColumn: "Id",
+                onDelete: ReferentialAction.SetNull);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropForeignKey(
+                name: "FK_AspNetUsers_Singers_SingerId",
+                table: "AspNetUsers");
+
             migrationBuilder.DropIndex(
                 name: "IX_AspNetUsers_SingerId",
                 table: "AspNetUsers");

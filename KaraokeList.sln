@@ -7,7 +7,19 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KaraokeList", "KaraokeList\
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{23A61FFC-5070-464C-A26B-A8B8A8B27ADA}"
 	ProjectSection(SolutionItems) = preProject
+		docs\Artists.md = docs\Artists.md
+		docs\azure-deployment.md = docs\azure-deployment.md
+		docs\deployment-roadmap.md = docs\deployment-roadmap.md
+		docs\Genres.md = docs\Genres.md
 		KaraokeList.md = KaraokeList.md
+		docs\mobile-ux.md = docs\mobile-ux.md
+		docs\Performances.md = docs\Performances.md
+		docs\security-private-access.md = docs\security-private-access.md
+		docs\Singers.md = docs\Singers.md
+		docs\Songs.md = docs\Songs.md
+		docs\Venues.md = docs\Venues.md
+		docs\wasm-api-local-dev.md = docs\wasm-api-local-dev.md
+		docs\winhost-deployment.md = docs\winhost-deployment.md
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KaraokeList.Shared", "KaraokeList.Shared\KaraokeList.Shared.csproj", "{C568B767-CC9A-4489-BE2E-13B179997755}"

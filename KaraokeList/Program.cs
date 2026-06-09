@@ -22,6 +22,7 @@ builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddScoped<IdentityUserAccessor>();
 builder.Services.AddScoped<IdentityRedirectManager>();
 builder.Services.AddScoped<AuthenticationStateProvider, IdentityRevalidatingAuthenticationStateProvider>();
+builder.Services.AddControllers();
 
 builder.Services.AddAuthentication(options =>
     {
@@ -85,6 +86,7 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
+app.MapControllers();
 
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
