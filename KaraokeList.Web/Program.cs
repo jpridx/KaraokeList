@@ -1,3 +1,5 @@
+// KaraokeList.Web (WASM UI) — Syncfusion is required here for catalog grids and Log comboboxes.
+// KaraokeList.Api has no Syncfusion; do not confuse the two Program.cs files.
 using Blazored.LocalStorage;
 using KaraokeList.Web;
 using KaraokeList.Web.Services;

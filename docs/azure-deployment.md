@@ -211,6 +211,7 @@ swa deploy ./publish/web/wwwroot `
 | Deep link 404 on WASM | `staticwebapp.config.json` deployed with `wwwroot` |
 | Cannot connect to SQL from laptop | Firewall rule for your IP |
 | API cannot reach SQL | `AllowAzureServices` rule; connection string in App Service config |
+| Redirect loops or wrong scheme behind Cloudflare | API uses forwarded headers (`X-Forwarded-Proto`); Cloudflare SSL mode Full or Full (strict) |
 
 ## Related docs
 

@@ -11,14 +11,19 @@
 
 ## Run locally
 
+One-time (if the browser warns about the dev certificate):
+
+```powershell
+dotnet dev-certs https --trust
+```
+
 Terminal 1 — API:
 
 ```powershell
-cd KaraokeList.Api
-dotnet run --launch-profile http
+dotnet run --project KaraokeList.Api
 ```
 
-Listens on **http://localhost:5299**.
+Default **https** profile: **https://localhost:5299** (same port as before, but TLS).
 
 Apply schema (first time or after migration changes):
 
@@ -31,12 +36,15 @@ See [database.md](database.md) for seed data.
 Terminal 2 — WASM client:
 
 ```powershell
-cd KaraokeList.Web
-dotnet run
+dotnet run --project KaraokeList.Web
 ```
 
-Listens on **http://localhost:5262** (or the port in `Properties/launchSettings.json`).  
-`wwwroot/appsettings.json` points `ApiBaseUrl` at the API.
+Default **https** profile: **https://localhost:7262**.  
+`wwwroot/appsettings.Development.json` sets `ApiBaseUrl` to **https://localhost:5299**.
+
+**Cursor / VS Code:** `.vscode/launch.json` must use `launchSettingsProfile: "https"` for the API (already set). Without that, the debugger starts the **http** profile and `https://localhost:5299` fails with `ERR_SSL_PROTOCOL_ERROR`.
+
+HTTP-only fallback: `dotnet run --project KaraokeList.Api --launch-profile http` and set `ApiBaseUrl` to `http://localhost:5299`.
 
 ## Syncfusion packages (Web only)
 

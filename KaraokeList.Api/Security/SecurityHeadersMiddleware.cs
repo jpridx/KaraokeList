@@ -10,11 +10,6 @@ public sealed class SecurityHeadersMiddleware(RequestDelegate next)
         headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
         headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()";
 
-        if (context.Request.IsHttps)
-        {
-            headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains";
-        }
-
         await next(context);
     }
 }

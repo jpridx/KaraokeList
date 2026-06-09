@@ -191,10 +191,7 @@ Use a Cache Rule or legacy Page Rule for the API hostname.
 
 ### ASP.NET Core behind Cloudflare
 
-IIS may receive requests that look like HTTP while clients used HTTPS. If you see wrong redirects or scheme issues:
-
-- Configure **forwarded headers** (`X-Forwarded-Proto`, `X-Forwarded-For`) on the API
-- Review `UseHttpsRedirection()` behavior behind a proxy
+The API enables **forwarded headers** (`X-Forwarded-Proto`, `X-Forwarded-For`) in `Program.cs`. If you still see wrong redirects behind Cloudflare, confirm SSL mode is **Full** or **Full (strict)** and that IIS passes the forwarded headers through.
 
 WASM is static files only — no forwarded-header concern on the main site.
 
