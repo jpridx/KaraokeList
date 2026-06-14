@@ -1,11 +1,11 @@
 @description('Base name for Azure resources (letters and numbers, globally unique for SQL server).')
 param baseName string
 
-@description('Azure region for SQL and API App Service.')
-param location string = resourceGroup().location
+@description('Azure region for SQL and API App Service. Defaults to centralus.')
+param location string = 'centralus'
 
-@description('Region for Static Web App (Free tier: eastus2, westus2, centralus, westeurope, eastasia).')
-param staticWebAppLocation string = 'eastus2'
+@description('Region for Static Web App (Free tier: centralus, westus2, westeurope, eastasia).')
+param staticWebAppLocation string = 'centralus'
 
 @description('SQL admin login name.')
 param sqlAdminLogin string
@@ -57,9 +57,6 @@ resource database 'Microsoft.Sql/servers/databases@2023-05-01-preview' = {
   properties: {
     collation: 'SQL_Latin1_General_CP1_CI_AS'
     maxSizeBytes: 34359738368
-    computeModel: 'Serverless'
-    autoPauseDelay: 60
-    minCapacity: json('0.5')
     requestedBackupStorageRedundancy: 'Local'
   }
 }
@@ -134,6 +131,6 @@ output apiWebAppDefaultHostName string = apiWebApp.properties.defaultHostName
 output staticWebAppName string = staticWebApp.name
 output staticWebAppDefaultHostName string = staticWebApp.properties.defaultHostname
 @secure()
-output staticWebAppDeploymentToken string = listSecrets(staticWebApp.id, staticWebApp.apiVersion).properties.apiKey
+output staticWebAppDeploymentToken string = staticWebApp.listSecrets().properties.apiKey
 output sqlServerFqdn string = sqlServer.properties.fullyQualifiedDomainName
 output databaseName string = database.name
