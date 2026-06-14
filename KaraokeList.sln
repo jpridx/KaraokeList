@@ -32,6 +32,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KaraokeList.Api.Tests", "Ka
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KaraokeList.Api.IntegrationTests", "KaraokeList.Api.IntegrationTests\KaraokeList.Api.IntegrationTests.csproj", "{C5A9FE34-BACE-4378-8112-815EC89C31C9}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KaraokeList.Web.Tests", "KaraokeList.Web.Tests\KaraokeList.Web.Tests.csproj", "{94734EA3-F871-4876-8710-C60370638516}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -114,6 +116,18 @@ Global
 		{C5A9FE34-BACE-4378-8112-815EC89C31C9}.Release|x64.Build.0 = Release|Any CPU
 		{C5A9FE34-BACE-4378-8112-815EC89C31C9}.Release|x86.ActiveCfg = Release|Any CPU
 		{C5A9FE34-BACE-4378-8112-815EC89C31C9}.Release|x86.Build.0 = Release|Any CPU
+		{94734EA3-F871-4876-8710-C60370638516}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{94734EA3-F871-4876-8710-C60370638516}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{94734EA3-F871-4876-8710-C60370638516}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{94734EA3-F871-4876-8710-C60370638516}.Debug|x64.Build.0 = Debug|Any CPU
+		{94734EA3-F871-4876-8710-C60370638516}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{94734EA3-F871-4876-8710-C60370638516}.Debug|x86.Build.0 = Debug|Any CPU
+		{94734EA3-F871-4876-8710-C60370638516}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{94734EA3-F871-4876-8710-C60370638516}.Release|Any CPU.Build.0 = Release|Any CPU
+		{94734EA3-F871-4876-8710-C60370638516}.Release|x64.ActiveCfg = Release|Any CPU
+		{94734EA3-F871-4876-8710-C60370638516}.Release|x64.Build.0 = Release|Any CPU
+		{94734EA3-F871-4876-8710-C60370638516}.Release|x86.ActiveCfg = Release|Any CPU
+		{94734EA3-F871-4876-8710-C60370638516}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
