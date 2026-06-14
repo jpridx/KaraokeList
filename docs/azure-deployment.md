@@ -194,6 +194,7 @@ swa deploy ./publish/web/wwwroot `
 - Compiled into WASM at **publish** time (`/p:SyncfusionKey=...`), not a server secret.
 - Local: user secrets or `-SyncfusionKey` on the deploy script.
 - CI: GitHub secret → pipeline publish ([deployment-roadmap.md](deployment-roadmap.md)).
+- Theme CSS: Syncfusion CDN (`fluent2-lite.css` in `index.html`). Bump the CDN version when you upgrade `Syncfusion.Blazor.*` packages.
 
 ## Cost notes
 
@@ -209,6 +210,7 @@ swa deploy ./publish/web/wwwroot `
 | Login fails / 401 on all API calls | `Jwt__Key` set on API; WASM `ApiBaseUrl` points at same API host |
 | Grids empty after login | SQL schema + catalog migration; API logs in App Service |
 | Deep link 404 on WASM | `staticwebapp.config.json` deployed with `wwwroot` |
+| `swa deploy` fails / zipdeploy 413 | Usually oversized publish; ensure `Syncfusion.Blazor.Themes` is not referenced (theme CSS comes from CDN) |
 | Cannot connect to SQL from laptop | Firewall rule for your IP |
 | API cannot reach SQL | `AllowAzureServices` rule; connection string in App Service config |
 | Redirect loops or wrong scheme behind Cloudflare | API uses forwarded headers (`X-Forwarded-Proto`); Cloudflare SSL mode Full or Full (strict) |

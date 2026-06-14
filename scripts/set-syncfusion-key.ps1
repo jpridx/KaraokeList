@@ -16,7 +16,6 @@ Write-Host "Pinning Syncfusion packages to $PackageVersion..."
 Push-Location (Join-Path $repoRoot "KaraokeList.Web")
 & dotnet add package Syncfusion.Blazor.Grid --version $PackageVersion | Out-Null
 & dotnet add package Syncfusion.Blazor.DropDowns --version $PackageVersion | Out-Null
-& dotnet add package Syncfusion.Blazor.Themes --version $PackageVersion | Out-Null
 Pop-Location
 
 Write-Host "Building (embeds key in gitignored SyncfusionLicenseKey.g.cs)..."

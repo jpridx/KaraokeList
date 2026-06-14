@@ -8,6 +8,7 @@ public interface IKaraokeApiClient
 {
     Task<AuthResult> LoginAsync(LoginRequest request);
     Task<AuthResult> RegisterAsync(RegisterRequest request);
+    Task<RegistrationInfoDto?> GetRegistrationInfoAsync();
     Task<List<VenueDto>> GetVenuesAsync();
     Task CreateVenueAsync(VenueDto dto);
     Task UpdateVenueAsync(VenueDto dto);
@@ -46,11 +47,28 @@ public interface IKaraokeApiClient
 
 public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
 {
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true
+    };
+
     public Task<AuthResult> LoginAsync(LoginRequest request) =>
         PostAuthAsync("api/auth/login", request);
 
     public Task<AuthResult> RegisterAsync(RegisterRequest request) =>
         PostAuthAsync("api/auth/register", request);
+
+    public async Task<RegistrationInfoDto?> GetRegistrationInfoAsync()
+    {
+        try
+        {
+            return await http.GetFromJsonAsync<RegistrationInfoDto>("api/auth/registration", JsonOptions);
+        }
+        catch (HttpRequestException)
+        {
+            return null;
+        }
+    }
 
     private async Task<AuthResult> PostAuthAsync(string url, object request)
     {
@@ -216,7 +234,7 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
 
         try
         {
-            var error = JsonSerializer.Deserialize<ApiErrorResponse>(body);
+            var error = JsonSerializer.Deserialize<ApiErrorResponse>(body, JsonOptions);
             if (!string.IsNullOrWhiteSpace(error?.Message))
             {
                 return error.Message;

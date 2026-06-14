@@ -67,15 +67,22 @@ finally {
     Move-Item $appsettingsBackup $appsettingsPath -Force
 }
 
-Write-Host "Zipping API for App Service..."
+Write-Host "Zipping API for App Service (tar — Linux-safe paths)..."
 if (Test-Path $apiZip) { Remove-Item $apiZip -Force }
-Compress-Archive -Path (Join-Path $apiOut "*") -DestinationPath $apiZip -Force
+Push-Location $apiOut
+try {
+    tar -a -c -f (Join-Path $repoRoot $apiZip) *
+}
+finally {
+    Pop-Location
+}
 
 Write-Host "Deploying API to $ApiAppName..."
-az webapp deployment source config-zip `
+az webapp deploy `
     --resource-group $ResourceGroup `
     --name $ApiAppName `
-    --src $apiZip `
+    --src-path $apiZip `
+    --type zip `
     --timeout 600
 
 $swaCli = Get-Command swa -ErrorAction SilentlyContinue

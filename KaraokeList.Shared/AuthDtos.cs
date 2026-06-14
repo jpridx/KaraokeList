@@ -56,3 +56,9 @@ public class ApiErrorResponse
 {
     public string? Message { get; set; }
 }
+
+public class RegistrationInfoDto
+{
+    public bool IsRegistrationOpen { get; set; }
+    public bool RequiresInviteCode { get; set; }
+}

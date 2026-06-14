@@ -71,6 +71,15 @@ public class AuthController(
     }
 
     [AllowAnonymous]
+    [HttpGet("registration")]
+    public ActionResult<RegistrationInfoDto> GetRegistrationInfo() =>
+        Ok(new RegistrationInfoDto
+        {
+            IsRegistrationOpen = registrationGate.IsRegistrationOpen,
+            RequiresInviteCode = registrationGate.RequiresInviteCode
+        });
+
+    [AllowAnonymous]
     [HttpPost("login")]
     public async Task<ActionResult<AuthResponse>> Login([FromBody] LoginRequest request)
     {

@@ -48,11 +48,12 @@ HTTP-only fallback: `dotnet run --project KaraokeList.Api --launch-profile http`
 
 ## Syncfusion packages (Web only)
 
-Pinned to **33.1.44** (must match your license key version):
+Pinned to **33.1.44** (must match your license key version and the CDN URL in `wwwroot/index.html`):
 
 - `Syncfusion.Blazor.Grid` 33.1.44
 - `Syncfusion.Blazor.DropDowns` 33.1.44
-- `Syncfusion.Blazor.Themes` 33.1.44
+
+Theme CSS is loaded from the Syncfusion CDN (`fluent2-lite.css`), not a NuGet package — avoids bundling ~200MB of unused theme files.
 
 Sample/demo pages from the old Server template are not included.
 

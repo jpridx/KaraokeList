@@ -18,7 +18,6 @@
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.14.0" />
     <PackageReference Include="Syncfusion.Blazor.Grid" Version="33.1.44" />
     <PackageReference Include="Syncfusion.Blazor.DropDowns" Version="33.1.44" />
-    <PackageReference Include="Syncfusion.Blazor.Themes" Version="33.1.44" />
   </ItemGroup>
 
   <ItemGroup>

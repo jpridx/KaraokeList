@@ -46,7 +46,7 @@ Send the site URL and invite code over text/DM — not in a public post.
 Optional link that pre-fills the code:
 
 ```
-https://<your-app>.azurewebsites.net/Account/Register?invite=<your-code>
+https://<your-wasm-host>/register?invite=<your-code>
 ```
 
 ### 4. After the last friend registers

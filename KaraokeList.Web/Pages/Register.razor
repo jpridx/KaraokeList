@@ -2,39 +2,66 @@
 
 <PageTitle>Register</PageTitle>
 
-<h3>Register</h3>
-<p class="text-muted">Development mode does not require an invite code.</p>
-
-@if (!string.IsNullOrEmpty(errorMessage))
+@if (loading)
 {
-    <div class="alert alert-danger">@errorMessage</div>
+    <p class="text-muted">Loading…</p>
 }
+else if (registrationInfo is null)
+{
+    <h3>Register</h3>
+    <div class="alert alert-danger">Could not load registration settings. Is the API running?</div>
+}
+else if (!registrationInfo.IsRegistrationOpen)
+{
+    <h3>Registration closed</h3>
+    <p class="text-muted">New accounts are not being accepted. If you already have an account, <a href="login">sign in</a>.</p>
+}
+else
+{
+    <h3>Register</h3>
+    @if (registrationInfo.RequiresInviteCode)
+    {
+        <p class="text-muted">Invite-only. You need the private invite code from the site owner.</p>
+    }
 
-<EditForm Model="Input" OnValidSubmit="RegisterAsync">
-    <DataAnnotationsValidator />
-    <div class="mb-3">
-        <label class="form-label">Your name (as a singer)</label>
-        <InputText class="form-control" @bind-Value="Input.Name" />
-        <ValidationMessage For="@(() => Input.Name)" />
-    </div>
-    <div class="mb-3">
-        <label class="form-label">Email</label>
-        <InputText class="form-control" @bind-Value="Input.Email" />
-    </div>
-    <div class="mb-3">
-        <label class="form-label">Password</label>
-        <InputText type="password" class="form-control" @bind-Value="Input.Password" />
-    </div>
-    <div class="mb-3">
-        <label class="form-label">Confirm password</label>
-        <InputText type="password" class="form-control" @bind-Value="Input.ConfirmPassword" />
-    </div>
-    <div class="registration-honeypot" aria-hidden="true">
-        <label>Website</label>
-        <InputText @bind-Value="Input.Website" />
-    </div>
-    <button class="btn btn-primary" type="submit">Create account</button>
-</EditForm>
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger">@errorMessage</div>
+    }
+
+    <EditForm Model="Input" OnValidSubmit="RegisterAsync">
+        <DataAnnotationsValidator />
+        <div class="mb-3">
+            <label class="form-label">Your name (as a singer)</label>
+            <InputText class="form-control" @bind-Value="Input.Name" />
+            <ValidationMessage For="@(() => Input.Name)" />
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Email</label>
+            <InputText class="form-control" @bind-Value="Input.Email" />
+        </div>
+        @if (registrationInfo.RequiresInviteCode)
+        {
+            <div class="mb-3">
+                <label class="form-label">Invite code</label>
+                <InputText class="form-control" @bind-Value="Input.InviteCode" autocomplete="off" />
+            </div>
+        }
+        <div class="mb-3">
+            <label class="form-label">Password</label>
+            <InputText type="password" class="form-control" @bind-Value="Input.Password" />
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Confirm password</label>
+            <InputText type="password" class="form-control" @bind-Value="Input.ConfirmPassword" />
+        </div>
+        <div class="registration-honeypot" aria-hidden="true">
+            <label>Website</label>
+            <InputText @bind-Value="Input.Website" />
+        </div>
+        <button class="btn btn-primary" type="submit">Create account</button>
+    </EditForm>
+}
 
 @code {
     [Inject]
@@ -46,8 +73,24 @@
     [Inject]
     private NavigationManager NavigationManager { get; set; } = default!;
 
+    [SupplyParameterFromQuery]
+    private string? Invite { get; set; }
+
     private RegisterRequest Input { get; set; } = new();
+    private RegistrationInfoDto? registrationInfo;
     private string? errorMessage;
+    private bool loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        registrationInfo = await Api.GetRegistrationInfoAsync();
+        if (!string.IsNullOrWhiteSpace(Invite))
+        {
+            Input.InviteCode = Invite;
+        }
+
+        loading = false;
+    }
 
     private async Task RegisterAsync()
     {
