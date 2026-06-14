@@ -18,11 +18,18 @@ internal static class IntegrationTestConnection
         return "Server=(localdb)\\MSSQLLocalDB;Database=KaraokeList_IntegrationTest;Trusted_Connection=True;TrustServerCertificate=True";
     }
 
+    /// <summary>
+    /// Probes SQL Server reachability. Uses master because the app database may not exist until MigrateAsync runs.
+    /// </summary>
     public static bool CanConnect(string connectionString)
     {
         try
         {
-            using var connection = new SqlConnection(connectionString);
+            var builder = new SqlConnectionStringBuilder(connectionString)
+            {
+                InitialCatalog = "master"
+            };
+            using var connection = new SqlConnection(builder.ConnectionString);
             connection.Open();
             return true;
         }
