@@ -9,14 +9,13 @@ namespace KaraokeList.Api.IntegrationTests;
 [Collection(KaraokeApiCollection.Name)]
 public sealed class AuthEndpointsTests(KaraokeApiFactory factory)
 {
-    private readonly HttpClient _client = factory.CreateClient();
-
     [SkippableFact]
     public async Task GetRegistration_ReturnsOpenFlagsWithoutAuth()
     {
         Skip.IfNot(factory.IsDatabaseAvailable, IntegrationTestConnection.SkipReason);
 
-        var response = await _client.GetAsync("/api/auth/registration");
+        using var client = factory.CreateClient();
+        var response = await client.GetAsync("/api/auth/registration");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var info = await response.Content.ReadFromJsonAsync<RegistrationInfoDto>();
@@ -30,7 +29,8 @@ public sealed class AuthEndpointsTests(KaraokeApiFactory factory)
     {
         Skip.IfNot(factory.IsDatabaseAvailable, IntegrationTestConnection.SkipReason);
 
-        var response = await _client.GetAsync("/api/auth/me");
+        using var client = factory.CreateClient();
+        var response = await client.GetAsync("/api/auth/me");
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
@@ -40,8 +40,9 @@ public sealed class AuthEndpointsTests(KaraokeApiFactory factory)
     {
         Skip.IfNot(factory.IsDatabaseAvailable, IntegrationTestConnection.SkipReason);
 
+        using var client = factory.CreateClient();
         var email = $"test-{Guid.NewGuid():N}@example.com";
-        var token = await IntegrationAuthHelper.RegisterAndGetTokenAsync(_client, email);
+        var token = await IntegrationAuthHelper.RegisterAndGetTokenAsync(client, email);
 
         Assert.False(string.IsNullOrWhiteSpace(token));
 

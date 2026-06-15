@@ -22,6 +22,7 @@ public sealed class KaraokeApiFactory : WebApplicationFactory<Program>
     {
         // Avoid Development — that loads API user secrets and appsettings.Development.json (Azure SQL).
         builder.UseEnvironment("Testing");
+        builder.UseSetting("ConnectionStrings:DefaultConnection", ConnectionString);
 
         builder.ConfigureAppConfiguration((_, config) =>
         {
