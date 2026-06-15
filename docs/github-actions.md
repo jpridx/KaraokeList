@@ -5,7 +5,7 @@ Automated build, test, and deploy to **`rg-karaokelist`** (`karaokelist` prefix)
 | Resource | Name | URL (yours) |
 |----------|------|-------------|
 | API App Service | `api-karaokelist` | `https://api-karaokelist.azurewebsites.net` |
-| Static Web App | `stapp-karaokelist` | `https://red-dune-040532a10.7.azurestaticapps.net` |
+| Static Web App | `stapp-karaokelist` | `https://karaoke.johnprideaux.net` (custom domain) |
 | SQL server | `sql-karaokelist` | (private; API connects via Bicep connection string) |
 
 Provision Azure once with [azure-deployment.md](azure-deployment.md) before the deploy workflow runs. The pipeline deploys **applications only** — not Bicep.
@@ -32,7 +32,7 @@ flowchart LR
     ApiDep[az webapp deploy]
     WasmPub[Publish WASM + Syncfusion key]
     WasmDep[swa deploy]
-    Cors[Sync CORS to SWA hostname]
+    Cors[Sync CORS to public WASM URL]
     Smoke[Smoke tests 401 + 200]
   end
 
@@ -54,7 +54,7 @@ flowchart LR
 | SQL password / Bicep | One-time `infra/main.bicep` deploy |
 | Catalog seed | `scripts/seed-catalog.sql` after first API start |
 
-The deploy job **does** update `Cors__Origins__0` to the live SWA hostname after each WASM deploy (so you never hard-code `red-dune-...` in the workflow).
+The deploy job sets `Cors__Origins__0` to `WASM_PUBLIC_ORIGIN` in `.github/workflows/deploy-azure.yml` (currently `https://karaoke.johnprideaux.net`) and restarts the API after each deploy.
 
 ## Workflows
 
@@ -80,9 +80,9 @@ On **`api-karaokelist`** → **Environment variables**:
 | `Jwt__Key` | 32+ random chars (not the dev key in repo) |
 | `Security__Registration__InviteCode` | Share only with friends |
 | `Security__Registration__AllowRegistration` | `true` until everyone has joined |
-| `Cors__Origins__0` | `https://red-dune-040532a10.7.azurestaticapps.net` |
+| `Cors__Origins__0` | `https://karaoke.johnprideaux.net` (also set by deploy workflow) |
 
-The pipeline will refresh CORS after deploy; your manual value is fine until the first run.
+The pipeline refreshes CORS after each deploy and restarts the API so login works immediately.
 
 ### Step 2 — Azure OIDC for GitHub (automated script)
 
@@ -160,7 +160,7 @@ OIDC must include the `environment:production` federated credential (the setup s
 
 ## Changing resource names
 
-Edit `AZURE_RESOURCE_GROUP` and `AZURE_BASE_NAME` in `.github/workflows/deploy-azure.yml`. Re-run `setup-github-oidc.ps1` if the resource group changes.
+Edit `AZURE_RESOURCE_GROUP`, `AZURE_BASE_NAME`, or `WASM_PUBLIC_ORIGIN` in `.github/workflows/deploy-azure.yml`. Re-run `setup-github-oidc.ps1` if the resource group changes.
 
 ## Troubleshooting
 
@@ -170,7 +170,7 @@ Edit `AZURE_RESOURCE_GROUP` and `AZURE_BASE_NAME` in `.github/workflows/deploy-a
 | `AuthorizationFailed` on `az webapp deploy` | Service principal needs **Contributor** on `rg-karaokelist` |
 | WASM publish fails on Syncfusion | Set `SYNCFUSION_KEY` secret |
 | API smoke test not 401 | Wait for cold start; check App Service logs; confirm zip deploy succeeded |
-| WASM loads, API calls fail | CORS step in workflow; confirm `Cors__Origins__0` matches SWA hostname |
+| WASM loads, API calls fail | CORS step in workflow; confirm `Cors__Origins__0` matches `WASM_PUBLIC_ORIGIN` in deploy-azure.yml |
 | Login works, empty catalog | Run `scripts/seed-catalog.sql` against Azure SQL |
 
 ## Related docs

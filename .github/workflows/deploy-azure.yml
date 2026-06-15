@@ -17,6 +17,8 @@ env:
   AZURE_RESOURCE_GROUP: rg-karaokelist
   AZURE_BASE_NAME: karaokelist
   DOTNET_VERSION: '10.0.x'
+  # Public WASM URL (Cloudflare custom domain). Used for CORS and smoke tests.
+  WASM_PUBLIC_ORIGIN: https://karaoke.johnprideaux.net
 
 jobs:
   test:
@@ -156,21 +158,20 @@ jobs:
             --deployment-token "${SWA_TOKEN}" \
             --env production
 
-      - name: Sync API CORS with SWA hostname
+      - name: Sync API CORS with public WASM origin
         id: cors
         run: |
-          SWA_HOST=$(az staticwebapp show \
-            --name "${{ steps.azure.outputs.static_web_app_name }}" \
-            --resource-group "${AZURE_RESOURCE_GROUP}" \
-            --query "defaultHostname" -o tsv)
-          SWA_ORIGIN="https://${SWA_HOST}"
+          WASM_ORIGIN="${WASM_PUBLIC_ORIGIN%/}"
           az webapp config appsettings set \
             --resource-group "${AZURE_RESOURCE_GROUP}" \
             --name "${{ steps.azure.outputs.api_app_name }}" \
-            --settings "Cors__Origins__0=${SWA_ORIGIN}" \
+            --settings "Cors__Origins__0=${WASM_ORIGIN}" \
             --output none
-          echo "swa_origin=${SWA_ORIGIN}" >> "$GITHUB_OUTPUT"
-          echo "CORS set to ${SWA_ORIGIN}"
+          az webapp restart \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --name "${{ steps.azure.outputs.api_app_name }}"
+          echo "wasm_origin=${WASM_ORIGIN}" >> "$GITHUB_OUTPUT"
+          echo "CORS set to ${WASM_ORIGIN} (API restarted)"
 
       - name: Smoke test API
         run: |
@@ -192,9 +193,9 @@ jobs:
 
       - name: Smoke test WASM
         run: |
-          SWA_URL="${{ steps.cors.outputs.swa_origin }}"
+          WASM_URL="${{ steps.cors.outputs.wasm_origin }}"
           for attempt in 1 2 3 4 5; do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${SWA_URL}/")
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${WASM_URL}/")
             if [ "$STATUS" = "200" ]; then
               echo "WASM smoke test passed (200 on /)."
               exit 0
@@ -212,9 +213,9 @@ jobs:
             echo ""
             echo "| Resource | URL |"
             echo "|----------|-----|"
-            echo "| WASM | ${{ steps.cors.outputs.swa_origin }} |"
+            echo "| WASM | ${{ steps.cors.outputs.wasm_origin }} |"
             echo "| API | ${{ steps.azure.outputs.api_base_url }} |"
-            echo "| Register | ${{ steps.cors.outputs.swa_origin }}/register?invite=YOUR_CODE |"
+            echo "| Register | ${{ steps.cors.outputs.wasm_origin }}/register?invite=YOUR_CODE |"
             echo ""
             echo "EF migrations run on first API startup. Seed catalog if needed (\`scripts/seed-catalog.sql\`)."
           } >> "$GITHUB_STEP_SUMMARY"
