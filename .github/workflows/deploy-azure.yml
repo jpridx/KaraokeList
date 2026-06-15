@@ -29,9 +29,11 @@ jobs:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
       - name: Restore and build
+        env:
+          SYNCFUSION_KEY: ${{ secrets.SYNCFUSION_KEY }}
         run: |
           dotnet restore KaraokeList.sln
-          dotnet build KaraokeList.sln -c Release --no-restore
+          dotnet build KaraokeList.sln -c Release --no-restore /p:SyncfusionKey="$SYNCFUSION_KEY"
 
       - name: Unit tests (API)
         run: dotnet test KaraokeList.Api.Tests/KaraokeList.Api.Tests.csproj -c Release --no-build --verbosity minimal

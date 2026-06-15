@@ -49,9 +49,4 @@ $valueLine
 "@
 
 Set-Content -Path $CodegenPath -Value $content.TrimEnd() -Encoding utf8
-
-if ($null -eq $escaped) {
-    exit 1
-}
-
 exit 0

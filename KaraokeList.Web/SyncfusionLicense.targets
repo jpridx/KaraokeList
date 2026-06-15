@@ -1,27 +1,57 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project>
   <!--
-    Blazor WASM cannot read user secrets in the browser. Embed the key at compile time
-    from dotnet user-secrets (see scripts/write-syncfusion-secrets.ps1).
+    Blazor WASM cannot read user secrets in the browser. Embed the key at compile time.
+    CI/publish: pass /p:SyncfusionKey=... (GitHub secret SYNCFUSION_KEY).
+    Local dev: dotnet user-secrets set SyncfusionKey ... (scripts/write-syncfusion-secrets.ps1 on Windows).
   -->
-  <Target Name="GenerateSyncfusionLicenseKey" BeforeTargets="CoreCompile">
+  <Target Name="GenerateSyncfusionLicenseKey" BeforeTargets="BeforeCompile">
     <PropertyGroup>
       <_CodegenPath>$(MSBuildProjectDirectory)\SyncfusionLicenseKey.g.cs</_CodegenPath>
       <_WriteSecretsScript>$(MSBuildThisFileDirectory)..\scripts\write-syncfusion-secrets.ps1</_WriteSecretsScript>
     </PropertyGroup>
 
+    <!-- CI / publish: key passed as MSBuild property (%3b = semicolon, %0a = newline) -->
+    <PropertyGroup Condition="'$(SyncfusionKey)' != ''">
+      <_LicenseCodegenContent>// &lt;auto-generated&gt; From SyncfusionKey MSBuild property. Do not commit.%0a#nullable enable%0anamespace KaraokeList.Web%3b%0a%0ainternal static class SyncfusionLicenseKey%0a{%0a    internal const string? Value = "$(SyncfusionKey)"%3b%0a}%0a</_LicenseCodegenContent>
+    </PropertyGroup>
+    <WriteLinesToFile
+      File="$(_CodegenPath)"
+      Lines="$(_LicenseCodegenContent)"
+      Overwrite="true"
+      Condition="'$(SyncfusionKey)' != ''" />
+
+    <!-- Local dev: read dotnet user-secrets when property not passed -->
     <Exec
-      Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(_WriteSecretsScript)&quot; -ProjectPath &quot;$(MSBuildProjectFullPath)&quot; -CodegenPath &quot;$(_CodegenPath)&quot; -SyncfusionKey &quot;$(SyncfusionKey)&quot;"
+      Command="pwsh -NoProfile -ExecutionPolicy Bypass -File &quot;$(_WriteSecretsScript)&quot; -ProjectPath &quot;$(MSBuildProjectFullPath)&quot; -CodegenPath &quot;$(_CodegenPath)&quot;"
       IgnoreExitCode="true"
-      Condition="Exists('$(_WriteSecretsScript)')" />
+      Condition="'$(SyncfusionKey)' == '' AND Exists('$(_WriteSecretsScript)') AND Exists('$(ProgramFiles)\PowerShell\7\pwsh.exe')" />
+    <Exec
+      Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(_WriteSecretsScript)&quot; -ProjectPath &quot;$(MSBuildProjectFullPath)&quot; -CodegenPath &quot;$(_CodegenPath)&quot;"
+      IgnoreExitCode="true"
+      Condition="'$(SyncfusionKey)' == '' AND Exists('$(_WriteSecretsScript)') AND !Exists('$(_CodegenPath)')" />
+
+    <!-- Fallback: compile without a key (trial banner in Program.cs) -->
+    <PropertyGroup Condition="!Exists('$(_CodegenPath)')">
+      <_LicenseStubContent>// &lt;auto-generated&gt; No Syncfusion key at build time. Do not commit.%0a#nullable enable%0anamespace KaraokeList.Web%3b%0a%0ainternal static class SyncfusionLicenseKey%0a{%0a    internal const string? Value = null%3b%0a}%0a</_LicenseStubContent>
+    </PropertyGroup>
+    <WriteLinesToFile
+      File="$(_CodegenPath)"
+      Lines="$(_LicenseStubContent)"
+      Overwrite="true"
+      Condition="!Exists('$(_CodegenPath)')" />
 
     <Message
       Importance="high"
-      Text="Syncfusion: license key embedded at build from user secrets (SyncfusionLicenseKey.g.cs is gitignored)."
-      Condition="Exists('$(_CodegenPath)')" />
+      Text="Syncfusion: license key embedded at build (SyncfusionLicenseKey.g.cs is gitignored)."
+      Condition="Exists('$(_CodegenPath)') AND '$(SyncfusionKey)' != ''" />
     <Message
       Importance="high"
-      Text="Syncfusion: no SyncfusionKey in user secrets. dotnet user-secrets set SyncfusionKey &lt;key&gt; --project KaraokeList.Web"
-      Condition="!Exists('$(_CodegenPath)')" />
+      Text="Syncfusion: no key at build. Set user secrets or pass /p:SyncfusionKey=..."
+      Condition="Exists('$(_CodegenPath)') AND '$(SyncfusionKey)' == ''" />
+
+    <ItemGroup>
+      <Compile Include="$(_CodegenPath)" />
+    </ItemGroup>
   </Target>
 </Project>
