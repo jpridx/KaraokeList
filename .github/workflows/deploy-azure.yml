@@ -1,0 +1,202 @@
+name: Deploy Azure
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  id-token: write   # OIDC token for azure/login
+  contents: read
+
+concurrency:
+  group: deploy-azure-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  AZURE_RESOURCE_GROUP: rg-karaokelist
+  AZURE_BASE_NAME: karaokelist
+  DOTNET_VERSION: '10.0.x'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore and build
+        run: |
+          dotnet restore KaraokeList.sln
+          dotnet build KaraokeList.sln -c Release --no-restore
+
+      - name: Unit tests (API)
+        run: dotnet test KaraokeList.Api.Tests/KaraokeList.Api.Tests.csproj -c Release --no-build --verbosity minimal
+
+      - name: Unit tests (Web)
+        run: dotnet test KaraokeList.Web.Tests/KaraokeList.Web.Tests.csproj -c Release --no-build --verbosity minimal
+
+      # Skippable on ubuntu-latest when LocalDB is unavailable.
+      - name: Integration tests (API)
+        run: dotnet test KaraokeList.Api.IntegrationTests/KaraokeList.Api.IntegrationTests.csproj -c Release --no-build --verbosity minimal
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      # Federated credential subject must include environment:production
+      # (see scripts/setup-github-oidc.ps1).
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Resolve Azure resource names
+        id: azure
+        run: |
+          API_APP_NAME="api-${AZURE_BASE_NAME}"
+          STATIC_WEB_APP_NAME="stapp-${AZURE_BASE_NAME}"
+          API_BASE_URL="https://${API_APP_NAME}.azurewebsites.net"
+          echo "api_app_name=${API_APP_NAME}" >> "$GITHUB_OUTPUT"
+          echo "static_web_app_name=${STATIC_WEB_APP_NAME}" >> "$GITHUB_OUTPUT"
+          echo "api_base_url=${API_BASE_URL}" >> "$GITHUB_OUTPUT"
+
+      - name: Publish API
+        run: dotnet publish KaraokeList.Api/KaraokeList.Api.csproj -c Release -o ./publish/api
+
+      - name: Package API for Linux App Service
+        run: |
+          cd ./publish/api
+          tar -a -c -f ../../publish/karaokelist-api.zip .
+
+      - name: Deploy API (zip)
+        run: |
+          az webapp deploy \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --name "${{ steps.azure.outputs.api_app_name }}" \
+            --src-path ./publish/karaokelist-api.zip \
+            --type zip \
+            --timeout 600
+
+      - name: Patch WASM ApiBaseUrl for publish
+        env:
+          API_BASE_URL: ${{ steps.azure.outputs.api_base_url }}
+        run: |
+          python3 <<'PY'
+          import json, os
+          path = "KaraokeList.Web/wwwroot/appsettings.json"
+          with open(path, encoding="utf-8") as f:
+              data = json.load(f)
+          data["ApiBaseUrl"] = os.environ["API_BASE_URL"].rstrip("/")
+          with open(path, "w", encoding="utf-8") as f:
+              json.dump(data, f, indent=2)
+              f.write("\n")
+          PY
+
+      - name: Publish WASM
+        env:
+          SYNCFUSION_KEY: ${{ secrets.SYNCFUSION_KEY }}
+        run: |
+          dotnet publish KaraokeList.Web/KaraokeList.Web.csproj \
+            -c Release \
+            -o ./publish/web \
+            /p:SyncfusionKey="${SYNCFUSION_KEY}"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Static Web Apps CLI
+        run: npm install -g @azure/static-web-apps-cli
+
+      - name: Deploy WASM to Static Web Apps
+        run: |
+          SWA_TOKEN=$(az staticwebapp secrets list \
+            --name "${{ steps.azure.outputs.static_web_app_name }}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --query "properties.apiKey" -o tsv)
+          swa deploy ./publish/web/wwwroot \
+            --deployment-token "${SWA_TOKEN}" \
+            --env production
+
+      - name: Sync API CORS with SWA hostname
+        id: cors
+        run: |
+          SWA_HOST=$(az staticwebapp show \
+            --name "${{ steps.azure.outputs.static_web_app_name }}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --query "defaultHostname" -o tsv)
+          SWA_ORIGIN="https://${SWA_HOST}"
+          az webapp config appsettings set \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --name "${{ steps.azure.outputs.api_app_name }}" \
+            --settings "Cors__Origins__0=${SWA_ORIGIN}" \
+            --output none
+          echo "swa_origin=${SWA_ORIGIN}" >> "$GITHUB_OUTPUT"
+          echo "CORS set to ${SWA_ORIGIN}"
+
+      - name: Restart API
+        run: |
+          az webapp restart \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --name "${{ steps.azure.outputs.api_app_name }}"
+
+      - name: Smoke test API
+        run: |
+          API_URL="${{ steps.azure.outputs.api_base_url }}"
+          for attempt in 1 2 3 4 5; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${API_URL}/api/auth/me")
+            if [ "$STATUS" = "401" ]; then
+              echo "API smoke test passed (401 without token)."
+              exit 0
+            fi
+            echo "Attempt ${attempt}: expected 401, got ${STATUS} — waiting..."
+            sleep 15
+          done
+          echo "API smoke test failed after retries."
+          exit 1
+
+      - name: Smoke test WASM
+        run: |
+          SWA_URL="${{ steps.cors.outputs.swa_origin }}"
+          for attempt in 1 2 3 4 5; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${SWA_URL}/")
+            if [ "$STATUS" = "200" ]; then
+              echo "WASM smoke test passed (200 on /)."
+              exit 0
+            fi
+            echo "Attempt ${attempt}: expected 200, got ${STATUS} — waiting..."
+            sleep 10
+          done
+          echo "WASM smoke test failed after retries."
+          exit 1
+
+      - name: Deployment summary
+        run: |
+          {
+            echo "## Deploy Azure — success"
+            echo ""
+            echo "| Resource | URL |"
+            echo "|----------|-----|"
+            echo "| WASM | ${{ steps.cors.outputs.swa_origin }} |"
+            echo "| API | ${{ steps.azure.outputs.api_base_url }} |"
+            echo "| Register | ${{ steps.cors.outputs.swa_origin }}/register?invite=YOUR_CODE |"
+            echo ""
+            echo "EF migrations run on first API startup. Seed catalog if needed (\`scripts/seed-catalog.sql\`)."
+          } >> "$GITHUB_STEP_SUMMARY"

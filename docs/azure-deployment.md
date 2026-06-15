@@ -159,6 +159,10 @@ swa deploy ./publish/web/wwwroot `
 
 `wwwroot/staticwebapp.config.json` enables Blazor client-side routing and correct `.wasm` MIME types on Static Web Apps.
 
+### 5. CI/CD (GitHub Actions)
+
+After Azure resources exist, configure OIDC and secrets per [github-actions.md](github-actions.md). Pushes to `master` run **Deploy Azure** (build, test, deploy API + WASM).
+
 ## 6. Smoke test
 
 | Check | Expected |
@@ -220,6 +224,7 @@ swa deploy ./publish/web/wwwroot `
 | Doc | Topic |
 |-----|--------|
 | [deployment-roadmap.md](deployment-roadmap.md) | Key Vault, CI/CD, phased checklist |
+| [github-actions.md](github-actions.md) | GitHub Actions workflows and OIDC setup |
 | [wasm-api-local-dev.md](wasm-api-local-dev.md) | Local two-process dev |
 | [security-private-access.md](security-private-access.md) | Invite code, registration |
 | [winhost-deployment.md](winhost-deployment.md) | Alternate host (paused) |

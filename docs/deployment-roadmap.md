@@ -86,7 +86,7 @@ Run **once per target database** (Winhost SQL, Azure SQL). The tool currently mi
 
 ## Phase 2 — Azure
 
-Bicep: `infra/main.bicep` — **API App Service** + **Static Web Apps** (WASM) + Azure SQL. Deploy guide: [azure-deployment.md](azure-deployment.md). Helper: `scripts/deploy-azure.ps1`. **Not yet:** Key Vault, GitHub Actions workflow.
+Bicep: `infra/main.bicep` — **API App Service** + **Static Web Apps** (WASM) + Azure SQL. Deploy guide: [azure-deployment.md](azure-deployment.md). Helper: `scripts/deploy-azure.ps1`. CI/CD: [github-actions.md](github-actions.md).
 
 ### 2a — Key Vault
 
@@ -141,7 +141,7 @@ Follow [azure-deployment.md](azure-deployment.md) for first deploy (provision �
 
 ### 2c — CI/CD pipeline (Azure)
 
-Suggested: GitHub Actions workflow `deploy-azure.yml` (manual or `main` trigger).
+Suggested: GitHub Actions workflows `.github/workflows/ci.yml` and `.github/workflows/deploy-azure.yml`. Setup: [github-actions.md](github-actions.md).
 
 **API job**
 
@@ -157,10 +157,9 @@ Suggested: GitHub Actions workflow `deploy-azure.yml` (manual or `main` trigger)
 
 **Checklist**
 
-- [ ] GitHub/Azure DevOps service connection
-- [ ] Pipeline secrets (Syncfusion, deploy credentials)
-- [ ] Azure workflow: build + deploy API
-- [ ] Azure workflow: build + publish WASM + deploy static
+- [ ] GitHub/Azure OIDC — see [github-actions.md](github-actions.md)
+- [ ] Pipeline secrets (Syncfusion, Azure IDs)
+- [x] Azure workflow: build + deploy API + WASM (`.github/workflows/deploy-azure.yml`)
 - [ ] Post-deploy smoke test (login, My Songs, Log)
 
 ---
@@ -243,7 +242,7 @@ If both Winhost and Azure stay up:
 
 - [ ] Key Vault + API references
 - [ ] WASM + API hosted
-- [ ] CI/CD pipeline
+- [ ] CI/CD pipeline — [github-actions.md](github-actions.md)
 - [x] Refresh [azure-deployment.md](azure-deployment.md)
 
 ### Winhost
