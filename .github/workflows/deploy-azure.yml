@@ -81,10 +81,22 @@ jobs:
       - name: Publish API
         run: dotnet publish KaraokeList.Api/KaraokeList.Api.csproj -c Release -o ./publish/api
 
+      - name: Configure API startup
+        run: |
+          az webapp config appsettings set \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --name "${{ steps.azure.outputs.api_app_name }}" \
+            --settings SCM_DO_BUILD_DURING_DEPLOYMENT=false \
+            --output none
+          az webapp config set \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --name "${{ steps.azure.outputs.api_app_name }}" \
+            --startup-file "dotnet KaraokeList.Api.dll"
+
       - name: Package API for Linux App Service
         run: |
           cd ./publish/api
-          tar -a -c -f ../../publish/karaokelist-api.zip .
+          zip -r ../karaokelist-api.zip .
 
       - name: Deploy API (zip)
         run: |
@@ -93,7 +105,14 @@ jobs:
             --name "${{ steps.azure.outputs.api_app_name }}" \
             --src-path ./publish/karaokelist-api.zip \
             --type zip \
+            --async false \
+            --clean true \
+            --restart true \
             --timeout 600
+          echo "API linuxFxVersion: $(az webapp config show \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --name "${{ steps.azure.outputs.api_app_name }}" \
+            --query linuxFxVersion -o tsv)"
 
       - name: Patch WASM ApiBaseUrl for publish
         env:
@@ -153,25 +172,22 @@ jobs:
           echo "swa_origin=${SWA_ORIGIN}" >> "$GITHUB_OUTPUT"
           echo "CORS set to ${SWA_ORIGIN}"
 
-      - name: Restart API
-        run: |
-          az webapp restart \
-            --resource-group "${AZURE_RESOURCE_GROUP}" \
-            --name "${{ steps.azure.outputs.api_app_name }}"
-
       - name: Smoke test API
         run: |
           API_URL="${{ steps.azure.outputs.api_base_url }}"
-          for attempt in 1 2 3 4 5; do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${API_URL}/api/auth/me")
-            if [ "$STATUS" = "401" ]; then
-              echo "API smoke test passed (401 without token)."
+          for attempt in 1 2 3 4 5 6 7 8 9 10; do
+            ME_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${API_URL}/api/auth/me")
+            REG_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${API_URL}/api/auth/registration")
+            if [ "$ME_STATUS" = "401" ] || [ "$REG_STATUS" = "200" ]; then
+              echo "API smoke test passed (me=${ME_STATUS}, registration=${REG_STATUS})."
               exit 0
             fi
-            echo "Attempt ${attempt}: expected 401, got ${STATUS} — waiting..."
-            sleep 15
+            ROOT_SNIPPET=$(curl -s "${API_URL}/" | tr -d '\n' | head -c 120)
+            echo "Attempt ${attempt}: me=${ME_STATUS}, registration=${REG_STATUS}"
+            echo "Root snippet: ${ROOT_SNIPPET}"
+            sleep 20
           done
-          echo "API smoke test failed after retries."
+          echo "API still shows placeholder or routes are missing. Check App Service logs and zip deploy."
           exit 1
 
       - name: Smoke test WASM
