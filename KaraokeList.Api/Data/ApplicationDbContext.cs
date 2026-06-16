@@ -24,6 +24,12 @@ namespace KaraokeList.Data
                     .IsUnique()
                     .HasFilter("[SingerId] IS NOT NULL");
             });
+
+            builder.Entity<Artist>(entity =>
+            {
+                entity.Property(a => a.Name).HasMaxLength(128);
+                entity.HasIndex(a => a.Name).IsUnique();
+            });
         }
     }
 }
