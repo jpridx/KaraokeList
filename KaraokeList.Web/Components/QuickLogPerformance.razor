@@ -1,4 +1,5 @@
 @inject IKaraokeApiClient Api
+@inject ILogPerformanceLocalStore LogStore
 
 @if (!string.IsNullOrEmpty(saveMessage))
 {
@@ -102,22 +103,28 @@
     {
         defaultsLoaded = true;
         _loadedSongId = SongId;
-        performedOn = DateTime.Today;
         saveMessage = null;
         saveError = null;
 
+        var stored = await LogStore.GetFormDefaultsAsync();
         var result = await Api.GetMySongSummaryAsync(SongId);
-        if (!result.Succeeded || result.Summary is null)
-        {
-            return;
-        }
+        var summary = result.Succeeded ? result.Summary : null;
 
-        var summary = result.Summary;
-        keyChangeSemitones = summary.LastKeyChangeSemitones;
-        if (!string.IsNullOrWhiteSpace(summary.LastVenueName))
+        performedOn = stored?.PerformedOn ?? DateTime.Today;
+        keyChangeSemitones = stored?.KeyChangeSemitones ?? summary?.LastKeyChangeSemitones;
+
+        if (stored?.VenueId is int storedVenueId && venues.Any(v => v.Id == storedVenueId))
+        {
+            selectedVenueId = storedVenueId;
+        }
+        else if (!string.IsNullOrWhiteSpace(summary?.LastVenueName))
         {
             selectedVenueId = venues.FirstOrDefault(v =>
                 v.VenueName.Equals(summary.LastVenueName, StringComparison.OrdinalIgnoreCase))?.Id;
+        }
+        else
+        {
+            selectedVenueId = null;
         }
     }
 
@@ -142,6 +149,11 @@
                 PerformedOn = performedOn,
                 KeyChangeSemitones = keyChangeSemitones == 0 ? null : keyChangeSemitones
             });
+
+            var venueName = venues.FirstOrDefault(v => v.Id == selectedVenueId)?.VenueName ?? string.Empty;
+            await LogStore.SaveFormDefaultsAsync(new LogFormDefaults(selectedVenueId, performedOn, keyChangeSemitones));
+            await LogStore.AddRecentLogAsync(new RecentLoggedPerformance(
+                SongId, Title, ArtistName, venueName, performedOn, keyChangeSemitones, DateTime.Now));
 
             saveMessage = "Performance saved.";
             await OnPerformanceSaved.InvokeAsync();

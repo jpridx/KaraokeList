@@ -35,6 +35,7 @@ builder.Services.AddScoped<JwtAuthenticationStateProvider>();
 builder.Services.AddScoped<AuthenticationStateProvider>(sp => sp.GetRequiredService<JwtAuthenticationStateProvider>());
 builder.Services.AddScoped<AuthorizationMessageHandler>();
 builder.Services.AddScoped<IKaraokeApiClient, KaraokeApiClient>();
+builder.Services.AddScoped<ILogPerformanceLocalStore, LogPerformanceLocalStore>();
 builder.Services.AddHttpClient("KaraokeApi", client => client.BaseAddress = new Uri(apiBaseUrl))
     .AddHttpMessageHandler<AuthorizationMessageHandler>();
 builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("KaraokeApi"));
