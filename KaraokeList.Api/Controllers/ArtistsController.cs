@@ -28,6 +28,11 @@ public class ArtistsController(ArtistService artistService, ArtistLookupService 
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] ArtistDto dto)
     {
+        if (string.IsNullOrWhiteSpace(dto.SortableName))
+        {
+            dto.SortableName = SortableNameFormatting.FromDisplayName(dto.Name);
+        }
+
         await artistService.AddArtistAsync(dto.ToEntity());
         return NoContent();
     }

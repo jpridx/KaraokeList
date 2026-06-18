@@ -1,3 +1,4 @@
+using KaraokeList.Shared;
 using Microsoft.Data.SqlClient;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -43,6 +44,11 @@ namespace KaraokeList.Data
 
         public async Task AddArtistAsync(Artist artist)
         {
+            if (string.IsNullOrWhiteSpace(artist.SortableName))
+            {
+                artist.SortableName = SortableNameFormatting.FromDisplayName(artist.Name);
+            }
+
             using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
             var command = connection.CreateCommand();
