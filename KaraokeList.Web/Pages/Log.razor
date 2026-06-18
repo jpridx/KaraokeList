@@ -67,6 +67,19 @@
                                         FilterType="Syncfusion.Blazor.DropDowns.FilterType.Contains">
                             <DropDownListFieldSettings Value="Id" Text="Name" />
                         </SfDropDownList>
+                        <button type="button" class="btn btn-link btn-sm ps-0 mt-2" @onclick="ToggleNewArtist">
+                            @(showNewArtist ? "Hide new artist" : "+ New artist")
+                        </button>
+                        @if (showNewArtist)
+                        {
+                            <div class="border-top pt-3 mt-2">
+                                <label class="form-label">Artist name</label>
+                                <input class="form-control mb-2" @bind="newArtistName" />
+                                <button type="button" class="btn btn-outline-primary w-100" @onclick="SaveNewArtistAsync">
+                                    Add artist
+                                </button>
+                            </div>
+                        }
                         <label class="form-label mt-2">Genre (optional)</label>
                         <SfDropDownList TValue="int?" TItem="GenreDto" DataSource="@genres" @bind-Value="newSongGenreId"
                                         Placeholder="Select genre" AllowFiltering="true"
@@ -131,7 +144,9 @@
     private string? saveError;
 
     private bool showNewSong;
+    private bool showNewArtist;
     private string newSongTitle = string.Empty;
+    private string newArtistName = string.Empty;
     private int? newSongArtistId;
     private int? newSongGenreId;
     private IReadOnlyList<RecentLoggedPerformance> recentLogs = [];
@@ -300,6 +315,38 @@
     }
 
     private void ToggleNewSong() => showNewSong = !showNewSong;
+
+    private void ToggleNewArtist() => showNewArtist = !showNewArtist;
+
+    private async Task SaveNewArtistAsync()
+    {
+        saveError = null;
+        if (string.IsNullOrWhiteSpace(newArtistName))
+        {
+            saveError = "Artist name is required.";
+            return;
+        }
+
+        try
+        {
+            await Api.CreateArtistAsync(new ArtistDto { Name = newArtistName.Trim() });
+            artistLookups = await Api.GetArtistLookupsAsync();
+            var created = artistLookups.FirstOrDefault(a =>
+                a.Name.Equals(newArtistName.Trim(), StringComparison.OrdinalIgnoreCase));
+            if (created is not null)
+            {
+                newSongArtistId = created.Id;
+            }
+
+            newArtistName = string.Empty;
+            showNewArtist = false;
+            saveMessage = "Artist added.";
+        }
+        catch (Exception ex)
+        {
+            saveError = ex.Message;
+        }
+    }
 
     private sealed class SongPickItem
     {
