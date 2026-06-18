@@ -169,7 +169,8 @@ Edit `AZURE_RESOURCE_GROUP`, `AZURE_BASE_NAME`, or `WASM_PUBLIC_ORIGIN` in `.git
 | `AADSTS700213` / federated credential mismatch | Re-run `setup-github-oidc.ps1`; deploy uses `environment:production`, not just `refs/heads/master` |
 | `AuthorizationFailed` on `az webapp deploy` | Service principal needs **Contributor** on `rg-karaokelist` |
 | WASM publish fails on Syncfusion | Set `SYNCFUSION_KEY` secret |
-| API smoke test not 401 | Wait for cold start; check App Service logs; confirm zip deploy succeeded |
+| API smoke test not 401 | Cold start: first request can take minutes (SQL + EF migrate). Re-run deploy; check `az webapp log startup show` |
+| Deploy API zipdeploy timeout | Harmless if API later returns 401 — zip may have succeeded. Workflow uses async deploy + longer smoke-test wait |
 | WASM loads, API calls fail | CORS step in workflow; confirm `Cors__Origins__0` matches `WASM_PUBLIC_ORIGIN` in deploy-azure.yml |
 | Login works, empty catalog | Run `scripts/seed-catalog.sql` against Azure SQL |
 

@@ -102,15 +102,16 @@ jobs:
 
       - name: Deploy API (zip)
         run: |
+          # Async: zip deploy can finish before the app passes "site started" (EF migrate + cold SQL).
           az webapp deploy \
             --resource-group "${AZURE_RESOURCE_GROUP}" \
             --name "${{ steps.azure.outputs.api_app_name }}" \
             --src-path ./publish/karaokelist-api.zip \
             --type zip \
-            --async false \
+            --async true \
             --clean true \
             --restart true \
-            --timeout 600
+            --timeout 300
           echo "API linuxFxVersion: $(az webapp config show \
             --resource-group "${AZURE_RESOURCE_GROUP}" \
             --name "${{ steps.azure.outputs.api_app_name }}" \
@@ -176,19 +177,20 @@ jobs:
       - name: Smoke test API
         run: |
           API_URL="${{ steps.azure.outputs.api_base_url }}"
-          for attempt in 1 2 3 4 5 6 7 8 9 10; do
-            ME_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${API_URL}/api/auth/me")
-            REG_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${API_URL}/api/auth/registration")
+          echo "Waiting for API cold start (EF migrations + Azure SQL wake-up can take several minutes)..."
+          for attempt in $(seq 1 40); do
+            ME_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 180 "${API_URL}/api/auth/me" || echo "000")
+            REG_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 180 "${API_URL}/api/auth/registration" || echo "000")
             if [ "$ME_STATUS" = "401" ] || [ "$REG_STATUS" = "200" ]; then
-              echo "API smoke test passed (me=${ME_STATUS}, registration=${REG_STATUS})."
+              echo "API smoke test passed on attempt ${attempt} (me=${ME_STATUS}, registration=${REG_STATUS})."
               exit 0
             fi
-            ROOT_SNIPPET=$(curl -s "${API_URL}/" | tr -d '\n' | head -c 120)
-            echo "Attempt ${attempt}: me=${ME_STATUS}, registration=${REG_STATUS}"
+            ROOT_SNIPPET=$(curl -s --max-time 30 "${API_URL}/" | tr -d '\n' | head -c 120)
+            echo "Attempt ${attempt}/40: me=${ME_STATUS}, registration=${REG_STATUS}"
             echo "Root snippet: ${ROOT_SNIPPET}"
-            sleep 20
+            sleep 15
           done
-          echo "API still shows placeholder or routes are missing. Check App Service logs and zip deploy."
+          echo "API not healthy after ~10 minutes. Check: az webapp log startup show -n ${{ steps.azure.outputs.api_app_name }} -g ${AZURE_RESOURCE_GROUP}"
           exit 1
 
       - name: Smoke test WASM
