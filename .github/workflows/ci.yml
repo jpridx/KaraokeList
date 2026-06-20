@@ -13,9 +13,29 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  INTEGRATION_TEST_SQL_PASSWORD: IntegrationTest_Passw0rd123!
+  KARAOKE_TEST_SQL_CONNECTION: Server=localhost,1433;Database=KaraokeList_IntegrationTest;User Id=sa;Password=IntegrationTest_Passw0rd123!;TrustServerCertificate=True;Encrypt=False
+  KARAOKE_INTEGRATION_TESTS_REQUIRED: "true"
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: Y
+          MSSQL_SA_PASSWORD: IntegrationTest_Passw0rd123!
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q \"SELECT 1\" || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 12
+          --health-start-period 30s
 
     steps:
       - name: Checkout
@@ -28,6 +48,20 @@ jobs:
 
       - name: Restore
         run: dotnet restore KaraokeList.sln
+
+      - name: Wait for SQL Server
+        shell: bash
+        run: |
+          for attempt in $(seq 1 30); do
+            if (echo > /dev/tcp/127.0.0.1/1433) 2>/dev/null; then
+              echo "SQL Server port is open"
+              exit 0
+            fi
+            echo "Waiting for SQL Server ($attempt/30)..."
+            sleep 2
+          done
+          echo "SQL Server did not become available"
+          exit 1
 
       - name: Build
         env:

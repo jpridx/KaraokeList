@@ -7,6 +7,12 @@ internal static class IntegrationTestConnection
     public const string SkipReason =
         "SQL Server not available. Install LocalDB or set KARAOKE_TEST_SQL_CONNECTION.";
 
+    public static bool IntegrationTestsRequired =>
+        string.Equals(
+            Environment.GetEnvironmentVariable("KARAOKE_INTEGRATION_TESTS_REQUIRED"),
+            "true",
+            StringComparison.OrdinalIgnoreCase);
+
     public static string Resolve()
     {
         var fromEnv = Environment.GetEnvironmentVariable("KARAOKE_TEST_SQL_CONNECTION");
