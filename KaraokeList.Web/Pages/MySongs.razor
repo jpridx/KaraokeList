@@ -157,19 +157,8 @@
         _ => songs
     };
 
-    private IEnumerable<RepertoireSongDto> FilteredSongs
-    {
-        get
-        {
-            var query = searchText.Trim();
-            return string.IsNullOrEmpty(query)
-                ? ScopedSongs
-                : ScopedSongs.Where(s =>
-                    s.Title.Contains(query, StringComparison.OrdinalIgnoreCase)
-                    || s.ArtistName.Contains(query, StringComparison.OrdinalIgnoreCase)
-                    || s.GenreName.Contains(query, StringComparison.OrdinalIgnoreCase));
-        }
-    }
+    private IEnumerable<RepertoireSongDto> FilteredSongs =>
+        RepertoireSearch.Filter(ScopedSongs, searchText);
 
     private IEnumerable<IGrouping<string, RepertoireSongDto>> GroupedSongs =>
         displaySongs.GroupBy(s => string.IsNullOrWhiteSpace(s.GenreName) ? "(No genre)" : s.GenreName)
