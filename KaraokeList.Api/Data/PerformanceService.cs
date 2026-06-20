@@ -100,6 +100,10 @@ public class PerformanceService(string connectionString)
         var orderBy = sortBy.Equals("lastPerformed", StringComparison.OrdinalIgnoreCase)
             ? $"CASE WHEN MAX(p.PerformedOn) IS NULL THEN {(nullsFirst ? 0 : 1)} ELSE {(nullsFirst ? 1 : 0)} END, MAX(p.PerformedOn) {direction}"
             : $"{orderColumn} {direction}";
+        var tiebreaker = sortBy.Equals("title", StringComparison.OrdinalIgnoreCase)
+            ? "s.Id ASC"
+            : "s.Title ASC";
+        var orderClause = $"{orderBy}, {tiebreaker}";
 
         await using var connection = new SqlConnection(connectionString);
         await connection.OpenAsync();
@@ -121,7 +125,7 @@ public class PerformanceService(string connectionString)
                 LEFT JOIN Genres g ON g.Id = s.Genre
                 WHERE (@GenreId IS NULL OR s.Genre = @GenreId)
                 GROUP BY s.Id, s.Title, a.Name, a.SortableName, s.Genre, g.GenreName
-                ORDER BY {orderBy}, s.Title ASC
+                ORDER BY {orderClause}
                 """;
         }
         else
@@ -141,7 +145,7 @@ public class PerformanceService(string connectionString)
                 WHERE p.Singer = @Singer
                   AND (@GenreId IS NULL OR s.Genre = @GenreId)
                 GROUP BY s.Id, s.Title, a.Name, a.SortableName, s.Genre, g.GenreName
-                ORDER BY {orderBy}, s.Title ASC
+                ORDER BY {orderClause}
                 """;
         }
 
