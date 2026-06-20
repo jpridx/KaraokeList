@@ -4,7 +4,6 @@ using KaraokeList.Data;
 using KaraokeList.Shared;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 
 namespace KaraokeList.Api.Controllers;
 
@@ -16,9 +15,15 @@ public class PerformancesController(
     ICurrentUserSingerResolver currentUserSinger) : ControllerBase
 {
     [HttpGet]
-    public async Task<ActionResult<List<PerformanceDto>>> GetAll([FromQuery] int? singerId, [FromQuery] int? songId)
+    public async Task<ActionResult<List<PerformanceDto>>> GetAll([FromQuery] int? songId)
     {
-        var performances = await performanceService.GetPerformancesAsync(singerId, songId);
+        var singerId = await RequireSingerIdAsync();
+        if (singerId.Result is not null)
+        {
+            return singerId.Result;
+        }
+
+        var performances = await performanceService.GetPerformancesAsync(singerId.Value!.Value, songId);
         return Ok(performances.Select(p => p.ToDto()).ToList());
     }
 
@@ -79,17 +84,18 @@ public class PerformancesController(
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] PerformanceDto dto)
     {
-        if (dto.Singer is null)
+        var singerId = await RequireSingerIdAsync();
+        if (singerId.Result is not null)
         {
-            var singerId = await currentUserSinger.GetSingerIdAsync(User);
-            if (singerId is null)
-            {
-                return BadRequest(new ApiErrorResponse { Message = "Your account is not linked to a singer profile." });
-            }
-
-            dto.Singer = singerId;
+            return singerId.Result;
         }
 
+        if (dto.Singer is int requestedSinger && requestedSinger != singerId.Value)
+        {
+            return BadRequest(new ApiErrorResponse { Message = "Cannot create performances for another singer." });
+        }
+
+        dto.Singer = singerId.Value;
         await performanceService.AddPerformanceAsync(dto.ToEntity());
         return NoContent();
     }
@@ -97,7 +103,20 @@ public class PerformancesController(
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int id, [FromBody] PerformanceDto dto)
     {
+        var singerId = await RequireSingerIdAsync();
+        if (singerId.Result is not null)
+        {
+            return singerId.Result;
+        }
+
+        var existing = await performanceService.GetPerformanceByIdAsync(id);
+        if (existing is null || existing.Singer != singerId.Value)
+        {
+            return NotFound();
+        }
+
         dto.Id = id;
+        dto.Singer = singerId.Value;
         await performanceService.UpdatePerformanceAsync(dto.ToEntity());
         return NoContent();
     }
@@ -105,6 +124,18 @@ public class PerformancesController(
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id)
     {
+        var singerId = await RequireSingerIdAsync();
+        if (singerId.Result is not null)
+        {
+            return singerId.Result;
+        }
+
+        var existing = await performanceService.GetPerformanceByIdAsync(id);
+        if (existing is null || existing.Singer != singerId.Value)
+        {
+            return NotFound();
+        }
+
         await performanceService.DeletePerformanceAsync(id);
         return NoContent();
     }

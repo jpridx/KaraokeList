@@ -255,8 +255,8 @@ else
 
     private async Task ReloadPerformancesAsync()
     {
-        performances = mySingerId is int singerId
-            ? await Api.GetPerformancesAsync(singerId)
+        performances = mySingerId is not null
+            ? await Api.GetPerformancesAsync()
             : [];
     }
 

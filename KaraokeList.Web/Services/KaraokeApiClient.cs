@@ -30,7 +30,7 @@ public interface IKaraokeApiClient
     Task CreateSongAsync(SongDto dto);
     Task UpdateSongAsync(SongDto dto);
     Task DeleteSongAsync(int id);
-    Task<List<PerformanceDto>> GetPerformancesAsync(int? singerId = null, int? songId = null);
+    Task<List<PerformanceDto>> GetPerformancesAsync(int? songId = null);
     Task<UserProfileDto?> GetProfileAsync();
     Task<AuthResult> LinkSingerAsync(LinkSingerRequest request);
     Task<SongSummaryResult> GetMySongSummaryAsync(int songId);
@@ -149,12 +149,9 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
     public Task UpdateSongAsync(SongDto dto) => PutAsync($"api/songs/{dto.Id}", dto);
     public Task DeleteSongAsync(int id) => DeleteAsync($"api/songs/{id}");
 
-    public Task<List<PerformanceDto>> GetPerformancesAsync(int? singerId = null, int? songId = null)
+    public Task<List<PerformanceDto>> GetPerformancesAsync(int? songId = null)
     {
-        var query = new List<string>();
-        if (singerId is int singer) query.Add($"singerId={singer}");
-        if (songId is int song) query.Add($"songId={song}");
-        var suffix = query.Count == 0 ? string.Empty : "?" + string.Join("&", query);
+        var suffix = songId is int song ? $"?songId={song}" : string.Empty;
         return GetListAsync<PerformanceDto>($"api/performances{suffix}");
     }
 

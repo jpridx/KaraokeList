@@ -80,6 +80,17 @@ public class PerformanceService(string connectionString)
         return performances;
     }
 
+    public async Task<Performance?> GetPerformanceByIdAsync(int id)
+    {
+        await using var connection = new SqlConnection(connectionString);
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = $"SELECT {SelectColumns} FROM Performances WHERE Id = @Id;";
+        command.Parameters.AddWithValue("@Id", id);
+        await using var reader = await command.ExecuteReaderAsync();
+        return await reader.ReadAsync() ? ReadPerformance(reader) : null;
+    }
+
     public async Task<List<RepertoireSong>> GetMyRepertoireAsync(
         int singerId,
         string sortBy = "lastPerformed",
