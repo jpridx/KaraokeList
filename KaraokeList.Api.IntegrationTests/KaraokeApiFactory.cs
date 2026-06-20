@@ -15,8 +15,9 @@ public sealed class KaraokeApiFactory : WebApplicationFactory<Program>
 
     public string ConnectionString { get; } = IntegrationTestConnection.Resolve();
 
-    public bool IsDatabaseAvailable { get; } = IntegrationTestConnection.CanConnect(
-        IntegrationTestConnection.Resolve());
+    private readonly Lazy<bool> isDatabaseAvailable = new(IntegrationTestConnection.EnsureDatabaseReady);
+
+    public bool IsDatabaseAvailable => isDatabaseAvailable.Value;
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {

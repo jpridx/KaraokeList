@@ -17,6 +17,7 @@ env:
   INTEGRATION_TEST_SQL_PASSWORD: IntegrationTest_Passw0rd123!
   KARAOKE_TEST_SQL_CONNECTION: Server=localhost,1433;Database=KaraokeList_IntegrationTest;User Id=sa;Password=IntegrationTest_Passw0rd123!;TrustServerCertificate=True;Encrypt=False
   KARAOKE_INTEGRATION_TESTS_REQUIRED: "true"
+  KARAOKE_TEST_SQL_READY_TIMEOUT_SECONDS: "180"
 
 jobs:
   build-and-test:
@@ -32,10 +33,10 @@ jobs:
           - 1433:1433
         options: >-
           --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q \"SELECT 1\" || exit 1"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 12
-          --health-start-period 30s
+          --health-interval 15s
+          --health-timeout 10s
+          --health-retries 16
+          --health-start-period 60s
 
     steps:
       - name: Checkout
@@ -49,18 +50,18 @@ jobs:
       - name: Restore
         run: dotnet restore KaraokeList.sln
 
-      - name: Wait for SQL Server
+      - name: Wait for SQL Server port
         shell: bash
         run: |
-          for attempt in $(seq 1 30); do
+          for attempt in $(seq 1 60); do
             if (echo > /dev/tcp/127.0.0.1/1433) 2>/dev/null; then
               echo "SQL Server port is open"
               exit 0
             fi
-            echo "Waiting for SQL Server ($attempt/30)..."
+            echo "Waiting for SQL Server port ($attempt/60)..."
             sleep 2
           done
-          echo "SQL Server did not become available"
+          echo "SQL Server port did not open"
           exit 1
 
       - name: Build
@@ -75,4 +76,4 @@ jobs:
         run: dotnet test KaraokeList.Web.Tests/KaraokeList.Web.Tests.csproj -c Release --no-build --verbosity minimal
 
       - name: Test API integration tests
-        run: dotnet test KaraokeList.Api.IntegrationTests/KaraokeList.Api.IntegrationTests.csproj -c Release --no-build --verbosity minimal
+        run: dotnet test KaraokeList.Api.IntegrationTests/KaraokeList.Api.IntegrationTests.csproj -c Release --no-build --verbosity minimal --settings KaraokeList.Api.IntegrationTests/integration.runsettings

@@ -10,9 +10,8 @@ public sealed class IntegrationTestInfrastructureTests
             return;
         }
 
-        var connectionString = IntegrationTestConnection.Resolve();
         Assert.True(
-            IntegrationTestConnection.CanConnect(connectionString),
+            IntegrationTestConnection.EnsureDatabaseReady(),
             IntegrationTestConnection.SkipReason);
     }
 }
