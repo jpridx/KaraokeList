@@ -7,6 +7,16 @@ internal static class IntegrationTestConnection
     public const string SkipReason =
         "SQL Server not available. Install LocalDB or set KARAOKE_TEST_SQL_CONNECTION.";
 
+    private static readonly TimeSpan DefaultReadyTimeout = TimeSpan.FromMinutes(2);
+    private static readonly TimeSpan DefaultPollInterval = TimeSpan.FromSeconds(5);
+    private const int ConnectTimeoutSeconds = 30;
+
+    public static bool IntegrationTestsRequired =>
+        string.Equals(
+            Environment.GetEnvironmentVariable("KARAOKE_INTEGRATION_TESTS_REQUIRED"),
+            "true",
+            StringComparison.OrdinalIgnoreCase);
+
     public static string Resolve()
     {
         var fromEnv = Environment.GetEnvironmentVariable("KARAOKE_TEST_SQL_CONNECTION");
@@ -35,18 +45,71 @@ internal static class IntegrationTestConnection
             StringComparison.OrdinalIgnoreCase);
     }
 
-    public static bool CanConnect(string connectionString)
+    public static bool CanConnect(string connectionString) =>
+        !ShouldSkipIntegrationTests() && TryConnectOnce(connectionString);
+
+    public static bool WaitUntilReady(
+        string connectionString,
+        TimeSpan? timeout = null,
+        TimeSpan? pollInterval = null)
     {
         if (ShouldSkipIntegrationTests())
         {
             return false;
         }
 
+        var deadline = DateTime.UtcNow + (timeout ?? ResolveReadyTimeout());
+        var interval = pollInterval ?? DefaultPollInterval;
+
+        while (DateTime.UtcNow < deadline)
+        {
+            if (TryConnectOnce(connectionString))
+            {
+                return true;
+            }
+
+            var remaining = deadline - DateTime.UtcNow;
+            if (remaining <= TimeSpan.Zero)
+            {
+                break;
+            }
+
+            Thread.Sleep(remaining < interval ? remaining : interval);
+        }
+
+        return false;
+    }
+
+    public static bool EnsureDatabaseReady()
+    {
+        var connectionString = Resolve();
+        if (IntegrationTestsRequired)
+        {
+            return WaitUntilReady(connectionString);
+        }
+
+        return CanConnect(connectionString);
+    }
+
+    private static TimeSpan ResolveReadyTimeout()
+    {
+        var fromEnv = Environment.GetEnvironmentVariable("KARAOKE_TEST_SQL_READY_TIMEOUT_SECONDS");
+        if (int.TryParse(fromEnv, out var seconds) && seconds > 0)
+        {
+            return TimeSpan.FromSeconds(seconds);
+        }
+
+        return DefaultReadyTimeout;
+    }
+
+    private static bool TryConnectOnce(string connectionString)
+    {
         try
         {
             var builder = new SqlConnectionStringBuilder(connectionString)
             {
-                InitialCatalog = "master"
+                InitialCatalog = "master",
+                ConnectTimeout = ConnectTimeoutSeconds
             };
             using var connection = new SqlConnection(builder.ConnectionString);
             connection.Open();
