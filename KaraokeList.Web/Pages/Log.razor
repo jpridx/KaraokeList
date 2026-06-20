@@ -244,7 +244,7 @@
         var summary = result.Summary;
         if (summary.PerformanceCount > 0)
         {
-            songHint = $"You've sung this {summary.PerformanceCount} time(s). Last: {summary.LastPerformedOn:d}";
+            songHint = $"You've sung this {summary.PerformanceCount} time(s). Last: {summary.LastPerformedOn:d} · {KeyChangeFormatting.Describe(summary.LastKeyChangeSemitones)}";
         }
         else
         {

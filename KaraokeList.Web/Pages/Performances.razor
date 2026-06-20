@@ -110,11 +110,8 @@ else
         </div>
     }
 
-    <div class="mb-3 form-check">
-        <InputCheckbox class="form-check-input" @bind-Value="showOnlyMine" @bind-Value:after="ReloadPerformancesAsync" />
-        <label class="form-check-label">Show only my performances</label>
-    </div>
-
+    @if (mySingerId is not null)
+    {
     <div class="catalog-container">
         <SfGrid DataSource="@performances" AllowPaging="true" AllowSorting="true" AllowFiltering="true"
                 Toolbar="@(new List<string>() { "Add", "Edit", "Delete", "Update", "Cancel", "Search" })">
@@ -122,25 +119,6 @@ else
             <GridEditSettings AllowAdding="true" AllowEditing="true" AllowDeleting="true" Mode="EditMode.Normal"></GridEditSettings>
             <GridColumns>
                 <GridColumn Field="@nameof(PerformanceDto.Id)" IsPrimaryKey="true" Visible="false" />
-                <GridColumn Field="@nameof(PerformanceDto.Singer)" HeaderText="Singer" Width="180">
-                    <Template Context="context">
-                        @{
-                            var row = (PerformanceDto)context!;
-                            var name = singers.FirstOrDefault(s => s.Id == row.Singer)?.Name ?? "";
-                        }
-                        <span>@name</span>
-                    </Template>
-                    <EditTemplate Context="context">
-                        @{
-                            var row = (PerformanceDto)context!;
-                        }
-                        <SfDropDownList TValue="int?" TItem="SingerDto" DataSource="@singers" @bind-Value="row.Singer"
-                                        Placeholder="Select singer" AllowFiltering="true"
-                                        FilterType="Syncfusion.Blazor.DropDowns.FilterType.Contains">
-                            <DropDownListFieldSettings Value="Id" Text="Name" />
-                        </SfDropDownList>
-                    </EditTemplate>
-                </GridColumn>
                 <GridColumn Field="@nameof(PerformanceDto.Song)" HeaderText="Song" Width="220">
                     <Template Context="context">
                         @{
@@ -200,6 +178,7 @@ else
             </GridColumns>
         </SfGrid>
     </div>
+    }
 }
 
 @code {
@@ -209,7 +188,6 @@ else
     private List<VenueDto> venues = [];
     private IReadOnlyList<PerformanceKeyOption> keyOptions = PerformanceKeyOption.Choices;
     private bool isLoading = true;
-    private bool showOnlyMine = true;
     private int? mySingerId;
     private int? summarySongId;
     private SongPerformanceSummaryDto? songSummary;
@@ -277,7 +255,9 @@ else
 
     private async Task ReloadPerformancesAsync()
     {
-        performances = await Api.GetPerformancesAsync(showOnlyMine ? mySingerId : null);
+        performances = mySingerId is int singerId
+            ? await Api.GetPerformancesAsync(singerId)
+            : [];
     }
 
     private async Task LoadSummaryAsync()
@@ -323,6 +303,11 @@ else
             if (args.Data.KeyChangeSemitones == 0)
             {
                 args.Data.KeyChangeSemitones = null;
+            }
+
+            if (mySingerId is int singerId)
+            {
+                args.Data.Singer = singerId;
             }
 
             if (args.Data.Id <= 0)
