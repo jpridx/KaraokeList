@@ -72,31 +72,55 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
 
     private async Task<AuthResult> PostAuthAsync(string url, object request)
     {
-        try
-        {
-            var response = await http.PostAsJsonAsync(url, request);
-            if (response.IsSuccessStatusCode)
-            {
-                var auth = await response.Content.ReadFromJsonAsync<AuthResponse>();
-                return auth is null
-                    ? AuthResult.Fail("Unexpected empty response from the server.")
-                    : AuthResult.Ok(auth);
-            }
+        const int maxAttempts = 2;
 
-            var message = await ReadApiErrorMessageAsync(response);
-            if (string.IsNullOrWhiteSpace(message))
-            {
-                message = response.StatusCode == System.Net.HttpStatusCode.Unauthorized
-                    ? "Invalid email or password."
-                    : $"Request failed ({(int)response.StatusCode}). Is the API running at {http.BaseAddress}?";
-            }
-
-            return AuthResult.Fail(message);
-        }
-        catch (HttpRequestException ex)
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
         {
-            return AuthResult.Fail($"Cannot reach the API at {http.BaseAddress}. Start KaraokeList.Api first. ({ex.Message})");
+            try
+            {
+                var response = await http.PostAsJsonAsync(url, request);
+                if (response.IsSuccessStatusCode)
+                {
+                    var auth = await response.Content.ReadFromJsonAsync<AuthResponse>();
+                    return auth is null
+                        ? AuthResult.Fail("Unexpected empty response from the server.")
+                        : AuthResult.Ok(auth);
+                }
+
+                if (ApiTransientFailure.IsTransient(response.StatusCode) && attempt < maxAttempts)
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(2));
+                    continue;
+                }
+
+                var message = await ReadApiErrorMessageAsync(response);
+                if (string.IsNullOrWhiteSpace(message))
+                {
+                    message = response.StatusCode == System.Net.HttpStatusCode.Unauthorized
+                        ? "Invalid email or password."
+                        : ApiTransientFailure.IsTransient(response.StatusCode)
+                            ? ApiTransientFailure.ColdStartMessage
+                            : $"Request failed ({(int)response.StatusCode}). Is the API running at {http.BaseAddress}?";
+                }
+
+                return AuthResult.Fail(message, ApiTransientFailure.IsTransient(response.StatusCode));
+            }
+            catch (Exception ex) when (ApiTransientFailure.IsTransient(ex) && attempt < maxAttempts)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(2));
+            }
+            catch (Exception ex) when (ApiTransientFailure.IsTransient(ex))
+            {
+                return AuthResult.Fail(ApiTransientFailure.ColdStartMessage, transient: true);
+            }
+            catch (HttpRequestException ex)
+            {
+                return AuthResult.Fail(
+                    $"Cannot reach the API at {http.BaseAddress}. Start KaraokeList.Api first. ({ex.Message})");
+            }
         }
+
+        return AuthResult.Fail(ApiTransientFailure.ColdStartMessage, transient: true);
     }
 
     public Task<List<VenueDto>> GetVenuesAsync() => GetListAsync<VenueDto>("api/venues");

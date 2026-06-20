@@ -19,14 +19,20 @@ else if (!registrationInfo.IsRegistrationOpen)
 else
 {
     <h3>Register</h3>
+    <p class="text-muted small mb-3">First sign-in after idle may take up to a minute while the database wakes up.</p>
     @if (registrationInfo.RequiresInviteCode)
     {
         <p class="text-muted">Invite-only. You need the private invite code from the site owner.</p>
     }
 
+    @if (isSubmitting)
+    {
+        <div class="alert alert-info mb-3">@ApiTransientFailure.ColdStartInProgressMessage</div>
+    }
+
     @if (!string.IsNullOrEmpty(errorMessage))
     {
-        <div class="alert alert-danger">@errorMessage</div>
+        <div class="alert @(errorIsTransient ? "alert-warning" : "alert-danger")">@errorMessage</div>
     }
 
     <EditForm Model="Input" OnValidSubmit="RegisterAsync">
@@ -59,7 +65,9 @@ else
             <label>Website</label>
             <InputText @bind-Value="Input.Website" />
         </div>
-        <button class="btn btn-primary" type="submit">Create account</button>
+        <button class="btn btn-primary" type="submit" disabled="@isSubmitting">
+            @(isSubmitting ? "Creating account…" : "Create account")
+        </button>
     </EditForm>
 }
 
@@ -79,6 +87,8 @@ else
     private RegisterRequest Input { get; set; } = new();
     private RegistrationInfoDto? registrationInfo;
     private string? errorMessage;
+    private bool errorIsTransient;
+    private bool isSubmitting;
     private bool loading = true;
 
     protected override async Task OnInitializedAsync()
@@ -94,14 +104,26 @@ else
 
     private async Task RegisterAsync()
     {
-        var result = await Api.RegisterAsync(Input);
-        if (!result.Succeeded || result.Response is null)
-        {
-            errorMessage = result.ErrorMessage ?? "Registration failed. Check password rules and invite code.";
-            return;
-        }
+        isSubmitting = true;
+        errorMessage = null;
+        errorIsTransient = false;
 
-        await AuthProvider.MarkUserAsAuthenticatedAsync(result.Response.Token);
-        NavigationManager.NavigateTo("/");
+        try
+        {
+            var result = await Api.RegisterAsync(Input);
+            if (!result.Succeeded || result.Response is null)
+            {
+                errorMessage = result.ErrorMessage ?? "Registration failed. Check password rules and invite code.";
+                errorIsTransient = result.IsTransientFailure;
+                return;
+            }
+
+            await AuthProvider.MarkUserAsAuthenticatedAsync(result.Response.Token);
+            NavigationManager.NavigateTo("/");
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
     }
 }
