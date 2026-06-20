@@ -33,6 +33,55 @@ public sealed class KaraokeApiClientTests
     }
 
     [Fact]
+    public async Task LoginAsync_WhenTransientFailureThenSuccess_RetriesOnce()
+    {
+        var attempts = 0;
+        var client = CreateClient(new StubHandler(_ =>
+        {
+            attempts++;
+            if (attempts == 1)
+            {
+                throw new TaskCanceledException("timeout");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = JsonContent.Create(new AuthResponse
+                {
+                    Token = "jwt-token",
+                    Email = "user@example.com",
+                    ExpiresUtc = DateTime.UtcNow.AddHours(1)
+                })
+            };
+        }));
+
+        var result = await client.LoginAsync(new LoginRequest
+        {
+            Email = "user@example.com",
+            Password = "TestPassw0rd!23"
+        });
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(2, attempts);
+    }
+
+    [Fact]
+    public async Task LoginAsync_WhenTransientFailureTwice_ReturnsColdStartMessage()
+    {
+        var client = CreateClient(new ThrowingHandler());
+
+        var result = await client.LoginAsync(new LoginRequest
+        {
+            Email = "user@example.com",
+            Password = "TestPassw0rd!23"
+        });
+
+        Assert.False(result.Succeeded);
+        Assert.True(result.IsTransientFailure);
+        Assert.Equal(ApiTransientFailure.ColdStartMessage, result.ErrorMessage);
+    }
+
+    [Fact]
     public async Task LoginAsync_WhenUnauthorized_ReturnsFriendlyMessage()
     {
         var client = CreateClient(new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.Unauthorized)
