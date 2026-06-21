@@ -124,7 +124,18 @@ public sealed class PerformancesScopingTests(KaraokeApiFactory factory)
 
 internal static class PerformanceTestDataHelper
 {
-    public static async Task<(int SongId, int VenueId)> CreateCatalogAsync(HttpClient client)
+    public static async Task<int> CreateGenreAsync(HttpClient client, string? genreName = null)
+    {
+        genreName ??= $"Genre {Guid.NewGuid():N}";
+        var createGenre = await client.PostAsJsonAsync("/api/genres", new GenreDto { GenreName = genreName });
+        Assert.Equal(HttpStatusCode.NoContent, createGenre.StatusCode);
+
+        var genres = await client.GetFromJsonAsync<List<GenreDto>>("/api/genres");
+        Assert.NotNull(genres);
+        return Assert.Single(genres, g => g.GenreName == genreName).Id;
+    }
+
+    public static async Task<(int SongId, int VenueId)> CreateCatalogAsync(HttpClient client, int? genreId = null)
     {
         var artistName = $"Artist {Guid.NewGuid():N}";
         var createArtist = await client.PostAsJsonAsync("/api/artists", new ArtistDto { Name = artistName });
@@ -135,7 +146,12 @@ internal static class PerformanceTestDataHelper
         var artistId = Assert.Single(artists, a => a.Name == artistName).Id;
 
         var songTitle = $"Song {Guid.NewGuid():N}";
-        var createSong = await client.PostAsJsonAsync("/api/songs", new SongDto { Title = songTitle, Artist = artistId });
+        var createSong = await client.PostAsJsonAsync("/api/songs", new SongDto
+        {
+            Title = songTitle,
+            Artist = artistId,
+            Genre = genreId
+        });
         Assert.Equal(HttpStatusCode.NoContent, createSong.StatusCode);
 
         var songs = await client.GetFromJsonAsync<List<SongDto>>("/api/songs");
@@ -153,19 +169,26 @@ internal static class PerformanceTestDataHelper
         return (songId, venueId);
     }
 
-    public static async Task<int> CreatePerformanceAsync(HttpClient client, int songId, int venueId)
+    public static async Task<int> CreatePerformanceAsync(
+        HttpClient client,
+        int songId,
+        int venueId,
+        DateTime? performedOn = null,
+        int? keyChangeSemitones = null)
     {
+        var performed = performedOn ?? DateTime.Today;
         var create = await client.PostAsJsonAsync("/api/performances", new PerformanceDto
         {
             Song = songId,
             Venue = venueId,
-            PerformedOn = DateTime.Today
+            PerformedOn = performed,
+            KeyChangeSemitones = keyChangeSemitones
         });
         Assert.Equal(HttpStatusCode.NoContent, create.StatusCode);
 
         var performances = await client.GetFromJsonAsync<List<PerformanceDto>>("/api/performances");
         Assert.NotNull(performances);
-        var created = Assert.Single(performances, p => p.Song == songId);
+        var created = Assert.Single(performances, p => p.Song == songId && p.PerformedOn == performed);
         Assert.True(created.Id > 0);
         return created.Id;
     }
