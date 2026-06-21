@@ -35,7 +35,7 @@ There is no sidebar. Catalog grids live under `/more`.
 | `/my-songs/{id}` | Log again (quick form) + collapsible performance history |
 | `/more` | Hub: tonight links + catalog admin pages |
 | `/invite-friends` | Copy registration link / invite message for text or email (when invite-only registration is enabled) |
-| `/` | Home (links to mobile flows when signed in) |
+| `/` | Home — **Tonight** dashboard on mobile (recent logs, default venue, quick actions) |
 | `/login`, `/register` | Auth (no sign-in required) |
 
 ### Catalog (desktop-oriented grids)
@@ -70,6 +70,20 @@ There is no sidebar. Catalog grids live under `/more`.
 1. Tap the **song row** (not Log) → `/my-songs/{id}`
 2. Use **Log again** at the top (same quick form as Log)
 3. Expand **Performance history** for past dates/venues/keys (only when performances exist)
+4. **Edit** or **Delete** a history row to fix mistakes without opening the catalog grid
+
+## Tonight dashboard (mobile home)
+
+Signed-in phone users land on **Tonight** at `/`:
+
+- Today's date
+- Default venue from your last log (when set)
+- Up to three recently logged songs (tap to open Log with that song)
+- **Log performance** and **My Songs** shortcuts
+
+## Install as an app (PWA)
+
+On HTTPS (production), use the browser **Add to Home Screen** / **Install app** option. KaraokeList ships a web manifest and service worker so it opens full-screen like a native app at the venue.
 
 ## Copy for host
 
@@ -90,8 +104,9 @@ Implemented in `ShowHostMessageFormatting` (`KaraokeList.Shared`). Shown on Log 
 | `QuickLogPerformance` | Venue, date, key, host message, save — defaults from last performance |
 | `HostMessagePanel` | Preview + copy button |
 | `SongListItem` | Repertoire row: tap body = history, **Log** = quick log |
+| `PerformanceHistoryList` | Editable performance history on song detail |
+| `TonightDashboard` | Mobile home: tonight context + recent logs |
 | `SingerLinkPanel` | Link login to a singer profile when `SingerId` is missing |
-| `HostMessagePanel` | Preview + copy button |
 
 ## Invite friends
 

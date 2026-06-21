@@ -9,6 +9,7 @@
   },
   "mimeTypes": {
     ".wasm": "application/wasm",
-    ".dll": "application/octet-stream"
+    ".dll": "application/octet-stream",
+    ".webmanifest": "application/manifest+json"
   }
 }

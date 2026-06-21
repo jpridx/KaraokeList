@@ -259,7 +259,9 @@ public sealed class KaraokeApiClientTests
                     [
                         new PerformanceHistoryEntryDto
                         {
+                            Id = 7,
                             PerformedOn = lastPerformed,
+                            VenueId = 3,
                             VenueName = "The Stage",
                             KeyChangeSemitones = 2
                         }

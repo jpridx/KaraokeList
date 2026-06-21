@@ -43,9 +43,9 @@
                                  OnPerformanceSaved="OnPerformanceSavedAsync" />
         }
 
-        @if (summary.PerformanceCount > 0)
+        @if (summary.PerformanceCount > 0 && mySingerId is int singerId)
         {
-            <details class="mobile-panel history-details mt-2">
+            <details class="mobile-panel history-details mt-2" open>
                 <summary class="history-details-summary">
                     Performance history (@summary.PerformanceCount)
                 </summary>
@@ -57,16 +57,8 @@
                     }
                     · @KeyChangeFormatting.Describe(summary.LastKeyChangeSemitones)
                 </p>
-                <ul class="history-list">
-                    @foreach (var entry in summary.History)
-                    {
-                        <li class="history-list-item">
-                            <span class="history-date">@entry.PerformedOn.ToString("d")</span>
-                            <span class="history-venue">@entry.VenueName</span>
-                            <span class="history-key">@KeyChangeFormatting.Describe(entry.KeyChangeSemitones)</span>
-                        </li>
-                    }
-                </ul>
+                <PerformanceHistoryList SongId="SongId" SingerId="singerId"
+                                        History="summary.History" OnChanged="OnPerformanceSavedAsync" />
             </details>
         }
     }
