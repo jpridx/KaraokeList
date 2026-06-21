@@ -177,6 +177,161 @@ public sealed class KaraokeApiClientTests
         Assert.Equal("Singer profile required.", result.ErrorMessage);
     }
 
+    [Fact]
+    public async Task GetMyRepertoireAsync_WhenSuccessful_ReturnsParsedSongs()
+    {
+        var lastPerformed = new DateTime(2025, 6, 1, 20, 0, 0, DateTimeKind.Utc);
+        var client = CreateClient(new StubHandler(request =>
+        {
+            Assert.Equal(HttpMethod.Get, request.Method);
+            Assert.Equal("/api/performances/my-repertoire?sortBy=lastPerformed&sortDir=desc", request.RequestUri?.PathAndQuery);
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = JsonContent.Create(new[]
+                {
+                    new RepertoireSongDto
+                    {
+                        SongId = 10,
+                        Title = "Footloose",
+                        ArtistName = "Kenny Loggins",
+                        GenreId = 3,
+                        GenreName = "Rock",
+                        LastPerformedOn = lastPerformed,
+                        PerformanceCount = 2
+                    }
+                })
+            };
+        }));
+
+        var result = await client.GetMyRepertoireAsync();
+
+        Assert.True(result.Succeeded);
+        Assert.Single(result.Songs);
+        Assert.Equal(10, result.Songs[0].SongId);
+        Assert.Equal("Footloose", result.Songs[0].Title);
+        Assert.Equal(2, result.Songs[0].PerformanceCount);
+        Assert.Equal(lastPerformed, result.Songs[0].LastPerformedOn);
+    }
+
+    [Fact]
+    public async Task GetMyRepertoireAsync_WithFilters_BuildsExpectedQuery()
+    {
+        string? capturedQuery = null;
+        var client = CreateClient(new StubHandler(request =>
+        {
+            capturedQuery = request.RequestUri?.PathAndQuery;
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = JsonContent.Create(Array.Empty<RepertoireSongDto>())
+            };
+        }));
+
+        var result = await client.GetMyRepertoireAsync(
+            sortBy: "title",
+            sortDir: "asc",
+            genreId: 5,
+            includeAll: true);
+
+        Assert.True(result.Succeeded);
+        Assert.Equal("/api/performances/my-repertoire?sortBy=title&sortDir=asc&genreId=5&includeAll=true", capturedQuery);
+    }
+
+    [Fact]
+    public async Task GetMySongSummaryAsync_WhenSuccessful_ReturnsSummary()
+    {
+        var lastPerformed = new DateTime(2025, 5, 15, 19, 30, 0, DateTimeKind.Utc);
+        var client = CreateClient(new StubHandler(request =>
+        {
+            Assert.Equal(HttpMethod.Get, request.Method);
+            Assert.Equal("/api/performances/my-song-summary?songId=42", request.RequestUri?.PathAndQuery);
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = JsonContent.Create(new SongPerformanceSummaryDto
+                {
+                    SongId = 42,
+                    PerformanceCount = 3,
+                    LastKeyChangeSemitones = 2,
+                    LastPerformedOn = lastPerformed,
+                    LastVenueName = "The Stage",
+                    History =
+                    [
+                        new PerformanceHistoryEntryDto
+                        {
+                            PerformedOn = lastPerformed,
+                            VenueName = "The Stage",
+                            KeyChangeSemitones = 2
+                        }
+                    ]
+                })
+            };
+        }));
+
+        var result = await client.GetMySongSummaryAsync(42);
+
+        Assert.True(result.Succeeded);
+        Assert.NotNull(result.Summary);
+        Assert.Equal(42, result.Summary.SongId);
+        Assert.Equal(3, result.Summary.PerformanceCount);
+        Assert.Equal(2, result.Summary.LastKeyChangeSemitones);
+        Assert.Equal("The Stage", result.Summary.LastVenueName);
+        Assert.Single(result.Summary.History);
+    }
+
+    [Fact]
+    public async Task GetMySongSummaryAsync_WhenNotFound_ReturnsApiErrorMessage()
+    {
+        var client = CreateClient(new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.NotFound)
+        {
+            Content = new StringContent("""{"message":"Song not in repertoire."}""", Encoding.UTF8, "application/json")
+        }));
+
+        var result = await client.GetMySongSummaryAsync(99);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal("Song not in repertoire.", result.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task GetMyRepertoireGenresAsync_WhenSuccessful_ReturnsGenres()
+    {
+        var client = CreateClient(new StubHandler(request =>
+        {
+            Assert.Equal(HttpMethod.Get, request.Method);
+            Assert.Equal("/api/performances/my-repertoire/genres", request.RequestUri?.PathAndQuery);
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = JsonContent.Create(new[]
+                {
+                    new GenreDto { Id = 1, GenreName = "Rock" },
+                    new GenreDto { Id = 2, GenreName = "Pop" }
+                })
+            };
+        }));
+
+        var result = await client.GetMyRepertoireGenresAsync();
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(2, result.Genres.Count);
+        Assert.Equal("Rock", result.Genres[0].GenreName);
+    }
+
+    [Fact]
+    public async Task GetMyRepertoireGenresAsync_WhenUnauthorized_ReturnsErrorMessage()
+    {
+        var client = CreateClient(new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.Unauthorized)
+        {
+            Content = new StringContent("""{"message":"Sign in required."}""", Encoding.UTF8, "application/json")
+        }));
+
+        var result = await client.GetMyRepertoireGenresAsync();
+
+        Assert.False(result.Succeeded);
+        Assert.Equal("Sign in required.", result.ErrorMessage);
+    }
+
     private sealed class StubHandler(Func<HttpRequestMessage, HttpResponseMessage> responder) : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(
