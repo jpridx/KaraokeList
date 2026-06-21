@@ -24,6 +24,11 @@
     <ProjectReference Include="..\KaraokeList.Shared\KaraokeList.Shared.csproj" />
   </ItemGroup>
 
+  <!-- Generated at build; added to Compile by SyncfusionLicense.targets. -->
+  <ItemGroup>
+    <Compile Remove="SyncfusionLicenseKey.g.cs" />
+  </ItemGroup>
+
   <Import Project="SyncfusionLicense.targets" />
 
 </Project>
