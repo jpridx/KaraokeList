@@ -11,11 +11,20 @@ public sealed class E2eServerFixture : IAsyncLifetime
 
     public string SkipReason => skipReason ?? "E2E servers are not ready.";
 
+    public string? WarmUpEmail { get; private set; }
+
+    public string? WarmUpToken { get; private set; }
+
     public async Task InitializeAsync()
     {
         if (E2eConfiguration.ManualServers)
         {
             skipReason = await VerifyManualServersAsync();
+            if (skipReason is null)
+            {
+                skipReason = await WarmUpApiAsync();
+            }
+
             return;
         }
 
@@ -145,12 +154,14 @@ public sealed class E2eServerFixture : IAsyncLifetime
         return "Timed out waiting for KaraokeList.Api and KaraokeList.Web to start.";
     }
 
-    private static async Task<string?> WarmUpApiAsync()
+    private async Task<string?> WarmUpApiAsync()
     {
         try
         {
             using var client = new HttpClient { BaseAddress = new Uri(E2eConfiguration.ApiBaseUrl) };
-            await E2eAuthHelper.WarmUpAuthenticatedCatalogAsync(client);
+            var (email, token) = await E2eAuthHelper.WarmUpApiAsync(client);
+            WarmUpEmail = email;
+            WarmUpToken = token;
             return null;
         }
         catch (Exception ex)

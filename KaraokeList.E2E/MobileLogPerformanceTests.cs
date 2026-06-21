@@ -16,12 +16,13 @@ public sealed class MobileLogPerformanceTests(E2eServerFixture servers) : PageTe
     public async Task Authenticated_user_can_log_a_performance()
     {
         Skip.IfNot(servers.IsReady, servers.SkipReason);
+        Skip.If(servers.WarmUpToken is null, "Warm-up user was not created.");
 
         using var apiClient = new HttpClient { BaseAddress = new Uri(E2eConfiguration.ApiBaseUrl) };
-        var (_, token) = await E2eAuthHelper.RegisterAndSignInAsync(Page, apiClient);
-        var (songId, _) = await E2eCatalogHelper.SeedSongAsync(apiClient, token);
+        await E2eAuthHelper.SignInViaLocalStorageAsync(Page, servers.WarmUpToken!);
+        var (songId, _) = await E2eCatalogHelper.SeedSongAsync(apiClient, servers.WarmUpToken!);
 
-        await Expect(Page.GetByText("Signed in as")).ToBeVisibleAsync(new() { Timeout = 60_000 });
+        await Expect(Page.GetByText($"Signed in as {servers.WarmUpEmail}")).ToBeVisibleAsync(new() { Timeout = 60_000 });
 
         await Page.GotoAsync($"/log?songId={songId}");
         await Expect(Page.GetByRole(AriaRole.Heading, new() { Name = "Log performance" })).ToBeVisibleAsync(new() { Timeout = 60_000 });

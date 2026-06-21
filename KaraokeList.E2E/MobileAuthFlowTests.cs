@@ -24,16 +24,30 @@ public sealed class MobileAuthFlowTests(E2eServerFixture servers) : PageTest
     }
 
     [SkippableFact]
-    public async Task Authenticated_user_can_open_my_songs()
+    public async Task User_can_sign_in_through_login_form()
     {
         Skip.IfNot(servers.IsReady, servers.SkipReason);
 
         using var apiClient = new HttpClient { BaseAddress = new Uri(E2eConfiguration.ApiBaseUrl) };
-        var (email, _, token) = await E2eAuthHelper.RegisterSingerAsync(apiClient);
+        var (email, password, _) = await E2eAuthHelper.RegisterSingerAsync(apiClient);
 
-        await E2eAuthHelper.SignInViaLocalStorageAsync(Page, token);
+        await Page.GotoAsync("/");
+        await Page.EvaluateAsync("() => localStorage.clear()");
+        await E2eAuthHelper.SignInViaLoginFormAsync(Page, email, password);
 
-        await Expect(Page.GetByText($"Signed in as {email}")).ToBeVisibleAsync(new() { Timeout = 60_000 });
+        await Expect(Page.GetByText($"Signed in as {email}")).ToBeVisibleAsync();
+        await Expect(Page.Locator("#blazor-error-ui")).ToBeHiddenAsync();
+    }
+
+    [SkippableFact]
+    public async Task Authenticated_user_can_open_my_songs()
+    {
+        Skip.IfNot(servers.IsReady, servers.SkipReason);
+        Skip.If(servers.WarmUpToken is null, "Warm-up user was not created.");
+
+        await E2eAuthHelper.SignInViaLocalStorageAsync(Page, servers.WarmUpToken!);
+
+        await Expect(Page.GetByText($"Signed in as {servers.WarmUpEmail}")).ToBeVisibleAsync(new() { Timeout = 60_000 });
 
         await Page.Locator(".mobile-bottom-nav a", new() { HasText = "My Songs" }).ClickAsync();
         await Expect(Page.GetByRole(AriaRole.Heading, new() { Name = "My Songs" })).ToBeVisibleAsync(new() { Timeout = 60_000 });
