@@ -54,7 +54,9 @@ public class PerformanceDto
 
 public class PerformanceHistoryEntryDto
 {
+    public int Id { get; set; }
     public DateTime PerformedOn { get; set; }
+    public int? VenueId { get; set; }
     public string VenueName { get; set; } = string.Empty;
     public int? KeyChangeSemitones { get; set; }
 }

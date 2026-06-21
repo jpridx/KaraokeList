@@ -95,7 +95,9 @@ public static class EntityMappers
         LastVenueName = summary.LastVenueName,
         History = summary.History.Select(h => new PerformanceHistoryEntryDto
         {
+            Id = h.Id,
             PerformedOn = h.PerformedOn,
+            VenueId = h.VenueId,
             VenueName = h.VenueName,
             KeyChangeSemitones = h.KeyChangeSemitones
         }).ToList()

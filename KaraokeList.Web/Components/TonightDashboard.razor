@@ -1,0 +1,79 @@
+@inject ILogPerformanceLocalStore LogStore
+@inject IKaraokeApiClient Api
+
+<section class="tonight-dashboard mobile-panel">
+    <header class="tonight-dashboard-header">
+        <h2 class="h5 mb-1">Tonight</h2>
+        <p class="text-muted small mb-0">@DateTime.Today.ToString("dddd, MMMM d")</p>
+    </header>
+
+    @if (isLoading)
+    {
+        <p class="text-muted small mt-3 mb-0">Loading…</p>
+    }
+    else
+    {
+        @if (!string.IsNullOrWhiteSpace(defaultVenueName))
+        {
+            <p class="tonight-default-venue small mb-0 mt-3">
+                Default venue: <strong>@defaultVenueName</strong>
+            </p>
+        }
+
+        @if (recentLogs.Count > 0)
+        {
+            <h3 class="h6 mt-3 mb-2">Recently logged</h3>
+            <ul class="recent-log-list">
+                @foreach (var entry in recentLogs.Take(3))
+                {
+                    <li>
+                        <a class="recent-log-item text-decoration-none" href="@($"log?songId={entry.SongId}")">
+                            <span class="recent-log-title">
+                                @ShowHostMessageFormatting.Format(entry.Title, entry.ArtistName, entry.KeyChangeSemitones)
+                            </span>
+                            <span class="recent-log-meta">
+                                @entry.PerformedOn.ToString("t") · @entry.VenueName
+                            </span>
+                        </a>
+                    </li>
+                }
+            </ul>
+        }
+        else
+        {
+            <p class="text-muted small mt-3 mb-0">No performances logged yet tonight. Tap below to log your first song.</p>
+        }
+
+        <div class="tonight-actions mt-3">
+            <a class="btn btn-primary btn-lg w-100 mb-2" href="log">Log performance</a>
+            <a class="btn btn-outline-primary w-100" href="my-songs">My Songs</a>
+        </div>
+    }
+</section>
+
+@code {
+    private bool isLoading = true;
+    private string? defaultVenueName;
+    private IReadOnlyList<RecentLoggedPerformance> recentLogs = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var defaults = await LogStore.GetFormDefaultsAsync();
+        recentLogs = await LogStore.GetRecentLogsAsync();
+
+        if (defaults?.VenueId is int venueId)
+        {
+            try
+            {
+                var venues = await Api.GetVenuesAsync();
+                defaultVenueName = venues.FirstOrDefault(v => v.Id == venueId)?.VenueName;
+            }
+            catch
+            {
+                // Non-fatal; dashboard still works without venue name.
+            }
+        }
+
+        isLoading = false;
+    }
+}

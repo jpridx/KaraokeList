@@ -14,7 +14,9 @@ public class Performance
 
 public class PerformanceHistoryEntry
 {
+    public int Id { get; set; }
     public DateTime PerformedOn { get; set; }
+    public int? VenueId { get; set; }
     public string VenueName { get; set; } = string.Empty;
     public int? KeyChangeSemitones { get; set; }
 }
@@ -256,7 +258,7 @@ public class PerformanceService(string connectionString)
         var history = new List<PerformanceHistoryEntry>();
         await using var historyCommand = connection.CreateCommand();
         historyCommand.CommandText = """
-            SELECT p.PerformedOn, ISNULL(v.VenueName, ''), p.KeyChangeSemitones
+            SELECT p.Id, p.PerformedOn, ISNULL(v.VenueName, ''), p.KeyChangeSemitones, p.Venue
             FROM Performances p
             LEFT JOIN Venues v ON v.Id = p.Venue
             WHERE p.Singer = @Singer AND p.Song = @Song
@@ -269,9 +271,11 @@ public class PerformanceService(string connectionString)
         {
             history.Add(new PerformanceHistoryEntry
             {
-                PerformedOn = historyReader.GetDateTime(0),
-                VenueName = historyReader.GetString(1),
-                KeyChangeSemitones = historyReader.IsDBNull(2) ? null : historyReader.GetInt32(2)
+                Id = historyReader.GetInt32(0),
+                PerformedOn = historyReader.GetDateTime(1),
+                VenueName = historyReader.GetString(2),
+                KeyChangeSemitones = historyReader.IsDBNull(3) ? null : historyReader.GetInt32(3),
+                VenueId = historyReader.IsDBNull(4) ? null : historyReader.GetInt32(4)
             });
         }
 

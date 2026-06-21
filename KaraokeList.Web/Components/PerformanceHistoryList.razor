@@ -1,0 +1,185 @@
+@inject IKaraokeApiClient Api
+
+@if (!string.IsNullOrEmpty(statusMessage))
+{
+    <div class="alert alert-success py-2 small">@statusMessage</div>
+}
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger py-2 small">@errorMessage</div>
+}
+
+<ul class="history-list">
+    @foreach (var entry in History)
+    {
+        <li class="history-list-item">
+            @if (editingId == entry.Id)
+            {
+                <div class="history-edit-form">
+                    <label class="form-label small text-muted mb-1">Date</label>
+                    <InputDate class="form-control form-control-sm mb-2" @bind-Value="editPerformedOn" />
+                    <label class="form-label small text-muted mb-1">Venue</label>
+                    <SfDropDownList TValue="int?" TItem="VenueDto" DataSource="@venues" @bind-Value="editVenueId"
+                                    Placeholder="Select venue" AllowFiltering="true"
+                                    FilterType="Syncfusion.Blazor.DropDowns.FilterType.Contains">
+                        <DropDownListFieldSettings Value="Id" Text="VenueName" />
+                    </SfDropDownList>
+                    <label class="form-label small text-muted mb-1 mt-2">Key</label>
+                    <SfDropDownList TValue="int?" TItem="PerformanceKeyOption" DataSource="@keyOptions"
+                                    @bind-Value="editKeyChangeSemitones">
+                        <DropDownListFieldSettings Value="Semitones" Text="Label" />
+                    </SfDropDownList>
+                    <div class="d-flex gap-2 mt-3">
+                        <button type="button" class="btn btn-primary btn-sm flex-fill" disabled="@isSaving"
+                                @onclick="SaveEditAsync">Save</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm flex-fill" disabled="@isSaving"
+                                @onclick="CancelEdit">Cancel</button>
+                    </div>
+                </div>
+            }
+            else if (deleteConfirmId == entry.Id)
+            {
+                <p class="small mb-2">Delete this performance?</p>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-danger btn-sm flex-fill" disabled="@isSaving"
+                            @onclick="() => ConfirmDeleteAsync(entry.Id)">Delete</button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm flex-fill" disabled="@isSaving"
+                            @onclick="CancelDelete">Cancel</button>
+                </div>
+            }
+            else
+            {
+                <div class="history-row">
+                    <div class="history-row-main">
+                        <span class="history-date">@entry.PerformedOn.ToString("d")</span>
+                        <span class="history-venue">@entry.VenueName</span>
+                        <span class="history-key">@KeyChangeFormatting.Describe(entry.KeyChangeSemitones)</span>
+                    </div>
+                    <div class="history-row-actions">
+                        <button type="button" class="btn btn-link btn-sm p-0" @onclick="() => BeginEdit(entry)">Edit</button>
+                        <button type="button" class="btn btn-link btn-sm p-0 text-danger" @onclick="() => BeginDelete(entry.Id)">Delete</button>
+                    </div>
+                </div>
+            }
+        </li>
+    }
+</ul>
+
+@code {
+    [Parameter, EditorRequired]
+    public int SongId { get; set; }
+
+    [Parameter, EditorRequired]
+    public int SingerId { get; set; }
+
+    [Parameter]
+    public IReadOnlyList<PerformanceHistoryEntryDto> History { get; set; } = [];
+
+    [Parameter]
+    public EventCallback OnChanged { get; set; }
+
+    private List<VenueDto> venues = [];
+    private IReadOnlyList<PerformanceKeyOption> keyOptions = PerformanceKeyOption.Choices;
+    private int? editingId;
+    private int? deleteConfirmId;
+    private DateTime editPerformedOn = DateTime.Today;
+    private int? editVenueId;
+    private int? editKeyChangeSemitones;
+    private bool isSaving;
+    private string? statusMessage;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        venues = await Api.GetVenuesAsync();
+    }
+
+    private void BeginEdit(PerformanceHistoryEntryDto entry)
+    {
+        deleteConfirmId = null;
+        statusMessage = null;
+        errorMessage = null;
+        editingId = entry.Id;
+        editPerformedOn = entry.PerformedOn;
+        editVenueId = entry.VenueId;
+        editKeyChangeSemitones = entry.KeyChangeSemitones;
+    }
+
+    private void CancelEdit() => editingId = null;
+
+    private void BeginDelete(int performanceId)
+    {
+        editingId = null;
+        statusMessage = null;
+        errorMessage = null;
+        deleteConfirmId = performanceId;
+    }
+
+    private void CancelDelete() => deleteConfirmId = null;
+
+    private async Task SaveEditAsync()
+    {
+        if (editingId is not int performanceId)
+        {
+            return;
+        }
+
+        if (editVenueId is null)
+        {
+            errorMessage = "Pick a venue.";
+            return;
+        }
+
+        isSaving = true;
+        errorMessage = null;
+        statusMessage = null;
+
+        try
+        {
+            await Api.UpdatePerformanceAsync(new PerformanceDto
+            {
+                Id = performanceId,
+                Singer = SingerId,
+                Song = SongId,
+                Venue = editVenueId,
+                PerformedOn = editPerformedOn,
+                KeyChangeSemitones = editKeyChangeSemitones == 0 ? null : editKeyChangeSemitones
+            });
+
+            editingId = null;
+            statusMessage = "Performance updated.";
+            await OnChanged.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task ConfirmDeleteAsync(int performanceId)
+    {
+        isSaving = true;
+        errorMessage = null;
+        statusMessage = null;
+
+        try
+        {
+            await Api.DeletePerformanceAsync(performanceId);
+            deleteConfirmId = null;
+            statusMessage = "Performance deleted.";
+            await OnChanged.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+}

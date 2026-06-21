@@ -353,11 +353,52 @@ code {
 }
 
 .history-list-item {
-    display: grid;
-    grid-template-columns: 5.5rem 1fr;
-    gap: 0.25rem 0.75rem;
     padding: 0.75rem 0;
     border-bottom: 1px solid #eee;
+}
+
+.history-list-item:last-child {
+    border-bottom: none;
+}
+
+.history-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 0.75rem;
+}
+
+.history-row-main {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    min-width: 0;
+}
+
+.history-row-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.15rem;
+    flex-shrink: 0;
+}
+
+.history-edit-form {
+    width: 100%;
+}
+
+.tonight-dashboard-header {
+    border-bottom: 1px solid #eee;
+    padding-bottom: 0.75rem;
+}
+
+.tonight-default-venue {
+    color: #555;
+}
+
+.tonight-actions .btn-lg {
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
 }
 
 .history-date {
@@ -365,11 +406,10 @@ code {
 }
 
 .history-venue {
-    grid-column: 2;
+    color: #333;
 }
 
 .history-key {
-    grid-column: 2;
     font-size: 0.85rem;
     color: #666;
 }
