@@ -45,13 +45,14 @@ Listens on `http://localhost:5005`. Use the `http` profile to avoid HTTPS certif
 | `/log`, `/log?songId=` | Log performance |
 | `/my-songs`, `/my-songs/{id}` | Repertoire browse + detail |
 | `/more` | Catalog admin hub |
+| `/invite-friends` | Copy invite link/message for friends |
 | `/songs`, `/artists`, … | Syncfusion grids |
 
 Details: `docs/mobile-ux.md`.
 
 ### Key API endpoints
 
-- `POST api/auth/register`, `api/auth/login`, `GET api/auth/me`
+- `POST api/auth/register`, `api/auth/login`, `GET api/auth/me`, `GET api/auth/invite-share`
 - `GET api/performances/my-repertoire`, `my-repertoire/genres`, `my-song-summary`
 - `POST api/performances` (auto-fills singer from JWT)
 

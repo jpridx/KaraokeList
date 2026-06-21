@@ -9,7 +9,7 @@ using Microsoft.Extensions.Hosting;
 
 namespace KaraokeList.Api.IntegrationTests;
 
-public sealed class KaraokeApiFactory : WebApplicationFactory<Program>
+public class KaraokeApiFactory : WebApplicationFactory<Program>
 {
     public const string TestJwtKey = "INTEGRATION_TEST_JWT_KEY_32_CHARS_MIN!!";
 

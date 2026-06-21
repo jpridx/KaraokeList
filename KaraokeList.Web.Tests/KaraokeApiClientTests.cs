@@ -332,6 +332,41 @@ public sealed class KaraokeApiClientTests
         Assert.Equal("Sign in required.", result.ErrorMessage);
     }
 
+    [Fact]
+    public async Task GetInviteShareAsync_WhenSuccessful_ReturnsInviteCode()
+    {
+        var client = CreateClient(new StubHandler(request =>
+        {
+            Assert.Equal(HttpMethod.Get, request.Method);
+            Assert.Equal("/api/auth/invite-share", request.RequestUri?.PathAndQuery);
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = JsonContent.Create(new InviteShareDto
+                {
+                    CanShare = true,
+                    InviteCode = "secret-code"
+                })
+            };
+        }));
+
+        var share = await client.GetInviteShareAsync();
+
+        Assert.NotNull(share);
+        Assert.True(share.CanShare);
+        Assert.Equal("secret-code", share.InviteCode);
+    }
+
+    [Fact]
+    public async Task GetInviteShareAsync_WhenApiUnreachable_ReturnsNull()
+    {
+        var client = CreateClient(new ThrowingHandler());
+
+        var share = await client.GetInviteShareAsync();
+
+        Assert.Null(share);
+    }
+
     private sealed class StubHandler(Func<HttpRequestMessage, HttpResponseMessage> responder) : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(

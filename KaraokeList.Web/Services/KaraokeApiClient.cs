@@ -32,6 +32,7 @@ public interface IKaraokeApiClient
     Task DeleteSongAsync(int id);
     Task<List<PerformanceDto>> GetPerformancesAsync(int? songId = null);
     Task<UserProfileDto?> GetProfileAsync();
+    Task<InviteShareDto?> GetInviteShareAsync();
     Task<AuthResult> LinkSingerAsync(LinkSingerRequest request);
     Task<SongSummaryResult> GetMySongSummaryAsync(int songId);
     Task<RepertoireResult> GetMyRepertoireAsync(
@@ -157,6 +158,18 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
 
     public async Task<UserProfileDto?> GetProfileAsync() =>
         await http.GetFromJsonAsync<UserProfileDto>("api/auth/me");
+
+    public async Task<InviteShareDto?> GetInviteShareAsync()
+    {
+        try
+        {
+            return await http.GetFromJsonAsync<InviteShareDto>("api/auth/invite-share", JsonOptions);
+        }
+        catch (HttpRequestException)
+        {
+            return null;
+        }
+    }
 
     public Task<AuthResult> LinkSingerAsync(LinkSingerRequest request) =>
         PostAuthAsync("api/auth/link-singer", request);

@@ -62,3 +62,10 @@ public class RegistrationInfoDto
     public bool IsRegistrationOpen { get; set; }
     public bool RequiresInviteCode { get; set; }
 }
+
+public class InviteShareDto
+{
+    public bool CanShare { get; set; }
+    public string? UnavailableReason { get; set; }
+    public string? InviteCode { get; set; }
+}
