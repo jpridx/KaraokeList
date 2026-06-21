@@ -11,6 +11,8 @@ KaraokeList is a karaoke catalog and performance app on .NET 10:
 | **KaraokeList.Web** | Blazor WASM — primary mobile UX (Log, My Songs) + catalog grids |
 | **KaraokeList.Api** | JWT auth + SQL catalog/performance API |
 | **KaraokeList.Shared** | Shared DTOs |
+| **KaraokeList.Web.Tests** | xUnit + bUnit + Moq |
+| **KaraokeList.E2E** | Playwright browser tests (WASM + API) |
 | **KaraokeList** | Legacy Blazor Server (reference) |
 
 Data: **Azure SQL / SQL Server** — catalog tables + `Performances` + EF Identity.
@@ -48,7 +50,7 @@ Listens on `http://localhost:5005`. Use the `http` profile to avoid HTTPS certif
 | `/invite-friends` | Copy invite link/message for friends |
 | `/songs`, `/artists`, … | Syncfusion grids |
 
-Details: `docs/mobile-ux.md`.
+Details: `docs/mobile-ux.md`. E2E: `docs/e2e-playwright.md`.
 
 ### Key API endpoints
 
@@ -79,6 +81,7 @@ Details: `docs/Performances.md`.
 |--------|---------|
 | Restore | `dotnet restore` |
 | Build | `dotnet build` |
+| E2E tests | See `docs/e2e-playwright.md` — `dotnet test KaraokeList.E2E/KaraokeList.E2E.csproj` |
 | Run API | `dotnet run --project KaraokeList.Api/KaraokeList.Api.csproj` |
 | Run WASM | `dotnet run --project KaraokeList.Web/KaraokeList.Web.csproj` |
 | Run Server (legacy) | `cd KaraokeList && dotnet run --launch-profile http` |
