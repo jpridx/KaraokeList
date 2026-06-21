@@ -1,10 +1,11 @@
 using Bunit;
 using Microsoft.Extensions.DependencyInjection;
+using Syncfusion.Blazor;
 
 namespace KaraokeList.Web.Tests;
 
 /// <summary>
-/// Base test context for Blazor component tests. Extend and call <see cref="ConfigureServices"/>
+/// Base test context for Blazor component tests. Extend and override <see cref="ConfigureServices"/>
 /// when a component needs DI services (e.g. mocked <c>IKaraokeApiClient</c>).
 /// </summary>
 public abstract class BunitTestContext : TestContext
@@ -16,5 +17,11 @@ public abstract class BunitTestContext : TestContext
 
     protected virtual void ConfigureServices(IServiceCollection services)
     {
+    }
+
+    protected void AddSyncfusionServices(IServiceCollection services)
+    {
+        JSInterop.Mode = JSRuntimeMode.Loose;
+        services.AddSyncfusionBlazor();
     }
 }
