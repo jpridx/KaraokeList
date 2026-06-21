@@ -16,7 +16,8 @@ internal static class E2eAuthHelper
             Name = "E2E Test Singer",
             Email = email,
             Password = E2eConfiguration.TestPassword,
-            ConfirmPassword = E2eConfiguration.TestPassword
+            ConfirmPassword = E2eConfiguration.TestPassword,
+            InviteCode = E2eConfiguration.TestInviteCode
         };
 
         var response = await apiClient.PostAsJsonAsync("/api/auth/register", request);
@@ -45,6 +46,13 @@ internal static class E2eAuthHelper
             "(token) => localStorage.setItem('authToken', JSON.stringify(token))",
             token);
         await page.ReloadAsync();
+    }
+
+    public static async Task<(string Email, string Token)> RegisterAndSignInAsync(IPage page, HttpClient apiClient)
+    {
+        var (email, _, token) = await RegisterSingerAsync(apiClient);
+        await SignInViaLocalStorageAsync(page, token);
+        return (email, token);
     }
 
     public static async Task WarmUpAuthenticatedCatalogAsync(HttpClient apiClient)

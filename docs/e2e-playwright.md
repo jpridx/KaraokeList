@@ -37,7 +37,7 @@ Uses:
 
 | App | Profile | URL |
 |-----|---------|-----|
-| API | `http` | `http://localhost:5299` |
+| API | `e2e` | `http://localhost:5299` with invite-only registration (`appsettings.E2E.json`) |
 | Web | `e2e` | `http://localhost:5262` with `appsettings.E2E.json` → API over HTTP |
 
 First run can take **1–2 minutes** (build + WASM boot + Blazor download).
@@ -47,7 +47,7 @@ First run can take **1–2 minutes** (build + WASM boot + Blazor download).
 Terminal 1:
 
 ```powershell
-dotnet run --project KaraokeList.Api --launch-profile http
+dotnet run --project KaraokeList.Api --launch-profile e2e
 ```
 
 Terminal 2 (build WASM for the **E2E** environment so `appsettings.E2E.json` is used — not Development’s HTTPS API URL):
@@ -79,6 +79,8 @@ Playwright slows actions slightly when headed so you can follow along.
 |------|----------------|
 | `Login_page_loads_for_anonymous_user` | WASM boots, `/login` shows Sign in |
 | `Authenticated_user_can_open_my_songs` | Register via API → store JWT → home → **My Songs** (mobile viewport) |
+| `Authenticated_user_can_log_a_performance` | Seed song via API → `/log?songId=` → add venue → **Save performance** |
+| `Invite_link_allows_a_friend_to_register` | Signed-in user opens **Invite friends** → friend registers via invite URL in a fresh browser context |
 
 The golden-path test seeds auth through the API (fast, reliable), then exercises the WASM UI — the same JWT your app stores after a real login. A full “type email/password in the login form” test can be added later; local dev sometimes shows the database cold-start message on the first browser login attempt.
 

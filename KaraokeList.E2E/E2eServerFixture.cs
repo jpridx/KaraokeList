@@ -31,7 +31,7 @@ public sealed class E2eServerFixture : IAsyncLifetime
         startedProcesses.Add(StartDotnetProcess(
             repoRoot,
             "KaraokeList.Api/KaraokeList.Api.csproj",
-            "--launch-profile http"));
+            "--launch-profile e2e"));
 
         startedProcesses.Add(StartDotnetProcess(
             repoRoot,
