@@ -134,6 +134,49 @@ public class RegistrationGateTests
 
         Assert.False(gate.RequiresInviteCode);
     }
+
+    [Fact]
+    public void GetInviteShareAvailability_WhenConfigured_ReturnsInviteCode()
+    {
+        var gate = CreateGate(new RegistrationSettings
+        {
+            AllowRegistration = true,
+            RequireInviteCode = true,
+            InviteCode = "secret-code"
+        });
+
+        var availability = gate.GetInviteShareAvailability();
+
+        Assert.True(availability.CanShare);
+        Assert.Equal("secret-code", availability.InviteCode);
+        Assert.Null(availability.UnavailableReason);
+    }
+
+    [Fact]
+    public void GetInviteShareAvailability_WhenRegistrationClosed_ReturnsReason()
+    {
+        var gate = CreateGate(new RegistrationSettings { AllowRegistration = false });
+
+        var availability = gate.GetInviteShareAvailability();
+
+        Assert.False(availability.CanShare);
+        Assert.Contains("Registration is closed", availability.UnavailableReason);
+    }
+
+    [Fact]
+    public void GetInviteShareAvailability_WhenInviteNotRequired_ReturnsReason()
+    {
+        var gate = CreateGate(new RegistrationSettings
+        {
+            AllowRegistration = true,
+            RequireInviteCode = false
+        });
+
+        var availability = gate.GetInviteShareAvailability();
+
+        Assert.False(availability.CanShare);
+        Assert.Contains("does not require an invite code", availability.UnavailableReason);
+    }
 }
 
 public class JwtTokenServiceTests

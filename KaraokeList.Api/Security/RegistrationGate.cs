@@ -9,8 +9,11 @@ public interface IRegistrationGate
     bool IsRegistrationOpen { get; }
     bool RequiresInviteCode { get; }
     bool IsPasswordRecoveryAllowed { get; }
+    InviteShareAvailability GetInviteShareAvailability();
     RegistrationValidationResult ValidateRegistration(string email, string? inviteCode, string? honeypot);
 }
+
+public sealed record InviteShareAvailability(bool CanShare, string? InviteCode, string? UnavailableReason);
 
 public sealed record RegistrationValidationResult(bool Allowed, string? ErrorMessage);
 
@@ -23,6 +26,26 @@ public sealed class RegistrationGate(IOptions<RegistrationSettings> options) : I
     public bool RequiresInviteCode => _settings.AllowRegistration && _settings.RequireInviteCode;
 
     public bool IsPasswordRecoveryAllowed => _settings.AllowPasswordRecovery;
+
+    public InviteShareAvailability GetInviteShareAvailability()
+    {
+        if (!_settings.AllowRegistration)
+        {
+            return new InviteShareAvailability(false, null, "Registration is closed. Turn it back on in server settings to invite new friends.");
+        }
+
+        if (!_settings.RequireInviteCode)
+        {
+            return new InviteShareAvailability(false, null, "Registration does not require an invite code. Share the site URL and Register page instead.");
+        }
+
+        if (string.IsNullOrWhiteSpace(_settings.InviteCode))
+        {
+            return new InviteShareAvailability(false, null, "Invite code is not configured on the server.");
+        }
+
+        return new InviteShareAvailability(true, _settings.InviteCode, null);
+    }
 
     public RegistrationValidationResult ValidateRegistration(string email, string? inviteCode, string? honeypot)
     {

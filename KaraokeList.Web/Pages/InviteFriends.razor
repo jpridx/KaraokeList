@@ -1,0 +1,96 @@
+@page "/invite-friends"
+@attribute [Authorize]
+@inject IKaraokeApiClient Api
+@inject NavigationManager Navigation
+@inject IJSRuntime Js
+
+<PageTitle>Invite friends</PageTitle>
+
+<div class="mobile-page">
+    <header class="mobile-page-header">
+        <h1 class="h4 mb-1">Invite friends</h1>
+        <p class="text-muted small mb-0">Copy a registration link or message for text or email.</p>
+    </header>
+
+    @if (loading)
+    {
+        <p class="text-muted">Loading…</p>
+    }
+    else if (share is null)
+    {
+        <div class="alert alert-danger">Could not load invite settings. Is the API running?</div>
+    }
+    else if (!share.CanShare)
+    {
+        <div class="alert alert-info">@(share.UnavailableReason ?? "Invite sharing is not available right now.")</div>
+        <a class="more-link d-inline-block mt-2" href="more">Back to More</a>
+    }
+    else
+    {
+        <section class="mobile-panel invite-share-panel mb-3">
+            <label class="form-label">Registration link</label>
+            <p class="invite-share-text mb-2">@registerUrl</p>
+            <button type="button" class="btn btn-outline-primary w-100 mb-3" @onclick="() => CopyAsync(registerUrl!, CopyTarget.Link)">
+                @(copiedTarget == CopyTarget.Link ? "Copied!" : "Copy link")
+            </button>
+
+            <label class="form-label">Full message</label>
+            <p class="invite-share-text mb-2">@shareMessage</p>
+            <button type="button" class="btn btn-primary w-100" @onclick="() => CopyAsync(shareMessage!, CopyTarget.Message)">
+                @(copiedTarget == CopyTarget.Message ? "Copied!" : "Copy message")
+            </button>
+        </section>
+
+        <p class="text-muted small mb-0">
+            Send through a private text or email. Anyone signed in can view this page — share only with people you trust.
+        </p>
+        <a class="more-link d-inline-block mt-3" href="more">Back to More</a>
+    }
+</div>
+
+@code {
+    private InviteShareDto? share;
+    private string? registerUrl;
+    private string? shareMessage;
+    private bool loading = true;
+    private CopyTarget? copiedTarget;
+
+    protected override async Task OnInitializedAsync()
+    {
+        share = await Api.GetInviteShareAsync();
+        if (share?.CanShare == true && !string.IsNullOrWhiteSpace(share.InviteCode))
+        {
+            registerUrl = InviteShareFormatting.BuildRegisterUrl(Navigation.BaseUri, share.InviteCode);
+            shareMessage = InviteShareFormatting.BuildShareMessage(registerUrl, share.InviteCode);
+        }
+
+        loading = false;
+    }
+
+    private async Task CopyAsync(string text, CopyTarget target)
+    {
+        try
+        {
+            await Js.InvokeVoidAsync("copyTextToClipboard", text);
+            copiedTarget = target;
+            _ = ClearCopyFeedbackAsync();
+        }
+        catch
+        {
+            // Clipboard may fail without a secure context.
+        }
+    }
+
+    private async Task ClearCopyFeedbackAsync()
+    {
+        await Task.Delay(2000);
+        copiedTarget = null;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private enum CopyTarget
+    {
+        Link,
+        Message
+    }
+}

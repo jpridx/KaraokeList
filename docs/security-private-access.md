@@ -43,11 +43,13 @@ Security__Registration__AllowedEmailDomains__1=outlook.com
 
 Send the site URL and invite code over text/DM — not in a public post.
 
-Optional link that pre-fills the code:
+**In the app (signed in):** open **More → Invite friends** (`/invite-friends`). Copy the registration link or a full message ready to paste into text or email. The link pre-fills the invite code:
 
 ```
 https://<your-wasm-host>/register?invite=<your-code>
 ```
+
+Only signed-in users can open this page; it reads the invite code from server settings (same secret as registration validation). Do not post the link publicly.
 
 ### 4. After the last friend registers
 

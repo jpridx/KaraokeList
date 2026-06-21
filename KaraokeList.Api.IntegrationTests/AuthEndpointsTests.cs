@@ -63,14 +63,15 @@ internal static class IntegrationAuthHelper
 {
     public const string TestPassword = "TestPassw0rd!23";
 
-    public static async Task<string> RegisterAndGetTokenAsync(HttpClient client, string email)
+    public static async Task<string> RegisterAndGetTokenAsync(HttpClient client, string email, string? inviteCode = null)
     {
         var registerRequest = new RegisterRequest
         {
             Name = "Integration Test Singer",
             Email = email,
             Password = TestPassword,
-            ConfirmPassword = TestPassword
+            ConfirmPassword = TestPassword,
+            InviteCode = inviteCode
         };
 
         var registerResponse = await client.PostAsJsonAsync("/api/auth/register", registerRequest);

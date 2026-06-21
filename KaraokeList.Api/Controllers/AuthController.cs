@@ -106,6 +106,19 @@ public class AuthController(
     }
 
     [Authorize]
+    [HttpGet("invite-share")]
+    public ActionResult<InviteShareDto> GetInviteShare()
+    {
+        var availability = registrationGate.GetInviteShareAvailability();
+        return Ok(new InviteShareDto
+        {
+            CanShare = availability.CanShare,
+            UnavailableReason = availability.UnavailableReason,
+            InviteCode = availability.InviteCode
+        });
+    }
+
+    [Authorize]
     [HttpGet("me")]
     public async Task<ActionResult<UserProfileDto>> GetProfile()
     {

@@ -34,6 +34,7 @@ There is no sidebar. Catalog grids live under `/more`.
 | `/my-songs` | Browse the full catalog (default) or filter logged / not logged; search, sort, genre; virtualized scroll (flat list) or load-more when grouped |
 | `/my-songs/{id}` | Log again (quick form) + collapsible performance history |
 | `/more` | Hub: tonight links + catalog admin pages |
+| `/invite-friends` | Copy registration link / invite message for text or email (when invite-only registration is enabled) |
 | `/` | Home (links to mobile flows when signed in) |
 | `/login`, `/register` | Auth (no sign-in required) |
 
@@ -90,6 +91,16 @@ Implemented in `ShowHostMessageFormatting` (`KaraokeList.Shared`). Shown on Log 
 | `HostMessagePanel` | Preview + copy button |
 | `SongListItem` | Repertoire row: tap body = history, **Log** = quick log |
 | `SingerLinkPanel` | Link login to a singer profile when `SingerId` is missing |
+| `HostMessagePanel` | Preview + copy button |
+
+## Invite friends
+
+When production registration requires an invite code, signed-in users open **More → Invite friends** to copy:
+
+- A **registration link** with `?invite=` pre-filled (`InviteShareFormatting` in `KaraokeList.Shared`)
+- A **full message** suitable for text or email
+
+The API exposes `GET api/auth/invite-share` (JWT required); it returns the configured invite code only when registration is open and invite-only mode is enabled. See [security-private-access.md](security-private-access.md).
 
 ## API used by mobile pages
 
@@ -99,6 +110,7 @@ See [Performances.md](Performances.md) for schema and endpoints. Key calls:
 - `GET api/performances/my-song-summary?songId=` — defaults + history
 - `POST api/performances` — save (singer from JWT if omitted)
 - `GET api/auth/me` — singer link status
+- `GET api/auth/invite-share` — invite link/message payload for signed-in users (when invite-only registration is configured)
 
 ## Auth
 
