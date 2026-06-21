@@ -55,11 +55,57 @@ internal static class E2eAuthHelper
         return (email, token);
     }
 
-    public static async Task WarmUpAuthenticatedCatalogAsync(HttpClient apiClient)
+    public static async Task SignInViaLoginFormAsync(IPage page, string email, string password)
     {
-        var (_, _, token) = await RegisterSingerAsync(apiClient);
+        await page.GotoAsync("/login");
+        await page.WaitForSelectorAsync("button:has-text('Sign in')", new() { Timeout = 60_000 });
+        await page.Locator("input.form-control").First.FillAsync(email);
+        await page.Locator("input[type='password']").FillAsync(password);
+
+        var signInButton = page.GetByRole(AriaRole.Button, new() { Name = "Sign in" });
+        var signedIn = page.GetByText($"Signed in as {email}");
+
+        for (var attempt = 1; attempt <= 3; attempt++)
+        {
+            await signInButton.ClickAsync();
+
+            try
+            {
+                await signedIn.WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = 60_000 });
+                return;
+            }
+            catch (TimeoutException) when (attempt < 3)
+            {
+                if (!await signInButton.IsVisibleAsync())
+                {
+                    throw;
+                }
+
+                await Task.Delay(TimeSpan.FromSeconds(3));
+            }
+        }
+
+        throw new TimeoutException($"Sign-in did not reach home for {email} after 3 attempts.");
+    }
+
+    public static async Task<(string Email, string Token)> WarmUpApiAsync(HttpClient apiClient)
+    {
+        var (email, password, token) = await RegisterSingerAsync(apiClient);
+
+        var loginResponse = await apiClient.PostAsJsonAsync("/api/auth/login", new LoginRequest
+        {
+            Email = email,
+            Password = password
+        });
+        if (!loginResponse.IsSuccessStatusCode)
+        {
+            var body = await loginResponse.Content.ReadAsStringAsync();
+            throw new InvalidOperationException($"Login warm-up failed ({(int)loginResponse.StatusCode}): {body}");
+        }
+
         apiClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
         await apiClient.GetAsync("/api/performances/my-repertoire?includeAll=true");
         await apiClient.GetAsync("/api/genres");
+        return (email, token);
     }
 }

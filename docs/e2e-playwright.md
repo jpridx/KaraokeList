@@ -78,11 +78,12 @@ Playwright slows actions slightly when headed so you can follow along.
 | Test | What it checks |
 |------|----------------|
 | `Login_page_loads_for_anonymous_user` | WASM boots, `/login` shows Sign in |
+| `User_can_sign_in_through_login_form` | Register via API → clear storage → type email/password on `/login` → home |
 | `Authenticated_user_can_open_my_songs` | Register via API → store JWT → home → **My Songs** (mobile viewport) |
 | `Authenticated_user_can_log_a_performance` | Seed song via API → `/log?songId=` → add venue → **Save performance** |
 | `Invite_link_allows_a_friend_to_register` | Signed-in user opens **Invite friends** → friend registers via invite URL in a fresh browser context |
 
-The golden-path test seeds auth through the API (fast, reliable), then exercises the WASM UI — the same JWT your app stores after a real login. A full “type email/password in the login form” test can be added later; local dev sometimes shows the database cold-start message on the first browser login attempt.
+Other tests seed auth through the API (fast setup) then exercise WASM UI flows. Login form coverage uses the real Sign in button and JWT storage path the app uses after a normal login.
 
 ## Environment variables
 

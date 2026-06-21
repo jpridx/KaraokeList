@@ -17,9 +17,9 @@ public sealed class InviteRegistrationTests(E2eServerFixture servers) : PageTest
     public async Task Invite_link_allows_a_friend_to_register()
     {
         Skip.IfNot(servers.IsReady, servers.SkipReason);
+        Skip.If(servers.WarmUpToken is null, "Warm-up user was not created.");
 
-        using var apiClient = new HttpClient { BaseAddress = new Uri(E2eConfiguration.ApiBaseUrl) };
-        await E2eAuthHelper.RegisterAndSignInAsync(Page, apiClient);
+        await E2eAuthHelper.SignInViaLocalStorageAsync(Page, servers.WarmUpToken!);
 
         await Page.GotoAsync("/invite-friends");
         await Expect(Page.GetByRole(AriaRole.Heading, new() { Name = "Invite friends" })).ToBeVisibleAsync(new() { Timeout = 60_000 });
