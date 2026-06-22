@@ -138,7 +138,11 @@
         }
 
         performedOn = stored?.PerformedOn ?? DateTime.Today;
-        keyChangeSemitones = stored?.KeyChangeSemitones ?? summary?.LastKeyChangeSemitones;
+
+        var recentKeyForSong = (await LogStore.GetRecentLogsAsync())
+            .FirstOrDefault(r => r.SongId == SongId)
+            ?.KeyChangeSemitones;
+        keyChangeSemitones = LogKeyChangeDefaults.ForSong(summary, recentKeyForSong);
 
         if (stored?.VenueId is int storedVenueId && venues.Any(v => v.Id == storedVenueId))
         {
@@ -207,7 +211,7 @@
 
     private async Task SaveLocallyAsync(string venueName, bool queuedOffline)
     {
-        await LogStore.SaveFormDefaultsAsync(new LogFormDefaults(selectedVenueId, performedOn, keyChangeSemitones));
+        await LogStore.SaveFormDefaultsAsync(new LogFormDefaults(selectedVenueId, performedOn, KeyChangeSemitones: null));
         await LogStore.AddRecentLogAsync(new RecentLoggedPerformance(
             SongId, Title, ArtistName, venueName, performedOn, keyChangeSemitones, DateTime.Now));
 

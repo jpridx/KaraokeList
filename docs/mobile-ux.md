@@ -50,7 +50,7 @@ There is no sidebar. Catalog grids live under `/more`.
 1. Open **My Songs**
 2. Search or scroll
 3. Tap **Log** on the row → `/log?songId=…` with song selected
-4. Confirm venue, date (defaults to today), key (defaults to last time)
+4. Confirm venue, date (defaults to today), key (defaults to **last key for this song**, or original key if you've never logged it)
 5. **Copy for host** → paste to the KJ
 6. **Save performance**
 
@@ -58,7 +58,7 @@ There is no sidebar. Catalog grids live under `/more`.
 
 1. Open **Log**
 2. Search songs (★ = you've sung it before)
-3. Same venue/date/key/copy/save flow
+3. Same venue/date/key/copy/save flow (key is per song, not carried over from the previous log)
 
 ### Browse the full catalog
 
@@ -127,7 +127,7 @@ Implemented in `ShowHostMessageFormatting` (`KaraokeList.Shared`). Shown on Log 
 
 | Component | Role |
 |-----------|------|
-| `QuickLogPerformance` | Venue, date, key, host message, save — defaults from last performance; queues offline |
+| `QuickLogPerformance` | Venue, date, key, host message, save — venue/date from last log; key from last time **you sang this song** (or original key); queues offline |
 | `LogCatalogLoader` | Online catalog fetch + offline cache for Log song/venue picker |
 | `PendingPerformancesNotice` | Pending sync banner + auto/manual sync |
 | `HostMessagePanel` | Preview + copy button |

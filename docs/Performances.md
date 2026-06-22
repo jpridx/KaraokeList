@@ -38,6 +38,8 @@ CREATE TABLE Performances (
 | `GET api/performances/my-song-summary?songId=` | Count, last key/venue/date, full history for one song. |
 | `POST api/performances` | Log a performance; `Singer` defaults from the logged-in user when omitted. |
 
+On **Log** (`QuickLogPerformance`), the key picker defaults to `LastKeyChangeSemitones` from `my-song-summary` when you've performed that song before; otherwise it defaults to original key (`NULL` / 0). It does **not** reuse the key from your previous log entry for a different song. Venue and date still default from your last log on this device.
+
 ## Mobile UI (Blazor WASM)
 
 Full walkthrough: [mobile-ux.md](mobile-ux.md).
