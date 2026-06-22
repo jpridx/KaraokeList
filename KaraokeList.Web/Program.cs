@@ -36,6 +36,8 @@ builder.Services.AddScoped<AuthenticationStateProvider>(sp => sp.GetRequiredServ
 builder.Services.AddScoped<AuthorizationMessageHandler>();
 builder.Services.AddScoped<IKaraokeApiClient, KaraokeApiClient>();
 builder.Services.AddScoped<ILogPerformanceLocalStore, LogPerformanceLocalStore>();
+builder.Services.AddScoped<ILogCatalogLoader, LogCatalogLoader>();
+builder.Services.AddScoped<IPendingPerformanceSyncService, PendingPerformanceSyncService>();
 builder.Services.AddScoped<IMySongsLocalStore, MySongsLocalStore>();
 builder.Services.AddHttpClient("KaraokeApi", client =>
     {

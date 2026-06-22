@@ -1,7 +1,10 @@
 @page "/log"
 @attribute [Authorize]
+@using Microsoft.AspNetCore.Components.Authorization
 @inject IKaraokeApiClient Api
 @inject ILogPerformanceLocalStore LogStore
+@inject ILogCatalogLoader CatalogLoader
+@inject AuthenticationStateProvider AuthStateProvider
 
 <PageTitle>Log performance</PageTitle>
 
@@ -21,6 +24,21 @@
 
         @if (!needsSingerLink)
         {
+            @if (usingOfflineCatalog && catalogCachedAt is DateTime cachedAt)
+            {
+                <div class="alert alert-warning small mb-3" role="status">
+                    Using cached songs from @cachedAt.ToLocalTime().ToString("g").
+                    Connect to refresh the catalog.
+                </div>
+            }
+            else if (usingOfflineCatalog && !hasCachedCatalog)
+            {
+                <div class="alert alert-warning small mb-3" role="status">
+                    Song catalog isn't available offline yet. Pick from <strong>Recently logged</strong> below,
+                    or open Log once while online to cache songs.
+                </div>
+            }
+
             @if (!string.IsNullOrEmpty(saveMessage))
             {
                 <div class="alert alert-success">@saveMessage</div>
@@ -38,7 +56,7 @@
                 }
                 else
                 {
-                    <SfComboBox TValue="int?" TItem="SongPickItem" DataSource="@songPickerItems"
+                    <SfComboBox TValue="int?" TItem="LogSongPickItem" DataSource="@songPickerItems"
                                 @bind-Value="selectedSongId" @bind-Value:after="OnSongSelectedAsync"
                                 Placeholder="Search songs..." AllowFiltering="true" ShowClearButton="true"
                                 FilterType="Syncfusion.Blazor.DropDowns.FilterType.Contains"
@@ -52,44 +70,47 @@
                     <p class="small text-muted mt-2 mb-0">@songHint</p>
                 }
 
-                <button type="button" class="btn btn-link btn-sm ps-0 mt-2" @onclick="ToggleNewSong">
-                    @(showNewSong ? "Hide new song" : "+ New song")
-                </button>
-                @if (showNewSong)
+                @if (!usingOfflineCatalog)
                 {
-                    <div class="border-top pt-3 mt-2">
-                        <label class="form-label">Title</label>
-                        <input class="form-control mb-2" @bind="newSongTitle" />
-                        <label class="form-label">Artist</label>
-                        <SfDropDownList TValue="int?" TItem="ArtistLookupDto" DataSource="@artistLookups"
-                                        @bind-Value="newSongArtistId" Placeholder="Select artist"
-                                        AllowFiltering="true"
-                                        FilterType="Syncfusion.Blazor.DropDowns.FilterType.Contains">
-                            <DropDownListFieldSettings Value="Id" Text="Name" />
-                        </SfDropDownList>
-                        <button type="button" class="btn btn-link btn-sm ps-0 mt-2" @onclick="ToggleNewArtist">
-                            @(showNewArtist ? "Hide new artist" : "+ New artist")
-                        </button>
-                        @if (showNewArtist)
-                        {
-                            <div class="border-top pt-3 mt-2">
-                                <label class="form-label">Artist name</label>
-                                <input class="form-control mb-2" @bind="newArtistName" />
-                                <button type="button" class="btn btn-outline-primary w-100" @onclick="SaveNewArtistAsync">
-                                    Add artist
-                                </button>
-                            </div>
-                        }
-                        <label class="form-label mt-2">Genre (optional)</label>
-                        <SfDropDownList TValue="int?" TItem="GenreDto" DataSource="@genres" @bind-Value="newSongGenreId"
-                                        Placeholder="Select genre" AllowFiltering="true"
-                                        FilterType="Syncfusion.Blazor.DropDowns.FilterType.Contains">
-                            <DropDownListFieldSettings Value="Id" Text="GenreName" />
-                        </SfDropDownList>
-                        <button type="button" class="btn btn-outline-primary w-100 mt-3" @onclick="SaveNewSongAsync">
-                            Add song
-                        </button>
-                    </div>
+                    <button type="button" class="btn btn-link btn-sm ps-0 mt-2" @onclick="ToggleNewSong">
+                        @(showNewSong ? "Hide new song" : "+ New song")
+                    </button>
+                    @if (showNewSong)
+                    {
+                        <div class="border-top pt-3 mt-2">
+                            <label class="form-label">Title</label>
+                            <input class="form-control mb-2" @bind="newSongTitle" />
+                            <label class="form-label">Artist</label>
+                            <SfDropDownList TValue="int?" TItem="ArtistLookupDto" DataSource="@artistLookups"
+                                            @bind-Value="newSongArtistId" Placeholder="Select artist"
+                                            AllowFiltering="true"
+                                            FilterType="Syncfusion.Blazor.DropDowns.FilterType.Contains">
+                                <DropDownListFieldSettings Value="Id" Text="Name" />
+                            </SfDropDownList>
+                            <button type="button" class="btn btn-link btn-sm ps-0 mt-2" @onclick="ToggleNewArtist">
+                                @(showNewArtist ? "Hide new artist" : "+ New artist")
+                            </button>
+                            @if (showNewArtist)
+                            {
+                                <div class="border-top pt-3 mt-2">
+                                    <label class="form-label">Artist name</label>
+                                    <input class="form-control mb-2" @bind="newArtistName" />
+                                    <button type="button" class="btn btn-outline-primary w-100" @onclick="SaveNewArtistAsync">
+                                        Add artist
+                                    </button>
+                                </div>
+                            }
+                            <label class="form-label mt-2">Genre (optional)</label>
+                            <SfDropDownList TValue="int?" TItem="GenreDto" DataSource="@genres" @bind-Value="newSongGenreId"
+                                            Placeholder="Select genre" AllowFiltering="true"
+                                            FilterType="Syncfusion.Blazor.DropDowns.FilterType.Contains">
+                                <DropDownListFieldSettings Value="Id" Text="GenreName" />
+                            </SfDropDownList>
+                            <button type="button" class="btn btn-outline-primary w-100 mt-3" @onclick="SaveNewSongAsync">
+                                Add song
+                            </button>
+                        </div>
+                    }
                 }
             </div>
 
@@ -103,7 +124,7 @@
             @if (recentLogs.Count > 0)
             {
                 <div class="mobile-panel recent-logs-panel">
-                    <h2 class="h6 mb-2">Recently logged</h2>
+                    <h2 class="h6 mb-2">Recently logged@(usingOfflineCatalog && !hasCachedCatalog ? " — tap to pick a song" : "")</h2>
                     <ul class="recent-log-list">
                         @foreach (var entry in recentLogs)
                         {
@@ -131,12 +152,14 @@
 
     private bool isLoading = true;
     private bool needsSingerLink;
+    private bool usingOfflineCatalog;
+    private bool hasCachedCatalog;
+    private DateTime? catalogCachedAt;
     private int? mySingerId;
-    private List<SongDto> songs = [];
     private List<ArtistLookupDto> artistLookups = [];
     private List<GenreDto> genres = [];
     private HashSet<int> repertoireSongIds = [];
-    private List<SongPickItem> songPickerItems = [];
+    private List<LogSongPickItem> songPickerItems = [];
 
     private int? selectedSongId;
     private string? songHint;
@@ -151,8 +174,31 @@
     private int? newSongGenreId;
     private IReadOnlyList<RecentLoggedPerformance> recentLogs = [];
 
-    private SongPickItem? SelectedSong =>
-        selectedSongId is int id ? songPickerItems.FirstOrDefault(s => s.Id == id) : null;
+    private LogSongPickItem? SelectedSong
+    {
+        get
+        {
+            if (selectedSongId is not int id)
+            {
+                return null;
+            }
+
+            var fromPicker = songPickerItems.FirstOrDefault(s => s.Id == id);
+            if (fromPicker is not null)
+            {
+                return fromPicker;
+            }
+
+            var fromRecent = recentLogs.FirstOrDefault(r => r.SongId == id);
+            return fromRecent is null
+                ? null
+                : new LogSongPickItem(
+                    fromRecent.SongId,
+                    fromRecent.Title,
+                    fromRecent.ArtistName,
+                    repertoireSongIds.Contains(id));
+        }
+    }
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
@@ -176,9 +222,25 @@
     {
         isLoading = true;
         saveError = null;
+        usingOfflineCatalog = false;
+        hasCachedCatalog = false;
+        catalogCachedAt = null;
 
-        var profile = await Api.GetProfileAsync();
-        mySingerId = profile?.SingerId;
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        mySingerId = authState.User.GetSingerId();
+        if (mySingerId is null)
+        {
+            try
+            {
+                var profile = await Api.GetProfileAsync();
+                mySingerId = profile?.SingerId;
+            }
+            catch (Exception ex) when (ApiTransientFailure.IsTransient(ex) || ex is HttpRequestException)
+            {
+                // Offline: rely on singer claim from JWT when profile API is unreachable.
+            }
+        }
+
         needsSingerLink = mySingerId is null;
 
         if (needsSingerLink)
@@ -187,17 +249,19 @@
             return;
         }
 
-        songs = await Api.GetSongsAsync();
-        artistLookups = await Api.GetArtistLookupsAsync();
-        genres = await Api.GetGenresAsync();
+        var catalog = await CatalogLoader.LoadAsync();
+        usingOfflineCatalog = catalog.FromCache;
+        hasCachedCatalog = catalog.HasCatalog;
+        catalogCachedAt = catalog.CachedAtUtc;
+        songPickerItems = catalog.Songs.ToList();
+        repertoireSongIds = catalog.RepertoireSongIds;
 
-        var repertoire = await Api.GetMyRepertoireAsync();
-        if (repertoire.Succeeded)
+        if (!catalog.FromCache)
         {
-            repertoireSongIds = repertoire.Songs.Select(s => s.SongId).ToHashSet();
+            artistLookups = await Api.GetArtistLookupsAsync();
+            genres = await Api.GetGenresAsync();
         }
 
-        RebuildSongPicker();
         recentLogs = await LogStore.GetRecentLogsAsync();
         isLoading = false;
 
@@ -206,22 +270,6 @@
             selectedSongId = querySongId;
             await OnSongChangedAsync(querySongId);
         }
-    }
-
-    private void RebuildSongPicker()
-    {
-        var artistNames = artistLookups.ToDictionary(a => a.Id, a => a.Name);
-        songPickerItems = songs
-            .Select(s => new SongPickItem
-            {
-                Id = s.Id,
-                Title = s.Title,
-                ArtistName = s.Artist is int artistId && artistNames.TryGetValue(artistId, out var name) ? name : "",
-                InRepertoire = repertoireSongIds.Contains(s.Id)
-            })
-            .OrderByDescending(s => s.InRepertoire)
-            .ThenBy(s => s.Title, StringComparer.OrdinalIgnoreCase)
-            .ToList();
     }
 
     private async Task OnSongSelectedAsync() => await OnSongChangedAsync(selectedSongId);
@@ -234,36 +282,55 @@
             return;
         }
 
-        var result = await Api.GetMySongSummaryAsync(songId.Value);
-        if (!result.Succeeded || result.Summary is null)
+        if (usingOfflineCatalog)
         {
-            songHint = "Ready to log.";
+            songHint = repertoireSongIds.Contains(songId.Value)
+                ? "Ready to log (offline — using cached catalog)."
+                : "Ready to log.";
             return;
         }
 
-        var summary = result.Summary;
-        if (summary.PerformanceCount > 0)
+        try
         {
-            songHint = $"You've sung this {summary.PerformanceCount} time(s). Last: {summary.LastPerformedOn:d} · {KeyChangeFormatting.Describe(summary.LastKeyChangeSemitones)}";
+            var result = await Api.GetMySongSummaryAsync(songId.Value);
+            if (!result.Succeeded || result.Summary is null)
+            {
+                songHint = "Ready to log.";
+                return;
+            }
+
+            var summary = result.Summary;
+            if (summary.PerformanceCount > 0)
+            {
+                songHint = $"You've sung this {summary.PerformanceCount} time(s). Last: {summary.LastPerformedOn:d} · {KeyChangeFormatting.Describe(summary.LastKeyChangeSemitones)}";
+            }
+            else
+            {
+                songHint = "First time logging this song for you.";
+            }
         }
-        else
+        catch (Exception ex) when (ApiTransientFailure.IsTransient(ex) || ex is HttpRequestException)
         {
-            songHint = "First time logging this song for you.";
+            songHint = "Ready to log (offline).";
         }
     }
 
-    private async Task OnPerformanceSavedAsync()
+    private async Task OnPerformanceSavedAsync(string? message)
     {
         selectedSongId = null;
         songHint = null;
-        saveMessage = "Performance saved.";
+        saveMessage = message;
+        saveError = null;
         recentLogs = await LogStore.GetRecentLogsAsync();
 
-        var repertoire = await Api.GetMyRepertoireAsync();
-        if (repertoire.Succeeded)
+        if (!usingOfflineCatalog)
         {
-            repertoireSongIds = repertoire.Songs.Select(s => s.SongId).ToHashSet();
-            RebuildSongPicker();
+            var catalog = await CatalogLoader.LoadAsync();
+            songPickerItems = catalog.Songs.ToList();
+            repertoireSongIds = catalog.RepertoireSongIds;
+            usingOfflineCatalog = catalog.FromCache;
+            hasCachedCatalog = catalog.HasCatalog;
+            catalogCachedAt = catalog.CachedAtUtc;
         }
     }
 
@@ -291,11 +358,11 @@
                 Genre = newSongGenreId
             });
 
-            songs = await Api.GetSongsAsync();
-            RebuildSongPicker();
-            var created = songs.FirstOrDefault(s =>
-                s.Title.Equals(newSongTitle.Trim(), StringComparison.OrdinalIgnoreCase)
-                && s.Artist == newSongArtistId);
+            var catalog = await CatalogLoader.LoadAsync();
+            songPickerItems = catalog.Songs.ToList();
+            repertoireSongIds = catalog.RepertoireSongIds;
+            var created = songPickerItems.FirstOrDefault(s =>
+                s.Title.Equals(newSongTitle.Trim(), StringComparison.OrdinalIgnoreCase));
             if (created is not null)
             {
                 selectedSongId = created.Id;
@@ -346,14 +413,5 @@
         {
             saveError = ex.Message;
         }
-    }
-
-    private sealed class SongPickItem
-    {
-        public int Id { get; init; }
-        public string Title { get; init; } = string.Empty;
-        public string ArtistName { get; init; } = string.Empty;
-        public bool InRepertoire { get; init; }
-        public string Display => InRepertoire ? $"{Title} - {ArtistName} ★" : $"{Title} - {ArtistName}";
     }
 }

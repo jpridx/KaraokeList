@@ -1,0 +1,107 @@
+@inject IPendingPerformanceSyncService SyncService
+@inject ILogPerformanceLocalStore LogStore
+@inject NavigationManager NavigationManager
+@implements IDisposable
+
+@if (pendingCount > 0)
+{
+    <div class="alert alert-warning pending-sync-banner mb-3" role="status">
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <span>
+                @pendingCount performance@(pendingCount == 1 ? "" : "s") waiting to sync.
+            </span>
+            <button type="button" class="btn btn-sm btn-outline-dark" disabled="@isSyncing" @onclick="SyncNowAsync">
+                @(isSyncing ? "Syncing…" : "Sync now")
+            </button>
+        </div>
+        @if (!string.IsNullOrEmpty(syncMessage))
+        {
+            <p class="small mb-0 mt-2">@syncMessage</p>
+        }
+    </div>
+}
+
+@code {
+    private int pendingCount;
+    private bool isSyncing;
+    private string? syncMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        NavigationManager.LocationChanged += OnLocationChanged;
+        await RefreshPendingCountAsync();
+        await SyncIfNeededAsync();
+    }
+
+    private async void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        await RefreshPendingCountAsync();
+        await SyncIfNeededAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task SyncIfNeededAsync()
+    {
+        if (pendingCount == 0 || isSyncing)
+        {
+            return;
+        }
+
+        await SyncNowAsync(showSuccessWhenFullySynced: true);
+    }
+
+    private async Task SyncNowAsync() => await SyncNowAsync(showSuccessWhenFullySynced: false);
+
+    private async Task SyncNowAsync(bool showSuccessWhenFullySynced)
+    {
+        if (isSyncing)
+        {
+            return;
+        }
+
+        isSyncing = true;
+        syncMessage = null;
+        try
+        {
+            var result = await SyncService.TrySyncAsync();
+            pendingCount = result.RemainingCount;
+
+            if (result.SyncedCount > 0 && result.RemainingCount == 0)
+            {
+                syncMessage = result.SyncedCount == 1
+                    ? "1 performance synced."
+                    : $"{result.SyncedCount} performances synced.";
+            }
+            else if (result.FailedCount > 0)
+            {
+                syncMessage = result.FailedCount == 1
+                    ? "1 performance could not sync and was removed from the queue."
+                    : $"{result.FailedCount} performances could not sync and were removed from the queue.";
+                if (!string.IsNullOrWhiteSpace(result.LastError))
+                {
+                    syncMessage += $" {result.LastError}";
+                }
+            }
+            else if (result.RemainingCount > 0 && !string.IsNullOrWhiteSpace(result.LastError))
+            {
+                syncMessage = result.LastError;
+            }
+            else if (showSuccessWhenFullySynced && result.SyncedCount == 0 && result.RemainingCount == 0)
+            {
+                syncMessage = null;
+            }
+        }
+        finally
+        {
+            isSyncing = false;
+        }
+    }
+
+    private async Task RefreshPendingCountAsync()
+    {
+        var pending = await LogStore.GetPendingPerformancesAsync();
+        pendingCount = pending.Count;
+    }
+
+    public void Dispose() => NavigationManager.LocationChanged -= OnLocationChanged;
+}
