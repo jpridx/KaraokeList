@@ -27,6 +27,27 @@ public class PerformancesController(
         return Ok(performances.Select(p => p.ToDto()).ToList());
     }
 
+    [HttpGet("my-history")]
+    public async Task<ActionResult<List<MyPerformanceEntryDto>>> GetMyHistory(
+        [FromQuery] int? venueId = null,
+        [FromQuery] string sortDir = "desc")
+    {
+        var singerId = await RequireSingerIdAsync();
+        if (singerId.Result is not null)
+        {
+            return singerId.Result;
+        }
+
+        if (!IsValidSortDir(sortDir))
+        {
+            return BadRequest(new ApiErrorResponse { Message = "Invalid sortDir. Use asc or desc." });
+        }
+
+        var performances = await performanceService.GetMyPerformancesAsync(
+            singerId.Value!.Value, venueId, sortDir);
+        return Ok(performances.Select(p => p.ToDto()).ToList());
+    }
+
     [HttpGet("my-song-summary")]
     public async Task<ActionResult<SongPerformanceSummaryDto>> GetMySongSummary([FromQuery] int songId)
     {

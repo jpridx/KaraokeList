@@ -61,6 +61,18 @@ public class PerformanceHistoryEntryDto
     public int? KeyChangeSemitones { get; set; }
 }
 
+public class MyPerformanceEntryDto
+{
+    public int Id { get; set; }
+    public int SongId { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string ArtistName { get; set; } = string.Empty;
+    public DateTime PerformedOn { get; set; }
+    public int? VenueId { get; set; }
+    public string VenueName { get; set; } = string.Empty;
+    public int? KeyChangeSemitones { get; set; }
+}
+
 public class SongPerformanceSummaryDto
 {
     public int SongId { get; set; }
