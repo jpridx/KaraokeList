@@ -112,6 +112,40 @@ public sealed class PerformancesScopingTests(KaraokeApiFactory factory)
         Assert.Contains(listA, p => p.Id == performanceId);
     }
 
+    [SkippableFact]
+    public async Task GetMyHistory_ReturnsEnrichedRowsForCurrentSingerOnly()
+    {
+        Skip.IfNot(factory.IsDatabaseAvailable, IntegrationTestConnection.SkipReason);
+
+        var clientA = await CreateAuthedClientAsync();
+        var clientB = await CreateAuthedClientAsync();
+
+        var (songIdA, venueIdA) = await PerformanceTestDataHelper.CreateCatalogAsync(clientA);
+        var (songIdB, venueIdB) = await PerformanceTestDataHelper.CreateCatalogAsync(clientB);
+
+        var performanceIdA = await PerformanceTestDataHelper.CreatePerformanceAsync(clientA, songIdA, venueIdA);
+        await PerformanceTestDataHelper.CreatePerformanceAsync(clientB, songIdB, venueIdB);
+
+        var songsA = await clientA.GetFromJsonAsync<List<SongDto>>("/api/songs");
+        var venuesA = await clientA.GetFromJsonAsync<List<VenueDto>>("/api/venues");
+        Assert.NotNull(songsA);
+        Assert.NotNull(venuesA);
+        var songA = Assert.Single(songsA, s => s.Id == songIdA);
+        var venueA = Assert.Single(venuesA, v => v.Id == venueIdA);
+
+        var historyA = await clientA.GetFromJsonAsync<List<MyPerformanceEntryDto>>("/api/performances/my-history");
+        Assert.NotNull(historyA);
+        var row = Assert.Single(historyA, p => p.Id == performanceIdA);
+        Assert.Equal(songIdA, row.SongId);
+        Assert.Equal(songA.Title, row.Title);
+        Assert.Equal(venueA.VenueName, row.VenueName);
+        Assert.DoesNotContain(historyA, p => p.SongId == songIdB);
+
+        var historyB = await clientB.GetFromJsonAsync<List<MyPerformanceEntryDto>>("/api/performances/my-history");
+        Assert.NotNull(historyB);
+        Assert.DoesNotContain(historyB, p => p.Id == performanceIdA);
+    }
+
     private async Task<HttpClient> CreateAuthedClientAsync()
     {
         var client = factory.CreateClient();

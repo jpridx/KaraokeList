@@ -102,4 +102,16 @@ public static class EntityMappers
             KeyChangeSemitones = h.KeyChangeSemitones
         }).ToList()
     };
+
+    public static MyPerformanceEntryDto ToDto(this MyPerformanceEntry entry) => new()
+    {
+        Id = entry.Id,
+        SongId = entry.SongId,
+        Title = entry.Title,
+        ArtistName = entry.ArtistName,
+        PerformedOn = entry.PerformedOn,
+        VenueId = entry.VenueId,
+        VenueName = entry.VenueName,
+        KeyChangeSemitones = entry.KeyChangeSemitones
+    };
 }

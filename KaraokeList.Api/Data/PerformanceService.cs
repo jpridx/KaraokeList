@@ -48,6 +48,18 @@ public class RepertoireGenre
     public string GenreName { get; set; } = string.Empty;
 }
 
+public class MyPerformanceEntry
+{
+    public int Id { get; set; }
+    public int SongId { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string ArtistName { get; set; } = string.Empty;
+    public DateTime PerformedOn { get; set; }
+    public int? VenueId { get; set; }
+    public string VenueName { get; set; } = string.Empty;
+    public int? KeyChangeSemitones { get; set; }
+}
+
 public class PerformanceService(string connectionString)
 {
     private const string SelectColumns = "Id, Singer, Song, Venue, PerformedOn, KeyChangeSemitones";
@@ -77,6 +89,53 @@ public class PerformanceService(string connectionString)
         while (await reader.ReadAsync())
         {
             performances.Add(ReadPerformance(reader));
+        }
+
+        return performances;
+    }
+
+    public async Task<List<MyPerformanceEntry>> GetMyPerformancesAsync(
+        int singerId,
+        int? venueId = null,
+        string sortDir = "desc")
+    {
+        var direction = string.Equals(sortDir, "asc", StringComparison.OrdinalIgnoreCase) ? "ASC" : "DESC";
+        var performances = new List<MyPerformanceEntry>();
+        await using var connection = new SqlConnection(connectionString);
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        var sql = """
+            SELECT p.Id, p.Song, s.Title, ISNULL(a.Name, N''), p.PerformedOn,
+                   p.Venue, ISNULL(v.VenueName, N''), p.KeyChangeSemitones
+            FROM Performances p
+            INNER JOIN Songs s ON s.Id = p.Song
+            LEFT JOIN Artists a ON a.Id = s.Artist
+            LEFT JOIN Venues v ON v.Id = p.Venue
+            WHERE p.Singer = @Singer
+            """;
+        command.Parameters.AddWithValue("@Singer", singerId);
+        if (venueId is int venue)
+        {
+            sql += " AND p.Venue = @Venue";
+            command.Parameters.AddWithValue("@Venue", venue);
+        }
+
+        sql += $" ORDER BY p.PerformedOn {direction}, p.Id {direction}";
+        command.CommandText = sql;
+        await using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            performances.Add(new MyPerformanceEntry
+            {
+                Id = reader.GetInt32(0),
+                SongId = reader.GetInt32(1),
+                Title = reader.GetString(2),
+                ArtistName = reader.GetString(3),
+                PerformedOn = reader.GetDateTime(4),
+                VenueId = reader.IsDBNull(5) ? null : reader.GetInt32(5),
+                VenueName = reader.GetString(6),
+                KeyChangeSemitones = reader.IsDBNull(7) ? null : reader.GetInt32(7)
+            });
         }
 
         return performances;

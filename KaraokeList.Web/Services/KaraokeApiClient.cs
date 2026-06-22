@@ -41,6 +41,7 @@ public interface IKaraokeApiClient
         int? genreId = null,
         bool includeAll = false);
     Task<RepertoireGenresResult> GetMyRepertoireGenresAsync();
+    Task<MyPerformancesResult> GetMyPerformancesAsync(int? venueId = null, string sortDir = "desc");
     Task CreatePerformanceAsync(PerformanceDto dto);
     Task<PerformanceCreateResult> TryCreatePerformanceAsync(PerformanceDto dto);
     Task UpdatePerformanceAsync(PerformanceDto dto);
@@ -229,6 +230,25 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
 
         var message = await ReadApiErrorMessageAsync(response);
         return RepertoireGenresResult.Fail(message ?? "Could not load genres.");
+    }
+
+    public async Task<MyPerformancesResult> GetMyPerformancesAsync(int? venueId = null, string sortDir = "desc")
+    {
+        var query = $"sortDir={Uri.EscapeDataString(sortDir)}";
+        if (venueId is int venue)
+        {
+            query += $"&venueId={venue}";
+        }
+
+        var response = await http.GetAsync($"api/performances/my-history?{query}");
+        if (response.IsSuccessStatusCode)
+        {
+            var performances = await response.Content.ReadFromJsonAsync<List<MyPerformanceEntryDto>>();
+            return MyPerformancesResult.Ok(performances ?? []);
+        }
+
+        var message = await ReadApiErrorMessageAsync(response);
+        return MyPerformancesResult.Fail(message ?? "Could not load performances.");
     }
 
     public Task CreatePerformanceAsync(PerformanceDto dto) => PostAsync("api/performances", dto);

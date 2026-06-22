@@ -33,6 +33,7 @@ There is no sidebar. Catalog grids live under `/more`.
 | `/log?songId={id}` | Same, with song pre-selected (from My Songs **Log** button) |
 | `/my-songs` | Browse the full catalog (default) or filter logged / not logged; search, sort, genre; virtualized scroll (flat list) or load-more when grouped |
 | `/my-songs/{id}` | Log again (quick form) + collapsible performance history |
+| `/my-performances` | Chronological performance list; search, venue filter, edit/delete |
 | `/more` | Hub: tonight links + catalog admin pages |
 | `/invite-friends` | Copy registration link / invite message for text or email (when invite-only registration is enabled) |
 | `/` | Home — **Tonight** dashboard on mobile (recent logs, default venue, quick actions) |
@@ -71,6 +72,13 @@ There is no sidebar. Catalog grids live under `/more`.
 2. Use **Log again** at the top (same quick form as Log)
 3. Expand **Performance history** for past dates/venues/keys (only when performances exist)
 4. **Edit** or **Delete** a history row to fix mistakes without opening the catalog grid
+
+### Browse all performances
+
+1. Open **More → My performances** (or `/my-performances`)
+2. Search by song, artist, or venue; filter by venue chip; toggle newest/oldest
+3. Tap a row for song detail, **Log** to log again, or **Edit** / **Delete** inline
+4. Use **Load more** for long histories
 
 ## Offline-tolerant Log
 
@@ -123,6 +131,7 @@ Implemented in `ShowHostMessageFormatting` (`KaraokeList.Shared`). Shown on Log 
 | `PendingPerformancesNotice` | Pending sync banner + auto/manual sync |
 | `HostMessagePanel` | Preview + copy button |
 | `SongListItem` | Repertoire row: tap body = history, **Log** = quick log |
+| `PerformanceBrowseList` | Mobile performance browse rows with edit/delete |
 | `PerformanceHistoryList` | Editable performance history on song detail |
 | `TonightDashboard` | Mobile home: tonight context + recent logs |
 | `SingerLinkPanel` | Link login to a singer profile when `SingerId` is missing |
@@ -141,6 +150,7 @@ The API exposes `GET api/auth/invite-share` (JWT required); it returns the confi
 See [Performances.md](Performances.md) for schema and endpoints. Key calls:
 
 - `GET api/performances/my-repertoire` — My Songs list
+- `GET api/performances/my-history` — mobile performance browse
 - `GET api/performances/my-song-summary?songId=` — defaults + history
 - `POST api/performances` — save (singer from JWT if omitted)
 - `GET api/auth/me` — singer link status
