@@ -342,8 +342,57 @@ code {
     cursor: pointer;
 }
 
-.history-details[open] .history-details-summary {
+.history-details[open] .history-details-summary,
+.log-again-details[open] .history-details-summary {
     margin-bottom: 0.25rem;
+}
+
+.song-stats-panel {
+    margin-top: 0.5rem;
+}
+
+.song-stats-genre {
+    margin-bottom: 0.5rem;
+}
+
+.song-stats-list {
+    display: grid;
+    gap: 0.65rem;
+}
+
+.song-stats-row {
+    display: grid;
+    gap: 0.15rem;
+}
+
+.song-stats-row dt {
+    font-size: 0.8rem;
+    color: #666;
+    margin: 0;
+    font-weight: 500;
+}
+
+.song-stats-row dd {
+    margin: 0;
+    font-weight: 600;
+}
+
+.song-stats-first-time {
+    color: #555;
+}
+
+.song-detail-empty-state {
+    background: #f6fff8;
+    border-color: #c8e6cf;
+    margin-top: 0.5rem;
+}
+
+.log-again-form .mobile-panel:first-child {
+    margin-top: 0;
+}
+
+.log-again-form .mobile-primary-action {
+    margin-bottom: 0;
 }
 
 .performance-browse-list {

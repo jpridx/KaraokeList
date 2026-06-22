@@ -31,34 +31,72 @@
     }
     else
     {
+        <section class="mobile-panel song-stats-panel">
+            @if (!string.IsNullOrWhiteSpace(songMeta.GenreName))
+            {
+                <p class="song-stats-genre small text-muted mb-2">@songMeta.GenreName</p>
+            }
+
+            @if (summary.PerformanceCount > 0)
+            {
+                <dl class="song-stats-list mb-0">
+                    <div class="song-stats-row">
+                        <dt>Times sung</dt>
+                        <dd>@summary.PerformanceCount</dd>
+                    </div>
+                    <div class="song-stats-row">
+                        <dt>Last performance</dt>
+                        <dd>
+                            @summary.LastPerformedOn?.ToString("d")
+                            @if (!string.IsNullOrEmpty(summary.LastVenueName))
+                            {
+                                <text> · @summary.LastVenueName</text>
+                            }
+                            · @KeyChangeFormatting.Describe(summary.LastKeyChangeSemitones)
+                        </dd>
+                    </div>
+                </dl>
+            }
+            else
+            {
+                <p class="song-stats-first-time mb-0">You haven't logged this song yet.</p>
+            }
+        </section>
+
         @if (mySingerId is null)
         {
             <SingerLinkPanel Visible="true" OnLinked="OnSingerLinkedAsync" />
         }
-        else
+        else if (summary.PerformanceCount == 0)
         {
+            <div class="song-detail-empty-state mobile-panel">
+                <p class="mb-0">Log your first performance below — venue, date, and key are saved for next time.</p>
+            </div>
+
             <QuickLogPerformance SongId="SongId" Title="@songMeta.Title" ArtistName="@songMeta.ArtistName"
-                                 SingerId="mySingerId"
-                                 SaveButtonText="@(summary.PerformanceCount > 0 ? "Log again" : "Log performance")"
+                                 SingerId="mySingerId" SaveButtonText="Log performance"
                                  OnPerformanceSaved="OnPerformanceSavedAsync" />
         }
-
-        @if (summary.PerformanceCount > 0 && mySingerId is int singerId)
+        else
         {
+            <HostMessagePanel Title="@songMeta.Title" ArtistName="@songMeta.ArtistName"
+                              KeyChangeSemitones="summary.LastKeyChangeSemitones" ShowKeyPicker="false" />
+
             <details class="mobile-panel history-details mt-2" open>
                 <summary class="history-details-summary">
                     Performance history (@summary.PerformanceCount)
                 </summary>
-                <p class="small text-muted mt-2 mb-2">
-                    Last: @summary.LastPerformedOn?.ToString("d")
-                    @if (!string.IsNullOrEmpty(summary.LastVenueName))
-                    {
-                        <text> at @summary.LastVenueName</text>
-                    }
-                    · @KeyChangeFormatting.Describe(summary.LastKeyChangeSemitones)
-                </p>
-                <PerformanceHistoryList SongId="SongId" SingerId="singerId"
+                <PerformanceHistoryList SongId="SongId" SingerId="mySingerId.Value"
                                         History="summary.History" OnChanged="OnHistoryChangedAsync" />
+            </details>
+
+            <details class="mobile-panel log-again-details mt-2">
+                <summary class="history-details-summary">Log again</summary>
+                <div class="log-again-form mt-2">
+                    <QuickLogPerformance SongId="SongId" Title="@songMeta.Title" ArtistName="@songMeta.ArtistName"
+                                         SingerId="mySingerId" SaveButtonText="Log again"
+                                         OnPerformanceSaved="OnPerformanceSavedAsync" />
+                </div>
             </details>
         }
     }
@@ -123,4 +161,3 @@
 
     private void GoBack() => Navigation.NavigateTo("my-songs");
 }
-
