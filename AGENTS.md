@@ -69,6 +69,7 @@ Details: `docs/Performances.md`.
 
 ### Key gotchas
 
+- **Work on branches** — never commit or push directly to `master`. Create a feature/fix branch first (e.g. `fix/log-key-default`, `feature/my-performances-nav`), do all work there, and open a PR into `master` when ready.
 - **No test projects** — verification is `dotnet build`.
 - **Run both Api and Web** for the singer mobile flows; WASM calls the API.
 - **Syncfusion license** — `dotnet user-secrets set "SyncfusionKey" "..." --project KaraokeList.Web`, then build (generates gitignored `SyncfusionLicenseKey.g.cs`). Or `scripts/set-syncfusion-key.ps1`. Never commit keys.
@@ -86,3 +87,13 @@ Details: `docs/Performances.md`.
 | Run WASM | `dotnet run --project KaraokeList.Web/KaraokeList.Web.csproj` |
 | Run Server (legacy) | `cd KaraokeList && dotnet run --launch-profile http` |
 | Publish WASM | `dotnet publish KaraokeList.Web/KaraokeList.Web.csproj -c Release` |
+
+### Git workflow
+
+1. Start from updated `master`: `git checkout master && git pull`
+2. Create a branch: `git checkout -b fix/short-description` (or `feature/…`, `docs/…`)
+3. Commit on that branch only — not on `master`
+4. Push the branch and open a PR into `master` (`gh pr create` when available)
+5. After merge: `git checkout master && git pull && git branch -d <branch>`
+
+Direct commits to `master` are for merge commits / hotfixes the user explicitly requests on `master`.
