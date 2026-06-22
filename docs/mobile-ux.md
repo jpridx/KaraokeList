@@ -32,7 +32,7 @@ There is no sidebar. Catalog grids live under `/more`.
 | `/log` | Pick a song (catalog ComboBox), log venue/date/key, copy for host, save |
 | `/log?songId={id}` | Same, with song pre-selected (from My Songs **Log** button) |
 | `/my-songs` | Browse the full catalog (default) or filter logged / not logged; search, sort, genre; virtualized scroll (flat list) or load-more when grouped |
-| `/my-songs/{id}` | Log again (quick form) + collapsible performance history |
+| `/my-songs/{id}` | Stats, copy for host, log again (collapsible), performance history |
 | `/my-performances` | Chronological performance list; search, venue filter, edit/delete |
 | `/more` | Hub: tonight links + catalog admin pages |
 | `/invite-friends` | Copy registration link / invite message for text or email (when invite-only registration is enabled) |
@@ -69,9 +69,10 @@ There is no sidebar. Catalog grids live under `/more`.
 ### Browse + history
 
 1. Tap the **song row** (not Log) → `/my-songs/{id}`
-2. Use **Log again** at the top (same quick form as Log)
-3. Expand **Performance history** for past dates/venues/keys (only when performances exist)
-4. **Edit** or **Delete** a history row to fix mistakes without opening the catalog grid
+2. Review **times sung** and last performance at the top; **Copy for host** uses your last key
+3. Expand **Performance history** to edit or delete past rows
+4. Expand **Log again** when you're ready to record another performance
+5. For songs you've never logged, the log form is shown upfront with a short empty-state hint
 
 ### Browse all performances
 
