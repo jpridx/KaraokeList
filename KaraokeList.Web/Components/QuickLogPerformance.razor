@@ -1,9 +1,14 @@
 @inject IKaraokeApiClient Api
 @inject ILogPerformanceLocalStore LogStore
+@inject ILogCatalogLoader CatalogLoader
 
 @if (!string.IsNullOrEmpty(saveMessage))
 {
     <div class="alert alert-success">@saveMessage</div>
+}
+@if (!string.IsNullOrEmpty(saveWarning))
+{
+    <div class="alert alert-warning">@saveWarning</div>
 }
 @if (!string.IsNullOrEmpty(saveError))
 {
@@ -18,18 +23,25 @@
         <DropDownListFieldSettings Value="Id" Text="VenueName" />
     </SfDropDownList>
 
-    <button type="button" class="btn btn-link btn-sm ps-0 mt-2" @onclick="ToggleNewVenue">
-        @(showNewVenue ? "Hide new venue" : "+ New venue")
-    </button>
-    @if (showNewVenue)
+    @if (!usingOfflineCatalog)
     {
-        <div class="border-top pt-3 mt-2">
-            <label class="form-label">Venue name</label>
-            <input class="form-control mb-2" @bind="newVenueName" />
-            <button type="button" class="btn btn-outline-primary w-100" @onclick="SaveNewVenueAsync">
-                Add venue
-            </button>
-        </div>
+        <button type="button" class="btn btn-link btn-sm ps-0 mt-2" @onclick="ToggleNewVenue">
+            @(showNewVenue ? "Hide new venue" : "+ New venue")
+        </button>
+        @if (showNewVenue)
+        {
+            <div class="border-top pt-3 mt-2">
+                <label class="form-label">Venue name</label>
+                <input class="form-control mb-2" @bind="newVenueName" />
+                <button type="button" class="btn btn-outline-primary w-100" @onclick="SaveNewVenueAsync">
+                    Add venue
+                </button>
+            </div>
+        }
+    }
+    else if (venues.Count == 0)
+    {
+        <p class="small text-muted mt-2 mb-0">Venue list isn't cached yet. Open Log while online once.</p>
     }
 </div>
 
@@ -69,7 +81,7 @@
     public string SaveButtonText { get; set; } = "Save performance";
 
     [Parameter]
-    public EventCallback OnPerformanceSaved { get; set; }
+    public EventCallback<string?> OnPerformanceSaved { get; set; }
 
     private List<VenueDto> venues = [];
     private IReadOnlyList<PerformanceKeyOption> keyOptions = PerformanceKeyOption.Choices;
@@ -77,18 +89,24 @@
     private DateTime performedOn = DateTime.Today;
     private int? keyChangeSemitones;
     private string? saveMessage;
+    private string? saveWarning;
     private string? saveError;
     private bool showNewVenue;
     private string newVenueName = string.Empty;
     private bool defaultsLoaded;
+    private bool usingOfflineCatalog;
+    private bool venuesLoaded;
 
     private bool CanSave => selectedVenueId is not null && SingerId is not null;
 
     protected override async Task OnParametersSetAsync()
     {
-        if (venues.Count == 0)
+        if (!venuesLoaded)
         {
-            venues = await Api.GetVenuesAsync();
+            var venueResult = await CatalogLoader.LoadVenuesAsync();
+            venues = venueResult.Venues.ToList();
+            usingOfflineCatalog = venueResult.FromCache;
+            venuesLoaded = true;
         }
 
         if (!defaultsLoaded || SongId != _loadedSongId)
@@ -104,11 +122,20 @@
         defaultsLoaded = true;
         _loadedSongId = SongId;
         saveMessage = null;
+        saveWarning = null;
         saveError = null;
 
         var stored = await LogStore.GetFormDefaultsAsync();
-        var result = await Api.GetMySongSummaryAsync(SongId);
-        var summary = result.Succeeded ? result.Summary : null;
+        SongPerformanceSummaryDto? summary = null;
+        try
+        {
+            var result = await Api.GetMySongSummaryAsync(SongId);
+            summary = result.Succeeded ? result.Summary : null;
+        }
+        catch (Exception ex) when (ApiTransientFailure.IsTransient(ex) || ex is HttpRequestException)
+        {
+            usingOfflineCatalog = true;
+        }
 
         performedOn = stored?.PerformedOn ?? DateTime.Today;
         keyChangeSemitones = stored?.KeyChangeSemitones ?? summary?.LastKeyChangeSemitones;
@@ -131,6 +158,7 @@
     private async Task SavePerformanceAsync()
     {
         saveMessage = null;
+        saveWarning = null;
         saveError = null;
 
         if (!CanSave)
@@ -141,26 +169,61 @@
 
         try
         {
-            await Api.CreatePerformanceAsync(new PerformanceDto
+            var dto = new PerformanceDto
             {
                 Singer = SingerId,
                 Song = SongId,
                 Venue = selectedVenueId,
                 PerformedOn = performedOn,
                 KeyChangeSemitones = keyChangeSemitones == 0 ? null : keyChangeSemitones
-            });
+            };
 
+            var result = await Api.TryCreatePerformanceAsync(dto);
             var venueName = venues.FirstOrDefault(v => v.Id == selectedVenueId)?.VenueName ?? string.Empty;
-            await LogStore.SaveFormDefaultsAsync(new LogFormDefaults(selectedVenueId, performedOn, keyChangeSemitones));
-            await LogStore.AddRecentLogAsync(new RecentLoggedPerformance(
-                SongId, Title, ArtistName, venueName, performedOn, keyChangeSemitones, DateTime.Now));
 
-            saveMessage = "Performance saved.";
-            await OnPerformanceSaved.InvokeAsync();
+            if (result.Succeeded)
+            {
+                await SaveLocallyAsync(venueName, queuedOffline: false);
+                saveMessage = "Performance saved.";
+                await OnPerformanceSaved.InvokeAsync(saveMessage);
+                return;
+            }
+
+            if (result.IsTransient)
+            {
+                await SaveLocallyAsync(venueName, queuedOffline: true);
+                saveWarning = "Saved on this device. Will sync when you're back online.";
+                await OnPerformanceSaved.InvokeAsync(saveWarning);
+                return;
+            }
+
+            saveError = result.ErrorMessage ?? "Could not save performance.";
         }
         catch (Exception ex)
         {
             saveError = ex.Message;
+        }
+    }
+
+    private async Task SaveLocallyAsync(string venueName, bool queuedOffline)
+    {
+        await LogStore.SaveFormDefaultsAsync(new LogFormDefaults(selectedVenueId, performedOn, keyChangeSemitones));
+        await LogStore.AddRecentLogAsync(new RecentLoggedPerformance(
+            SongId, Title, ArtistName, venueName, performedOn, keyChangeSemitones, DateTime.Now));
+
+        if (queuedOffline && SingerId is int singerId && selectedVenueId is int venueId)
+        {
+            await LogStore.EnqueuePendingPerformanceAsync(new PendingPerformanceEntry(
+                Guid.NewGuid(),
+                singerId,
+                SongId,
+                venueId,
+                performedOn,
+                keyChangeSemitones == 0 ? null : keyChangeSemitones,
+                Title,
+                ArtistName,
+                venueName,
+                DateTime.Now));
         }
     }
 

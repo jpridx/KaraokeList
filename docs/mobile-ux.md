@@ -72,6 +72,23 @@ There is no sidebar. Catalog grids live under `/more`.
 3. Expand **Performance history** for past dates/venues/keys (only when performances exist)
 4. **Edit** or **Delete** a history row to fix mistakes without opening the catalog grid
 
+## Offline-tolerant Log
+
+When the API is slow or unreachable (spotty venue Wi‑Fi, database cold start), **Log performance** still works:
+
+1. **Cache first:** Open **Log** once while online. The app caches the song catalog, your repertoire markers (★), and venues on this device.
+2. **Pick a song offline:**
+   - Search the cached catalog in the song combobox, or
+   - Tap a row under **Recently logged**, or
+   - Open **Log** from **Tonight** / **My Songs** with a song pre-selected (`/log?songId=…`).
+3. Fill in venue, date, and key. Pick an **existing venue** — adding new venues still requires the server.
+4. Tap **Save performance**. If the server cannot be reached, the app saves on this device: *Saved on this device. Will sync when you're back online.*
+5. A yellow banner shows pending sync count with **Sync now**. The app retries automatically on navigation when connectivity returns.
+
+If you go offline before ever opening Log online, use **Recently logged** to pick songs until the catalog is cached.
+
+**Not available offline:** adding songs/artists/venues, My Songs browse, or performance history edits.
+
 ## Tonight dashboard (mobile home)
 
 Signed-in phone users land on **Tonight** at `/`:
@@ -101,7 +118,9 @@ Implemented in `ShowHostMessageFormatting` (`KaraokeList.Shared`). Shown on Log 
 
 | Component | Role |
 |-----------|------|
-| `QuickLogPerformance` | Venue, date, key, host message, save — defaults from last performance |
+| `QuickLogPerformance` | Venue, date, key, host message, save — defaults from last performance; queues offline |
+| `LogCatalogLoader` | Online catalog fetch + offline cache for Log song/venue picker |
+| `PendingPerformancesNotice` | Pending sync banner + auto/manual sync |
 | `HostMessagePanel` | Preview + copy button |
 | `SongListItem` | Repertoire row: tap body = history, **Log** = quick log |
 | `PerformanceHistoryList` | Editable performance history on song detail |

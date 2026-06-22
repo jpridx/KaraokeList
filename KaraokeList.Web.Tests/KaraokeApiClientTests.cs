@@ -369,6 +369,54 @@ public sealed class KaraokeApiClientTests
         Assert.Null(share);
     }
 
+    [Fact]
+    public async Task TryCreatePerformanceAsync_WhenSuccess_ReturnsSucceeded()
+    {
+        var client = CreateClient(new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.Created)));
+
+        var result = await client.TryCreatePerformanceAsync(new PerformanceDto { Singer = 1, Song = 2, Venue = 3 });
+
+        Assert.True(result.Succeeded);
+        Assert.False(result.IsTransient);
+    }
+
+    [Fact]
+    public async Task TryCreatePerformanceAsync_WhenServiceUnavailable_ReturnsTransientFailure()
+    {
+        var client = CreateClient(new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)));
+
+        var result = await client.TryCreatePerformanceAsync(new PerformanceDto { Singer = 1, Song = 2, Venue = 3 });
+
+        Assert.False(result.Succeeded);
+        Assert.True(result.IsTransient);
+    }
+
+    [Fact]
+    public async Task TryCreatePerformanceAsync_WhenBadRequest_ReturnsPermanentFailure()
+    {
+        var client = CreateClient(new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.BadRequest)
+        {
+            Content = new StringContent("""{"message":"Song is required."}""", Encoding.UTF8, "application/json")
+        }));
+
+        var result = await client.TryCreatePerformanceAsync(new PerformanceDto { Singer = 1, Song = 2, Venue = 3 });
+
+        Assert.False(result.Succeeded);
+        Assert.False(result.IsTransient);
+        Assert.Equal("Song is required.", result.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task TryCreatePerformanceAsync_WhenNetworkError_ReturnsTransientFailure()
+    {
+        var client = CreateClient(new ThrowingHandler());
+
+        var result = await client.TryCreatePerformanceAsync(new PerformanceDto { Singer = 1, Song = 2, Venue = 3 });
+
+        Assert.False(result.Succeeded);
+        Assert.True(result.IsTransient);
+    }
+
     private sealed class StubHandler(Func<HttpRequestMessage, HttpResponseMessage> responder) : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(

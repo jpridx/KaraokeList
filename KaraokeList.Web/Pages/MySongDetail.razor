@@ -58,7 +58,7 @@
                     · @KeyChangeFormatting.Describe(summary.LastKeyChangeSemitones)
                 </p>
                 <PerformanceHistoryList SongId="SongId" SingerId="singerId"
-                                        History="summary.History" OnChanged="OnPerformanceSavedAsync" />
+                                        History="summary.History" OnChanged="OnHistoryChangedAsync" />
             </details>
         }
     }
@@ -84,7 +84,9 @@
         await LoadAsync();
     }
 
-    private async Task OnPerformanceSavedAsync() => await LoadAsync();
+    private async Task OnPerformanceSavedAsync(string? _) => await LoadAsync();
+
+    private async Task OnHistoryChangedAsync() => await LoadAsync();
 
     private async Task LoadAsync()
     {

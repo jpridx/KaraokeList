@@ -42,6 +42,7 @@ public interface IKaraokeApiClient
         bool includeAll = false);
     Task<RepertoireGenresResult> GetMyRepertoireGenresAsync();
     Task CreatePerformanceAsync(PerformanceDto dto);
+    Task<PerformanceCreateResult> TryCreatePerformanceAsync(PerformanceDto dto);
     Task UpdatePerformanceAsync(PerformanceDto dto);
     Task DeletePerformanceAsync(int id);
 }
@@ -231,6 +232,30 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
     }
 
     public Task CreatePerformanceAsync(PerformanceDto dto) => PostAsync("api/performances", dto);
+
+    public async Task<PerformanceCreateResult> TryCreatePerformanceAsync(PerformanceDto dto)
+    {
+        try
+        {
+            var response = await http.PostAsJsonAsync("api/performances", dto);
+            if (response.IsSuccessStatusCode)
+            {
+                return new PerformanceCreateResult(true, false, null);
+            }
+
+            var message = await ReadApiErrorMessageAsync(response);
+            var isTransient = ApiTransientFailure.IsTransient(response.StatusCode);
+            return new PerformanceCreateResult(false, isTransient, message ?? "Could not save performance.");
+        }
+        catch (Exception ex) when (ApiTransientFailure.IsTransient(ex))
+        {
+            return new PerformanceCreateResult(false, true, ex.Message);
+        }
+        catch (HttpRequestException ex)
+        {
+            return new PerformanceCreateResult(false, true, ex.Message);
+        }
+    }
     public Task UpdatePerformanceAsync(PerformanceDto dto) => PutAsync($"api/performances/{dto.Id}", dto);
     public Task DeletePerformanceAsync(int id) => DeleteAsync($"api/performances/{id}");
 
