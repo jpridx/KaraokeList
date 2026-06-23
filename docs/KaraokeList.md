@@ -9,9 +9,8 @@
 | **KaraokeList.Web** | Blazor WASM + Syncfusion | Primary UI: mobile Log / My Songs + catalog grids |
 | **KaraokeList.Api** | ASP.NET Core Web API, JWT, EF Identity | Auth and catalog/performance API |
 | **KaraokeList.Shared** | DTOs | Shared between Web and Api |
-| **KaraokeList** | Blazor Server (legacy) | Reference; partial parity with WASM |
 
-Catalog and performances live in **Azure SQL / SQL Server**. Legacy SQLite data can be migrated with `scripts/MigrateSqliteToSqlServer`.
+Catalog and performances live in **Azure SQL / SQL Server**. Legacy SQLite data can be migrated with `scripts/MigrateSqliteToSqlServer` (pass the `.sqlite3` path or place it at `scripts/data/Karaoke.sqlite3`).
 
 Local development: [wasm-api-local-dev.md](wasm-api-local-dev.md).  
 Azure deploy: [azure-deployment.md](azure-deployment.md).
@@ -23,14 +22,16 @@ Azure deploy: [azure-deployment.md](azure-deployment.md).
 | `/log` | `Pages/Log.razor` | Log performance; optional `?songId=` |
 | `/my-songs` | `Pages/MySongs.razor` | Browse repertoire |
 | `/my-songs/{id}` | `Pages/MySongDetail.razor` | Log again + history |
+| `/my-performances` | `Pages/MyPerformances.razor` | Performance browse |
 | `/more` | `Pages/More.razor` | Catalog hub |
-| `/` | `Pages/Home.razor` | Landing |
+| `/admin/users` | `Pages/AdminUsers.razor` | User admin (Admin role) |
+| `/` | `Pages/Home.razor` | Landing / Tonight dashboard |
 
-Details: [mobile-ux.md](mobile-ux.md).
+Details: [mobile-ux.md](mobile-ux.md). Admin roles: [admin-roles.md](admin-roles.md).
 
 ## Catalog pages (`KaraokeList.Web`)
 
-Syncfusion grids (desktop-friendly; linked from **More**):
+Syncfusion grids (desktop-friendly; linked from **More** for admins):
 
 | Route | File |
 |-------|------|
@@ -44,10 +45,6 @@ Syncfusion grids (desktop-friendly; linked from **More**):
 ## Performances
 
 Each performance is **one row** per time a singer sang a song at a venue. Aggregates (count, last date) are computed in API queries. See [Performances.md](Performances.md).
-
-## Legacy Blazor Server (`KaraokeList/`)
-
-The Server project still contains catalog grids, Identity account pages, and Syncfusion demo pages under `Components/Pages/`. It is **not** the primary deployment path for the Azure learning branch. Data services under `KaraokeList/Data/` mirror the API SQL access pattern.
 
 ## Schema reference
 

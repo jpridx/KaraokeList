@@ -7,7 +7,6 @@
 | `KaraokeList.Web` | Blazor WebAssembly UI (Syncfusion Grid + DropDowns only) |
 | `KaraokeList.Api` | ASP.NET Core Web API, EF Identity, SQL catalog |
 | `KaraokeList.Shared` | DTOs shared between Web and Api |
-| `KaraokeList` | Legacy Blazor Server app (reference; not used for WASM path) |
 
 ## Run locally
 

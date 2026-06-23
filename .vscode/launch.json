@@ -20,18 +20,6 @@
       "preLaunchTask": "build-web",
       "cwd": "${workspaceFolder}/KaraokeList.Web",
       "url": "https://localhost:7262"
-    },
-    {
-      "name": "KaraokeList.Server (legacy)",
-      "type": "coreclr",
-      "request": "launch",
-      "preLaunchTask": "build-server",
-      "program": "${workspaceFolder}/KaraokeList/bin/Debug/net10.0/KaraokeList.dll",
-      "cwd": "${workspaceFolder}/KaraokeList",
-      "launchSettingsProfile": "https",
-      "env": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
-      }
     }
   ],
   "compounds": [

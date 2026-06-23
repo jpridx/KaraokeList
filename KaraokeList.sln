@@ -3,15 +3,13 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 18
 VisualStudioVersion = 18.5.11723.231
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KaraokeList", "KaraokeList\KaraokeList.csproj", "{6FA4D8A0-CC15-439A-9DB9-734EC40FA68B}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{23A61FFC-5070-464C-A26B-A8B8A8B27ADA}"
 	ProjectSection(SolutionItems) = preProject
 		docs\Artists.md = docs\Artists.md
 		docs\azure-deployment.md = docs\azure-deployment.md
 		docs\deployment-roadmap.md = docs\deployment-roadmap.md
 		docs\Genres.md = docs\Genres.md
-		KaraokeList.md = KaraokeList.md
+		docs\KaraokeList.md = docs\KaraokeList.md
 		docs\mobile-ux.md = docs\mobile-ux.md
 		docs\Performances.md = docs\Performances.md
 		docs\security-private-access.md = docs\security-private-access.md
@@ -46,18 +44,6 @@ Global
 		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{6FA4D8A0-CC15-439A-9DB9-734EC40FA68B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{6FA4D8A0-CC15-439A-9DB9-734EC40FA68B}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{6FA4D8A0-CC15-439A-9DB9-734EC40FA68B}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{6FA4D8A0-CC15-439A-9DB9-734EC40FA68B}.Debug|x64.Build.0 = Debug|Any CPU
-		{6FA4D8A0-CC15-439A-9DB9-734EC40FA68B}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{6FA4D8A0-CC15-439A-9DB9-734EC40FA68B}.Debug|x86.Build.0 = Debug|Any CPU
-		{6FA4D8A0-CC15-439A-9DB9-734EC40FA68B}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{6FA4D8A0-CC15-439A-9DB9-734EC40FA68B}.Release|Any CPU.Build.0 = Release|Any CPU
-		{6FA4D8A0-CC15-439A-9DB9-734EC40FA68B}.Release|x64.ActiveCfg = Release|Any CPU
-		{6FA4D8A0-CC15-439A-9DB9-734EC40FA68B}.Release|x64.Build.0 = Release|Any CPU
-		{6FA4D8A0-CC15-439A-9DB9-734EC40FA68B}.Release|x86.ActiveCfg = Release|Any CPU
-		{6FA4D8A0-CC15-439A-9DB9-734EC40FA68B}.Release|x86.Build.0 = Release|Any CPU
 		{C568B767-CC9A-4489-BE2E-13B179997755}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{C568B767-CC9A-4489-BE2E-13B179997755}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C568B767-CC9A-4489-BE2E-13B179997755}.Debug|x64.ActiveCfg = Debug|Any CPU

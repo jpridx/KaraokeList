@@ -8,7 +8,6 @@ Phone-first flows for logging performances at a venue and browsing songs you've 
 |---------|------|
 | `KaraokeList.Web` | Blazor WebAssembly UI (primary for singers) |
 | `KaraokeList.Api` | JWT auth + SQL catalog/performance API |
-| `KaraokeList` | Legacy Blazor Server app (reference; grids and Identity demos) |
 
 Run locally: see [wasm-api-local-dev.md](wasm-api-local-dev.md).
 
