@@ -48,8 +48,8 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
         options.Lockout.AllowedForNewUsers = true;
         options.User.RequireUniqueEmail = true;
     })
-    .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddRoles<IdentityRole>()
+    .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddSignInManager()
     .AddDefaultTokenProviders();
 
