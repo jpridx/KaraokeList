@@ -49,4 +49,7 @@ public static class AuthRateLimitPolicies
 
     public static readonly TimeSpan RegisterWindow = TimeSpan.FromHours(1);
     public const int RegisterMaxAttempts = 5;
+
+    public static readonly TimeSpan ChangePasswordWindow = TimeSpan.FromMinutes(15);
+    public const int ChangePasswordMaxAttempts = 5;
 }
