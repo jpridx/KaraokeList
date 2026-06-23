@@ -34,6 +34,7 @@ public interface IKaraokeApiClient
     Task<UserProfileDto?> GetProfileAsync();
     Task<InviteShareDto?> GetInviteShareAsync();
     Task<AuthResult> LinkSingerAsync(LinkSingerRequest request);
+    Task<ChangePasswordResult> ChangePasswordAsync(ChangePasswordRequest request);
     Task<SongSummaryResult> GetMySongSummaryAsync(int songId);
     Task<RepertoireResult> GetMyRepertoireAsync(
         string sortBy = "lastPerformed",
@@ -177,6 +178,30 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
 
     public Task<AuthResult> LinkSingerAsync(LinkSingerRequest request) =>
         PostAuthAsync("api/auth/link-singer", request);
+
+    public async Task<ChangePasswordResult> ChangePasswordAsync(ChangePasswordRequest request)
+    {
+        try
+        {
+            var response = await http.PostAsJsonAsync("api/auth/change-password", request);
+            if (response.IsSuccessStatusCode)
+            {
+                return ChangePasswordResult.Ok();
+            }
+
+            var message = await ReadApiErrorMessageAsync(response);
+            return ChangePasswordResult.Fail(message ?? "Could not change password.");
+        }
+        catch (HttpRequestException ex)
+        {
+            return ChangePasswordResult.Fail(
+                $"Cannot reach the API at {http.BaseAddress}. Start KaraokeList.Api first. ({ex.Message})");
+        }
+        catch (Exception ex)
+        {
+            return ChangePasswordResult.Fail(ex.Message);
+        }
+    }
 
     public async Task<SongSummaryResult> GetMySongSummaryAsync(int songId)
     {

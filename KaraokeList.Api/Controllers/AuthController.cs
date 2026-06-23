@@ -203,6 +203,51 @@ public class AuthController(
         });
     }
 
+    [Authorize]
+    [HttpPost("change-password")]
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
+    {
+        var clientKey = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        if (!authRateLimiter.AllowAttempt(
+                "change-password",
+                clientKey,
+                AuthRateLimitPolicies.ChangePasswordMaxAttempts,
+                AuthRateLimitPolicies.ChangePasswordWindow))
+        {
+            return BadRequest(new ApiErrorResponse { Message = "Too many password change attempts. Try again later." });
+        }
+
+        var user = await currentUserSinger.GetUserAsync(User);
+        if (user is null)
+        {
+            return Unauthorized();
+        }
+
+        if (!await userManager.HasPasswordAsync(user))
+        {
+            return BadRequest(new ApiErrorResponse
+            {
+                Message = "Your account does not use a password. Contact the site owner for help."
+            });
+        }
+
+        if (!await userManager.CheckPasswordAsync(user, request.CurrentPassword))
+        {
+            return BadRequest(new ApiErrorResponse { Message = "Current password is incorrect." });
+        }
+
+        var changeResult = await userManager.ChangePasswordAsync(user, request.CurrentPassword, request.NewPassword);
+        if (!changeResult.Succeeded)
+        {
+            return BadRequest(new ApiErrorResponse
+            {
+                Message = string.Join(" ", changeResult.Errors.Select(e => e.Description))
+            });
+        }
+
+        return NoContent();
+    }
+
     private async Task<(string Token, DateTime ExpiresUtc)> CreateAuthTokenAsync(ApplicationUser user)
     {
         var roles = await userManager.GetRolesAsync(user);

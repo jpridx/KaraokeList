@@ -38,6 +38,7 @@ There is no sidebar. Catalog grids live under `/more`.
 | `/my-performances` | Chronological performance list; search, venue filter, edit/delete |
 | `/more` | Hub: tonight links + catalog admin pages |
 | `/invite-friends` | Copy registration link / invite message for text or email (when invite-only registration is enabled) |
+| `/account/change-password` | Change sign-in password |
 | `/` | Home — **Tonight** dashboard on mobile (recent logs, default venue, quick actions) |
 | `/login`, `/register` | Auth (no sign-in required) |
 

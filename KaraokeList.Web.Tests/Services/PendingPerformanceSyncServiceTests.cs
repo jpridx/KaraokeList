@@ -117,6 +117,7 @@ public sealed class PendingPerformanceSyncServiceTests
         public Task<UserProfileDto?> GetProfileAsync() => throw new NotSupportedException();
         public Task<InviteShareDto?> GetInviteShareAsync() => throw new NotSupportedException();
         public Task<AuthResult> LinkSingerAsync(LinkSingerRequest request) => throw new NotSupportedException();
+        public Task<ChangePasswordResult> ChangePasswordAsync(ChangePasswordRequest request) => throw new NotSupportedException();
         public Task<SongSummaryResult> GetMySongSummaryAsync(int songId) => throw new NotSupportedException();
         public Task<RepertoireResult> GetMyRepertoireAsync(string sortBy = "lastPerformed", string sortDir = "desc", int? genreId = null, bool includeAll = false) => throw new NotSupportedException();
         public Task<RepertoireGenresResult> GetMyRepertoireGenresAsync() => throw new NotSupportedException();
