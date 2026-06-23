@@ -45,6 +45,7 @@ public interface IKaraokeApiClient
         bool includeAll = false);
     Task<RepertoireGenresResult> GetMyRepertoireGenresAsync();
     Task<StaleSongsResult> GetMyStaleSongsAsync(int days = 90, int limit = 5);
+    Task<SingerStatsResult> GetMySingerStatsAsync(int topVenues = 3);
     Task<MyPerformancesResult> GetMyPerformancesAsync(int? venueId = null, string sortDir = "desc");
     Task CreatePerformanceAsync(PerformanceDto dto);
     Task<PerformanceCreateResult> TryCreatePerformanceAsync(PerformanceDto dto);
@@ -321,6 +322,33 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
         catch (Exception ex)
         {
             return StaleSongsResult.Fail(ex.Message);
+        }
+    }
+
+    public async Task<SingerStatsResult> GetMySingerStatsAsync(int topVenues = 3)
+    {
+        try
+        {
+            var response = await http.GetAsync($"api/performances/my-stats?topVenues={topVenues}");
+            if (response.IsSuccessStatusCode)
+            {
+                var stats = await response.Content.ReadFromJsonAsync<SingerStatsDto>();
+                return stats is null
+                    ? SingerStatsResult.Fail("Unexpected empty response from the server.")
+                    : SingerStatsResult.Ok(stats);
+            }
+
+            var message = await ReadApiErrorMessageAsync(response);
+            return SingerStatsResult.Fail(message ?? "Could not load stats.");
+        }
+        catch (HttpRequestException ex)
+        {
+            return SingerStatsResult.Fail(
+                $"Cannot reach the API at {http.BaseAddress}. Start KaraokeList.Api first. ({ex.Message})");
+        }
+        catch (Exception ex)
+        {
+            return SingerStatsResult.Fail(ex.Message);
         }
     }
 

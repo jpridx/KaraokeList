@@ -1,0 +1,70 @@
+using System.Net;
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
+using KaraokeList.Shared;
+
+namespace KaraokeList.Api.IntegrationTests;
+
+[Collection(KaraokeApiCollection.Name)]
+public sealed class SingerStatsIntegrationTests(KaraokeApiFactory factory)
+{
+    [SkippableFact]
+    public async Task GetMyStats_WithoutToken_ReturnsUnauthorized()
+    {
+        Skip.IfNot(factory.IsDatabaseAvailable, IntegrationTestConnection.SkipReason);
+
+        var client = factory.CreateClient();
+        var response = await client.GetAsync("/api/performances/my-stats");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [SkippableFact]
+    public async Task GetMyStats_ReturnsAggregatesForSinger()
+    {
+        Skip.IfNot(factory.IsDatabaseAvailable, IntegrationTestConnection.SkipReason);
+
+        var client = await CreateAuthedClientAsync();
+        var (songIdA, venueId) = await PerformanceTestDataHelper.CreateCatalogAsync(client);
+        var (songIdB, _) = await PerformanceTestDataHelper.CreateCatalogAsync(client);
+
+        await PerformanceTestDataHelper.CreatePerformanceAsync(client, songIdA, venueId, DateTime.Today.AddDays(-10));
+        await PerformanceTestDataHelper.CreatePerformanceAsync(client, songIdA, venueId, DateTime.Today);
+        await PerformanceTestDataHelper.CreatePerformanceAsync(client, songIdB, venueId, DateTime.Today.AddMonths(-2));
+
+        var stats = await client.GetFromJsonAsync<SingerStatsDto>("/api/performances/my-stats");
+
+        Assert.NotNull(stats);
+        Assert.Equal(3, stats.TotalPerformances);
+        Assert.Equal(2, stats.UniqueSongs);
+        Assert.Equal(2, stats.PerformancesThisMonth);
+        Assert.Equal(3, stats.PerformancesThisYear);
+        Assert.NotNull(stats.LastPerformedOn);
+        Assert.Equal(0, stats.DaysSinceLastPerformance);
+        Assert.NotEmpty(stats.TopVenues);
+        Assert.Equal(3, stats.TopVenues[0].PerformanceCount);
+    }
+
+    [SkippableFact]
+    public async Task GetMyStats_WithNoPerformances_ReturnsZeros()
+    {
+        Skip.IfNot(factory.IsDatabaseAvailable, IntegrationTestConnection.SkipReason);
+
+        var client = await CreateAuthedClientAsync();
+        var stats = await client.GetFromJsonAsync<SingerStatsDto>("/api/performances/my-stats");
+
+        Assert.NotNull(stats);
+        Assert.Equal(0, stats.TotalPerformances);
+        Assert.Equal(0, stats.UniqueSongs);
+        Assert.Empty(stats.TopVenues);
+    }
+
+    private async Task<HttpClient> CreateAuthedClientAsync()
+    {
+        var client = factory.CreateClient();
+        var email = $"stats-{Guid.NewGuid():N}@example.com";
+        var token = await IntegrationAuthHelper.RegisterAndGetTokenAsync(client, email);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        return client;
+    }
+}

@@ -110,6 +110,24 @@ public class StaleSongsResponseDto
     public List<StaleSongDto> Songs { get; set; } = [];
 }
 
+public class VenueStatDto
+{
+    public string VenueName { get; set; } = string.Empty;
+    public int PerformanceCount { get; set; }
+}
+
+public class SingerStatsDto
+{
+    public int TotalPerformances { get; set; }
+    public int UniqueSongs { get; set; }
+    public DateTime? LastPerformedOn { get; set; }
+    public string? LastVenueName { get; set; }
+    public int? DaysSinceLastPerformance { get; set; }
+    public int PerformancesThisMonth { get; set; }
+    public int PerformancesThisYear { get; set; }
+    public List<VenueStatDto> TopVenues { get; set; } = [];
+}
+
 public static class KeyChangeFormatting
 {
     public static string Describe(int? semitones) => semitones switch
