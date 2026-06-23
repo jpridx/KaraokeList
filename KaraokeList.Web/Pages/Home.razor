@@ -9,6 +9,8 @@
 
 <AuthorizeView>
     <Authorized>
+        <InviteFriendsBanner />
+
         <p class="mb-3">Signed in as <strong>@context.User.Identity?.Name</strong>.
             <button type="button" class="btn btn-link p-0 align-baseline" @onclick="LogoutAsync">Sign out</button>
         </p>

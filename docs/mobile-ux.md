@@ -41,7 +41,7 @@ There is no sidebar. Catalog grids live under `/more`.
 | `/account/change-password` | Change sign-in password |
 | `/forgot-password` | Request password reset email (when recovery is enabled) |
 | `/reset-password` | Set a new password from email reset link |
-| `/` | Home — **Tonight** dashboard on mobile (recent logs, default venue, quick actions) |
+| `/` | Home — **Tonight** dashboard on mobile (recent logs, default venue, quick actions); invite banner when registration is open |
 | `/login`, `/register` | Auth (no sign-in required) |
 
 ### Catalog (desktop-oriented grids)
@@ -151,6 +151,7 @@ Implemented in `ShowHostMessageFormatting` (`KaraokeList.Shared`). Shown on Log 
 | `PerformanceBrowseList` | Mobile performance browse rows with edit/delete |
 | `PerformanceHistoryList` | Editable performance history on song detail |
 | `TonightDashboard` | Mobile home: tonight context + recent logs |
+| `InviteFriendsBanner` | Home prompt when registration is open (invite link or register page) |
 | `SingerLinkPanel` | Link login to a singer profile when `SingerId` is missing |
 
 ## Invite friends
