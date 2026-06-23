@@ -26,21 +26,33 @@ At least one admin must always remain. Admins cannot remove their own admin role
 
 ## First admin (manual seed)
 
-The API creates the empty **Admin** role on startup. Assign your account in SQL (adjust email and database):
+The API creates the empty **Admin** role on startup. Assign your account in SQL (adjust email and **use the database your API actually uses**):
+
+| Environment | Database |
+|-------------|----------|
+| Local `dotnet run` (Development) | `(localdb)\MSSQLLocalDB` → **KaraokeList** |
+| Azure / production appsettings | **KaraokeList-Dev** on `karaokelist.database.windows.net` |
 
 ```sql
--- scripts/seed-admin-user.sql
-DECLARE @Email NVARCHAR(256) = N'you@example.com';
+-- scripts/seed-admin-user.sql — set @Email, run against the correct database (see table above)
+```
 
-INSERT INTO AspNetUserRoles (UserId, RoleId)
-SELECT u.Id, r.Id
+Local one-liner:
+
+```powershell
+sqlcmd -S "(localdb)\MSSQLLocalDB" -d KaraokeList -v Email="you@example.com" -i scripts/seed-admin-user.sql
+```
+
+Or edit `@Email` in the script and run in SSMS/Azure Data Studio.
+
+**Verify** — should return one row with `RoleName = Admin`:
+
+```sql
+SELECT u.Email, r.Name AS RoleName
 FROM AspNetUsers u
-CROSS JOIN AspNetRoles r
-WHERE u.Email = @Email
-  AND r.NormalizedName = N'ADMIN'
-  AND NOT EXISTS (
-      SELECT 1 FROM AspNetUserRoles ur
-      WHERE ur.UserId = u.Id AND ur.RoleId = r.Id);
+JOIN AspNetUserRoles ur ON ur.UserId = u.Id
+JOIN AspNetRoles r ON r.Id = ur.RoleId
+WHERE u.Email = N'your@email.com';
 ```
 
 Sign out and sign in again so your JWT includes the Admin role claim.
