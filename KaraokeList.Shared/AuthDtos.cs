@@ -42,6 +42,26 @@ public class UserProfileDto
 {
     public string Email { get; set; } = string.Empty;
     public int? SingerId { get; set; }
+    public bool IsAdmin { get; set; }
+}
+
+public class AdminUserDto
+{
+    public string UserId { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public int? SingerId { get; set; }
+    public string? SingerName { get; set; }
+    public bool IsAdmin { get; set; }
+}
+
+public class UpdateAdminUserRequest
+{
+    [Required]
+    public string UserId { get; set; } = string.Empty;
+
+    public bool IsAdmin { get; set; }
+
+    public int? SingerId { get; set; }
 }
 
 public class LinkSingerRequest

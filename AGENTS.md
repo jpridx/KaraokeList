@@ -50,7 +50,7 @@ Listens on `http://localhost:5005`. Use the `http` profile to avoid HTTPS certif
 | `/invite-friends` | Copy invite link/message for friends |
 | `/songs`, `/artists`, … | Syncfusion grids |
 
-Details: `docs/mobile-ux.md`. E2E: `docs/e2e-playwright.md`.
+Details: `docs/mobile-ux.md`. E2E: `docs/e2e-playwright.md`. Admin roles: `docs/admin-roles.md`.
 
 ### Key API endpoints
 

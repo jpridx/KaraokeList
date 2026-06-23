@@ -46,6 +46,8 @@ public interface IKaraokeApiClient
     Task<PerformanceCreateResult> TryCreatePerformanceAsync(PerformanceDto dto);
     Task UpdatePerformanceAsync(PerformanceDto dto);
     Task DeletePerformanceAsync(int id);
+    Task<List<AdminUserDto>> GetAdminUsersAsync();
+    Task<AdminUserUpdateResult> UpdateAdminUserAsync(UpdateAdminUserRequest request);
 }
 
 public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
@@ -278,6 +280,28 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
     }
     public Task UpdatePerformanceAsync(PerformanceDto dto) => PutAsync($"api/performances/{dto.Id}", dto);
     public Task DeletePerformanceAsync(int id) => DeleteAsync($"api/performances/{id}");
+
+    public Task<List<AdminUserDto>> GetAdminUsersAsync() =>
+        GetListAsync<AdminUserDto>("api/admin/users");
+
+    public async Task<AdminUserUpdateResult> UpdateAdminUserAsync(UpdateAdminUserRequest request)
+    {
+        try
+        {
+            var response = await http.PutAsJsonAsync($"api/admin/users/{request.UserId}", request);
+            if (response.IsSuccessStatusCode)
+            {
+                return AdminUserUpdateResult.Ok();
+            }
+
+            var message = await ReadApiErrorMessageAsync(response);
+            return AdminUserUpdateResult.Fail(message ?? "Could not update user.");
+        }
+        catch (Exception ex)
+        {
+            return AdminUserUpdateResult.Fail(ex.Message);
+        }
+    }
 
     private async Task<List<T>> GetListAsync<T>(string url)
     {

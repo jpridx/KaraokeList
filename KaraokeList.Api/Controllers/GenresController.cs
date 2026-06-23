@@ -19,6 +19,7 @@ public class GenresController(GenreService genreService) : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = KaraokeRoles.Admin)]
     public async Task<IActionResult> Create([FromBody] GenreDto dto)
     {
         await genreService.AddGenreAsync(dto.ToEntity());
@@ -26,6 +27,7 @@ public class GenresController(GenreService genreService) : ControllerBase
     }
 
     [HttpPut("{id:int}")]
+    [Authorize(Roles = KaraokeRoles.Admin)]
     public async Task<IActionResult> Update(int id, [FromBody] GenreDto dto)
     {
         dto.Id = id;
@@ -34,6 +36,7 @@ public class GenresController(GenreService genreService) : ControllerBase
     }
 
     [HttpDelete("{id:int}")]
+    [Authorize(Roles = KaraokeRoles.Admin)]
     public async Task<IActionResult> Delete(int id)
     {
         await genreService.DeleteGenreAsync(id);

@@ -19,6 +19,7 @@ public class SingersController(SingerService singerService) : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = KaraokeRoles.Admin)]
     public async Task<IActionResult> Create([FromBody] SingerDto dto)
     {
         await singerService.AddSingerAsync(dto.ToEntity());
@@ -26,6 +27,7 @@ public class SingersController(SingerService singerService) : ControllerBase
     }
 
     [HttpPut("{id:int}")]
+    [Authorize(Roles = KaraokeRoles.Admin)]
     public async Task<IActionResult> Update(int id, [FromBody] SingerDto dto)
     {
         dto.Id = id;
@@ -34,6 +36,7 @@ public class SingersController(SingerService singerService) : ControllerBase
     }
 
     [HttpDelete("{id:int}")]
+    [Authorize(Roles = KaraokeRoles.Admin)]
     public async Task<IActionResult> Delete(int id)
     {
         await singerService.DeleteSingerAsync(id);

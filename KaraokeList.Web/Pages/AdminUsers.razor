@@ -1,0 +1,149 @@
+@page "/admin/users"
+@attribute [Authorize(Roles = KaraokeRoles.Admin)]
+@inject IKaraokeApiClient Api
+
+<PageTitle>Users</PageTitle>
+
+<div class="mobile-page mobile-page-with-nav">
+    <header class="mobile-page-header">
+        <h1 class="h4 mb-1">Users</h1>
+        <p class="text-muted small mb-0">Assign admin role and link accounts to singer profiles.</p>
+    </header>
+
+    @if (isLoading)
+    {
+        <p>Loading...</p>
+    }
+    else if (!string.IsNullOrEmpty(loadError))
+    {
+        <div class="alert alert-danger">@loadError</div>
+    }
+    else
+    {
+        @if (!string.IsNullOrEmpty(saveMessage))
+        {
+            <div class="alert alert-success">@saveMessage</div>
+        }
+
+        <p class="small text-muted">Role and singer changes take effect when the user signs in again.</p>
+
+        <ul class="admin-user-list">
+            @foreach (var user in users)
+            {
+                <li class="mobile-panel admin-user-card">
+                    <div class="admin-user-email">@user.Email</div>
+                    @if (user.SingerName is not null)
+                    {
+                        <p class="small text-muted mb-2">Singer: @user.SingerName</p>
+                    }
+
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" id="admin-@user.UserId"
+                               checked="@GetEditIsAdmin(user.UserId)"
+                               @onchange="e => SetEditIsAdmin(user.UserId, (bool)e.Value!)" />
+                        <label class="form-check-label" for="admin-@user.UserId">Admin</label>
+                    </div>
+
+                    <label class="form-label">Singer profile</label>
+                    <SfDropDownList TValue="int?" TItem="SingerDto" DataSource="@singers"
+                                    Value="GetEditSingerId(user.UserId)"
+                                    ValueChanged="value => SetEditSingerId(user.UserId, value)"
+                                    Placeholder="Not linked" AllowFiltering="true" ShowClearButton="true"
+                                    FilterType="Syncfusion.Blazor.DropDowns.FilterType.Contains">
+                        <DropDownListFieldSettings Value="Id" Text="Name" />
+                    </SfDropDownList>
+
+                    <button type="button" class="btn btn-outline-primary w-100 mt-3"
+                            disabled="@IsSaving(user.UserId)" @onclick="() => SaveAsync(user)">
+                        Save
+                    </button>
+                    @if (GetSaveError(user.UserId) is string error)
+                    {
+                        <p class="text-danger small mt-2 mb-0">@error</p>
+                    }
+                </li>
+            }
+        </ul>
+    }
+</div>
+
+@code {
+    private bool isLoading = true;
+    private string? loadError;
+    private string? saveMessage;
+    private List<AdminUserDto> users = [];
+    private List<SingerDto> singers = [];
+    private readonly Dictionary<string, bool> editIsAdmin = new();
+    private readonly Dictionary<string, int?> editSingerId = new();
+    private readonly HashSet<string> saving = [];
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        isLoading = true;
+        loadError = null;
+        try
+        {
+            users = await Api.GetAdminUsersAsync();
+            singers = await Api.GetSingersAsync();
+            editIsAdmin.Clear();
+            editSingerId.Clear();
+            foreach (var user in users)
+            {
+                editIsAdmin[user.UserId] = user.IsAdmin;
+                editSingerId[user.UserId] = user.SingerId;
+            }
+        }
+        catch (Exception ex)
+        {
+            loadError = ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private bool GetEditIsAdmin(string userId) => editIsAdmin.GetValueOrDefault(userId);
+
+    private int? GetEditSingerId(string userId) =>
+        editSingerId.TryGetValue(userId, out var singerId) ? singerId : null;
+
+    private void SetEditIsAdmin(string userId, bool value) => editIsAdmin[userId] = value;
+
+    private void SetEditSingerId(string userId, int? value) => editSingerId[userId] = value;
+
+    private bool IsSaving(string userId) => saving.Contains(userId);
+
+    private string? GetSaveError(string userId) =>
+        saveErrors.TryGetValue(userId, out var error) ? error : null;
+
+    private readonly Dictionary<string, string?> saveErrors = new();
+
+    private async Task SaveAsync(AdminUserDto user)
+    {
+        saveMessage = null;
+        saveErrors[user.UserId] = null;
+        saving.Add(user.UserId);
+
+        var request = new UpdateAdminUserRequest
+        {
+            UserId = user.UserId,
+            IsAdmin = GetEditIsAdmin(user.UserId),
+            SingerId = GetEditSingerId(user.UserId)
+        };
+
+        var result = await Api.UpdateAdminUserAsync(request);
+        saving.Remove(user.UserId);
+
+        if (!result.Succeeded)
+        {
+            saveErrors[user.UserId] = result.ErrorMessage;
+            return;
+        }
+
+        saveMessage = $"Saved {user.Email}.";
+        await LoadAsync();
+    }
+}

@@ -23,7 +23,8 @@ Run locally: see [wasm-api-local-dev.md](wasm-api-local-dev.md).
 
 **Desktop**
 
-- Top bar: KaraokeList · Log · My Songs · Catalog (→ `/more`) · Sign out
+- Top bar: KaraokeList · Log · My Songs · More · Sign out
+- Admins also see **Users** on desktop; catalog grids under **More → Catalog**
 
 There is no sidebar. Catalog grids live under `/more`.
 

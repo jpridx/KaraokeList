@@ -200,7 +200,7 @@ public class JwtTokenServiceTests
             Email = "singer@example.com"
         };
 
-        var (token, expires) = CreateService().CreateToken(user);
+        var (token, expires) = CreateService().CreateToken(user, []);
 
         Assert.False(string.IsNullOrWhiteSpace(token));
         Assert.True(expires > DateTime.UtcNow);
@@ -223,10 +223,26 @@ public class JwtTokenServiceTests
             SingerId = 42
         };
 
-        var (token, _) = CreateService().CreateToken(user);
+        var (token, _) = CreateService().CreateToken(user, []);
         var jwt = new JwtSecurityTokenHandler().ReadJwtToken(token);
 
         Assert.Equal("42", jwt.Claims.First(c => c.Type == KaraokeClaimTypes.SingerId).Value);
+    }
+
+    [Fact]
+    public void CreateToken_WithAdminRole_IncludesRoleClaim()
+    {
+        var user = new ApplicationUser
+        {
+            Id = "admin-1",
+            UserName = "admin@example.com",
+            Email = "admin@example.com"
+        };
+
+        var (token, _) = CreateService().CreateToken(user, [KaraokeRoles.Admin]);
+        var jwt = new JwtSecurityTokenHandler().ReadJwtToken(token);
+
+        Assert.Contains(jwt.Claims, c => c.Type == ClaimTypes.Role && c.Value == KaraokeRoles.Admin);
     }
 }
 
