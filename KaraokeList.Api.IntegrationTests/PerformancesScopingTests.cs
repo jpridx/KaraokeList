@@ -158,13 +158,13 @@ public sealed class PerformancesScopingTests(KaraokeApiFactory factory)
 
 internal static class PerformanceTestDataHelper
 {
-    public static async Task<int> CreateGenreAsync(HttpClient client, string? genreName = null)
+    public static async Task<int> CreateGenreAsync(HttpClient adminClient, string? genreName = null)
     {
         genreName ??= $"Genre {Guid.NewGuid():N}";
-        var createGenre = await client.PostAsJsonAsync("/api/genres", new GenreDto { GenreName = genreName });
+        var createGenre = await adminClient.PostAsJsonAsync("/api/genres", new GenreDto { GenreName = genreName });
         Assert.Equal(HttpStatusCode.NoContent, createGenre.StatusCode);
 
-        var genres = await client.GetFromJsonAsync<List<GenreDto>>("/api/genres");
+        var genres = await adminClient.GetFromJsonAsync<List<GenreDto>>("/api/genres");
         Assert.NotNull(genres);
         return Assert.Single(genres, g => g.GenreName == genreName).Id;
     }

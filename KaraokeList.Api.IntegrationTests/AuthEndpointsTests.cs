@@ -1,7 +1,6 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using System.Text.Json;
 using KaraokeList.Shared;
 
 namespace KaraokeList.Api.IntegrationTests;
@@ -56,35 +55,6 @@ public sealed class AuthEndpointsTests(KaraokeApiFactory factory)
         Assert.NotNull(profile);
         Assert.Equal(email, profile.Email);
         Assert.True(profile.SingerId > 0);
-    }
-}
-
-internal static class IntegrationAuthHelper
-{
-    public const string TestPassword = "TestPassw0rd!23";
-
-    public static async Task<string> RegisterAndGetTokenAsync(HttpClient client, string email, string? inviteCode = null)
-    {
-        var registerRequest = new RegisterRequest
-        {
-            Name = "Integration Test Singer",
-            Email = email,
-            Password = TestPassword,
-            ConfirmPassword = TestPassword,
-            InviteCode = inviteCode
-        };
-
-        var registerResponse = await client.PostAsJsonAsync("/api/auth/register", registerRequest);
-        var registerBody = await registerResponse.Content.ReadAsStringAsync();
-        Assert.True(
-            registerResponse.IsSuccessStatusCode,
-            $"Register failed ({(int)registerResponse.StatusCode}): {registerBody}");
-
-        var auth = JsonSerializer.Deserialize<AuthResponse>(
-            registerBody,
-            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-        Assert.NotNull(auth);
-        Assert.False(string.IsNullOrWhiteSpace(auth.Token));
-        return auth.Token;
+        Assert.False(profile.IsAdmin);
     }
 }

@@ -80,8 +80,9 @@ public sealed class MyRepertoireIntegrationTests(KaraokeApiFactory factory)
         Skip.IfNot(factory.IsDatabaseAvailable, IntegrationTestConnection.SkipReason);
 
         var client = await CreateAuthedClientAsync();
-        var rockId = await PerformanceTestDataHelper.CreateGenreAsync(client, $"Rock {Guid.NewGuid():N}");
-        var popId = await PerformanceTestDataHelper.CreateGenreAsync(client, $"Pop {Guid.NewGuid():N}");
+        var (admin, _) = await IntegrationAuthHelper.CreateAdminClientAsync(factory);
+        var rockId = await PerformanceTestDataHelper.CreateGenreAsync(admin, $"Rock {Guid.NewGuid():N}");
+        var popId = await PerformanceTestDataHelper.CreateGenreAsync(admin, $"Pop {Guid.NewGuid():N}");
 
         var (rockSongId, venueId) = await PerformanceTestDataHelper.CreateCatalogAsync(client, rockId);
         var (popSongId, _) = await PerformanceTestDataHelper.CreateCatalogAsync(client, popId);
