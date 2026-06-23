@@ -123,5 +123,7 @@ public sealed class PendingPerformanceSyncServiceTests
         public Task<MyPerformancesResult> GetMyPerformancesAsync(int? venueId = null, string sortDir = "desc") => throw new NotSupportedException();
         public Task UpdatePerformanceAsync(PerformanceDto dto) => throw new NotSupportedException();
         public Task DeletePerformanceAsync(int id) => throw new NotSupportedException();
+        public Task<List<AdminUserDto>> GetAdminUsersAsync() => throw new NotSupportedException();
+        public Task<AdminUserUpdateResult> UpdateAdminUserAsync(UpdateAdminUserRequest request) => throw new NotSupportedException();
     }
 }
