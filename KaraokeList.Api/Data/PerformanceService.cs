@@ -42,6 +42,15 @@ public class RepertoireSong
     public int PerformanceCount { get; set; }
 }
 
+public class StaleSong
+{
+    public int SongId { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string ArtistName { get; set; } = string.Empty;
+    public DateTime LastPerformedOn { get; set; }
+    public int PerformanceCount { get; set; }
+}
+
 public class RepertoireGenre
 {
     public int Id { get; set; }
@@ -237,6 +246,48 @@ public class PerformanceService(string connectionString)
                 GenreName = reader.GetString(4),
                 LastPerformedOn = reader.IsDBNull(5) ? null : reader.GetDateTime(5),
                 PerformanceCount = reader.GetInt32(6)
+            });
+        }
+
+        return songs;
+    }
+
+    public async Task<List<StaleSong>> GetStaleSongsAsync(int singerId, int staleAfterDays, int limit)
+    {
+        var cutoff = DateTime.Today.AddDays(-staleAfterDays);
+        await using var connection = new SqlConnection(connectionString);
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT TOP (@Limit)
+                   s.Id,
+                   s.Title,
+                   ISNULL(a.Name, N'') AS ArtistName,
+                   MAX(p.PerformedOn) AS LastPerformedOn,
+                   COUNT(*) AS PerformanceCount
+            FROM Performances p
+            INNER JOIN Songs s ON s.Id = p.Song
+            LEFT JOIN Artists a ON a.Id = s.Artist
+            WHERE p.Singer = @Singer
+            GROUP BY s.Id, s.Title, a.Name
+            HAVING MAX(p.PerformedOn) < @Cutoff
+            ORDER BY MAX(p.PerformedOn) ASC, s.Title ASC
+            """;
+        command.Parameters.AddWithValue("@Singer", singerId);
+        command.Parameters.AddWithValue("@Cutoff", cutoff);
+        command.Parameters.AddWithValue("@Limit", limit);
+
+        var songs = new List<StaleSong>();
+        await using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            songs.Add(new StaleSong
+            {
+                SongId = reader.GetInt32(0),
+                Title = reader.GetString(1),
+                ArtistName = reader.GetString(2),
+                LastPerformedOn = reader.GetDateTime(3),
+                PerformanceCount = reader.GetInt32(4)
             });
         }
 

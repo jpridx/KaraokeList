@@ -1,0 +1,53 @@
+@inject IKaraokeApiClient Api
+
+@if (!loading && songs.Count > 0)
+{
+    <section class="stale-songs-section mobile-panel mt-3" aria-label="Songs to revisit">
+        <header class="stale-songs-header">
+            <h2 class="h5 mb-1">Haven't sung in a while</h2>
+            <p class="text-muted small mb-0">Not performed in the last @staleAfterDays days — tap to log again.</p>
+        </header>
+
+        <ul class="recent-log-list mt-3 mb-0">
+            @foreach (var song in songs)
+            {
+                <li>
+                    <a class="recent-log-item text-decoration-none" href="@($"log?songId={song.SongId}")">
+                        <span class="recent-log-title">@song.Title — @song.ArtistName</span>
+                        <span class="recent-log-meta">
+                            Last @song.LastPerformedOn.ToString("MMM d, yyyy") · @FormatDaysSince(song.DaysSinceLastPerformed)
+                            @if (song.PerformanceCount > 1)
+                            {
+                                <text> · @song.PerformanceCount times</text>
+                            }
+                        </span>
+                    </a>
+                </li>
+            }
+        </ul>
+    </section>
+}
+
+@code {
+    private const int DefaultStaleAfterDays = 90;
+    private const int DefaultLimit = 5;
+
+    private bool loading = true;
+    private int staleAfterDays = DefaultStaleAfterDays;
+    private List<StaleSongDto> songs = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await Api.GetMyStaleSongsAsync(DefaultStaleAfterDays, DefaultLimit);
+        if (result.Succeeded && result.Response is not null)
+        {
+            staleAfterDays = result.Response.StaleAfterDays;
+            songs = result.Response.Songs;
+        }
+
+        loading = false;
+    }
+
+    private static string FormatDaysSince(int days) =>
+        days == 1 ? "1 day ago" : $"{days} days ago";
+}

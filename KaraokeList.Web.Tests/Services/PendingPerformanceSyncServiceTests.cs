@@ -123,6 +123,7 @@ public sealed class PendingPerformanceSyncServiceTests
         public Task<SongSummaryResult> GetMySongSummaryAsync(int songId) => throw new NotSupportedException();
         public Task<RepertoireResult> GetMyRepertoireAsync(string sortBy = "lastPerformed", string sortDir = "desc", int? genreId = null, bool includeAll = false) => throw new NotSupportedException();
         public Task<RepertoireGenresResult> GetMyRepertoireGenresAsync() => throw new NotSupportedException();
+        public Task<StaleSongsResult> GetMyStaleSongsAsync(int days = 90, int limit = 5) => throw new NotSupportedException();
         public Task<MyPerformancesResult> GetMyPerformancesAsync(int? venueId = null, string sortDir = "desc") => throw new NotSupportedException();
         public Task UpdatePerformanceAsync(PerformanceDto dto) => throw new NotSupportedException();
         public Task DeletePerformanceAsync(int id) => throw new NotSupportedException();

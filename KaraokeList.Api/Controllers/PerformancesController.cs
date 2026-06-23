@@ -102,6 +102,36 @@ public class PerformancesController(
         return Ok(genres.Select(g => new GenreDto { Id = g.Id, GenreName = g.GenreName }).ToList());
     }
 
+    [HttpGet("my-stale-songs")]
+    public async Task<ActionResult<StaleSongsResponseDto>> GetMyStaleSongs(
+        [FromQuery] int days = 90,
+        [FromQuery] int limit = 5)
+    {
+        var singerId = await RequireSingerIdAsync();
+        if (singerId.Result is not null)
+        {
+            return singerId.Result;
+        }
+
+        if (days is < 7 or > 365)
+        {
+            return BadRequest(new ApiErrorResponse { Message = "Invalid days. Use a value between 7 and 365." });
+        }
+
+        if (limit is < 1 or > 20)
+        {
+            return BadRequest(new ApiErrorResponse { Message = "Invalid limit. Use a value between 1 and 20." });
+        }
+
+        var songs = await performanceService.GetStaleSongsAsync(singerId.Value!.Value, days, limit);
+        var today = DateTime.Today;
+        return Ok(new StaleSongsResponseDto
+        {
+            StaleAfterDays = days,
+            Songs = songs.Select(s => s.ToDto(today)).ToList()
+        });
+    }
+
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] PerformanceDto dto)
     {

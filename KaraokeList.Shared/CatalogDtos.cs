@@ -94,6 +94,22 @@ public class RepertoireSongDto
     public int PerformanceCount { get; set; }
 }
 
+public class StaleSongDto
+{
+    public int SongId { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string ArtistName { get; set; } = string.Empty;
+    public DateTime LastPerformedOn { get; set; }
+    public int PerformanceCount { get; set; }
+    public int DaysSinceLastPerformed { get; set; }
+}
+
+public class StaleSongsResponseDto
+{
+    public int StaleAfterDays { get; set; }
+    public List<StaleSongDto> Songs { get; set; } = [];
+}
+
 public static class KeyChangeFormatting
 {
     public static string Describe(int? semitones) => semitones switch
