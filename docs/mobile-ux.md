@@ -39,6 +39,8 @@ There is no sidebar. Catalog grids live under `/more`.
 | `/more` | Hub: tonight links + catalog admin pages |
 | `/invite-friends` | Copy registration link / invite message for text or email (when invite-only registration is enabled) |
 | `/account/change-password` | Change sign-in password |
+| `/forgot-password` | Request password reset email (when recovery is enabled) |
+| `/reset-password` | Set a new password from email reset link |
 | `/` | Home — **Tonight** dashboard on mobile (recent logs, default venue, quick actions) |
 | `/login`, `/register` | Auth (no sign-in required) |
 

@@ -20,7 +20,10 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 builder.Services.AddDbContext<ApplicationDbContext>(options => options.UseSqlServer(connectionString));
 builder.Services.AddKaraokeDataServices(connectionString);
 builder.Services.Configure<RegistrationSettings>(builder.Configuration.GetSection(RegistrationSettings.SectionName));
+builder.Services.Configure<AppSettings>(builder.Configuration.GetSection(AppSettings.SectionName));
+builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection(EmailSettings.SectionName));
 builder.Services.AddSingleton<IRegistrationGate, RegistrationGate>();
+builder.Services.AddSingleton<IAccountEmailSender, AccountEmailSender>();
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<IAuthRateLimiter, AuthRateLimiter>();
 builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();

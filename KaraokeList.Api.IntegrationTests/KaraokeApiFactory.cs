@@ -1,3 +1,4 @@
+using KaraokeList.Api.Services;
 using KaraokeList.Security;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -39,12 +40,18 @@ public sealed class KaraokeApiFactory : WebApplicationFactory<Program>
                 ["Jwt:Audience"] = "KaraokeList.Web.Test",
                 ["Jwt:Key"] = TestJwtKey,
                 ["Security:Registration:AllowRegistration"] = "true",
-                ["Security:Registration:RequireInviteCode"] = "false"
+                ["Security:Registration:RequireInviteCode"] = "false",
+                ["Security:Registration:AllowPasswordRecovery"] = "true",
+                ["App:WebBaseUrl"] = "http://localhost:5262"
             });
         });
 
         builder.ConfigureTestServices(services =>
         {
+            services.RemoveAll<IAccountEmailSender>();
+            services.AddSingleton<CapturingAccountEmailSender>();
+            services.AddSingleton<IAccountEmailSender>(sp => sp.GetRequiredService<CapturingAccountEmailSender>());
+
             // All integration tests share one in-memory rate-limit bucket ("unknown" IP).
             services.RemoveAll<IAuthRateLimiter>();
             services.AddSingleton<IAuthRateLimiter, UnlimitedAuthRateLimiter>();

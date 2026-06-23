@@ -151,6 +151,8 @@ public sealed class LogCatalogLoaderTests
         public Task<InviteShareDto?> GetInviteShareAsync() => throw new NotSupportedException();
         public Task<AuthResult> LinkSingerAsync(LinkSingerRequest request) => throw new NotSupportedException();
         public Task<ChangePasswordResult> ChangePasswordAsync(ChangePasswordRequest request) => throw new NotSupportedException();
+        public Task<PasswordRecoveryResult> ForgotPasswordAsync(ForgotPasswordRequest request) => throw new NotSupportedException();
+        public Task<PasswordRecoveryResult> ResetPasswordAsync(ResetPasswordRequest request) => throw new NotSupportedException();
         public Task<SongSummaryResult> GetMySongSummaryAsync(int songId) => throw new NotSupportedException();
         public Task<RepertoireGenresResult> GetMyRepertoireGenresAsync() => throw new NotSupportedException();
         public Task<MyPerformancesResult> GetMyPerformancesAsync(int? venueId = null, string sortDir = "desc") => throw new NotSupportedException();

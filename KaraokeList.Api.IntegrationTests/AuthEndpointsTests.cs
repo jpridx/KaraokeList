@@ -21,6 +21,7 @@ public sealed class AuthEndpointsTests(KaraokeApiFactory factory)
         Assert.NotNull(info);
         Assert.True(info.IsRegistrationOpen);
         Assert.False(info.RequiresInviteCode);
+        Assert.True(info.IsPasswordRecoveryAllowed);
     }
 
     [SkippableFact]

@@ -1,11 +1,14 @@
 using KaraokeList.Api.Services;
 using System.Security.Claims;
+using System.Text;
 using KaraokeList.Data;
 using KaraokeList.Security;
 using KaraokeList.Shared;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Extensions.Options;
 
 namespace KaraokeList.Api.Controllers;
 
@@ -18,7 +21,9 @@ public class AuthController(
     IJwtTokenService jwtTokenService,
     IRegistrationGate registrationGate,
     IAuthRateLimiter authRateLimiter,
-    ICurrentUserSingerResolver currentUserSinger) : ControllerBase
+    ICurrentUserSingerResolver currentUserSinger,
+    IAccountEmailSender accountEmailSender,
+    IOptions<AppSettings> appSettings) : ControllerBase
 {
     [AllowAnonymous]
     [HttpPost("register")]
@@ -76,7 +81,8 @@ public class AuthController(
         Ok(new RegistrationInfoDto
         {
             IsRegistrationOpen = registrationGate.IsRegistrationOpen,
-            RequiresInviteCode = registrationGate.RequiresInviteCode
+            RequiresInviteCode = registrationGate.RequiresInviteCode,
+            IsPasswordRecoveryAllowed = registrationGate.IsPasswordRecoveryAllowed
         });
 
     [AllowAnonymous]
@@ -245,6 +251,94 @@ public class AuthController(
             });
         }
 
+        return NoContent();
+    }
+
+    [AllowAnonymous]
+    [HttpPost("forgot-password")]
+    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
+    {
+        if (!registrationGate.IsPasswordRecoveryAllowed)
+        {
+            return NotFound(new ApiErrorResponse { Message = "Password recovery is not available." });
+        }
+
+        var clientKey = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        if (!authRateLimiter.AllowAttempt(
+                "forgot-password",
+                clientKey,
+                AuthRateLimitPolicies.ForgotPasswordMaxAttempts,
+                AuthRateLimitPolicies.ForgotPasswordWindow))
+        {
+            return BadRequest(new ApiErrorResponse { Message = "Too many reset requests. Try again later." });
+        }
+
+        var user = await userManager.FindByEmailAsync(request.Email);
+        if (user is not null && await userManager.HasPasswordAsync(user))
+        {
+            var token = await userManager.GeneratePasswordResetTokenAsync(user);
+            var encodedCode = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
+            var baseUrl = appSettings.Value.WebBaseUrl.TrimEnd('/');
+            var resetLink = QueryHelpers.AddQueryString(
+                $"{baseUrl}/reset-password",
+                new Dictionary<string, string?>
+                {
+                    ["code"] = encodedCode,
+                    ["email"] = request.Email
+                });
+
+            await accountEmailSender.SendPasswordResetLinkAsync(user, request.Email, resetLink);
+        }
+
+        return NoContent();
+    }
+
+    [AllowAnonymous]
+    [HttpPost("reset-password")]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
+    {
+        if (!registrationGate.IsPasswordRecoveryAllowed)
+        {
+            return NotFound(new ApiErrorResponse { Message = "Password recovery is not available." });
+        }
+
+        var clientKey = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        if (!authRateLimiter.AllowAttempt(
+                "reset-password",
+                clientKey,
+                AuthRateLimitPolicies.ResetPasswordMaxAttempts,
+                AuthRateLimitPolicies.ResetPasswordWindow))
+        {
+            return BadRequest(new ApiErrorResponse { Message = "Too many reset attempts. Try again later." });
+        }
+
+        var user = await userManager.FindByEmailAsync(request.Email);
+        if (user is null)
+        {
+            return BadRequest(new ApiErrorResponse { Message = "Invalid reset request." });
+        }
+
+        string token;
+        try
+        {
+            token = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(request.Code));
+        }
+        catch (FormatException)
+        {
+            return BadRequest(new ApiErrorResponse { Message = "Invalid reset request." });
+        }
+
+        var result = await userManager.ResetPasswordAsync(user, token, request.Password);
+        if (!result.Succeeded)
+        {
+            return BadRequest(new ApiErrorResponse
+            {
+                Message = string.Join(" ", result.Errors.Select(e => e.Description))
+            });
+        }
+
+        await userManager.SetLockoutEndDateAsync(user, null);
+        await userManager.ResetAccessFailedCountAsync(user);
         return NoContent();
     }
 
