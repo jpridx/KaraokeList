@@ -1,5 +1,6 @@
 using Blazored.LocalStorage;
 using Bunit;
+using Bunit.TestDoubles;
 using KaraokeList.Shared;
 using KaraokeList.Web.Components;
 using KaraokeList.Web.Services;
@@ -15,6 +16,11 @@ public sealed class SingerLinkPanelTests : BunitTestContext
     private readonly Mock<IKaraokeApiClient> api = new();
     private readonly InMemoryLocalStorage localStorage = new();
 
+    public SingerLinkPanelTests()
+    {
+        this.AddTestAuthorization();
+    }
+
     protected override void ConfigureServices(IServiceCollection services)
     {
         AddSyncfusionServices(services);
@@ -23,11 +29,14 @@ public sealed class SingerLinkPanelTests : BunitTestContext
         services.AddSingleton<JwtAuthenticationStateProvider>();
     }
 
+    private IRenderedComponent<SingerLinkPanel> RenderPanel(
+        Action<ComponentParameterCollectionBuilder<SingerLinkPanel>> configure) =>
+        RenderComponent<SingerLinkPanel>(configure);
+
     [Fact]
     public void Renders_nothing_when_not_visible()
     {
-        var cut = RenderComponent<SingerLinkPanel>(parameters => parameters
-            .Add(p => p.Visible, false));
+        var cut = RenderPanel(parameters => parameters.Add(p => p.Visible, false));
 
         Assert.Empty(cut.Markup.Trim());
         api.Verify(client => client.GetSingersAsync(), Times.Never);
@@ -36,26 +45,22 @@ public sealed class SingerLinkPanelTests : BunitTestContext
     [Fact]
     public void Shows_link_panel_when_visible()
     {
-        api.Setup(client => client.GetSingersAsync())
-            .ReturnsAsync([new SingerDto { Id = 1, Name = "Test Singer" }]);
-
-        var cut = RenderComponent<SingerLinkPanel>(parameters => parameters
+        var cut = RenderPanel(parameters => parameters
             .Add(p => p.Visible, true)
             .Add(p => p.OnLinked, EventCallback.Factory.Create<int?>(this, _ => { })));
 
         cut.WaitForAssertion(() =>
             Assert.Contains("Link your account to a singer profile", cut.Markup));
-        api.Verify(client => client.GetSingersAsync(), Times.Once);
+        api.Verify(client => client.GetSingersAsync(), Times.Never);
     }
 
     [Fact]
     public void Shows_error_when_link_fails()
     {
-        api.Setup(client => client.GetSingersAsync()).ReturnsAsync([]);
         api.Setup(client => client.LinkSingerAsync(It.IsAny<LinkSingerRequest>()))
             .ReturnsAsync(AuthResult.Fail("That singer was not found."));
 
-        var cut = RenderComponent<SingerLinkPanel>(parameters => parameters
+        var cut = RenderPanel(parameters => parameters
             .Add(p => p.Visible, true)
             .Add(p => p.OnLinked, EventCallback.Factory.Create<int?>(this, _ => { })));
 
@@ -70,7 +75,6 @@ public sealed class SingerLinkPanelTests : BunitTestContext
     [Fact]
     public void Invokes_OnLinked_when_link_succeeds()
     {
-        api.Setup(client => client.GetSingersAsync()).ReturnsAsync([]);
         api.Setup(client => client.LinkSingerAsync(It.IsAny<LinkSingerRequest>()))
             .ReturnsAsync(AuthResult.Ok(new AuthResponse
             {
@@ -81,7 +85,7 @@ public sealed class SingerLinkPanelTests : BunitTestContext
             }));
 
         int? linkedSingerId = null;
-        var cut = RenderComponent<SingerLinkPanel>(parameters => parameters
+        var cut = RenderPanel(parameters => parameters
             .Add(p => p.Visible, true)
             .Add(p => p.OnLinked, EventCallback.Factory.Create<int?>(this, id => linkedSingerId = id)));
 

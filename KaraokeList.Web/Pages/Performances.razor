@@ -1,5 +1,5 @@
 @page "/performances"
-@attribute [Authorize]
+@attribute [Authorize(Roles = KaraokeRoles.Admin)]
 @inject IKaraokeApiClient Api
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject JwtAuthenticationStateProvider AuthProvider

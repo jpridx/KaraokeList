@@ -16,15 +16,24 @@
         <a class="more-link" href="my-performances">My performances</a>
     </section>
 
-    <section class="more-section">
-        <h2 class="more-section-title">Catalog</h2>
-        <a class="more-link" href="songs">Songs</a>
-        <a class="more-link" href="artists">Artists</a>
-        <a class="more-link" href="genres">Genres</a>
-        <a class="more-link" href="singers">Singers</a>
-        <a class="more-link" href="venues">Venues</a>
-        <a class="more-link" href="performances">Performances (grid)</a>
-    </section>
+    <AuthorizeView Roles="@KaraokeRoles.Admin">
+        <Authorized>
+            <section class="more-section">
+                <h2 class="more-section-title">Admin</h2>
+                <a class="more-link" href="admin/users">Users</a>
+            </section>
+
+            <section class="more-section">
+                <h2 class="more-section-title">Catalog</h2>
+                <a class="more-link" href="songs">Songs</a>
+                <a class="more-link" href="artists">Artists</a>
+                <a class="more-link" href="genres">Genres</a>
+                <a class="more-link" href="singers">Singers</a>
+                <a class="more-link" href="venues">Venues</a>
+                <a class="more-link" href="performances">Performances (grid)</a>
+            </section>
+        </Authorized>
+    </AuthorizeView>
 
     <section class="more-section">
         <h2 class="more-section-title">Account</h2>

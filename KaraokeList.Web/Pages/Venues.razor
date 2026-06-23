@@ -1,5 +1,5 @@
 @page "/venues"
-@attribute [Authorize]
+@attribute [Authorize(Roles = KaraokeRoles.Admin)]
 @inject IKaraokeApiClient Api
 
 <PageTitle>Venues</PageTitle>

@@ -24,6 +24,7 @@ builder.Services.AddSingleton<IRegistrationGate, RegistrationGate>();
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<IAuthRateLimiter, AuthRateLimiter>();
 builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
+builder.Services.AddScoped<IAdminUserService, AdminUserService>();
 builder.Services.AddScoped<ICurrentUserSingerResolver, CurrentUserSingerResolver>();
 
 builder.Services.AddOptions<JwtSettings>()
@@ -47,6 +48,7 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
         options.Lockout.AllowedForNewUsers = true;
         options.User.RequireUniqueEmail = true;
     })
+    .AddRoles<IdentityRole>()
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddSignInManager()
     .AddDefaultTokenProviders();
@@ -98,6 +100,12 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     await db.Database.MigrateAsync();
+
+    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+    if (!await roleManager.RoleExistsAsync(KaraokeList.Shared.KaraokeRoles.Admin))
+    {
+        await roleManager.CreateAsync(new IdentityRole(KaraokeList.Shared.KaraokeRoles.Admin));
+    }
 }
 
 app.UseForwardedHeaders();

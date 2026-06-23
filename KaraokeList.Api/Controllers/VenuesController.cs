@@ -26,6 +26,7 @@ public class VenuesController(VenueService venueService) : ControllerBase
     }
 
     [HttpPut("{id:int}")]
+    [Authorize(Roles = KaraokeRoles.Admin)]
     public async Task<IActionResult> Update(int id, [FromBody] VenueDto dto)
     {
         dto.Id = id;
@@ -34,6 +35,7 @@ public class VenuesController(VenueService venueService) : ControllerBase
     }
 
     [HttpDelete("{id:int}")]
+    [Authorize(Roles = KaraokeRoles.Admin)]
     public async Task<IActionResult> Delete(int id)
     {
         await venueService.DeleteVenueAsync(id);

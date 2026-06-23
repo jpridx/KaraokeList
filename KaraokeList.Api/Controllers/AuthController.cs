@@ -66,7 +66,7 @@ public class AuthController(
             return BadRequest(new ApiErrorResponse { Message = "Could not link your account to your singer profile. Try again." });
         }
 
-        var (token, expires) = jwtTokenService.CreateToken(user);
+        var (token, expires) = await CreateAuthTokenAsync(user);
         return Ok(new AuthResponse { Token = token, Email = request.Email, SingerId = singerId, ExpiresUtc = expires });
     }
 
@@ -101,7 +101,7 @@ public class AuthController(
             return Unauthorized(new ApiErrorResponse { Message = "Invalid login attempt." });
         }
 
-        var (token, expires) = jwtTokenService.CreateToken(user);
+        var (token, expires) = await CreateAuthTokenAsync(user);
         return Ok(new AuthResponse { Token = token, Email = request.Email, SingerId = user.SingerId, ExpiresUtc = expires });
     }
 
@@ -128,7 +128,12 @@ public class AuthController(
             return Unauthorized();
         }
 
-        return Ok(new UserProfileDto { Email = user.Email ?? string.Empty, SingerId = user.SingerId });
+        return Ok(new UserProfileDto
+        {
+            Email = user.Email ?? string.Empty,
+            SingerId = user.SingerId,
+            IsAdmin = await userManager.IsInRoleAsync(user, KaraokeRoles.Admin)
+        });
     }
 
     [Authorize]
@@ -143,7 +148,7 @@ public class AuthController(
 
         if (user.SingerId is int existingId)
         {
-            var (existingToken, existingExpires) = jwtTokenService.CreateToken(user);
+            var (existingToken, existingExpires) = await CreateAuthTokenAsync(user);
             return Ok(new AuthResponse
             {
                 Token = existingToken,
@@ -156,6 +161,14 @@ public class AuthController(
         int singerId;
         if (request.SingerId is int selectedId)
         {
+            if (!User.IsAdmin())
+            {
+                return BadRequest(new ApiErrorResponse
+                {
+                    Message = "Only admins can link to an existing singer. Enter your name to create a new profile."
+                });
+            }
+
             var singers = await singerService.GetSingersAsync();
             if (singers.All(s => s.Id != selectedId))
             {
@@ -180,7 +193,7 @@ public class AuthController(
             return BadRequest(new ApiErrorResponse { Message = "Could not link your singer profile." });
         }
 
-        var (token, expires) = jwtTokenService.CreateToken(user);
+        var (token, expires) = await CreateAuthTokenAsync(user);
         return Ok(new AuthResponse
         {
             Token = token,
@@ -188,5 +201,11 @@ public class AuthController(
             SingerId = singerId,
             ExpiresUtc = expires
         });
+    }
+
+    private async Task<(string Token, DateTime ExpiresUtc)> CreateAuthTokenAsync(ApplicationUser user)
+    {
+        var roles = await userManager.GetRolesAsync(user);
+        return jwtTokenService.CreateToken(user, roles);
     }
 }

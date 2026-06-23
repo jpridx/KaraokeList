@@ -1,5 +1,5 @@
 @page "/genres"
-@attribute [Authorize]
+@attribute [Authorize(Roles = KaraokeRoles.Admin)]
 @inject IKaraokeApiClient Api
 
 <PageTitle>Genres</PageTitle>

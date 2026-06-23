@@ -1,3 +1,4 @@
+@using Microsoft.AspNetCore.Components.Authorization
 @inject IKaraokeApiClient Api
 @inject JwtAuthenticationStateProvider AuthProvider
 
@@ -5,16 +6,27 @@
 {
     <div class="alert alert-info mobile-panel mb-3">
         <p class="mb-2">Link your account to a singer profile to use this feature.</p>
+        <AuthorizeView Roles="@KaraokeRoles.Admin">
+            <Authorized>
+                <div class="mb-2">
+                    <label class="form-label">Use existing singer</label>
+                    <SfDropDownList TValue="int?" TItem="SingerDto" DataSource="@singers" @bind-Value="linkSingerId"
+                                    Placeholder="Select singer" AllowFiltering="true"
+                                    FilterType="Syncfusion.Blazor.DropDowns.FilterType.Contains">
+                        <DropDownListFieldSettings Value="Id" Text="Name" />
+                    </SfDropDownList>
+                </div>
+            </Authorized>
+        </AuthorizeView>
         <div class="mb-2">
-            <label class="form-label">Use existing singer</label>
-            <SfDropDownList TValue="int?" TItem="SingerDto" DataSource="@singers" @bind-Value="linkSingerId"
-                            Placeholder="Select your name" AllowFiltering="true"
-                            FilterType="Syncfusion.Blazor.DropDowns.FilterType.Contains">
-                <DropDownListFieldSettings Value="Id" Text="Name" />
-            </SfDropDownList>
-        </div>
-        <div class="mb-2">
-            <label class="form-label">Or create new</label>
+            <AuthorizeView Roles="@KaraokeRoles.Admin">
+                <Authorized>
+                    <label class="form-label">Or create new</label>
+                </Authorized>
+                <NotAuthorized>
+                    <label class="form-label">Your stage name</label>
+                </NotAuthorized>
+            </AuthorizeView>
             <input class="form-control" @bind="linkSingerName" placeholder="Your stage name" />
         </div>
         <button type="button" class="btn btn-primary w-100" @onclick="LinkAsync">Link profile</button>
@@ -26,6 +38,9 @@
 }
 
 @code {
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthStateTask { get; set; } = default!;
+
     [Parameter]
     public bool Visible { get; set; }
 
@@ -39,7 +54,13 @@
 
     protected override async Task OnParametersSetAsync()
     {
-        if (Visible && singers.Count == 0)
+        if (!Visible || singers.Count > 0)
+        {
+            return;
+        }
+
+        var authState = await AuthStateTask;
+        if (authState.User.IsAdmin())
         {
             singers = await Api.GetSingersAsync();
         }

@@ -38,6 +38,7 @@ public class ArtistsController(ArtistService artistService, ArtistLookupService 
     }
 
     [HttpPut("{id:int}")]
+    [Authorize(Roles = KaraokeRoles.Admin)]
     public async Task<IActionResult> Update(int id, [FromBody] ArtistDto dto)
     {
         dto.Id = id;
@@ -46,6 +47,7 @@ public class ArtistsController(ArtistService artistService, ArtistLookupService 
     }
 
     [HttpDelete("{id:int}")]
+    [Authorize(Roles = KaraokeRoles.Admin)]
     public async Task<IActionResult> Delete(int id)
     {
         await artistService.DeleteArtistAsync(id);

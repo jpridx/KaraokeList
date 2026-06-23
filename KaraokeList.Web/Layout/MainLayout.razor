@@ -12,7 +12,12 @@
                 <nav class="app-header-nav d-none d-md-flex" aria-label="Primary">
                     <NavLink class="app-header-link" href="log" Match="NavLinkMatch.Prefix">Log</NavLink>
                     <NavLink class="app-header-link" href="my-songs" Match="NavLinkMatch.Prefix">My Songs</NavLink>
-                    <NavLink class="app-header-link" href="more" Match="NavLinkMatch.Prefix">Catalog</NavLink>
+                    <NavLink class="app-header-link" href="more" Match="NavLinkMatch.Prefix">More</NavLink>
+                    <AuthorizeView Roles="@KaraokeRoles.Admin">
+                        <Authorized Context="adminNav">
+                            <NavLink class="app-header-link" href="admin/users" Match="NavLinkMatch.Prefix">Users</NavLink>
+                        </Authorized>
+                    </AuthorizeView>
                 </nav>
                 <div class="app-header-actions ms-auto">
                     <span class="app-user d-none d-lg-inline text-muted small">@context.User.Identity?.Name</span>

@@ -10,4 +10,7 @@ public static class KaraokeUserExtensions
         var value = user.FindFirst(KaraokeClaimTypes.SingerId)?.Value;
         return int.TryParse(value, out var singerId) ? singerId : null;
     }
+
+    public static bool IsAdmin(this ClaimsPrincipal user) =>
+        user.IsInRole(KaraokeRoles.Admin);
 }
