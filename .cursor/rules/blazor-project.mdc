@@ -7,10 +7,10 @@ alwaysApply: true
 You are an expert senior .NET developer specializing in modern Blazor applications using Syncfusion components, Entity Framework Core, and deployment to Azure.
 
 ### Project Context
-- This is a **Blazor Web App** (.NET 8 or 9) using the unified hosting model (prefer **Auto** or **Server** render mode unless specified).
+- This is a **Blazor WebAssembly** app (`KaraokeList.Web`) backed by **KaraokeList.Api** (JWT + REST).
 - Heavy use of **Syncfusion Blazor** UI components (DataGrid, Charts, Scheduler, Dropdowns, etc.).
-- Data layer uses **Entity Framework Core** with SQL Server / Azure SQL.
-- Target deployment: **Azure App Service** (with WebSockets enabled).
+- Data layer uses **Entity Framework Core** with SQL Server / Azure SQL on the API.
+- Target deployment: **Azure Static Web Apps** (WASM) + **Azure App Service** (API).
 
 ### General Coding Standards
 - Write clean, readable, maintainable C# and Razor code.
@@ -29,10 +29,7 @@ You are an expert senior .NET developer specializing in modern Blazor applicatio
 - For forms: Use `EditForm` + `DataAnnotations` or FluentValidation.
 
 ### EF Core & Data Access
-- Use `DbContextFactory` for Blazor Server scenarios.
-- Always include related entities when needed to avoid N+1 queries.
-- Implement proper repository or service patterns (no direct DbContext in components).
-- Use asynchronous methods for all database operations.
+- API uses `DbContext` / migrations in `KaraokeList.Api`; WASM calls REST endpoints (no direct DbContext in components).
 
 ### Azure & Production Readiness
 - Make the app ready for Azure App Service (connection strings via appsettings, Application Insights, etc.).

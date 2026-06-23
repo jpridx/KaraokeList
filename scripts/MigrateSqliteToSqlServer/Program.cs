@@ -17,13 +17,10 @@ static string? FindFirstExisting(params string[] paths)
 
 var sqlitePath = sqlitePathArg
     ?? FindFirstExisting(
-        // Typical usage: run from the repo root (where `KaraokeList/Temp/Karaoke.sqlite3` lives).
-        Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "KaraokeList", "Temp", "Karaoke.sqlite3")),
-        // Fallback: relative to output folder.
-        Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "KaraokeList", "Temp", "Karaoke.sqlite3"))
-    )
+        Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "scripts", "data", "Karaoke.sqlite3")),
+        Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "scripts", "data", "Karaoke.sqlite3")))
     ?? throw new FileNotFoundException(
-        "Could not locate Karaoke.sqlite3. Pass its path as the first argument or run from the repo root.",
+        "Could not locate Karaoke.sqlite3. Pass its path as the first argument.",
         sqlitePathArg ?? "(none)");
 
 var sqlConnectionString = Environment.GetEnvironmentVariable("KARAOKE_SQL_CONNECTION")

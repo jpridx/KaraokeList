@@ -14,13 +14,6 @@
       "command": "dotnet",
       "args": ["build", "${workspaceFolder}/KaraokeList.Web/KaraokeList.Web.csproj"],
       "problemMatcher": "$msCompile"
-    },
-    {
-      "label": "build-server",
-      "type": "process",
-      "command": "dotnet",
-      "args": ["build", "${workspaceFolder}/KaraokeList/KaraokeList.csproj"],
-      "problemMatcher": "$msCompile"
     }
   ]
 }

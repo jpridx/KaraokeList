@@ -4,7 +4,7 @@ A karaoke catalog and performance tracker: mobile-first logging at the venue, pl
 
 ## Overview
 
-**KaraokeList.Web** (Blazor WebAssembly) is the primary UI for singers — log performances, browse songs you've sung, and copy a formatted message for the KJ. **KaraokeList.Api** provides JWT auth and a SQL-backed catalog/performance API. **KaraokeList** (Blazor Server) remains as a legacy reference app.
+**KaraokeList.Web** (Blazor WebAssembly) is the UI for singers and admins — log performances, browse songs you've sung, and manage the catalog. **KaraokeList.Api** provides JWT auth and a SQL-backed catalog/performance API.
 
 ## Technology Stack
 
@@ -43,10 +43,9 @@ See [docs/security-private-access.md](docs/security-private-access.md).
 
 ```
 KaraokeList/
-├── KaraokeList.Web/          # Blazor WASM (primary UI)
+├── KaraokeList.Web/          # Blazor WASM (UI)
 ├── KaraokeList.Api/          # Web API + Identity
 ├── KaraokeList.Shared/       # DTOs
-├── KaraokeList/              # Legacy Blazor Server
 ├── scripts/                  # SQL schema, migrations, Syncfusion key helper
 └── docs/                     # Documentation
 ```
@@ -73,15 +72,6 @@ dotnet run --project KaraokeList.Web/KaraokeList.Web.csproj
 - WASM: `http://localhost:5262`
 
 Full setup (Syncfusion license, auth, CORS): [docs/wasm-api-local-dev.md](docs/wasm-api-local-dev.md).
-
-### Legacy Blazor Server
-
-```powershell
-cd KaraokeList
-dotnet run --launch-profile http
-```
-
-Listens on `http://localhost:5005`.
 
 ## Database
 

@@ -95,7 +95,7 @@ App Service → SQL is allowed via the `AllowAzureServices` rule in Bicep.
 
 ## 4. Migrate catalog data (optional)
 
-If you have data in `KaraokeList/Temp/Karaoke.sqlite3`:
+If you have a legacy SQLite export, pass its path to the migration tool or place it at `scripts/data/Karaoke.sqlite3`:
 
 ```powershell
 $env:KARAOKE_SQL_CONNECTION = "Server=tcp:<server>.database.windows.net,1433;Database=KaraokeList;User ID=<admin>;Password=<password>;Encrypt=True;TrustServerCertificate=False;MultipleActiveResultSets=true;"

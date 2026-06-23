@@ -38,8 +38,10 @@ The API does **not** insert catalog rows at startup. Choose one:
 
 ```powershell
 $env:KARAOKE_SQL_CONNECTION = "Server=...;Database=KaraokeList-Dev;..."
-dotnet run --project scripts/MigrateSqliteToSqlServer/MigrateSqliteToSqlServer.csproj
+dotnet run --project scripts/MigrateSqliteToSqlServer/MigrateSqliteToSqlServer.csproj -- scripts/data/Karaoke.sqlite3
 ```
+
+Pass your `.sqlite3` path as the first argument, or place the file at `scripts/data/Karaoke.sqlite3` before running without arguments.
 
 Migrates `Genres`, `Artists`, `Singers`, `Venues`, `Songs`, and optionally `Performances`. See [deployment-roadmap.md](deployment-roadmap.md) Phase 1.
 

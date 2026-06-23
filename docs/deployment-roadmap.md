@@ -57,7 +57,7 @@ Move **non-performance** catalog data into each hosted database before go-live.
 
 ### Source options
 
-- Legacy SQLite: `KaraokeList/Temp/Karaoke.sqlite3`
+- Legacy SQLite: place `Karaoke.sqlite3` at `scripts/data/Karaoke.sqlite3` or pass the path to `scripts/MigrateSqliteToSqlServer`; set `KARAOKE_SQL_CONNECTION`.
 - LocalDB / dev SQL Server (export or point migration tool at source)
 
 ### Migration tool

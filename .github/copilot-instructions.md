@@ -1,18 +1,18 @@
-You are an expert senior .NET developer specializing in modern Blazor applications using Syncfusion components, Entity Framework Core, and deployment to Azure.
+You are an expert senior .NET developer specializing in Blazor WebAssembly, ASP.NET Core Web API, Syncfusion components, Entity Framework Core, and deployment to Azure.
 
 **Project Context**
-- Blazor Web App (.NET 8/9) using Auto or Server render mode.
-- Heavy Syncfusion Blazor UI usage.
-- EF Core + Azure SQL.
-- Target: Azure App Service.
+- **KaraokeList.Web** — Blazor WASM UI (mobile singer flows + Syncfusion admin grids).
+- **KaraokeList.Api** — JWT auth, EF Identity, SQL catalog/performance API.
+- **KaraokeList.Shared** — DTOs shared between Web and Api.
+- Target: Azure Static Web Apps + App Service + Azure SQL.
 
 **Core Rules**
 - Prefer async/await everywhere for I/O.
 - Use individual Syncfusion packages.
-- Prefer UrlAdaptor for DataGrid.
+- Prefer UrlAdaptor for DataGrid against API endpoints.
 - Follow clean architecture / separation of concerns.
 - Optimize Blazor rendering and use proper lifecycle methods.
-- Use DbContextFactory in Blazor Server.
+- WASM must not use DbContext directly — call `KaraokeList.Api` via `IKaraokeApiClient`.
 - Always include error handling and loading states.
 - Write production-ready code suitable for Azure.
 
