@@ -60,6 +60,16 @@ There is no sidebar. Catalog grids live under `/more`.
 2. Search songs (★ = you've sung it before)
 3. Same venue/date/key/copy/save flow (key is per song, not carried over from the previous log)
 
+### Add a new song at the venue
+
+1. Open **Log** → **+ New song**
+2. Enter the **title**, then type the **artist** name (autocomplete search)
+3. If the artist isn't in the catalog, tap **Add artist** — your title stays filled in
+4. Tap **Add song** — the new song is selected and the log form appears below
+5. Pick venue, date, key, and **Save performance**
+
+Use **Cancel** to close the add-song panel without losing your place on the Log page.
+
 ### Browse the full catalog
 
 1. Open **My Songs** (defaults to **All songs**)
@@ -128,6 +138,7 @@ Implemented in `ShowHostMessageFormatting` (`KaraokeList.Shared`). Shown on Log 
 | Component | Role |
 |-----------|------|
 | `QuickLogPerformance` | Venue, date, key, host message, save — venue/date from last log; key from last time **you sang this song** (or original key); queues offline |
+| `LogNewSongPanel` | Add song + artist inline on Log — autocomplete artist, explicit **Add artist** when missing, title preserved |
 | `LogCatalogLoader` | Online catalog fetch + offline cache for Log song/venue picker |
 | `PendingPerformancesNotice` | Pending sync banner + auto/manual sync |
 | `HostMessagePanel` | Preview + copy button |
