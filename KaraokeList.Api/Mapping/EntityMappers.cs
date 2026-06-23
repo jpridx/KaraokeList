@@ -128,4 +128,27 @@ public static class EntityMappers
             DaysSinceLastPerformed = Math.Max(0, (today - lastPerformed).Days)
         };
     }
+
+    public static SingerStatsDto ToDto(this SingerStats stats, DateTime today)
+    {
+        int? daysSince = stats.LastPerformedOn is DateTime last
+            ? Math.Max(0, (today - last.Date).Days)
+            : null;
+
+        return new SingerStatsDto
+        {
+            TotalPerformances = stats.TotalPerformances,
+            UniqueSongs = stats.UniqueSongs,
+            LastPerformedOn = stats.LastPerformedOn?.Date,
+            LastVenueName = stats.LastVenueName,
+            DaysSinceLastPerformance = daysSince,
+            PerformancesThisMonth = stats.PerformancesThisMonth,
+            PerformancesThisYear = stats.PerformancesThisYear,
+            TopVenues = stats.TopVenues.Select(v => new VenueStatDto
+            {
+                VenueName = v.VenueName,
+                PerformanceCount = v.PerformanceCount
+            }).ToList()
+        };
+    }
 }

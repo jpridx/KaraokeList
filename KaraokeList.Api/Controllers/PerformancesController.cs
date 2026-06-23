@@ -132,6 +132,24 @@ public class PerformancesController(
         });
     }
 
+    [HttpGet("my-stats")]
+    public async Task<ActionResult<SingerStatsDto>> GetMyStats([FromQuery] int topVenues = 3)
+    {
+        var singerId = await RequireSingerIdAsync();
+        if (singerId.Result is not null)
+        {
+            return singerId.Result;
+        }
+
+        if (topVenues is < 1 or > 10)
+        {
+            return BadRequest(new ApiErrorResponse { Message = "Invalid topVenues. Use a value between 1 and 10." });
+        }
+
+        var stats = await performanceService.GetSingerStatsAsync(singerId.Value!.Value, topVenues);
+        return Ok(stats.ToDto(DateTime.Today));
+    }
+
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] PerformanceDto dto)
     {

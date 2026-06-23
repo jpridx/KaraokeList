@@ -45,7 +45,7 @@ Details: `docs/mobile-ux.md`. E2E: `docs/e2e-playwright.md`. Admin roles: `docs/
 ### Key API endpoints
 
 - `POST api/auth/register`, `api/auth/login`, `GET api/auth/me`, `GET api/auth/invite-share`
-- `GET api/performances/my-repertoire`, `my-repertoire/genres`, `my-song-summary`, `my-stale-songs`
+- `GET api/performances/my-repertoire`, `my-repertoire/genres`, `my-song-summary`, `my-stale-songs`, `my-stats`
 - `POST api/performances` (auto-fills singer from JWT)
 
 Details: `docs/Performances.md`.

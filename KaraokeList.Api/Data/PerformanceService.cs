@@ -51,6 +51,23 @@ public class StaleSong
     public int PerformanceCount { get; set; }
 }
 
+public class SingerStats
+{
+    public int TotalPerformances { get; set; }
+    public int UniqueSongs { get; set; }
+    public DateTime? LastPerformedOn { get; set; }
+    public string? LastVenueName { get; set; }
+    public int PerformancesThisMonth { get; set; }
+    public int PerformancesThisYear { get; set; }
+    public List<VenuePerformanceCount> TopVenues { get; set; } = [];
+}
+
+public class VenuePerformanceCount
+{
+    public string VenueName { get; set; } = string.Empty;
+    public int PerformanceCount { get; set; }
+}
+
 public class RepertoireGenre
 {
     public int Id { get; set; }
@@ -292,6 +309,90 @@ public class PerformanceService(string connectionString)
         }
 
         return songs;
+    }
+
+    public async Task<SingerStats> GetSingerStatsAsync(int singerId, int topVenueLimit = 3)
+    {
+        var today = DateTime.Today;
+        var monthStart = new DateTime(today.Year, today.Month, 1);
+        var yearStart = new DateTime(today.Year, 1, 1);
+
+        await using var connection = new SqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        var stats = new SingerStats();
+        await using (var command = connection.CreateCommand())
+        {
+            command.CommandText = """
+                SELECT COUNT(*) AS TotalPerformances,
+                       COUNT(DISTINCT Song) AS UniqueSongs,
+                       SUM(CASE WHEN PerformedOn >= @MonthStart THEN 1 ELSE 0 END) AS MonthCount,
+                       SUM(CASE WHEN PerformedOn >= @YearStart THEN 1 ELSE 0 END) AS YearCount
+                FROM Performances
+                WHERE Singer = @Singer
+                """;
+            command.Parameters.AddWithValue("@Singer", singerId);
+            command.Parameters.AddWithValue("@MonthStart", monthStart);
+            command.Parameters.AddWithValue("@YearStart", yearStart);
+            await using var reader = await command.ExecuteReaderAsync();
+            if (await reader.ReadAsync())
+            {
+                stats.TotalPerformances = reader.IsDBNull(0) ? 0 : reader.GetInt32(0);
+                stats.UniqueSongs = reader.IsDBNull(1) ? 0 : reader.GetInt32(1);
+                stats.PerformancesThisMonth = reader.IsDBNull(2) ? 0 : reader.GetInt32(2);
+                stats.PerformancesThisYear = reader.IsDBNull(3) ? 0 : reader.GetInt32(3);
+            }
+        }
+
+        if (stats.TotalPerformances == 0)
+        {
+            return stats;
+        }
+
+        await using (var lastCommand = connection.CreateCommand())
+        {
+            lastCommand.CommandText = """
+                SELECT TOP (1) p.PerformedOn, ISNULL(v.VenueName, N'')
+                FROM Performances p
+                LEFT JOIN Venues v ON v.Id = p.Venue
+                WHERE p.Singer = @Singer
+                ORDER BY p.PerformedOn DESC, p.Id DESC
+                """;
+            lastCommand.Parameters.AddWithValue("@Singer", singerId);
+            await using var reader = await lastCommand.ExecuteReaderAsync();
+            if (await reader.ReadAsync())
+            {
+                stats.LastPerformedOn = reader.GetDateTime(0);
+                var venueName = reader.GetString(1);
+                stats.LastVenueName = string.IsNullOrWhiteSpace(venueName) ? null : venueName;
+            }
+        }
+
+        await using (var venuesCommand = connection.CreateCommand())
+        {
+            venuesCommand.CommandText = """
+                SELECT TOP (@Limit) ISNULL(v.VenueName, N'Unknown venue') AS VenueName,
+                       COUNT(*) AS PerformanceCount
+                FROM Performances p
+                LEFT JOIN Venues v ON v.Id = p.Venue
+                WHERE p.Singer = @Singer
+                GROUP BY v.VenueName
+                ORDER BY COUNT(*) DESC, ISNULL(v.VenueName, N'') ASC
+                """;
+            venuesCommand.Parameters.AddWithValue("@Singer", singerId);
+            venuesCommand.Parameters.AddWithValue("@Limit", topVenueLimit);
+            await using var reader = await venuesCommand.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                stats.TopVenues.Add(new VenuePerformanceCount
+                {
+                    VenueName = reader.GetString(0),
+                    PerformanceCount = reader.GetInt32(1)
+                });
+            }
+        }
+
+        return stats;
     }
 
     public async Task<List<RepertoireGenre>> GetMyRepertoireGenresAsync(int singerId)

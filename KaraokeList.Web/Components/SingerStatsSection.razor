@@ -1,0 +1,83 @@
+@inject IKaraokeApiClient Api
+
+@if (!loading && stats is { TotalPerformances: > 0 })
+{
+    <section class="singer-stats-section mobile-panel mt-3" aria-label="Your karaoke stats">
+        <header class="singer-stats-header">
+            <h2 class="h5 mb-1">Your stats</h2>
+        </header>
+
+        <dl class="singer-stats-grid mt-3 mb-0">
+            <div class="singer-stats-item">
+                <dt>Performances</dt>
+                <dd>@stats.TotalPerformances.ToString("N0")</dd>
+            </div>
+            <div class="singer-stats-item">
+                <dt>Songs logged</dt>
+                <dd>@stats.UniqueSongs.ToString("N0")</dd>
+            </div>
+            <div class="singer-stats-item">
+                <dt>This month</dt>
+                <dd>@stats.PerformancesThisMonth.ToString("N0")</dd>
+            </div>
+            <div class="singer-stats-item">
+                <dt>This year</dt>
+                <dd>@stats.PerformancesThisYear.ToString("N0")</dd>
+            </div>
+        </dl>
+
+        @if (stats.LastPerformedOn is DateTime lastPerformed)
+        {
+            <p class="singer-stats-last small text-muted mb-0 mt-3">
+                Last sang @FormatLastPerformance(lastPerformed, stats.DaysSinceLastPerformance, stats.LastVenueName)
+            </p>
+        }
+
+        @if (stats.TopVenues.Count > 0)
+        {
+            <div class="singer-stats-venues mt-3">
+                <p class="small text-muted mb-1">Top venues</p>
+                <ul class="singer-stats-venue-list mb-0">
+                    @foreach (var venue in stats.TopVenues)
+                    {
+                        <li>
+                            <span class="singer-stats-venue-name">@venue.VenueName</span>
+                            <span class="singer-stats-venue-count">@venue.PerformanceCount</span>
+                        </li>
+                    }
+                </ul>
+            </div>
+        }
+    </section>
+}
+
+@code {
+    private bool loading = true;
+    private SingerStatsDto? stats;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await Api.GetMySingerStatsAsync();
+        if (result.Succeeded)
+        {
+            stats = result.Stats;
+        }
+
+        loading = false;
+    }
+
+    private static string FormatLastPerformance(DateTime date, int? daysSince, string? venueName)
+    {
+        var when = daysSince switch
+        {
+            0 => "today",
+            1 => "yesterday",
+            int d => $"{d} days ago",
+            _ => date.ToString("MMM d, yyyy")
+        };
+
+        return string.IsNullOrWhiteSpace(venueName)
+            ? $"{when} ({date:M/d/yyyy})"
+            : $"{when} at {venueName} ({date:M/d/yyyy})";
+    }
+}
