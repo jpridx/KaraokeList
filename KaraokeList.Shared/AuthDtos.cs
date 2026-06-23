@@ -84,6 +84,27 @@ public class ChangePasswordRequest
     public string ConfirmPassword { get; set; } = string.Empty;
 }
 
+public class ForgotPasswordRequest
+{
+    [Required, EmailAddress]
+    public string Email { get; set; } = string.Empty;
+}
+
+public class ResetPasswordRequest
+{
+    [Required, EmailAddress]
+    public string Email { get; set; } = string.Empty;
+
+    [Required]
+    public string Code { get; set; } = string.Empty;
+
+    [Required]
+    public string Password { get; set; } = string.Empty;
+
+    [Required, Compare(nameof(Password))]
+    public string ConfirmPassword { get; set; } = string.Empty;
+}
+
 public class ApiErrorResponse
 {
     public string? Message { get; set; }
@@ -93,6 +114,7 @@ public class RegistrationInfoDto
 {
     public bool IsRegistrationOpen { get; set; }
     public bool RequiresInviteCode { get; set; }
+    public bool IsPasswordRecoveryAllowed { get; set; }
 }
 
 public class InviteShareDto

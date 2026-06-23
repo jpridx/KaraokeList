@@ -35,6 +35,8 @@ public interface IKaraokeApiClient
     Task<InviteShareDto?> GetInviteShareAsync();
     Task<AuthResult> LinkSingerAsync(LinkSingerRequest request);
     Task<ChangePasswordResult> ChangePasswordAsync(ChangePasswordRequest request);
+    Task<PasswordRecoveryResult> ForgotPasswordAsync(ForgotPasswordRequest request);
+    Task<PasswordRecoveryResult> ResetPasswordAsync(ResetPasswordRequest request);
     Task<SongSummaryResult> GetMySongSummaryAsync(int songId);
     Task<RepertoireResult> GetMyRepertoireAsync(
         string sortBy = "lastPerformed",
@@ -200,6 +202,41 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
         catch (Exception ex)
         {
             return ChangePasswordResult.Fail(ex.Message);
+        }
+    }
+
+    public Task<PasswordRecoveryResult> ForgotPasswordAsync(ForgotPasswordRequest request) =>
+        PostPasswordRecoveryAsync("api/auth/forgot-password", request);
+
+    public Task<PasswordRecoveryResult> ResetPasswordAsync(ResetPasswordRequest request) =>
+        PostPasswordRecoveryAsync("api/auth/reset-password", request);
+
+    private async Task<PasswordRecoveryResult> PostPasswordRecoveryAsync(string url, object request)
+    {
+        try
+        {
+            var response = await http.PostAsJsonAsync(url, request);
+            if (response.IsSuccessStatusCode)
+            {
+                return PasswordRecoveryResult.Ok();
+            }
+
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                return PasswordRecoveryResult.Fail("Password recovery is not available.");
+            }
+
+            var message = await ReadApiErrorMessageAsync(response);
+            return PasswordRecoveryResult.Fail(message ?? "Request failed.");
+        }
+        catch (HttpRequestException ex)
+        {
+            return PasswordRecoveryResult.Fail(
+                $"Cannot reach the API at {http.BaseAddress}. Start KaraokeList.Api first. ({ex.Message})");
+        }
+        catch (Exception ex)
+        {
+            return PasswordRecoveryResult.Fail(ex.Message);
         }
     }
 

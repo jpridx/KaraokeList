@@ -12,15 +12,38 @@ public sealed class LoginPageTests : AuthPageTestContext
     [Fact]
     public void Renders_sign_in_form()
     {
+        Api.Setup(client => client.GetRegistrationInfoAsync())
+            .ReturnsAsync(new RegistrationInfoDto());
+
         var cut = RenderComponent<Login>();
 
-        Assert.Contains("Sign in", cut.Markup);
-        cut.Find("button[type=submit]");
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Contains("Sign in", cut.Markup);
+            cut.Find("button[type=submit]");
+        });
+    }
+
+    [Fact]
+    public void Shows_forgot_password_link_when_recovery_allowed()
+    {
+        Api.Setup(client => client.GetRegistrationInfoAsync())
+            .ReturnsAsync(new RegistrationInfoDto { IsPasswordRecoveryAllowed = true });
+
+        var cut = RenderComponent<Login>();
+
+        cut.WaitForAssertion(() =>
+        {
+            var link = cut.Find("a[href='forgot-password']");
+            Assert.Contains("Forgot your password?", link.TextContent);
+        });
     }
 
     [Fact]
     public void Shows_error_when_login_fails()
     {
+        Api.Setup(client => client.GetRegistrationInfoAsync())
+            .ReturnsAsync(new RegistrationInfoDto());
         Api.Setup(client => client.LoginAsync(It.IsAny<LoginRequest>()))
             .ReturnsAsync(AuthResult.Fail("Invalid login attempt."));
 
@@ -37,6 +60,8 @@ public sealed class LoginPageTests : AuthPageTestContext
     [Fact]
     public void Shows_transient_warning_when_cold_start_fails()
     {
+        Api.Setup(client => client.GetRegistrationInfoAsync())
+            .ReturnsAsync(new RegistrationInfoDto());
         Api.Setup(client => client.LoginAsync(It.IsAny<LoginRequest>()))
             .ReturnsAsync(AuthResult.Fail(ApiTransientFailure.ColdStartMessage, transient: true));
 
@@ -53,6 +78,8 @@ public sealed class LoginPageTests : AuthPageTestContext
     [Fact]
     public async Task Navigates_home_and_stores_token_when_login_succeeds()
     {
+        Api.Setup(client => client.GetRegistrationInfoAsync())
+            .ReturnsAsync(new RegistrationInfoDto());
         var token = CreateTestToken();
         Api.Setup(client => client.LoginAsync(It.IsAny<LoginRequest>()))
             .ReturnsAsync(AuthResult.Ok(new AuthResponse

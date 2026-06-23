@@ -52,4 +52,10 @@ public static class AuthRateLimitPolicies
 
     public static readonly TimeSpan ChangePasswordWindow = TimeSpan.FromMinutes(15);
     public const int ChangePasswordMaxAttempts = 5;
+
+    public static readonly TimeSpan ForgotPasswordWindow = TimeSpan.FromMinutes(15);
+    public const int ForgotPasswordMaxAttempts = 5;
+
+    public static readonly TimeSpan ResetPasswordWindow = TimeSpan.FromMinutes(15);
+    public const int ResetPasswordMaxAttempts = 10;
 }

@@ -13,7 +13,7 @@ This app is not meant to be a public internet service. These layers reduce bots,
 | **Rate limits** | Caps login/register attempts per IP |
 | **Honeypot field** | Hidden field bots often fill; humans never see it |
 | **Strong passwords** | 12+ chars with mixed character types |
-| **No public password reset** | Removes a common bot target (friends use Manage → Password when logged in) |
+| **No public password reset** | Off by default (`AllowPasswordRecovery: false`). Enable only if you configure SMTP (see below). |
 | **`robots.txt`** | Discourages polite crawlers from indexing |
 | **Security headers** | HSTS, `X-Frame-Options`, `nosniff`, etc. |
 
@@ -30,7 +30,19 @@ Generate a long random invite code (password manager or `openssl rand -base64 32
 | `Security__Registration__InviteCode` | Your secret (32+ random characters) |
 | `Security__Registration__RequireInviteCode` | `true` |
 | `Security__Registration__AllowRegistration` | `true` until everyone has joined |
-| `Security__Registration__AllowPasswordRecovery` | `false` |
+| `Security__Registration__AllowPasswordRecovery` | `false` (set `true` only with SMTP configured) |
+| `App__WebBaseUrl` | Public WASM URL (no trailing slash), e.g. `https://karaoke.example.com` |
+
+When password recovery is enabled, configure outbound email:
+
+| Setting | Value |
+|---------|--------|
+| `Email__SmtpHost` | Your SMTP server |
+| `Email__SmtpPort` | Usually `587` |
+| `Email__UserName` / `Email__Password` | SMTP credentials if required |
+| `Email__FromAddress` | Sender address |
+
+Without SMTP, reset links are written to the API log (local dev only).
 
 Optional: restrict email domains if your friends all use the same provider:
 
