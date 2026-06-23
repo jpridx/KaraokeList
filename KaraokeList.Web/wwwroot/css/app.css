@@ -583,11 +583,42 @@ code {
 
 .mobile-bottom-nav-link {
     flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     text-align: center;
-    padding: 0.65rem 0.5rem;
+    padding: 0.65rem 0.35rem;
     text-decoration: none;
     color: #555;
-    font-size: 0.85rem;
+    font-size: 0.8rem;
+    min-width: 0;
+}
+
+.mobile-bottom-nav-label--full {
+    display: none;
+}
+
+.mobile-bottom-nav-link--optional {
+    display: none;
+}
+
+@media (min-width: 400px) {
+    .mobile-bottom-nav-link {
+        font-size: 0.85rem;
+        padding: 0.65rem 0.5rem;
+    }
+
+    .mobile-bottom-nav-link--optional {
+        display: flex;
+    }
+
+    .mobile-bottom-nav-label--compact {
+        display: none;
+    }
+
+    .mobile-bottom-nav-label--full {
+        display: inline;
+    }
 }
 
 .mobile-bottom-nav-link.active {
