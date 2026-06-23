@@ -114,4 +114,18 @@ public static class EntityMappers
         VenueName = entry.VenueName,
         KeyChangeSemitones = entry.KeyChangeSemitones
     };
+
+    public static StaleSongDto ToDto(this StaleSong song, DateTime today)
+    {
+        var lastPerformed = song.LastPerformedOn.Date;
+        return new StaleSongDto
+        {
+            SongId = song.SongId,
+            Title = song.Title,
+            ArtistName = song.ArtistName,
+            LastPerformedOn = lastPerformed,
+            PerformanceCount = song.PerformanceCount,
+            DaysSinceLastPerformed = Math.Max(0, (today - lastPerformed).Days)
+        };
+    }
 }

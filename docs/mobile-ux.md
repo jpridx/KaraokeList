@@ -152,6 +152,7 @@ Implemented in `ShowHostMessageFormatting` (`KaraokeList.Shared`). Shown on Log 
 | `PerformanceHistoryList` | Editable performance history on song detail |
 | `TonightDashboard` | Mobile home: tonight context + recent logs |
 | `InviteFriendsBanner` | Home prompt when registration is open (invite link or register page) |
+| `StaleSongsSection` | Home list of logged songs not performed recently (server-side query) |
 | `SingerLinkPanel` | Link login to a singer profile when `SingerId` is missing |
 
 ## Invite friends
@@ -170,6 +171,7 @@ See [Performances.md](Performances.md) for schema and endpoints. Key calls:
 - `GET api/performances/my-repertoire` — My Songs list
 - `GET api/performances/my-history` — mobile performance browse
 - `GET api/performances/my-song-summary?songId=` — defaults + history
+- `GET api/performances/my-stale-songs?days=90&limit=5` — songs not performed recently (server-side)
 - `POST api/performances` — save (singer from JWT if omitted)
 - `GET api/auth/me` — singer link status
 - `GET api/auth/invite-share` — invite link/message payload for signed-in users (when invite-only registration is configured)
