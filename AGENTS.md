@@ -37,7 +37,7 @@ See `docs/wasm-api-local-dev.md` for CORS, JWT, and Syncfusion license setup.
 | `/log`, `/log?songId=` | Log performance |
 | `/my-songs`, `/my-songs/{id}` | Repertoire browse + detail |
 | `/more` | Catalog admin hub |
-| `/account/tickler-settings` | Revisit songs tickler settings (days / limit) |
+| `/account/preferences` | Home tickler preferences (days / song limit for **Haven't sung in a while**) |
 | `/invite-friends` | Copy invite link/message for friends |
 | `/songs`, `/artists`, … | Syncfusion grids |
 
