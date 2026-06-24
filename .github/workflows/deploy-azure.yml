@@ -102,13 +102,15 @@ jobs:
 
       - name: Deploy API (zip)
         run: |
-          # Async: zip deploy can finish before the app passes "site started" (EF migrate + cold SQL).
+          # --track-status false: Azure CLI 2.61+ polls until "site started" (~5 min cap).
+          # EF migrate + cold SQL often exceed that even when deploy succeeds; smoke test below is the gate.
           az webapp deploy \
             --resource-group "${AZURE_RESOURCE_GROUP}" \
             --name "${{ steps.azure.outputs.api_app_name }}" \
             --src-path ./publish/karaokelist-api.zip \
             --type zip \
             --async true \
+            --track-status false \
             --clean true \
             --restart true \
             --timeout 300

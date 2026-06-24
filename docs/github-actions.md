@@ -170,7 +170,7 @@ Edit `AZURE_RESOURCE_GROUP`, `AZURE_BASE_NAME`, or `WASM_PUBLIC_ORIGIN` in `.git
 | `AuthorizationFailed` on `az webapp deploy` | Service principal needs **Contributor** on `rg-karaokelist` |
 | WASM publish fails on Syncfusion | Set `SYNCFUSION_KEY` secret |
 | API smoke test not 401 | Cold start: first request can take minutes (SQL + EF migrate). Re-run deploy; check `az webapp log startup show` |
-| Deploy API zipdeploy timeout | Harmless if API later returns 401 — zip may have succeeded. Workflow uses async deploy + longer smoke-test wait |
+| Deploy API `Timeout reached while tracking deployment status` | Zip often succeeded; site still starting (EF migrate + cold SQL). Workflow uses `--track-status false` + smoke test. Check migrations in `__EFMigrationsHistory__` or Kudu deployment log |
 | WASM loads, API calls fail | CORS step in workflow; confirm `Cors__Origins__0` matches `WASM_PUBLIC_ORIGIN` in deploy-azure.yml |
 | Login works, empty catalog | Run `scripts/seed-catalog.sql` against Azure SQL |
 
