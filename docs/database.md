@@ -10,6 +10,8 @@ Migrations live in `KaraokeList.Api/Data/Migrations/`:
 |-----------|---------|
 | `20260608030430_InitialCreate` | Identity tables + `Genres`, `Artists`, `Singers`, `Venues`, `Songs`, `Performances` |
 | `20260608031358_AddDbSetsAndRelations` | `AspNetUsers.SingerId` → `Singers` foreign key |
+| `20260616033911_UniqueArtistName` | Unique index on `Artists.Name` |
+| `20260623235540_AddCatalogForeignKeys` | Performance/song/singer/venue FKs; song→artist FKs; `Performances.Song`/`Singer` NOT NULL |
 
 ### Apply schema
 
@@ -86,3 +88,15 @@ If `__EFMigrationsHistory__` already contains:
 …you are aligned with the repo. No history rewrite needed.
 
 If it contains older identity-only migration IDs (`00000000000000_CreateIdentitySchema`, etc.), replace them with the two rows above or run `dotnet ef database update` on a fresh database.
+
+## Data integrity & account lifecycle
+
+Referential integrity analysis, delete policy, anonymization plan, and phased rollout: **[data-integrity.md](data-integrity.md)**.
+
+Summary backlog:
+
+| Item | Notes |
+|------|--------|
+| **Account anonymization (quit app)** | Anonymize PII and revoke login; retain `Singers` + `Performances`. |
+| **Catalog foreign keys** | EF migration with explicit `ON DELETE` rules; block admin deletes when referenced. |
+| **Stop performance hard-delete** | Soft-delete or disallow once account policy is settled. |

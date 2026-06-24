@@ -68,8 +68,8 @@ public static class EntityMappers
     public static Performance ToEntity(this PerformanceDto dto) => new()
     {
         Id = dto.Id,
-        Singer = dto.Singer,
-        Song = dto.Song,
+        Singer = dto.Singer ?? 0,
+        Song = dto.Song ?? 0,
         Venue = dto.Venue,
         PerformedOn = dto.PerformedOn,
         KeyChangeSemitones = dto.KeyChangeSemitones
