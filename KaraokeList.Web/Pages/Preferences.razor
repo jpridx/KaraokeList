@@ -1,11 +1,12 @@
+@page "/account/preferences"
 @page "/account/tickler-settings"
 @attribute [Authorize]
 
-<PageTitle>Revisit songs settings</PageTitle>
+<PageTitle>Preferences</PageTitle>
 
 <div class="mobile-page">
     <header class="mobile-page-header">
-        <h1 class="h4 mb-1">Revisit songs</h1>
+        <h1 class="h4 mb-1">Preferences</h1>
         <p class="text-muted small mb-0">
             Control the <strong>Haven't sung in a while</strong> section on Home.
         </p>
@@ -13,7 +14,7 @@
 
     @if (isLoading)
     {
-        <p class="text-muted small mt-3">Loading settings…</p>
+        <p class="text-muted small mt-3">Loading preferences…</p>
     }
     else if (!string.IsNullOrEmpty(loadError))
     {
@@ -49,7 +50,7 @@
                     </div>
                 </div>
                 <button class="btn btn-primary w-100" type="submit" disabled="@isSubmitting">
-                    @(isSubmitting ? "Saving…" : "Save settings")
+                    @(isSubmitting ? "Saving…" : "Save preferences")
                 </button>
             </EditForm>
         </section>
@@ -82,7 +83,7 @@
         }
         else
         {
-            loadError = result.ErrorMessage ?? "Could not load settings.";
+            loadError = result.ErrorMessage ?? "Could not load preferences.";
         }
 
         isLoading = false;
@@ -99,11 +100,11 @@
             var result = await Api.UpdateTicklerSettingsAsync(Input);
             if (!result.Succeeded)
             {
-                errorMessage = result.ErrorMessage ?? "Could not save settings.";
+                errorMessage = result.ErrorMessage ?? "Could not save preferences.";
                 return;
             }
 
-            successMessage = "Settings saved. Home will use these values on your next visit.";
+            successMessage = "Preferences saved. Home will use these values on your next visit.";
         }
         finally
         {

@@ -40,7 +40,7 @@ There is no sidebar. Catalog grids live under `/more`.
 | `/more` | Hub: tonight links + catalog admin pages |
 | `/invite-friends` | Copy registration link / invite message for text or email (when invite-only registration is enabled) |
 | `/account/change-password` | Change sign-in password |
-| `/account/tickler-settings` | Configure **Haven't sung in a while** days and song limit |
+| `/account/preferences` | Preferences for **Haven't sung in a while** (days and song limit) |
 | `/forgot-password` | Request password reset email (when recovery is enabled) |
 | `/reset-password` | Set a new password from email reset link |
 | `/` | Home — **Tonight** dashboard on mobile; stats teaser; invite banner; stale songs |
