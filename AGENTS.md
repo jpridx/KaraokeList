@@ -86,3 +86,18 @@ Details: `docs/Performances.md`.
 5. After merge: `git checkout master && git pull && git branch -d <branch>`
 
 Direct commits to `master` are for merge commits / hotfixes the user explicitly requests on `master`.
+
+### GitHub issues and PRs
+
+When work addresses one or more GitHub issues, **auto-close requires a closing keyword in the PR description** (required for squash merges; commit-message keywords alone are not enough):
+
+```markdown
+Closes #48
+Closes #49
+```
+
+Valid keywords: `Closes`, `Fixes`, `Resolves` (each on its own line, or `Closes #48, closes #49`).
+
+**Do not rely on** `(#48)` or `#48` in the title or commit message — those only link; they do not close issues.
+
+Put closing lines in the **PR body** under `## Summary` or a dedicated `## Issues` section. Mention issue numbers in commits for traceability, but always duplicate `Closes #nn` in the PR description when opening the PR.
