@@ -46,6 +46,36 @@ public sealed class StaleSongsIntegrationTests(KaraokeApiFactory factory)
     }
 
     [SkippableFact]
+    public async Task GetMyStaleSongs_ReturnsRandomSubsetWhenMultipleSongsQualify()
+    {
+        Skip.IfNot(factory.IsDatabaseAvailable, IntegrationTestConnection.SkipReason);
+
+        var client = await CreateAuthedClientAsync();
+        var (_, venueId) = await PerformanceTestDataHelper.CreateCatalogAsync(client);
+        var staleSongIds = new List<int>();
+        for (var i = 0; i < 3; i++)
+        {
+            var (songId, _) = await PerformanceTestDataHelper.CreateCatalogAsync(client);
+            staleSongIds.Add(songId);
+            await PerformanceTestDataHelper.CreatePerformanceAsync(
+                client, songId, venueId, DateTime.Today.AddDays(-120 - i));
+        }
+
+        var seen = new HashSet<int>();
+        for (var attempt = 0; attempt < 12; attempt++)
+        {
+            var response = await client.GetFromJsonAsync<StaleSongsResponseDto>(
+                "/api/performances/my-stale-songs?days=90&limit=1");
+            Assert.NotNull(response);
+            var song = Assert.Single(response.Songs);
+            Assert.Contains(song.SongId, staleSongIds);
+            seen.Add(song.SongId);
+        }
+
+        Assert.True(seen.Count > 1, "Expected random ordering to surface more than one stale song across repeated requests.");
+    }
+
+    [SkippableFact]
     public async Task GetMyStaleSongs_InvalidDays_ReturnsBadRequest()
     {
         Skip.IfNot(factory.IsDatabaseAvailable, IntegrationTestConnection.SkipReason);
