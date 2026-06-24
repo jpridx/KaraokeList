@@ -33,7 +33,9 @@ builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddSyncfusionBlazor();
 builder.Services.AddScoped<JwtAuthenticationStateProvider>();
 builder.Services.AddScoped<AuthenticationStateProvider>(sp => sp.GetRequiredService<JwtAuthenticationStateProvider>());
+builder.Services.AddScoped<ApiSlowRequestNotifier>();
 builder.Services.AddScoped<AuthorizationMessageHandler>();
+builder.Services.AddScoped<SlowApiRequestHandler>();
 builder.Services.AddScoped<IKaraokeApiClient, KaraokeApiClient>();
 builder.Services.AddScoped<ILogPerformanceLocalStore, LogPerformanceLocalStore>();
 builder.Services.AddScoped<ILogCatalogLoader, LogCatalogLoader>();
@@ -44,7 +46,8 @@ builder.Services.AddHttpClient("KaraokeApi", client =>
         client.BaseAddress = new Uri(apiBaseUrl);
         client.Timeout = TimeSpan.FromMinutes(2);
     })
-    .AddHttpMessageHandler<AuthorizationMessageHandler>();
+    .AddHttpMessageHandler<AuthorizationMessageHandler>()
+    .AddHttpMessageHandler<SlowApiRequestHandler>();
 builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("KaraokeApi"));
 
 await builder.Build().RunAsync();
