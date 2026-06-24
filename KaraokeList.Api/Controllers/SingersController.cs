@@ -9,7 +9,7 @@ namespace KaraokeList.Api.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class SingersController(SingerService singerService) : ControllerBase
+public class SingersController(SingerService singerService, CatalogIntegrityService integrity) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<List<SingerDto>>> GetAll()
@@ -39,6 +39,22 @@ public class SingersController(SingerService singerService) : ControllerBase
     [Authorize(Roles = KaraokeRoles.Admin)]
     public async Task<IActionResult> Delete(int id)
     {
+        if (await integrity.HasPerformancesForSingerAsync(id))
+        {
+            return Conflict(new ApiErrorResponse
+            {
+                Message = "Cannot delete this singer because performances reference them."
+            });
+        }
+
+        if (await integrity.IsSingerLinkedToUserAsync(id))
+        {
+            return Conflict(new ApiErrorResponse
+            {
+                Message = "Cannot delete this singer because a user account is linked to them."
+            });
+        }
+
         await singerService.DeleteSingerAsync(id);
         return NoContent();
     }

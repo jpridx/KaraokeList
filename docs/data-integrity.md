@@ -195,14 +195,13 @@ API delete endpoints (admin unless noted):
 
 ## Backlog checklist
 
-- [ ] Document and fix existing orphan rows in dev/prod before FK migration
-- [ ] EF migration: performance FKs (Phase 1)
-- [ ] API: block catalog delete when referenced
-- [ ] API: validate performance foreign keys on write
-- [ ] EF migration: catalog FKs (Phase 2)
+- [x] EF migration: performance FKs + NOT NULL (`20260623235540_AddCatalogForeignKeys`)
+- [x] EF migration: song→artist FKs (same migration)
+- [x] API: block catalog delete when referenced (409 Conflict)
+- [x] API: validate performance foreign keys on write
+- [ ] Document and fix existing orphan rows in dev/prod before applying migration in each environment
 - [ ] Account anonymization endpoint + WASM “Close account” UX
 - [ ] Revisit performance delete policy
-- [ ] Update integration tests for 409 on blocked deletes
 
 ---
 

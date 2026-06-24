@@ -5,8 +5,8 @@ namespace KaraokeList.Data;
 public class Performance
 {
     public int Id { get; set; }
-    public int? Singer { get; set; }
-    public int? Song { get; set; }
+    public int Singer { get; set; }
+    public int Song { get; set; }
     public int? Venue { get; set; }
     public DateTime PerformedOn { get; set; }
     public int? KeyChangeSemitones { get; set; }
@@ -542,8 +542,8 @@ public class PerformanceService(string connectionString)
 
     private static void AddParameters(SqlCommand command, Performance performance)
     {
-        command.Parameters.AddWithValue("@Singer", (object?)performance.Singer ?? DBNull.Value);
-        command.Parameters.AddWithValue("@Song", (object?)performance.Song ?? DBNull.Value);
+        command.Parameters.AddWithValue("@Singer", performance.Singer);
+        command.Parameters.AddWithValue("@Song", performance.Song);
         command.Parameters.AddWithValue("@Venue", (object?)performance.Venue ?? DBNull.Value);
         command.Parameters.AddWithValue("@PerformedOn", performance.PerformedOn.Date);
         command.Parameters.AddWithValue("@KeyChangeSemitones", (object?)performance.KeyChangeSemitones ?? DBNull.Value);
@@ -552,8 +552,8 @@ public class PerformanceService(string connectionString)
     private static Performance ReadPerformance(SqlDataReader reader) => new()
     {
         Id = reader.GetInt32(0),
-        Singer = reader.IsDBNull(1) ? null : reader.GetInt32(1),
-        Song = reader.IsDBNull(2) ? null : reader.GetInt32(2),
+        Singer = reader.GetInt32(1),
+        Song = reader.GetInt32(2),
         Venue = reader.IsDBNull(3) ? null : reader.GetInt32(3),
         PerformedOn = reader.GetDateTime(4),
         KeyChangeSemitones = reader.IsDBNull(5) ? null : reader.GetInt32(5)

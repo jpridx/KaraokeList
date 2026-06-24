@@ -12,6 +12,7 @@ namespace KaraokeList.Api.Controllers;
 [Authorize]
 public class PerformancesController(
     PerformanceService performanceService,
+    CatalogIntegrityService integrity,
     ICurrentUserSingerResolver currentUserSinger) : ControllerBase
 {
     [HttpGet]
@@ -165,6 +166,12 @@ public class PerformancesController(
         }
 
         dto.Singer = singerId.Value;
+        var validation = await ValidatePerformanceAsync(dto);
+        if (validation is not null)
+        {
+            return validation;
+        }
+
         await performanceService.AddPerformanceAsync(dto.ToEntity());
         return NoContent();
     }
@@ -186,6 +193,12 @@ public class PerformancesController(
 
         dto.Id = id;
         dto.Singer = singerId.Value;
+        var validation = await ValidatePerformanceAsync(dto);
+        if (validation is not null)
+        {
+            return validation;
+        }
+
         await performanceService.UpdatePerformanceAsync(dto.ToEntity());
         return NoContent();
     }
@@ -231,5 +244,25 @@ public class PerformancesController(
     private static bool IsValidSortDir(string sortDir) =>
         sortDir.Equals("asc", StringComparison.OrdinalIgnoreCase)
         || sortDir.Equals("desc", StringComparison.OrdinalIgnoreCase);
+
+    private async Task<ActionResult?> ValidatePerformanceAsync(PerformanceDto dto)
+    {
+        if (dto.Song is not int songId)
+        {
+            return BadRequest(new ApiErrorResponse { Message = "Song is required." });
+        }
+
+        if (!await integrity.SongExistsAsync(songId))
+        {
+            return BadRequest(new ApiErrorResponse { Message = "Song was not found." });
+        }
+
+        if (dto.Venue is int venueId && !await integrity.VenueExistsAsync(venueId))
+        {
+            return BadRequest(new ApiErrorResponse { Message = "Venue was not found." });
+        }
+
+        return null;
+    }
 
 }

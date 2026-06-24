@@ -10,6 +10,8 @@ Migrations live in `KaraokeList.Api/Data/Migrations/`:
 |-----------|---------|
 | `20260608030430_InitialCreate` | Identity tables + `Genres`, `Artists`, `Singers`, `Venues`, `Songs`, `Performances` |
 | `20260608031358_AddDbSetsAndRelations` | `AspNetUsers.SingerId` → `Singers` foreign key |
+| `20260616033911_UniqueArtistName` | Unique index on `Artists.Name` |
+| `20260623235540_AddCatalogForeignKeys` | Performance/song/singer/venue FKs; song→artist FKs; `Performances.Song`/`Singer` NOT NULL |
 
 ### Apply schema
 
