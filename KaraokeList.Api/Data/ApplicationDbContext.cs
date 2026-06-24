@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+﻿using KaraokeList.Shared;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace KaraokeList.Data
@@ -19,6 +20,8 @@ namespace KaraokeList.Data
             builder.Entity<ApplicationUser>(entity =>
             {
                 entity.Property(u => u.SingerId).IsRequired(false);
+                entity.Property(u => u.StaleSongAfterDays).HasDefaultValue(TicklerSettingsLimits.DefaultStaleAfterDays);
+                entity.Property(u => u.StaleSongLimit).HasDefaultValue(TicklerSettingsLimits.DefaultSongLimit);
                 entity.HasIndex(u => u.SingerId)
                     .IsUnique()
                     .HasFilter("[SingerId] IS NOT NULL");

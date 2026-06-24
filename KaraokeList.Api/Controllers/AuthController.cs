@@ -143,6 +143,43 @@ public class AuthController(
     }
 
     [Authorize]
+    [HttpGet("tickler-settings")]
+    public async Task<ActionResult<TicklerSettingsDto>> GetTicklerSettings()
+    {
+        var user = await currentUserSinger.GetUserAsync(User);
+        if (user is null)
+        {
+            return Unauthorized();
+        }
+
+        return Ok(TicklerSettingsResolver.ToDto(user));
+    }
+
+    [Authorize]
+    [HttpPut("tickler-settings")]
+    public async Task<IActionResult> UpdateTicklerSettings([FromBody] UpdateTicklerSettingsRequest request)
+    {
+        var user = await currentUserSinger.GetUserAsync(User);
+        if (user is null)
+        {
+            return Unauthorized();
+        }
+
+        user.StaleSongAfterDays = request.StaleAfterDays;
+        user.StaleSongLimit = request.SongLimit;
+        var result = await userManager.UpdateAsync(user);
+        if (!result.Succeeded)
+        {
+            return BadRequest(new ApiErrorResponse
+            {
+                Message = string.Join(" ", result.Errors.Select(e => e.Description))
+            });
+        }
+
+        return NoContent();
+    }
+
+    [Authorize]
     [HttpPost("link-singer")]
     public async Task<ActionResult<AuthResponse>> LinkSinger([FromBody] LinkSingerRequest request)
     {

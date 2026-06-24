@@ -37,6 +37,7 @@ See `docs/wasm-api-local-dev.md` for CORS, JWT, and Syncfusion license setup.
 | `/log`, `/log?songId=` | Log performance |
 | `/my-songs`, `/my-songs/{id}` | Repertoire browse + detail |
 | `/more` | Catalog admin hub |
+| `/account/tickler-settings` | Revisit songs tickler settings (days / limit) |
 | `/invite-friends` | Copy invite link/message for friends |
 | `/songs`, `/artists`, … | Syncfusion grids |
 
@@ -44,7 +45,7 @@ Details: `docs/mobile-ux.md`. E2E: `docs/e2e-playwright.md`. Admin roles: `docs/
 
 ### Key API endpoints
 
-- `POST api/auth/register`, `api/auth/login`, `GET api/auth/me`, `GET api/auth/invite-share`
+- `POST api/auth/register`, `api/auth/login`, `GET api/auth/me`, `GET api/auth/invite-share`, `GET/PUT api/auth/tickler-settings`
 - `GET api/performances/my-repertoire`, `my-repertoire/genres`, `my-song-summary`, `my-stale-songs`, `my-stats`
 - `POST api/performances` (auto-fills singer from JWT)
 

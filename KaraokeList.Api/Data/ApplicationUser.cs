@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using KaraokeList.Shared;
+using Microsoft.AspNetCore.Identity;
 
 namespace KaraokeList.Data
 {
@@ -7,6 +8,8 @@ namespace KaraokeList.Data
     {
         public int? SingerId { get; set; }
         public Singer? Singer { get; set; }
+        public int StaleSongAfterDays { get; set; } = TicklerSettingsLimits.DefaultStaleAfterDays;
+        public int StaleSongLimit { get; set; } = TicklerSettingsLimits.DefaultSongLimit;
     }
 
 }

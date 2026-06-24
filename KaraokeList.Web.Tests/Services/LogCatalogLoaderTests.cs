@@ -155,7 +155,9 @@ public sealed class LogCatalogLoaderTests
         public Task<PasswordRecoveryResult> ResetPasswordAsync(ResetPasswordRequest request) => throw new NotSupportedException();
         public Task<SongSummaryResult> GetMySongSummaryAsync(int songId) => throw new NotSupportedException();
         public Task<RepertoireGenresResult> GetMyRepertoireGenresAsync() => throw new NotSupportedException();
-        public Task<StaleSongsResult> GetMyStaleSongsAsync(int days = 90, int limit = 5) => throw new NotSupportedException();
+        public Task<StaleSongsResult> GetMyStaleSongsAsync(int? days = null, int? limit = null) => throw new NotSupportedException();
+        public Task<TicklerSettingsResult> GetTicklerSettingsAsync() => throw new NotSupportedException();
+        public Task<TicklerSettingsUpdateResult> UpdateTicklerSettingsAsync(UpdateTicklerSettingsRequest request) => throw new NotSupportedException();
         public Task<SingerStatsResult> GetMySingerStatsAsync(
             int topVenues = 0,
             int topSongs = 0,

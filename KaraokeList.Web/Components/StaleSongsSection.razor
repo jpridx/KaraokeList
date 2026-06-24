@@ -5,7 +5,10 @@
     <section class="stale-songs-section mobile-panel mt-3" aria-label="Songs to revisit">
         <header class="stale-songs-header">
             <h2 class="h5 mb-1">Haven't sung in a while</h2>
-            <p class="text-muted small mb-0">Not performed in the last @staleAfterDays days — tap to log again.</p>
+            <p class="text-muted small mb-0">
+                Not performed in the last @staleAfterDays days — tap to log again.
+                <a class="ms-1" href="account/tickler-settings">Adjust</a>
+            </p>
         </header>
 
         <ul class="recent-log-list mt-3 mb-0">
@@ -29,16 +32,13 @@
 }
 
 @code {
-    private const int DefaultStaleAfterDays = 90;
-    private const int DefaultLimit = 5;
-
     private bool loading = true;
-    private int staleAfterDays = DefaultStaleAfterDays;
+    private int staleAfterDays = TicklerSettingsLimits.DefaultStaleAfterDays;
     private List<StaleSongDto> songs = [];
 
     protected override async Task OnInitializedAsync()
     {
-        var result = await Api.GetMyStaleSongsAsync(DefaultStaleAfterDays, DefaultLimit);
+        var result = await Api.GetMyStaleSongsAsync();
         if (result.Succeeded && result.Response is not null)
         {
             staleAfterDays = result.Response.StaleAfterDays;

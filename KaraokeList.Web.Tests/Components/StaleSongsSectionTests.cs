@@ -11,7 +11,7 @@ public sealed class StaleSongsSectionTests : AuthPageTestContext
     [Fact]
     public void Renders_nothing_when_no_stale_songs()
     {
-        Api.Setup(client => client.GetMyStaleSongsAsync(90, 5))
+        Api.Setup(client => client.GetMyStaleSongsAsync(null, null))
             .ReturnsAsync(StaleSongsResult.Ok(new StaleSongsResponseDto
             {
                 StaleAfterDays = 90,
@@ -27,7 +27,7 @@ public sealed class StaleSongsSectionTests : AuthPageTestContext
     [Fact]
     public void Shows_stale_songs_with_log_links()
     {
-        Api.Setup(client => client.GetMyStaleSongsAsync(90, 5))
+        Api.Setup(client => client.GetMyStaleSongsAsync(null, null))
             .ReturnsAsync(StaleSongsResult.Ok(new StaleSongsResponseDto
             {
                 StaleAfterDays = 90,
