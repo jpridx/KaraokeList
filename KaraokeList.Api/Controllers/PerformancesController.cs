@@ -134,7 +134,11 @@ public class PerformancesController(
     }
 
     [HttpGet("my-stats")]
-    public async Task<ActionResult<SingerStatsDto>> GetMyStats([FromQuery] int topVenues = 3)
+    public async Task<ActionResult<SingerStatsDto>> GetMyStats(
+        [FromQuery] int topVenues = 3,
+        [FromQuery] int topSongs = 0,
+        [FromQuery] int topArtists = 0,
+        [FromQuery] int newRepertoireDays = 0)
     {
         var singerId = await RequireSingerIdAsync();
         if (singerId.Result is not null)
@@ -142,12 +146,32 @@ public class PerformancesController(
             return singerId.Result;
         }
 
-        if (topVenues is < 1 or > 10)
+        if (topVenues is < 0 or > 10)
         {
-            return BadRequest(new ApiErrorResponse { Message = "Invalid topVenues. Use a value between 1 and 10." });
+            return BadRequest(new ApiErrorResponse { Message = "Invalid topVenues. Use a value between 0 and 10." });
         }
 
-        var stats = await performanceService.GetSingerStatsAsync(singerId.Value!.Value, topVenues);
+        if (topSongs is < 0 or > 20)
+        {
+            return BadRequest(new ApiErrorResponse { Message = "Invalid topSongs. Use a value between 0 and 20." });
+        }
+
+        if (topArtists is < 0 or > 20)
+        {
+            return BadRequest(new ApiErrorResponse { Message = "Invalid topArtists. Use a value between 0 and 20." });
+        }
+
+        if (newRepertoireDays is < 0 or > 365)
+        {
+            return BadRequest(new ApiErrorResponse { Message = "Invalid newRepertoireDays. Use a value between 0 and 365." });
+        }
+
+        var stats = await performanceService.GetSingerStatsAsync(
+            singerId.Value!.Value,
+            topVenues,
+            topSongs,
+            topArtists,
+            newRepertoireDays);
         return Ok(stats.ToDto(DateTime.Today));
     }
 

@@ -60,12 +60,39 @@ public class SingerStats
     public int PerformancesThisMonth { get; set; }
     public int PerformancesThisYear { get; set; }
     public List<VenuePerformanceCount> TopVenues { get; set; } = [];
+    public List<SongPerformanceCount> TopSongs { get; set; } = [];
+    public List<ArtistPerformanceCount> TopArtists { get; set; } = [];
+    public List<NewRepertoireSong> NewRepertoireSongs { get; set; } = [];
+    public int NewRepertoireDays { get; set; }
 }
 
 public class VenuePerformanceCount
 {
     public string VenueName { get; set; } = string.Empty;
     public int PerformanceCount { get; set; }
+}
+
+public class SongPerformanceCount
+{
+    public int SongId { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string ArtistName { get; set; } = string.Empty;
+    public int PerformanceCount { get; set; }
+}
+
+public class ArtistPerformanceCount
+{
+    public int ArtistId { get; set; }
+    public string ArtistName { get; set; } = string.Empty;
+    public int PerformanceCount { get; set; }
+}
+
+public class NewRepertoireSong
+{
+    public int SongId { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string ArtistName { get; set; } = string.Empty;
+    public DateTime FirstPerformedOn { get; set; }
 }
 
 public class RepertoireGenre
@@ -311,7 +338,12 @@ public class PerformanceService(string connectionString)
         return songs;
     }
 
-    public async Task<SingerStats> GetSingerStatsAsync(int singerId, int topVenueLimit = 3)
+    public async Task<SingerStats> GetSingerStatsAsync(
+        int singerId,
+        int topVenueLimit = 3,
+        int topSongLimit = 0,
+        int topArtistLimit = 0,
+        int newRepertoireDays = 0)
     {
         var today = DateTime.Today;
         var monthStart = new DateTime(today.Year, today.Month, 1);
@@ -370,24 +402,110 @@ public class PerformanceService(string connectionString)
 
         await using (var venuesCommand = connection.CreateCommand())
         {
-            venuesCommand.CommandText = """
-                SELECT TOP (@Limit) ISNULL(v.VenueName, N'Unknown venue') AS VenueName,
-                       COUNT(*) AS PerformanceCount
+            if (topVenueLimit > 0)
+            {
+                venuesCommand.CommandText = """
+                    SELECT TOP (@Limit) ISNULL(v.VenueName, N'Unknown venue') AS VenueName,
+                           COUNT(*) AS PerformanceCount
+                    FROM Performances p
+                    LEFT JOIN Venues v ON v.Id = p.Venue
+                    WHERE p.Singer = @Singer
+                    GROUP BY v.VenueName
+                    ORDER BY COUNT(*) DESC, ISNULL(v.VenueName, N'') ASC
+                    """;
+                venuesCommand.Parameters.AddWithValue("@Singer", singerId);
+                venuesCommand.Parameters.AddWithValue("@Limit", topVenueLimit);
+                await using var reader = await venuesCommand.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    stats.TopVenues.Add(new VenuePerformanceCount
+                    {
+                        VenueName = reader.GetString(0),
+                        PerformanceCount = reader.GetInt32(1)
+                    });
+                }
+            }
+        }
+
+        if (topSongLimit > 0)
+        {
+            await using var songsCommand = connection.CreateCommand();
+            songsCommand.CommandText = """
+                SELECT TOP (@Limit) s.Id, s.Title, ISNULL(a.Name, N''), COUNT(*) AS PerformanceCount
                 FROM Performances p
-                LEFT JOIN Venues v ON v.Id = p.Venue
+                INNER JOIN Songs s ON s.Id = p.Song
+                LEFT JOIN Artists a ON a.Id = s.Artist
                 WHERE p.Singer = @Singer
-                GROUP BY v.VenueName
-                ORDER BY COUNT(*) DESC, ISNULL(v.VenueName, N'') ASC
+                GROUP BY s.Id, s.Title, a.Name
+                ORDER BY COUNT(*) DESC, s.Title ASC
                 """;
-            venuesCommand.Parameters.AddWithValue("@Singer", singerId);
-            venuesCommand.Parameters.AddWithValue("@Limit", topVenueLimit);
-            await using var reader = await venuesCommand.ExecuteReaderAsync();
+            songsCommand.Parameters.AddWithValue("@Singer", singerId);
+            songsCommand.Parameters.AddWithValue("@Limit", topSongLimit);
+            await using var reader = await songsCommand.ExecuteReaderAsync();
             while (await reader.ReadAsync())
             {
-                stats.TopVenues.Add(new VenuePerformanceCount
+                stats.TopSongs.Add(new SongPerformanceCount
                 {
-                    VenueName = reader.GetString(0),
-                    PerformanceCount = reader.GetInt32(1)
+                    SongId = reader.GetInt32(0),
+                    Title = reader.GetString(1),
+                    ArtistName = reader.GetString(2),
+                    PerformanceCount = reader.GetInt32(3)
+                });
+            }
+        }
+
+        if (topArtistLimit > 0)
+        {
+            await using var artistsCommand = connection.CreateCommand();
+            artistsCommand.CommandText = """
+                SELECT TOP (@Limit) a.Id, a.Name, COUNT(*) AS PerformanceCount
+                FROM Performances p
+                INNER JOIN Songs s ON s.Id = p.Song
+                INNER JOIN Artists a ON a.Id = s.Artist
+                WHERE p.Singer = @Singer
+                GROUP BY a.Id, a.Name
+                ORDER BY COUNT(*) DESC, a.Name ASC
+                """;
+            artistsCommand.Parameters.AddWithValue("@Singer", singerId);
+            artistsCommand.Parameters.AddWithValue("@Limit", topArtistLimit);
+            await using var reader = await artistsCommand.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                stats.TopArtists.Add(new ArtistPerformanceCount
+                {
+                    ArtistId = reader.GetInt32(0),
+                    ArtistName = reader.GetString(1),
+                    PerformanceCount = reader.GetInt32(2)
+                });
+            }
+        }
+
+        if (newRepertoireDays > 0)
+        {
+            stats.NewRepertoireDays = newRepertoireDays;
+            var cutoff = today.AddDays(-newRepertoireDays);
+            await using var newSongsCommand = connection.CreateCommand();
+            newSongsCommand.CommandText = """
+                SELECT s.Id, s.Title, ISNULL(a.Name, N''), MIN(p.PerformedOn) AS FirstPerformedOn
+                FROM Performances p
+                INNER JOIN Songs s ON s.Id = p.Song
+                LEFT JOIN Artists a ON a.Id = s.Artist
+                WHERE p.Singer = @Singer
+                GROUP BY s.Id, s.Title, a.Name
+                HAVING MIN(p.PerformedOn) >= @Cutoff
+                ORDER BY MIN(p.PerformedOn) DESC, s.Title ASC
+                """;
+            newSongsCommand.Parameters.AddWithValue("@Singer", singerId);
+            newSongsCommand.Parameters.AddWithValue("@Cutoff", cutoff);
+            await using var reader = await newSongsCommand.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                stats.NewRepertoireSongs.Add(new NewRepertoireSong
+                {
+                    SongId = reader.GetInt32(0),
+                    Title = reader.GetString(1),
+                    ArtistName = reader.GetString(2),
+                    FirstPerformedOn = reader.GetDateTime(3)
                 });
             }
         }

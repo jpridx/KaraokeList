@@ -156,7 +156,11 @@ public sealed class LogCatalogLoaderTests
         public Task<SongSummaryResult> GetMySongSummaryAsync(int songId) => throw new NotSupportedException();
         public Task<RepertoireGenresResult> GetMyRepertoireGenresAsync() => throw new NotSupportedException();
         public Task<StaleSongsResult> GetMyStaleSongsAsync(int days = 90, int limit = 5) => throw new NotSupportedException();
-        public Task<SingerStatsResult> GetMySingerStatsAsync(int topVenues = 3) => throw new NotSupportedException();
+        public Task<SingerStatsResult> GetMySingerStatsAsync(
+            int topVenues = 0,
+            int topSongs = 0,
+            int topArtists = 0,
+            int newRepertoireDays = 0) => throw new NotSupportedException();
         public Task<MyPerformancesResult> GetMyPerformancesAsync(int? venueId = null, string sortDir = "desc") => throw new NotSupportedException();
         public Task UpdatePerformanceAsync(PerformanceDto dto) => throw new NotSupportedException();
         public Task DeletePerformanceAsync(int id) => throw new NotSupportedException();

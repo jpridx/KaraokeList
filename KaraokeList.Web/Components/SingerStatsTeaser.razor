@@ -1,0 +1,28 @@
+@inject IKaraokeApiClient Api
+
+@if (!loading && stats is { TotalPerformances: > 0 })
+{
+    <section class="singer-stats-teaser mobile-panel mt-3" aria-label="Stats summary">
+        <SingerStatsDisplay Stats="stats" HeaderClass="h6" />
+
+        <p class="mb-0 mt-3">
+            <a class="btn btn-sm btn-outline-primary" href="my-stats">View all stats</a>
+        </p>
+    </section>
+}
+
+@code {
+    private bool loading = true;
+    private SingerStatsDto? stats;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await Api.GetMySingerStatsAsync();
+        if (result.Succeeded)
+        {
+            stats = result.Stats;
+        }
+
+        loading = false;
+    }
+}

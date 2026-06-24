@@ -148,7 +148,28 @@ public static class EntityMappers
             {
                 VenueName = v.VenueName,
                 PerformanceCount = v.PerformanceCount
-            }).ToList()
+            }).ToList(),
+            TopSongs = stats.TopSongs.Select(s => new SongStatDto
+            {
+                SongId = s.SongId,
+                Title = s.Title,
+                ArtistName = s.ArtistName,
+                PerformanceCount = s.PerformanceCount
+            }).ToList(),
+            TopArtists = stats.TopArtists.Select(a => new ArtistStatDto
+            {
+                ArtistId = a.ArtistId,
+                ArtistName = a.ArtistName,
+                PerformanceCount = a.PerformanceCount
+            }).ToList(),
+            NewRepertoireSongs = stats.NewRepertoireSongs.Select(s => new NewRepertoireSongDto
+            {
+                SongId = s.SongId,
+                Title = s.Title,
+                ArtistName = s.ArtistName,
+                FirstPerformedOn = s.FirstPerformedOn.Date
+            }).ToList(),
+            NewRepertoireDays = stats.NewRepertoireDays
         };
     }
 }

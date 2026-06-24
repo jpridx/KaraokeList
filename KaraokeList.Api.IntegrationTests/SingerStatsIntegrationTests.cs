@@ -32,7 +32,8 @@ public sealed class SingerStatsIntegrationTests(KaraokeApiFactory factory)
         await PerformanceTestDataHelper.CreatePerformanceAsync(client, songIdA, venueId, DateTime.Today);
         await PerformanceTestDataHelper.CreatePerformanceAsync(client, songIdB, venueId, DateTime.Today.AddMonths(-2));
 
-        var stats = await client.GetFromJsonAsync<SingerStatsDto>("/api/performances/my-stats");
+        var stats = await client.GetFromJsonAsync<SingerStatsDto>(
+            "/api/performances/my-stats?topSongs=5&topArtists=5&newRepertoireDays=30&topVenues=3");
 
         Assert.NotNull(stats);
         Assert.Equal(3, stats.TotalPerformances);
@@ -43,6 +44,22 @@ public sealed class SingerStatsIntegrationTests(KaraokeApiFactory factory)
         Assert.Equal(0, stats.DaysSinceLastPerformance);
         Assert.NotEmpty(stats.TopVenues);
         Assert.Equal(3, stats.TopVenues[0].PerformanceCount);
+        Assert.NotEmpty(stats.TopSongs);
+        Assert.Equal(songIdA, stats.TopSongs[0].SongId);
+        Assert.Equal(2, stats.TopSongs[0].PerformanceCount);
+        Assert.NotEmpty(stats.TopArtists);
+        Assert.Single(stats.NewRepertoireSongs);
+    }
+
+    [SkippableFact]
+    public async Task GetMyStats_WithInvalidTopSongs_ReturnsBadRequest()
+    {
+        Skip.IfNot(factory.IsDatabaseAvailable, IntegrationTestConnection.SkipReason);
+
+        var client = await CreateAuthedClientAsync();
+        var response = await client.GetAsync("/api/performances/my-stats?topSongs=99");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
     [SkippableFact]

@@ -116,6 +116,29 @@ public class VenueStatDto
     public int PerformanceCount { get; set; }
 }
 
+public class SongStatDto
+{
+    public int SongId { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string ArtistName { get; set; } = string.Empty;
+    public int PerformanceCount { get; set; }
+}
+
+public class ArtistStatDto
+{
+    public int ArtistId { get; set; }
+    public string ArtistName { get; set; } = string.Empty;
+    public int PerformanceCount { get; set; }
+}
+
+public class NewRepertoireSongDto
+{
+    public int SongId { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string ArtistName { get; set; } = string.Empty;
+    public DateTime FirstPerformedOn { get; set; }
+}
+
 public class SingerStatsDto
 {
     public int TotalPerformances { get; set; }
@@ -126,6 +149,10 @@ public class SingerStatsDto
     public int PerformancesThisMonth { get; set; }
     public int PerformancesThisYear { get; set; }
     public List<VenueStatDto> TopVenues { get; set; } = [];
+    public List<SongStatDto> TopSongs { get; set; } = [];
+    public List<ArtistStatDto> TopArtists { get; set; } = [];
+    public List<NewRepertoireSongDto> NewRepertoireSongs { get; set; } = [];
+    public int NewRepertoireDays { get; set; }
 }
 
 public static class KeyChangeFormatting
