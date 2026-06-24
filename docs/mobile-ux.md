@@ -154,7 +154,7 @@ Implemented in `ShowHostMessageFormatting` (`KaraokeList.Shared`). Shown on Log 
 | `PerformanceHistoryList` | Editable performance history on song detail |
 | `TonightDashboard` | Mobile home: tonight context + recent logs |
 | `InviteFriendsBanner` | Home prompt when registration is open (invite link or register page) |
-| `StaleSongsSection` | Home list of logged songs not performed recently (server-side query) |
+| `StaleSongsSection` | Home list of songs not performed recently (random sample from your stale pool) |
 | `SingerStatsTeaser` | Home summary with link to `/my-stats` |
 | `SingerStatsDisplay` | Shared stats layout (used on `/my-stats`) |
 | `SingerLinkPanel` | Link login to a singer profile when `SingerId` is missing |
@@ -175,7 +175,7 @@ See [Performances.md](Performances.md) for schema and endpoints. Key calls:
 - `GET api/performances/my-repertoire` — My Songs list
 - `GET api/performances/my-history` — mobile performance browse
 - `GET api/performances/my-song-summary?songId=` — defaults + history
-- `GET api/performances/my-stale-songs` — songs not performed recently (uses saved tickler settings; optional `days` / `limit` overrides)
+- `GET api/performances/my-stale-songs` — random sample of songs not performed recently (uses saved tickler settings; optional `days` / `limit` overrides)
 - `GET api/auth/tickler-settings`, `PUT api/auth/tickler-settings` — per-user stale-song days and limit
 - `GET api/performances/my-stats?topVenues=&topSongs=&topArtists=&newRepertoireDays=` — singer totals, recency, ranked lists (0 = omit a section)
 - `POST api/performances` — save (singer from JWT if omitted)

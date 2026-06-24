@@ -315,7 +315,7 @@ public class PerformanceService(string connectionString)
             WHERE p.Singer = @Singer
             GROUP BY s.Id, s.Title, a.Name
             HAVING MAX(p.PerformedOn) < @Cutoff
-            ORDER BY MAX(p.PerformedOn) ASC, s.Title ASC
+            ORDER BY NEWID()
             """;
         command.Parameters.AddWithValue("@Singer", singerId);
         command.Parameters.AddWithValue("@Cutoff", cutoff);
