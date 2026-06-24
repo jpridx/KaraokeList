@@ -1,0 +1,33 @@
+@inject ApiSlowRequestNotifier Notifier
+@implements IDisposable
+
+@if (isSlow)
+{
+    <div class="alert alert-info api-slow-notice mb-3" role="status" aria-live="polite">
+        @ApiTransientFailure.ColdStartInProgressMessage
+    </div>
+}
+
+@code {
+    private bool isSlow;
+
+    protected override void OnInitialized()
+    {
+        isSlow = Notifier.IsSlowLoading;
+        Notifier.Changed += OnNotifierChanged;
+    }
+
+    private void OnNotifierChanged()
+    {
+        var next = Notifier.IsSlowLoading;
+        if (next == isSlow)
+        {
+            return;
+        }
+
+        isSlow = next;
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose() => Notifier.Changed -= OnNotifierChanged;
+}
