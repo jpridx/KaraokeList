@@ -45,7 +45,11 @@ public interface IKaraokeApiClient
         bool includeAll = false);
     Task<RepertoireGenresResult> GetMyRepertoireGenresAsync();
     Task<StaleSongsResult> GetMyStaleSongsAsync(int days = 90, int limit = 5);
-    Task<SingerStatsResult> GetMySingerStatsAsync(int topVenues = 3);
+    Task<SingerStatsResult> GetMySingerStatsAsync(
+        int topVenues = 0,
+        int topSongs = 0,
+        int topArtists = 0,
+        int newRepertoireDays = 0);
     Task<MyPerformancesResult> GetMyPerformancesAsync(int? venueId = null, string sortDir = "desc");
     Task CreatePerformanceAsync(PerformanceDto dto);
     Task<PerformanceCreateResult> TryCreatePerformanceAsync(PerformanceDto dto);
@@ -325,11 +329,17 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
         }
     }
 
-    public async Task<SingerStatsResult> GetMySingerStatsAsync(int topVenues = 3)
+    public async Task<SingerStatsResult> GetMySingerStatsAsync(
+        int topVenues = 0,
+        int topSongs = 0,
+        int topArtists = 0,
+        int newRepertoireDays = 0)
     {
         try
         {
-            var response = await http.GetAsync($"api/performances/my-stats?topVenues={topVenues}");
+            var url =
+                $"api/performances/my-stats?topVenues={topVenues}&topSongs={topSongs}&topArtists={topArtists}&newRepertoireDays={newRepertoireDays}";
+            var response = await http.GetAsync(url);
             if (response.IsSuccessStatusCode)
             {
                 var stats = await response.Content.ReadFromJsonAsync<SingerStatsDto>();

@@ -1,0 +1,63 @@
+@page "/my-stats"
+@attribute [Authorize]
+@inject IKaraokeApiClient Api
+
+<PageTitle>My stats</PageTitle>
+
+<div class="mobile-page">
+    <header class="mobile-page-header">
+        <h1 class="h4 mb-1">My stats</h1>
+        <p class="text-muted small mb-0">Your karaoke performance history at a glance.</p>
+    </header>
+
+    @if (loading)
+    {
+        <p class="text-muted small mt-3">Loading stats…</p>
+    }
+    else if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <p class="text-danger small mt-3" role="alert">@errorMessage</p>
+    }
+    else if (stats is null or { TotalPerformances: 0 })
+    {
+        <section class="mobile-panel mt-3">
+            <p class="mb-2">No performances logged yet.</p>
+            <a class="btn btn-primary btn-sm" href="log">Log your first performance</a>
+        </section>
+    }
+    else
+    {
+        <SingerStatsDisplay Stats="stats" CssClass="mt-3 mobile-panel" Subtitle="Totals, favorites, and recent additions to your repertoire." />
+    }
+</div>
+
+@code {
+    private const int DefaultTopVenues = 5;
+    private const int DefaultTopSongs = 10;
+    private const int DefaultTopArtists = 10;
+    private const int DefaultNewRepertoireDays = 30;
+
+    private bool loading = true;
+    private SingerStatsDto? stats;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await Api.GetMySingerStatsAsync(
+            topVenues: DefaultTopVenues,
+            topSongs: DefaultTopSongs,
+            topArtists: DefaultTopArtists,
+            newRepertoireDays: DefaultNewRepertoireDays);
+
+        if (result.Succeeded)
+        {
+            stats = result.Stats;
+        }
+        else
+        {
+            errorMessage = result.ErrorMessage;
+        }
+
+        loading = false;
+    }
+}
