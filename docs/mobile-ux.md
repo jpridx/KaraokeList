@@ -40,6 +40,7 @@ There is no sidebar. Catalog grids live under `/more`.
 | `/more` | Hub: tonight links + catalog admin pages |
 | `/invite-friends` | Copy registration link / invite message for text or email (when invite-only registration is enabled) |
 | `/account/change-password` | Change sign-in password |
+| `/account/tickler-settings` | Configure **Haven't sung in a while** days and song limit |
 | `/forgot-password` | Request password reset email (when recovery is enabled) |
 | `/reset-password` | Set a new password from email reset link |
 | `/` | Home — **Tonight** dashboard on mobile; stats teaser; invite banner; stale songs |
@@ -174,7 +175,8 @@ See [Performances.md](Performances.md) for schema and endpoints. Key calls:
 - `GET api/performances/my-repertoire` — My Songs list
 - `GET api/performances/my-history` — mobile performance browse
 - `GET api/performances/my-song-summary?songId=` — defaults + history
-- `GET api/performances/my-stale-songs?days=90&limit=5` — songs not performed recently (server-side)
+- `GET api/performances/my-stale-songs` — songs not performed recently (uses saved tickler settings; optional `days` / `limit` overrides)
+- `GET api/auth/tickler-settings`, `PUT api/auth/tickler-settings` — per-user stale-song days and limit
 - `GET api/performances/my-stats?topVenues=&topSongs=&topArtists=&newRepertoireDays=` — singer totals, recency, ranked lists (0 = omit a section)
 - `POST api/performances` — save (singer from JWT if omitted)
 - `GET api/auth/me` — singer link status

@@ -105,8 +105,8 @@ public class PerformancesController(
 
     [HttpGet("my-stale-songs")]
     public async Task<ActionResult<StaleSongsResponseDto>> GetMyStaleSongs(
-        [FromQuery] int days = 90,
-        [FromQuery] int limit = 5)
+        [FromQuery] int? days = null,
+        [FromQuery] int? limit = null)
     {
         var singerId = await RequireSingerIdAsync();
         if (singerId.Result is not null)
@@ -114,21 +114,18 @@ public class PerformancesController(
             return singerId.Result;
         }
 
-        if (days is < 7 or > 365)
+        var user = await currentUserSinger.GetUserAsync(User);
+        var (effectiveDays, effectiveLimit, error) = TicklerSettingsResolver.Resolve(user, days, limit);
+        if (error is not null)
         {
-            return BadRequest(new ApiErrorResponse { Message = "Invalid days. Use a value between 7 and 365." });
+            return BadRequest(new ApiErrorResponse { Message = error });
         }
 
-        if (limit is < 1 or > 20)
-        {
-            return BadRequest(new ApiErrorResponse { Message = "Invalid limit. Use a value between 1 and 20." });
-        }
-
-        var songs = await performanceService.GetStaleSongsAsync(singerId.Value!.Value, days, limit);
+        var songs = await performanceService.GetStaleSongsAsync(singerId.Value!.Value, effectiveDays, effectiveLimit);
         var today = DateTime.Today;
         return Ok(new StaleSongsResponseDto
         {
-            StaleAfterDays = days,
+            StaleAfterDays = effectiveDays,
             Songs = songs.Select(s => s.ToDto(today)).ToList()
         });
     }

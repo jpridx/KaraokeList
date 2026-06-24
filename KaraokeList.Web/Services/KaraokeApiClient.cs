@@ -44,7 +44,9 @@ public interface IKaraokeApiClient
         int? genreId = null,
         bool includeAll = false);
     Task<RepertoireGenresResult> GetMyRepertoireGenresAsync();
-    Task<StaleSongsResult> GetMyStaleSongsAsync(int days = 90, int limit = 5);
+    Task<StaleSongsResult> GetMyStaleSongsAsync(int? days = null, int? limit = null);
+    Task<TicklerSettingsResult> GetTicklerSettingsAsync();
+    Task<TicklerSettingsUpdateResult> UpdateTicklerSettingsAsync(UpdateTicklerSettingsRequest request);
     Task<SingerStatsResult> GetMySingerStatsAsync(
         int topVenues = 0,
         int topSongs = 0,
@@ -302,11 +304,23 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
         return RepertoireGenresResult.Fail(message ?? "Could not load genres.");
     }
 
-    public async Task<StaleSongsResult> GetMyStaleSongsAsync(int days = 90, int limit = 5)
+    public async Task<StaleSongsResult> GetMyStaleSongsAsync(int? days = null, int? limit = null)
     {
         try
         {
-            var response = await http.GetAsync($"api/performances/my-stale-songs?days={days}&limit={limit}");
+            var query = new List<string>();
+            if (days is int dayValue)
+            {
+                query.Add($"days={dayValue}");
+            }
+
+            if (limit is int limitValue)
+            {
+                query.Add($"limit={limitValue}");
+            }
+
+            var suffix = query.Count == 0 ? string.Empty : $"?{string.Join('&', query)}";
+            var response = await http.GetAsync($"api/performances/my-stale-songs{suffix}");
             if (response.IsSuccessStatusCode)
             {
                 var payload = await response.Content.ReadFromJsonAsync<StaleSongsResponseDto>();
@@ -326,6 +340,50 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
         catch (Exception ex)
         {
             return StaleSongsResult.Fail(ex.Message);
+        }
+    }
+
+    public async Task<TicklerSettingsResult> GetTicklerSettingsAsync()
+    {
+        try
+        {
+            var settings = await http.GetFromJsonAsync<TicklerSettingsDto>("api/auth/tickler-settings");
+            return settings is null
+                ? TicklerSettingsResult.Fail("Unexpected empty response from the server.")
+                : TicklerSettingsResult.Ok(settings);
+        }
+        catch (HttpRequestException ex)
+        {
+            return TicklerSettingsResult.Fail(
+                $"Cannot reach the API at {http.BaseAddress}. Start KaraokeList.Api first. ({ex.Message})");
+        }
+        catch (Exception ex)
+        {
+            return TicklerSettingsResult.Fail(ex.Message);
+        }
+    }
+
+    public async Task<TicklerSettingsUpdateResult> UpdateTicklerSettingsAsync(UpdateTicklerSettingsRequest request)
+    {
+        try
+        {
+            var response = await http.PutAsJsonAsync("api/auth/tickler-settings", request);
+            if (response.IsSuccessStatusCode)
+            {
+                return TicklerSettingsUpdateResult.Ok();
+            }
+
+            var message = await ReadApiErrorMessageAsync(response);
+            return TicklerSettingsUpdateResult.Fail(message ?? "Could not save tickler settings.");
+        }
+        catch (HttpRequestException ex)
+        {
+            return TicklerSettingsUpdateResult.Fail(
+                $"Cannot reach the API at {http.BaseAddress}. Start KaraokeList.Api first. ({ex.Message})");
+        }
+        catch (Exception ex)
+        {
+            return TicklerSettingsUpdateResult.Fail(ex.Message);
         }
     }
 
