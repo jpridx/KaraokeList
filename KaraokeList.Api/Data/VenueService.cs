@@ -25,7 +25,7 @@ namespace KaraokeList.Data
             using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
             var command = connection.CreateCommand();
-            command.CommandText = "SELECT Id, VenueName FROM Venues";
+            command.CommandText = "SELECT Id, VenueName FROM Venues ORDER BY VenueName";
             using var reader = await command.ExecuteReaderAsync();
             while (await reader.ReadAsync())
             {
