@@ -63,7 +63,7 @@
                                 PopupHeight="280px">
                         <ComboBoxFieldSettings Value="Id" Text="Display" />
                     </SfComboBox>
-                    <p class="small text-muted mt-1 mb-0">@songPickerItems.Count songs · ★ = on My repertoire</p>
+                    <p class="small text-muted mt-1 mb-0">@songPickerItems.Count songs · ★ = on My repertoire · 🎯 = working up</p>
                 }
                 @if (selectedSongId is int songId && songHint is not null)
                 {
@@ -186,7 +186,8 @@
                     fromRecent.SongId,
                     fromRecent.Title,
                     fromRecent.ArtistName,
-                    repertoireSongIds.Contains(id));
+                    repertoireSongIds.Contains(id),
+                    workingUpSongIds.Contains(id));
         }
     }
 
@@ -368,6 +369,7 @@
         var catalog = await CatalogLoader.LoadAsync();
         songPickerItems = catalog.Songs.ToList();
         repertoireSongIds = catalog.RepertoireSongIds;
+        workingUpSongIds = catalog.WorkingUpSongIds;
 
         var created = LogArtistPicker.FindCreatedSong(
             songPickerItems,

@@ -104,7 +104,7 @@ Use **Cancel** to close the add-song panel without losing your place on the Log 
 
 When the API is slow or unreachable (spotty venue Wi‑Fi, database cold start), **Log performance** still works:
 
-1. **Cache first:** Open **Log** once while online. The app caches the song catalog, your repertoire markers (★), and venues on this device.
+1. **Cache first:** Open **Log** once while online. The app caches the song catalog, your repertoire markers (★), working-up markers (🎯), and venues on this device. Open **My Songs** once while online to cache your lists for read-only browse offline.
 2. **Pick a song offline:**
    - Search the cached catalog in the song combobox, or
    - Tap a row under **Recently logged**, or
@@ -115,7 +115,7 @@ When the API is slow or unreachable (spotty venue Wi‑Fi, database cold start),
 
 If you go offline before ever opening Log online, use **Recently logged** to pick songs until the catalog is cached.
 
-**Not available offline:** adding songs/artists/venues, My Songs browse, or performance history edits.
+**Not available offline:** adding songs/artists/venues, editing list membership, or performance history edits. **My Songs** works read-only from cache (browse, search, open song detail links may fail without API).
 
 ## Tonight dashboard (mobile home)
 
@@ -148,7 +148,8 @@ Implemented in `ShowHostMessageFormatting` (`KaraokeList.Shared`). Shown on Log 
 |-----------|------|
 | `QuickLogPerformance` | Venue, date, key, host message, save — venue/date from last log; key from last time **you sang this song** (or original key); queues offline |
 | `LogNewSongPanel` | Add song + artist inline on Log — autocomplete artist, explicit **Add artist** when missing, title preserved |
-| `LogCatalogLoader` | Online catalog fetch + offline cache for Log song/venue picker |
+| `LogCatalogLoader` | Online catalog fetch + offline cache for Log song/venue picker (★ repertoire, 🎯 working up) |
+| `MySongsLoader` | Online list fetch + offline cache for My Songs browse |
 | `PendingPerformancesNotice` | Pending sync banner + auto/manual sync |
 | `HostMessagePanel` | Preview + copy button |
 | `SongListItem` | Repertoire row: tap body = history, **Log** = quick log |
