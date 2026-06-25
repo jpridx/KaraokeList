@@ -128,6 +128,12 @@ public sealed class LogCatalogLoaderTests
                     Id = 1,
                     Kind = SingerListKind.MyRepertoire,
                     DisplayName = SingerListKindNames.DisplayName(SingerListKind.MyRepertoire)
+                },
+                new SingerListDto
+                {
+                    Id = 3,
+                    Kind = SingerListKind.WorkingUp,
+                    DisplayName = SingerListKindNames.DisplayName(SingerListKind.WorkingUp)
                 }
             ]));
         }
@@ -139,11 +145,25 @@ public sealed class LogCatalogLoaderTests
             int? genreId = null)
         {
             ThrowIfOffline();
+            if (listId != 1)
+            {
+                return Task.FromResult(RepertoireResult.Ok([]));
+            }
+
             return Task.FromResult(RepertoireResult.Ok(
                 RepertoireSongIds.Select(id => new RepertoireSongDto { SongId = id }).ToList()));
         }
 
         public Task<SingerListImportResult> ImportListSongsAsync(ImportSingerListSongsRequest request) =>
+            throw new NotSupportedException();
+
+        public Task<ListSongActionResult> AddListSongAsync(int listId, int songId) =>
+            throw new NotSupportedException();
+
+        public Task<ListSongActionResult> RemoveListSongAsync(int listId, int songId) =>
+            throw new NotSupportedException();
+
+        public Task<SongListMembershipResult> GetSongListMembershipAsync(int songId) =>
             throw new NotSupportedException();
 
         public Task<PerformanceCreateResult> TryCreatePerformanceAsync(PerformanceDto dto) => throw new NotSupportedException();

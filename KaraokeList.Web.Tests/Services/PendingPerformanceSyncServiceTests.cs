@@ -131,6 +131,9 @@ public sealed class PendingPerformanceSyncServiceTests
             int? genreId = null) => throw new NotSupportedException();
         public Task<SingerListImportResult> ImportListSongsAsync(ImportSingerListSongsRequest request) =>
             throw new NotSupportedException();
+        public Task<ListSongActionResult> AddListSongAsync(int listId, int songId) => throw new NotSupportedException();
+        public Task<ListSongActionResult> RemoveListSongAsync(int listId, int songId) => throw new NotSupportedException();
+        public Task<SongListMembershipResult> GetSongListMembershipAsync(int songId) => throw new NotSupportedException();
         public Task<StaleSongsResult> GetMyStaleSongsAsync(int? days = null, int? limit = null) => throw new NotSupportedException();
         public Task<TicklerSettingsResult> GetTicklerSettingsAsync() => throw new NotSupportedException();
         public Task<TicklerSettingsUpdateResult> UpdateTicklerSettingsAsync(UpdateTicklerSettingsRequest request) => throw new NotSupportedException();

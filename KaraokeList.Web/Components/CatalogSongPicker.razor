@@ -1,0 +1,27 @@
+@using Syncfusion.Blazor.DropDowns
+
+<SfComboBox TValue="int?" TItem="LogSongPickItem" DataSource="@Items"
+            Value="@SelectedSongId" ValueChanged="OnSelectedAsync"
+            Placeholder="@Placeholder" AllowFiltering="true" ShowClearButton="true"
+            FilterType="Syncfusion.Blazor.DropDowns.FilterType.Contains" PopupHeight="280px" Enabled="@Enabled">
+    <ComboBoxFieldSettings Value="Id" Text="Display" />
+</SfComboBox>
+
+@code {
+    [Parameter]
+    public IReadOnlyList<LogSongPickItem> Items { get; set; } = [];
+
+    [Parameter]
+    public int? SelectedSongId { get; set; }
+
+    [Parameter]
+    public EventCallback<int?> SelectedSongIdChanged { get; set; }
+
+    [Parameter]
+    public string Placeholder { get; set; } = "Search songs...";
+
+    [Parameter]
+    public bool Enabled { get; set; } = true;
+
+    private Task OnSelectedAsync(int? songId) => SelectedSongIdChanged.InvokeAsync(songId);
+}

@@ -20,6 +20,7 @@ public sealed record LogSongPickItem(int Id, string Title, string ArtistName, bo
 public sealed record LogCatalogSnapshot(
     IReadOnlyList<LogSongPickItem> Songs,
     HashSet<int> RepertoireSongIds,
+    HashSet<int> WorkingUpSongIds,
     bool FromCache,
     bool HasCatalog,
     DateTime? CachedAtUtc);

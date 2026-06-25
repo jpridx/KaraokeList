@@ -51,6 +51,9 @@ public interface IKaraokeApiClient
         string sortDir = "asc",
         int? genreId = null);
     Task<SingerListImportResult> ImportListSongsAsync(ImportSingerListSongsRequest request);
+    Task<ListSongActionResult> AddListSongAsync(int listId, int songId);
+    Task<ListSongActionResult> RemoveListSongAsync(int listId, int songId);
+    Task<SongListMembershipResult> GetSongListMembershipAsync(int songId);
     Task<StaleSongsResult> GetMyStaleSongsAsync(int? days = null, int? limit = null);
     Task<TicklerSettingsResult> GetTicklerSettingsAsync();
     Task<TicklerSettingsUpdateResult> UpdateTicklerSettingsAsync(UpdateTicklerSettingsRequest request);
@@ -360,6 +363,52 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
 
         var message = await ReadApiErrorMessageAsync(response);
         return SingerListImportResult.Fail(message ?? "Could not import songs.");
+    }
+
+    public async Task<ListSongActionResult> AddListSongAsync(int listId, int songId)
+    {
+        var response = await http.PostAsJsonAsync(
+            $"api/singers/me/lists/{listId}/songs",
+            new AddSingerListSongRequest { SongId = songId });
+        if (response.IsSuccessStatusCode)
+        {
+            return ListSongActionResult.Ok();
+        }
+
+        var message = await ReadApiErrorMessageAsync(response);
+        return ListSongActionResult.Fail(message ?? "Could not add song to list.");
+    }
+
+    public async Task<ListSongActionResult> RemoveListSongAsync(int listId, int songId)
+    {
+        var response = await http.DeleteAsync($"api/singers/me/lists/{listId}/songs/{songId}");
+        if (response.IsSuccessStatusCode)
+        {
+            return ListSongActionResult.Ok();
+        }
+
+        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return ListSongActionResult.Fail("Song was not on that list.");
+        }
+
+        var message = await ReadApiErrorMessageAsync(response);
+        return ListSongActionResult.Fail(message ?? "Could not remove song from list.");
+    }
+
+    public async Task<SongListMembershipResult> GetSongListMembershipAsync(int songId)
+    {
+        var response = await http.GetAsync($"api/singers/me/songs/{songId}/list-membership");
+        if (response.IsSuccessStatusCode)
+        {
+            var membership = await response.Content.ReadFromJsonAsync<SongListMembershipDto>(JsonOptions);
+            return membership is null
+                ? SongListMembershipResult.Fail("Unexpected empty response from the server.")
+                : SongListMembershipResult.Ok(membership.Lists);
+        }
+
+        var message = await ReadApiErrorMessageAsync(response);
+        return SongListMembershipResult.Fail(message ?? "Could not load list membership.");
     }
 
     public async Task<StaleSongsResult> GetMyStaleSongsAsync(int? days = null, int? limit = null)
