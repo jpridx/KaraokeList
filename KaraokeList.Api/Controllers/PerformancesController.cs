@@ -13,6 +13,7 @@ namespace KaraokeList.Api.Controllers;
 public class PerformancesController(
     PerformanceService performanceService,
     CatalogIntegrityService integrity,
+    SingerListService singerListService,
     ICurrentUserSingerResolver currentUserSinger) : ControllerBase
 {
     [HttpGet]
@@ -194,6 +195,11 @@ public class PerformancesController(
         }
 
         await performanceService.AddPerformanceAsync(dto.ToEntity());
+        if (dto.Song is int songId)
+        {
+            await singerListService.AddToMyRepertoireAsync(singerId.Value!.Value, songId);
+        }
+
         return NoContent();
     }
 

@@ -12,6 +12,8 @@ namespace KaraokeList.Data
         public DbSet<Singer> Singers { get; set; } = null!;
         public DbSet<Venue> Venues { get; set; } = null!;
         public DbSet<Performance> Performances { get; set; } = null!;
+        public DbSet<SingerList> SingerLists { get; set; } = null!;
+        public DbSet<SingerListSong> SingerListSongs { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -72,6 +74,29 @@ namespace KaraokeList.Data
                     .HasForeignKey(s => s.SecondaryArtist)
                     .HasConstraintName("FK_Songs_Artists_SecondaryArtist")
                     .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            builder.Entity<SingerList>(entity =>
+            {
+                entity.Property(l => l.Kind).HasConversion<int>();
+                entity.HasIndex(l => new { l.SingerId, l.Kind }).IsUnique();
+                entity.HasOne(l => l.Singer)
+                    .WithMany()
+                    .HasForeignKey(l => l.SingerId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            builder.Entity<SingerListSong>(entity =>
+            {
+                entity.HasKey(s => new { s.ListId, s.SongId });
+                entity.HasOne(s => s.List)
+                    .WithMany(l => l.Songs)
+                    .HasForeignKey(s => s.ListId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(s => s.Song)
+                    .WithMany()
+                    .HasForeignKey(s => s.SongId)
+                    .OnDelete(DeleteBehavior.Cascade);
             });
         }
     }
