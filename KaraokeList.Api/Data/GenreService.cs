@@ -25,7 +25,7 @@ namespace KaraokeList.Data
             using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
             var command = connection.CreateCommand();
-            command.CommandText = "SELECT Id, GenreName FROM Genres";
+            command.CommandText = "SELECT Id, GenreName FROM Genres ORDER BY GenreName";
             using var reader = await command.ExecuteReaderAsync();
             while (await reader.ReadAsync())
             {
