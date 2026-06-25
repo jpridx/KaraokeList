@@ -82,6 +82,7 @@
                     {
                         <LogNewSongPanel ArtistLookups="artistLookups" Genres="genres"
                                          ArtistLookupsChanged="OnArtistLookupsRefreshedAsync"
+                                         GenresChanged="OnGenresRefreshedAsync"
                                          OnSongAdded="OnNewSongAddedAsync"
                                          OnCancelled="CloseNewSongPanel" />
                     }
@@ -321,6 +322,13 @@
     {
         artistLookups = lookups.ToList();
         saveMessage = "Artist added.";
+        return Task.CompletedTask;
+    }
+
+    private Task OnGenresRefreshedAsync(IReadOnlyList<GenreDto> refreshed)
+    {
+        genres = refreshed.ToList();
+        saveMessage = "Genre added.";
         return Task.CompletedTask;
     }
 
