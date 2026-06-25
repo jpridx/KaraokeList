@@ -61,6 +61,31 @@ public class SingerListsController(
         return Ok(songs.Select(s => s.ToDto()).ToList());
     }
 
+    [HttpPost("import")]
+    public async Task<ActionResult<ImportSingerListSongsResponse>> ImportSongs(
+        [FromBody] ImportSingerListSongsRequest request)
+    {
+        var singerId = await RequireSingerIdAsync();
+        if (singerId.Result is not null)
+        {
+            return singerId.Result;
+        }
+
+        if (request.SongIds is null || request.SongIds.Count == 0)
+        {
+            return BadRequest(new ApiErrorResponse { Message = "At least one songId is required." });
+        }
+
+        var result = await singerListService.ImportSongsAsync(
+            singerId.Value!.Value, request.ListKind, request.SongIds);
+        if (!result.Succeeded)
+        {
+            return BadRequest(new ApiErrorResponse { Message = result.Error ?? "Could not import songs." });
+        }
+
+        return Ok(result.Result);
+    }
+
     [HttpPost("{listId:int}/songs")]
     public async Task<IActionResult> AddSong(int listId, [FromBody] AddSingerListSongRequest request)
     {

@@ -116,12 +116,35 @@ public sealed class LogCatalogLoaderTests
             string sortBy = "lastPerformed",
             string sortDir = "desc",
             int? genreId = null,
-            bool includeAll = false)
+            bool includeAll = false) => throw new NotSupportedException();
+
+        public Task<SingerListsResult> GetMyListsAsync()
+        {
+            ThrowIfOffline();
+            return Task.FromResult(SingerListsResult.Ok(
+            [
+                new SingerListDto
+                {
+                    Id = 1,
+                    Kind = SingerListKind.MyRepertoire,
+                    DisplayName = SingerListKindNames.DisplayName(SingerListKind.MyRepertoire)
+                }
+            ]));
+        }
+
+        public Task<RepertoireResult> GetListSongsAsync(
+            int listId,
+            string sortBy = "title",
+            string sortDir = "asc",
+            int? genreId = null)
         {
             ThrowIfOffline();
             return Task.FromResult(RepertoireResult.Ok(
                 RepertoireSongIds.Select(id => new RepertoireSongDto { SongId = id }).ToList()));
         }
+
+        public Task<SingerListImportResult> ImportListSongsAsync(ImportSingerListSongsRequest request) =>
+            throw new NotSupportedException();
 
         public Task<PerformanceCreateResult> TryCreatePerformanceAsync(PerformanceDto dto) => throw new NotSupportedException();
         public Task CreatePerformanceAsync(PerformanceDto dto) => throw new NotSupportedException();
