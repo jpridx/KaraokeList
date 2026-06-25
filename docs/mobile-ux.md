@@ -33,7 +33,7 @@ There is no sidebar. Catalog grids live under `/more`.
 |-------|---------|
 | `/log` | Pick a song (catalog ComboBox), log venue/date/key, copy for host, save |
 | `/log?songId={id}` | Same, with song pre-selected (from My Songs **Log** button) |
-| `/my-songs` | Browse the full catalog (default) or filter logged / not logged; search, sort, genre; virtualized scroll (flat list) or load-more when grouped |
+| `/my-songs` | Browse **My repertoire**, **Want to sing**, or **Working up** lists; search, sort, genre; virtualized scroll (flat list) or load-more when grouped |
 | `/my-songs/{id}` | Stats, copy for host, log again (collapsible), performance history |
 | `/my-performances` | Chronological performance list; search, venue filter, edit/delete |
 | `/my-stats` | Full stats: totals, top venues/songs/artists, new repertoire |
@@ -77,11 +77,12 @@ There is no sidebar. Catalog grids live under `/more`.
 
 Use **Cancel** to close the add-song panel without losing your place on the Log page.
 
-### Browse the full catalog
+### Browse your lists
 
-1. Open **My Songs** (defaults to **All songs**)
-2. Use **Logged** / **Not logged** to focus on songs with or without recorded performances
-3. Songs without a logged performance show *Not logged* — tap to open detail and log one
+1. Open **My Songs** (defaults to **My repertoire**)
+2. Switch to **Want to sing** or **Working up** to browse other lists
+3. Performance count and last-performed date still appear when you have logged that song
+4. Tap a row for detail/history, or **Log** to record a performance
 
 ### Browse + history
 

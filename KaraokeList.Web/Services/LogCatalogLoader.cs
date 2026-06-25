@@ -17,7 +17,13 @@ public sealed class LogCatalogLoader(IKaraokeApiClient api, ILogPerformanceLocal
             var songs = await api.GetSongsAsync();
             var artists = await api.GetArtistLookupsAsync();
             var venues = await api.GetVenuesAsync();
-            var repertoire = await api.GetMyRepertoireAsync();
+            var lists = await api.GetMyListsAsync();
+            var repertoireList = lists.Succeeded
+                ? lists.Lists.FirstOrDefault(l => l.Kind == SingerListKind.MyRepertoire)
+                : null;
+            var repertoire = repertoireList is not null
+                ? await api.GetListSongsAsync(repertoireList.Id)
+                : RepertoireResult.Fail("Could not load My repertoire list.");
             var repertoireIds = repertoire.Succeeded
                 ? repertoire.Songs.Select(s => s.SongId).ToHashSet()
                 : [];

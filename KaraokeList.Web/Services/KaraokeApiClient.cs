@@ -44,6 +44,13 @@ public interface IKaraokeApiClient
         int? genreId = null,
         bool includeAll = false);
     Task<RepertoireGenresResult> GetMyRepertoireGenresAsync();
+    Task<SingerListsResult> GetMyListsAsync();
+    Task<RepertoireResult> GetListSongsAsync(
+        int listId,
+        string sortBy = "title",
+        string sortDir = "asc",
+        int? genreId = null);
+    Task<SingerListImportResult> ImportListSongsAsync(ImportSingerListSongsRequest request);
     Task<StaleSongsResult> GetMyStaleSongsAsync(int? days = null, int? limit = null);
     Task<TicklerSettingsResult> GetTicklerSettingsAsync();
     Task<TicklerSettingsUpdateResult> UpdateTicklerSettingsAsync(UpdateTicklerSettingsRequest request);
@@ -302,6 +309,57 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
 
         var message = await ReadApiErrorMessageAsync(response);
         return RepertoireGenresResult.Fail(message ?? "Could not load genres.");
+    }
+
+    public async Task<SingerListsResult> GetMyListsAsync()
+    {
+        var response = await http.GetAsync("api/singers/me/lists");
+        if (response.IsSuccessStatusCode)
+        {
+            var lists = await response.Content.ReadFromJsonAsync<List<SingerListDto>>(JsonOptions);
+            return SingerListsResult.Ok(lists ?? []);
+        }
+
+        var message = await ReadApiErrorMessageAsync(response);
+        return SingerListsResult.Fail(message ?? "Could not load singer lists.");
+    }
+
+    public async Task<RepertoireResult> GetListSongsAsync(
+        int listId,
+        string sortBy = "title",
+        string sortDir = "asc",
+        int? genreId = null)
+    {
+        var query = $"sortBy={Uri.EscapeDataString(sortBy)}&sortDir={Uri.EscapeDataString(sortDir)}";
+        if (genreId is int genre)
+        {
+            query += $"&genreId={genre}";
+        }
+
+        var response = await http.GetAsync($"api/singers/me/lists/{listId}/songs?{query}");
+        if (response.IsSuccessStatusCode)
+        {
+            var songs = await response.Content.ReadFromJsonAsync<List<RepertoireSongDto>>(JsonOptions);
+            return RepertoireResult.Ok(songs ?? []);
+        }
+
+        var message = await ReadApiErrorMessageAsync(response);
+        return RepertoireResult.Fail(message ?? "Could not load list songs.");
+    }
+
+    public async Task<SingerListImportResult> ImportListSongsAsync(ImportSingerListSongsRequest request)
+    {
+        var response = await http.PostAsJsonAsync("api/singers/me/lists/import", request);
+        if (response.IsSuccessStatusCode)
+        {
+            var body = await response.Content.ReadFromJsonAsync<ImportSingerListSongsResponse>(JsonOptions);
+            return body is null
+                ? SingerListImportResult.Fail("Unexpected empty response from the server.")
+                : SingerListImportResult.Ok(body);
+        }
+
+        var message = await ReadApiErrorMessageAsync(response);
+        return SingerListImportResult.Fail(message ?? "Could not import songs.");
     }
 
     public async Task<StaleSongsResult> GetMyStaleSongsAsync(int? days = null, int? limit = null)

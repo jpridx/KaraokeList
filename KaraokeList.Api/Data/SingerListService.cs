@@ -179,6 +179,63 @@ public sealed class SingerListService(
         return true;
     }
 
+    public const int MaxImportSongCount = 5000;
+
+    public async Task<(bool Succeeded, string? Error, ImportSingerListSongsResponse? Result)> ImportSongsAsync(
+        int singerId,
+        SingerListKind kind,
+        IReadOnlyList<int> songIds)
+    {
+        if (songIds.Count == 0)
+        {
+            return (false, "At least one songId is required.", null);
+        }
+
+        if (songIds.Count > MaxImportSongCount)
+        {
+            return (false, $"Too many songs in one import (max {MaxImportSongCount}).", null);
+        }
+
+        await EnsureSystemListsAsync(singerId);
+        var list = await db.SingerLists
+            .FirstOrDefaultAsync(l => l.SingerId == singerId && l.Kind == kind);
+        if (list is null)
+        {
+            return (false, "List was not found.", null);
+        }
+
+        var response = new ImportSingerListSongsResponse();
+        var seen = new HashSet<int>();
+        foreach (var songId in songIds)
+        {
+            if (!seen.Add(songId))
+            {
+                response.Skipped++;
+                continue;
+            }
+
+            var alreadyOnList = await db.SingerListSongs
+                .AnyAsync(s => s.ListId == list.Id && s.SongId == songId);
+            if (alreadyOnList)
+            {
+                response.Skipped++;
+                continue;
+            }
+
+            var result = await TryAddSongAsync(singerId, list.Id, songId);
+            if (result.Succeeded)
+            {
+                response.Added++;
+            }
+            else
+            {
+                response.Rejected++;
+            }
+        }
+
+        return (true, null, response);
+    }
+
     public async Task AddToMyRepertoireAsync(int singerId, int songId)
     {
         await EnsureSystemListsAsync(singerId);

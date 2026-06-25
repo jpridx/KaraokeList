@@ -29,3 +29,16 @@ public class AddSingerListSongRequest
 {
     public int SongId { get; set; }
 }
+
+public class ImportSingerListSongsRequest
+{
+    public SingerListKind ListKind { get; set; }
+    public List<int> SongIds { get; set; } = [];
+}
+
+public class ImportSingerListSongsResponse
+{
+    public int Added { get; set; }
+    public int Skipped { get; set; }
+    public int Rejected { get; set; }
+}
