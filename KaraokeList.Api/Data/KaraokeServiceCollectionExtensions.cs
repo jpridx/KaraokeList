@@ -12,6 +12,10 @@ public static class KaraokeServiceCollectionExtensions
         services.AddScoped(_ => new PerformanceService(connectionString));
         services.AddScoped(_ => new ArtistLookupService(connectionString));
         services.AddScoped(_ => new CatalogIntegrityService(connectionString));
+        services.AddScoped(sp => new SingerListService(
+            sp.GetRequiredService<ApplicationDbContext>(),
+            sp.GetRequiredService<CatalogIntegrityService>(),
+            connectionString));
         return services;
     }
 }

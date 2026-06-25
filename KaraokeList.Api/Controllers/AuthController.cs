@@ -18,6 +18,7 @@ public class AuthController(
     UserManager<ApplicationUser> userManager,
     SignInManager<ApplicationUser> signInManager,
     SingerService singerService,
+    SingerListService singerListService,
     IJwtTokenService jwtTokenService,
     IRegistrationGate registrationGate,
     IAuthRateLimiter authRateLimiter,
@@ -55,6 +56,7 @@ public class AuthController(
         try
         {
             singerId = await singerService.AddSingerAsync(new Singer { Name = request.Name.Trim() });
+            await singerListService.EnsureSystemListsAsync(singerId);
         }
         catch
         {
@@ -235,6 +237,8 @@ public class AuthController(
         {
             return BadRequest(new ApiErrorResponse { Message = "Could not link your singer profile." });
         }
+
+        await singerListService.EnsureSystemListsAsync(singerId);
 
         var (token, expires) = await CreateAuthTokenAsync(user);
         return Ok(new AuthResponse

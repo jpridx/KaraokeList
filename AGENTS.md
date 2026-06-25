@@ -47,7 +47,8 @@ Details: `docs/mobile-ux.md`. E2E: `docs/e2e-playwright.md`. Admin roles: `docs/
 
 - `POST api/auth/register`, `api/auth/login`, `GET api/auth/me`, `GET api/auth/invite-share`, `GET/PUT api/auth/tickler-settings`
 - `GET api/performances/my-repertoire`, `my-repertoire/genres`, `my-song-summary`, `my-stale-songs`, `my-stats`
-- `POST api/performances` (auto-fills singer from JWT)
+- `POST api/performances` (auto-fills singer from JWT; auto-adds song to My repertoire list)
+- `GET api/singers/me/lists`, `GET/POST/DELETE api/singers/me/lists/{listId}/songs`
 
 Details: `docs/Performances.md`.
 
