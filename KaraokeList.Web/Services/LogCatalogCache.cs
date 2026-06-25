@@ -10,11 +10,29 @@ public sealed record CachedLogCatalog(
     IReadOnlyList<CachedSongEntry> Songs,
     IReadOnlyList<int> RepertoireSongIds,
     IReadOnlyList<CachedVenueEntry> Venues,
-    DateTime CachedAtUtc);
+    DateTime CachedAtUtc,
+    IReadOnlyList<int>? WorkingUpSongIds = null);
 
-public sealed record LogSongPickItem(int Id, string Title, string ArtistName, bool InRepertoire)
+public sealed record LogSongPickItem(int Id, string Title, string ArtistName, bool InRepertoire, bool InWorkingUp = false)
 {
-    public string Display => InRepertoire ? $"{Title} - {ArtistName} ★" : $"{Title} - {ArtistName}";
+    public string Display
+    {
+        get
+        {
+            var text = $"{Title} - {ArtistName}";
+            if (InRepertoire)
+            {
+                text += " ★";
+            }
+
+            if (InWorkingUp)
+            {
+                text += " 🎯";
+            }
+
+            return text;
+        }
+    }
 }
 
 public sealed record LogCatalogSnapshot(

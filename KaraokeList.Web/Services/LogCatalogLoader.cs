@@ -44,8 +44,10 @@ public sealed class LogCatalogLoader(IKaraokeApiClient api, ILogPerformanceLocal
                     s.Id,
                     s.Title,
                     s.Artist is int artistId && artistNames.TryGetValue(artistId, out var name) ? name : string.Empty,
-                    repertoireIds.Contains(s.Id)))
+                    repertoireIds.Contains(s.Id),
+                    workingUpIds.Contains(s.Id)))
                 .OrderByDescending(s => s.InRepertoire)
+                .ThenByDescending(s => s.InWorkingUp)
                 .ThenBy(s => s.Title, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
@@ -54,7 +56,8 @@ public sealed class LogCatalogLoader(IKaraokeApiClient api, ILogPerformanceLocal
                 pickItems.Select(s => new CachedSongEntry(s.Id, s.Title, s.ArtistName)).ToList(),
                 repertoireIds.ToList(),
                 venues.Select(v => new CachedVenueEntry(v.Id, v.VenueName)).ToList(),
-                cachedAt));
+                cachedAt,
+                workingUpIds.ToList()));
 
             return new LogCatalogSnapshot(pickItems, repertoireIds, workingUpIds, FromCache: false, HasCatalog: pickItems.Count > 0, cachedAt);
         }
@@ -93,13 +96,20 @@ public sealed class LogCatalogLoader(IKaraokeApiClient api, ILogPerformanceLocal
         }
 
         var repertoireIds = cached.RepertoireSongIds.ToHashSet();
+        var workingUpIds = (cached.WorkingUpSongIds ?? []).ToHashSet();
         var pickItems = cached.Songs
-            .Select(s => new LogSongPickItem(s.Id, s.Title, s.ArtistName, repertoireIds.Contains(s.Id)))
+            .Select(s => new LogSongPickItem(
+                s.Id,
+                s.Title,
+                s.ArtistName,
+                repertoireIds.Contains(s.Id),
+                workingUpIds.Contains(s.Id)))
             .OrderByDescending(s => s.InRepertoire)
+            .ThenByDescending(s => s.InWorkingUp)
             .ThenBy(s => s.Title, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        return new LogCatalogSnapshot(pickItems, repertoireIds, [], FromCache: true, HasCatalog: true, cached.CachedAtUtc);
+        return new LogCatalogSnapshot(pickItems, repertoireIds, workingUpIds, FromCache: true, HasCatalog: true, cached.CachedAtUtc);
     }
 
     private async Task PatchCachedVenuesAsync(IReadOnlyList<VenueDto> venues)
@@ -108,7 +118,7 @@ public sealed class LogCatalogLoader(IKaraokeApiClient api, ILogPerformanceLocal
         var cached = await store.GetCachedCatalogAsync();
         if (cached is null)
         {
-            await store.SaveCachedCatalogAsync(new CachedLogCatalog([], [], venueEntries, DateTime.UtcNow));
+            await store.SaveCachedCatalogAsync(new CachedLogCatalog([], [], venueEntries, DateTime.UtcNow, []));
             return;
         }
 

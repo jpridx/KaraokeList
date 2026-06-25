@@ -23,7 +23,8 @@ public sealed class LogCatalogLoaderTests
                 new ArtistLookupDto { Id = 11, Name = "Neil Diamond" }
             ],
             Venues = [new VenueDto { Id = 3, VenueName = "Main Stage" }],
-            RepertoireSongIds = [1]
+            RepertoireSongIds = [1],
+            WorkingUpSongIds = [2]
         };
         var loader = new LogCatalogLoader(api, store);
 
@@ -34,11 +35,37 @@ public sealed class LogCatalogLoaderTests
         Assert.Equal(2, snapshot.Songs.Count);
         Assert.True(snapshot.Songs.First(s => s.Id == 1).InRepertoire);
         Assert.False(snapshot.Songs.First(s => s.Id == 2).InRepertoire);
+        Assert.True(snapshot.Songs.First(s => s.Id == 2).InWorkingUp);
 
         var cached = await store.GetCachedCatalogAsync();
         Assert.NotNull(cached);
         Assert.Equal(2, cached.Songs.Count);
         Assert.Single(cached.Venues);
+        Assert.Single(cached.WorkingUpSongIds ?? []);
+    }
+
+    [Fact]
+    public async Task LoadAsync_when_offline_returns_cached_catalog_with_working_up_badges()
+    {
+        var store = new LogPerformanceLocalStore(new InMemoryLocalStorage());
+        await store.SaveCachedCatalogAsync(new CachedLogCatalog(
+            [
+                new CachedSongEntry(5, "Bohemian Rhapsody", "Queen"),
+                new CachedSongEntry(6, "Jeopardy", "The Greg Kihn Band")
+            ],
+            [6],
+            [new CachedVenueEntry(9, "Side Room")],
+            DateTime.UtcNow.AddHours(-1),
+            [5]));
+
+        var loader = new LogCatalogLoader(new CatalogApiStub { ThrowOffline = true }, store);
+        var snapshot = await loader.LoadAsync();
+
+        Assert.True(snapshot.FromCache);
+        Assert.True(snapshot.HasCatalog);
+        Assert.Equal(2, snapshot.Songs.Count);
+        Assert.True(snapshot.Songs.First(s => s.Id == 5).InWorkingUp);
+        Assert.Contains(5, snapshot.WorkingUpSongIds);
     }
 
     [Fact]
@@ -85,6 +112,7 @@ public sealed class LogCatalogLoaderTests
         public List<ArtistLookupDto> Artists { get; init; } = [];
         public List<VenueDto> Venues { get; init; } = [];
         public HashSet<int> RepertoireSongIds { get; init; } = [];
+        public HashSet<int> WorkingUpSongIds { get; init; } = [];
 
         private void ThrowIfOffline()
         {
@@ -145,9 +173,15 @@ public sealed class LogCatalogLoaderTests
             int? genreId = null)
         {
             ThrowIfOffline();
-            if (listId != 1)
+            if (listId != 1 && listId != 3)
             {
                 return Task.FromResult(RepertoireResult.Ok([]));
+            }
+
+            if (listId == 3)
+            {
+                return Task.FromResult(RepertoireResult.Ok(
+                    WorkingUpSongIds.Select(id => new RepertoireSongDto { SongId = id }).ToList()));
             }
 
             return Task.FromResult(RepertoireResult.Ok(

@@ -49,6 +49,7 @@ Details: `docs/mobile-ux.md`. E2E: `docs/e2e-playwright.md`. Admin roles: `docs/
 - `GET api/performances/my-repertoire`, `my-repertoire/genres`, `my-song-summary`, `my-stale-songs`, `my-stats`
 - `POST api/performances` (auto-fills singer from JWT; auto-adds song to My repertoire list)
 - `GET api/singers/me/lists`, `GET/POST/DELETE api/singers/me/lists/{listId}/songs`, `POST api/singers/me/lists/import`, `GET api/singers/me/songs/{songId}/list-membership`
+- WASM caches Log catalog (★/🎯) and My Songs lists in local storage for offline read
 
 Details: `docs/Performances.md`.
 

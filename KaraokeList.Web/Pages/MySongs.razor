@@ -6,6 +6,8 @@
 
 @inject IMySongsLocalStore MySongsStore
 
+@inject IMySongsLoader MySongsLoader
+
 @inject NavigationManager Navigation
 
 @using KaraokeList.Shared
@@ -48,6 +50,20 @@
 
         {
 
+            @if (usingOfflineLists && listsCachedAt is DateTime cachedAt)
+            {
+                <div class="alert alert-warning small mb-3" role="status">
+                    Using cached lists from @cachedAt.ToLocalTime().ToString("g").
+                    Connect to refresh or edit lists.
+                </div>
+            }
+            else if (usingOfflineLists && !hasCachedLists)
+            {
+                <div class="alert alert-warning small mb-3" role="status">
+                    Lists aren't available offline yet. Open My Songs once while online to cache them.
+                </div>
+            }
+
             <div class="mobile-toolbar">
 
                 <label class="form-label small text-muted mb-1">List</label>
@@ -68,7 +84,7 @@
 
             </div>
 
-            @if (SupportsCatalogAdd)
+            @if (SupportsCatalogAdd && !usingOfflineLists)
             {
                 <div class="mobile-toolbar">
                     @if (!showAddSong)
@@ -217,7 +233,7 @@
                     {
 
                         <p>@EmptyListMessage</p>
-                        @if (SupportsCatalogAdd)
+                        @if (SupportsCatalogAdd && !usingOfflineLists)
                         {
                             <button type="button" class="btn btn-outline-primary btn-sm mt-2" @onclick="OpenAddSongPanelAsync">
                                 Search catalog to add
@@ -289,6 +305,12 @@
     private bool isLoading = true;
 
     private bool needsSingerLink;
+
+    private bool usingOfflineLists;
+
+    private bool hasCachedLists;
+
+    private DateTime? listsCachedAt;
 
     private string? loadError;
 
@@ -455,25 +477,31 @@
 
         loadError = null;
 
+        usingOfflineLists = false;
+
+        hasCachedLists = false;
+
+        listsCachedAt = null;
 
 
-        var listsResult = await Api.GetMyListsAsync();
 
-        if (!listsResult.Succeeded)
+        var result = await MySongsLoader.LoadAsync(listKind, sortBy, sortDir, filterGenreId);
+
+        usingOfflineLists = result.FromCache;
+
+        hasCachedLists = result.HasCache;
+
+        listsCachedAt = result.CachedAtUtc;
+
+
+
+        if (result.NeedsSingerLink)
 
         {
 
-            loadError = listsResult.ErrorMessage;
+            needsSingerLink = true;
 
-            if (listsResult.ErrorMessage?.Contains("not linked", StringComparison.OrdinalIgnoreCase) == true)
-
-            {
-
-                needsSingerLink = true;
-
-            }
-
-
+            loadError = result.ErrorMessage;
 
             isLoading = false;
 
@@ -483,7 +511,21 @@
 
 
 
-        singerLists = listsResult.Lists;
+        if (!string.IsNullOrEmpty(result.ErrorMessage))
+
+        {
+
+            loadError = result.ErrorMessage;
+
+            isLoading = false;
+
+            return;
+
+        }
+
+
+
+        singerLists = result.Lists.ToList();
 
         var selectedList = singerLists.FirstOrDefault(l => l.Kind == listKind)
 
@@ -505,23 +547,7 @@
 
         listKind = selectedList.Kind;
 
-        var songsResult = await Api.GetListSongsAsync(selectedList.Id, sortBy, sortDir, filterGenreId);
-
-        if (!songsResult.Succeeded)
-
-        {
-
-            loadError = songsResult.ErrorMessage;
-
-            isLoading = false;
-
-            return;
-
-        }
-
-
-
-        songs = songsResult.Songs;
+        songs = result.Songs.ToList();
 
         needsSingerLink = false;
 
@@ -531,17 +557,7 @@
 
         {
 
-            filterGenres = songs
-
-                .Where(s => s.GenreId is int)
-
-                .GroupBy(s => s.GenreId!.Value)
-
-                .Select(g => new GenreDto { Id = g.Key, GenreName = g.First().GenreName })
-
-                .OrderBy(g => g.GenreName, StringComparer.OrdinalIgnoreCase)
-
-                .ToList();
+            filterGenres = result.FilterGenres.ToList();
 
         }
 

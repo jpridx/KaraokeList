@@ -1,0 +1,172 @@
+using KaraokeList.Shared;
+
+namespace KaraokeList.Web.Services;
+
+public interface IMySongsLoader
+{
+    Task<MySongsLoadResult> LoadAsync(
+        SingerListKind listKind,
+        string sortBy,
+        string sortDir,
+        int? genreId);
+}
+
+public sealed class MySongsLoader(IKaraokeApiClient api, IMySongsLocalStore store) : IMySongsLoader
+{
+    public async Task<MySongsLoadResult> LoadAsync(
+        SingerListKind listKind,
+        string sortBy,
+        string sortDir,
+        int? genreId)
+    {
+        try
+        {
+            var listsResult = await api.GetMyListsAsync();
+            if (!listsResult.Succeeded)
+            {
+                return await LoadOfflineOrFailAsync(
+                    listKind,
+                    sortBy,
+                    sortDir,
+                    genreId,
+                    listsResult.ErrorMessage,
+                    listsResult.ErrorMessage?.Contains("not linked", StringComparison.OrdinalIgnoreCase) == true);
+            }
+
+            var songsByKind = await LoadAllListSongsAsync(listsResult.Lists);
+            var cachedAt = DateTime.UtcNow;
+            await store.SaveCachedListsAsync(new CachedMySongsLists(
+                listsResult.Lists,
+                songsByKind.Select(kv => new CachedListSongsEntry(kv.Key, kv.Value)).ToList(),
+                cachedAt));
+
+            return BuildResult(
+                listsResult.Lists,
+                songsByKind,
+                listKind,
+                sortBy,
+                sortDir,
+                genreId,
+                FromCache: false,
+                cachedAt);
+        }
+        catch (Exception ex) when (IsOfflineFailure(ex))
+        {
+            return await LoadOfflineOrFailAsync(listKind, sortBy, sortDir, genreId, null, needsSingerLink: false);
+        }
+    }
+
+    private async Task<Dictionary<SingerListKind, List<RepertoireSongDto>>> LoadAllListSongsAsync(
+        IReadOnlyList<SingerListDto> lists)
+    {
+        var songsByKind = new Dictionary<SingerListKind, List<RepertoireSongDto>>();
+        foreach (var list in lists)
+        {
+            var songsResult = await api.GetListSongsAsync(list.Id);
+            if (songsResult.Succeeded)
+            {
+                songsByKind[list.Kind] = songsResult.Songs.ToList();
+            }
+        }
+
+        return songsByKind;
+    }
+
+    private async Task<MySongsLoadResult> LoadOfflineOrFailAsync(
+        SingerListKind listKind,
+        string sortBy,
+        string sortDir,
+        int? genreId,
+        string? errorMessage,
+        bool needsSingerLink)
+    {
+        var cached = await store.GetCachedListsAsync();
+        if (cached is null || cached.ListsSongs.Count == 0)
+        {
+            if (needsSingerLink)
+            {
+                return new MySongsLoadResult(
+                    [],
+                    [],
+                    [],
+                    FromCache: false,
+                    HasCache: false,
+                    null,
+                    errorMessage,
+                    true);
+            }
+
+            return new MySongsLoadResult(
+                [],
+                [],
+                [],
+                FromCache: true,
+                HasCache: false,
+                null,
+                errorMessage ?? "Could not load lists. Open My Songs once while online to cache them.",
+                false);
+        }
+
+        var songsByKind = cached.ListsSongs.ToDictionary(
+            entry => entry.Kind,
+            entry => entry.Songs.ToList());
+
+        return BuildResult(
+            cached.Lists,
+            songsByKind,
+            listKind,
+            sortBy,
+            sortDir,
+            genreId,
+            FromCache: true,
+            cached.CachedAtUtc);
+    }
+
+    private static MySongsLoadResult BuildResult(
+        IReadOnlyList<SingerListDto> lists,
+        IReadOnlyDictionary<SingerListKind, List<RepertoireSongDto>> songsByKind,
+        SingerListKind listKind,
+        string sortBy,
+        string sortDir,
+        int? genreId,
+        bool FromCache,
+        DateTime? cachedAt)
+    {
+        if (!songsByKind.TryGetValue(listKind, out var allSongs))
+        {
+            allSongs = [];
+        }
+
+        var filtered = ApplyGenreFilter(allSongs, genreId);
+        var sorted = RepertoireSongSort.Apply(filtered, sortBy, sortDir);
+        var filterGenres = BuildFilterGenres(allSongs);
+
+        return new MySongsLoadResult(
+            lists,
+            sorted,
+            filterGenres,
+            FromCache,
+            HasCache: songsByKind.Count > 0,
+            cachedAt,
+            null,
+            false);
+    }
+
+    private static List<RepertoireSongDto> ApplyGenreFilter(
+        IReadOnlyList<RepertoireSongDto> songs,
+        int? genreId) =>
+        genreId is int id
+            ? songs.Where(s => s.GenreId == id).ToList()
+            : songs.ToList();
+
+    private static List<GenreDto> BuildFilterGenres(IReadOnlyList<RepertoireSongDto> songs) =>
+        songs
+            .Where(s => s.GenreId is int)
+            .GroupBy(s => s.GenreId!.Value)
+            .Select(g => new GenreDto { Id = g.Key, GenreName = g.First().GenreName })
+            .OrderBy(g => g.GenreName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+    private static bool IsOfflineFailure(Exception ex) =>
+        ApiTransientFailure.IsTransient(ex) || ex is HttpRequestException;
+}

@@ -41,6 +41,7 @@ builder.Services.AddScoped<ILogPerformanceLocalStore, LogPerformanceLocalStore>(
 builder.Services.AddScoped<ILogCatalogLoader, LogCatalogLoader>();
 builder.Services.AddScoped<IPendingPerformanceSyncService, PendingPerformanceSyncService>();
 builder.Services.AddScoped<IMySongsLocalStore, MySongsLocalStore>();
+builder.Services.AddScoped<IMySongsLoader, MySongsLoader>();
 builder.Services.AddHttpClient("KaraokeApi", client =>
     {
         client.BaseAddress = new Uri(apiBaseUrl);
