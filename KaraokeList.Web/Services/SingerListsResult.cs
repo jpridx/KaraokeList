@@ -27,3 +27,27 @@ public sealed class SingerListImportResult
     public static SingerListImportResult Fail(string message) =>
         new() { Succeeded = false, ErrorMessage = message };
 }
+
+public sealed class ListSongActionResult
+{
+    public bool Succeeded { get; init; }
+    public string? ErrorMessage { get; init; }
+
+    public static ListSongActionResult Ok() => new() { Succeeded = true };
+
+    public static ListSongActionResult Fail(string message) =>
+        new() { Succeeded = false, ErrorMessage = message };
+}
+
+public sealed class SongListMembershipResult
+{
+    public bool Succeeded { get; init; }
+    public string? ErrorMessage { get; init; }
+    public List<SingerListKind> Lists { get; init; } = [];
+
+    public static SongListMembershipResult Ok(List<SingerListKind> lists) =>
+        new() { Succeeded = true, Lists = lists };
+
+    public static SongListMembershipResult Fail(string message) =>
+        new() { Succeeded = false, ErrorMessage = message };
+}

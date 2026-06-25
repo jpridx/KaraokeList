@@ -82,7 +82,8 @@ Use **Cancel** to close the add-song panel without losing your place on the Log 
 1. Open **My Songs** (defaults to **My repertoire**)
 2. Switch to **Want to sing** or **Working up** to browse other lists
 3. Performance count and last-performed date still appear when you have logged that song
-4. Tap a row for detail/history, or **Log** to record a performance
+4. Tap a row for detail/history (list actions on detail), or **Log** to record a performance
+5. On **Want to sing** / **Working up**, use **+ Add song** to search the catalog
 
 ### Browse + history
 

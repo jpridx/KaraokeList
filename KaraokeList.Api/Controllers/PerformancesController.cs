@@ -198,6 +198,7 @@ public class PerformancesController(
         if (dto.Song is int songId)
         {
             await singerListService.AddToMyRepertoireAsync(singerId.Value!.Value, songId);
+            await singerListService.RemoveFromListByKindAsync(singerId.Value.Value, SingerListKind.WantToSing, songId);
         }
 
         return NoContent();

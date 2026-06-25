@@ -42,3 +42,8 @@ public class ImportSingerListSongsResponse
     public int Skipped { get; set; }
     public int Rejected { get; set; }
 }
+
+public class SongListMembershipDto
+{
+    public List<SingerListKind> Lists { get; set; } = [];
+}

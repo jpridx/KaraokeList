@@ -262,6 +262,31 @@ public sealed class SingerListService(
         await db.SaveChangesAsync();
     }
 
+    public Task<bool> SongExistsAsync(int songId) => integrity.SongExistsAsync(songId);
+
+    public async Task<List<SingerListKind>> GetListKindsForSongAsync(int singerId, int songId)
+    {
+        await EnsureSystemListsAsync(singerId);
+        return await (
+            from sls in db.SingerListSongs
+            join sl in db.SingerLists on sls.ListId equals sl.Id
+            where sl.SingerId == singerId && sls.SongId == songId
+            orderby sl.Kind
+            select sl.Kind).ToListAsync();
+    }
+
+    public async Task RemoveFromListByKindAsync(int singerId, SingerListKind kind, int songId)
+    {
+        var list = await db.SingerLists
+            .FirstOrDefaultAsync(l => l.SingerId == singerId && l.Kind == kind);
+        if (list is null)
+        {
+            return;
+        }
+
+        await RemoveSongAsync(singerId, list.Id, songId);
+    }
+
     private async Task<string?> ValidateAddAsync(int singerId, SingerListKind kind, int songId)
     {
         if (kind != SingerListKind.WantToSing)

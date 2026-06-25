@@ -63,11 +63,26 @@
                                 PopupHeight="280px">
                         <ComboBoxFieldSettings Value="Id" Text="Display" />
                     </SfComboBox>
-                    <p class="small text-muted mt-1 mb-0">@songPickerItems.Count songs · ★ = you've sung it before</p>
+                    <p class="small text-muted mt-1 mb-0">@songPickerItems.Count songs · ★ = on My repertoire</p>
                 }
                 @if (selectedSongId is int songId && songHint is not null)
                 {
                     <p class="small text-muted mt-2 mb-0">@songHint</p>
+                }
+                @if (selectedSongId is int workingUpSongId && !usingOfflineCatalog && !workingUpSongIds.Contains(workingUpSongId))
+                {
+                    <button type="button" class="btn btn-outline-secondary btn-sm mt-2" disabled="@isAddingToWorkingUp"
+                            @onclick="AddToWorkingUpAsync">
+                        Add to working up
+                    </button>
+                    @if (!string.IsNullOrEmpty(workingUpMessage))
+                    {
+                        <p class="small text-success mt-1 mb-0">@workingUpMessage</p>
+                    }
+                    @if (!string.IsNullOrEmpty(workingUpError))
+                    {
+                        <p class="small text-danger mt-1 mb-0">@workingUpError</p>
+                    }
                 }
 
                 @if (!usingOfflineCatalog)
@@ -134,6 +149,8 @@
     private List<ArtistLookupDto> artistLookups = [];
     private List<GenreDto> genres = [];
     private HashSet<int> repertoireSongIds = [];
+    private HashSet<int> workingUpSongIds = [];
+    private List<SingerListDto> singerLists = [];
     private List<LogSongPickItem> songPickerItems = [];
 
     private int? selectedSongId;
@@ -142,6 +159,9 @@
     private string? saveError;
 
     private bool showNewSong;
+    private bool isAddingToWorkingUp;
+    private string? workingUpMessage;
+    private string? workingUpError;
     private IReadOnlyList<RecentLoggedPerformance> recentLogs = [];
 
     private LogSongPickItem? SelectedSong
@@ -225,9 +245,16 @@
         catalogCachedAt = catalog.CachedAtUtc;
         songPickerItems = catalog.Songs.ToList();
         repertoireSongIds = catalog.RepertoireSongIds;
+        workingUpSongIds = catalog.WorkingUpSongIds;
 
         if (!catalog.FromCache)
         {
+            var listsResult = await Api.GetMyListsAsync();
+            if (listsResult.Succeeded)
+            {
+                singerLists = listsResult.Lists;
+            }
+
             artistLookups = await Api.GetArtistLookupsAsync();
             genres = await Api.GetGenresAsync();
         }
@@ -247,6 +274,8 @@
     private async Task OnSongChangedAsync(int? songId)
     {
         songHint = null;
+        workingUpMessage = null;
+        workingUpError = null;
         if (songId is null)
         {
             return;
@@ -298,6 +327,7 @@
             var catalog = await CatalogLoader.LoadAsync();
             songPickerItems = catalog.Songs.ToList();
             repertoireSongIds = catalog.RepertoireSongIds;
+            workingUpSongIds = catalog.WorkingUpSongIds;
             usingOfflineCatalog = catalog.FromCache;
             hasCachedCatalog = catalog.HasCatalog;
             catalogCachedAt = catalog.CachedAtUtc;
@@ -354,5 +384,36 @@
 
         showNewSong = false;
         saveMessage = "Song added.";
+    }
+
+    private async Task AddToWorkingUpAsync()
+    {
+        if (selectedSongId is not int songId)
+        {
+            return;
+        }
+
+        var workingUpList = singerLists.FirstOrDefault(l => l.Kind == SingerListKind.WorkingUp);
+        if (workingUpList is null)
+        {
+            workingUpError = "Working up list was not found.";
+            return;
+        }
+
+        isAddingToWorkingUp = true;
+        workingUpError = null;
+        workingUpMessage = null;
+
+        var result = await Api.AddListSongAsync(workingUpList.Id, songId);
+        if (!result.Succeeded)
+        {
+            workingUpError = result.ErrorMessage;
+            isAddingToWorkingUp = false;
+            return;
+        }
+
+        workingUpSongIds.Add(songId);
+        workingUpMessage = "Added to working up.";
+        isAddingToWorkingUp = false;
     }
 }

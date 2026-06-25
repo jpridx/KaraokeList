@@ -139,6 +139,56 @@ public sealed class SingerListsIntegrationTests(KaraokeApiFactory factory)
         Assert.DoesNotContain(songs, s => s.SongId == songId);
     }
 
+    [SkippableFact]
+    public async Task GetSongListMembership_ReturnsListsContainingSong()
+    {
+        Skip.IfNot(factory.IsDatabaseAvailable, IntegrationTestConnection.SkipReason);
+
+        var client = await CreateAuthedClientAsync();
+        var lists = await GetListsAsync(client);
+        var workingUpListId = lists.Single(l => l.Kind == SingerListKind.WorkingUp).Id;
+
+        var (songId, _) = await PerformanceTestDataHelper.CreateCatalogAsync(client);
+        var add = await client.PostAsJsonAsync(
+            $"/api/singers/me/lists/{workingUpListId}/songs",
+            new AddSingerListSongRequest { SongId = songId });
+        Assert.Equal(HttpStatusCode.NoContent, add.StatusCode);
+
+        var membership = await client.GetFromJsonAsync<SongListMembershipDto>(
+            $"/api/singers/me/songs/{songId}/list-membership");
+        Assert.NotNull(membership);
+        Assert.Contains(SingerListKind.WorkingUp, membership.Lists);
+    }
+
+    [SkippableFact]
+    public async Task CreatePerformance_RemovesSongFromWantToSing()
+    {
+        Skip.IfNot(factory.IsDatabaseAvailable, IntegrationTestConnection.SkipReason);
+
+        var client = await CreateAuthedClientAsync();
+        var lists = await GetListsAsync(client);
+        var wantListId = lists.Single(l => l.Kind == SingerListKind.WantToSing).Id;
+        var repertoireListId = lists.Single(l => l.Kind == SingerListKind.MyRepertoire).Id;
+
+        var (songId, venueId) = await PerformanceTestDataHelper.CreateCatalogAsync(client);
+        var add = await client.PostAsJsonAsync(
+            $"/api/singers/me/lists/{wantListId}/songs",
+            new AddSingerListSongRequest { SongId = songId });
+        Assert.Equal(HttpStatusCode.NoContent, add.StatusCode);
+
+        await PerformanceTestDataHelper.CreatePerformanceAsync(client, songId, venueId);
+
+        var wantSongs = await client.GetFromJsonAsync<List<RepertoireSongDto>>(
+            $"/api/singers/me/lists/{wantListId}/songs");
+        Assert.NotNull(wantSongs);
+        Assert.DoesNotContain(wantSongs, s => s.SongId == songId);
+
+        var repertoireSongs = await client.GetFromJsonAsync<List<RepertoireSongDto>>(
+            $"/api/singers/me/lists/{repertoireListId}/songs");
+        Assert.NotNull(repertoireSongs);
+        Assert.Contains(repertoireSongs, s => s.SongId == songId);
+    }
+
     private static async Task<List<SingerListDto>> GetListsAsync(HttpClient client)
     {
         var lists = await client.GetFromJsonAsync<List<SingerListDto>>("/api/singers/me/lists");

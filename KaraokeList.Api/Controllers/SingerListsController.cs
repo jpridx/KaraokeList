@@ -61,6 +61,24 @@ public class SingerListsController(
         return Ok(songs.Select(s => s.ToDto()).ToList());
     }
 
+    [HttpGet("~/api/singers/me/songs/{songId:int}/list-membership")]
+    public async Task<ActionResult<SongListMembershipDto>> GetSongListMembership(int songId)
+    {
+        var singerId = await RequireSingerIdAsync();
+        if (singerId.Result is not null)
+        {
+            return singerId.Result;
+        }
+
+        if (!await singerListService.SongExistsAsync(songId))
+        {
+            return NotFound();
+        }
+
+        var kinds = await singerListService.GetListKindsForSongAsync(singerId.Value!.Value, songId);
+        return Ok(new SongListMembershipDto { Lists = kinds });
+    }
+
     [HttpPost("import")]
     public async Task<ActionResult<ImportSingerListSongsResponse>> ImportSongs(
         [FromBody] ImportSingerListSongsRequest request)

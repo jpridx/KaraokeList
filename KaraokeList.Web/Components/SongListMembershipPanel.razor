@@ -1,0 +1,170 @@
+@using KaraokeList.Shared
+
+<section class="mobile-panel song-list-membership-panel">
+    <h2 class="h6 mb-2">Lists</h2>
+
+    @if (!string.IsNullOrEmpty(statusMessage))
+    {
+        <p class="small text-success mb-2">@statusMessage</p>
+    }
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <p class="small text-danger mb-2">@errorMessage</p>
+    }
+
+    @if (membership.Count == 0)
+    {
+        <p class="small text-muted mb-2">Not on any list yet.</p>
+    }
+    else
+    {
+        <div class="genre-chips mb-2">
+            @foreach (var kind in membership.OrderBy(k => k))
+            {
+                <span class="genre-chip active">@SingerListKindNames.DisplayName(kind)</span>
+            }
+        </div>
+    }
+
+    <div class="d-flex flex-wrap gap-2">
+        @if (CanAddToWantToSing)
+        {
+            <button type="button" class="btn btn-outline-primary btn-sm" disabled="@isBusy"
+                    @onclick="() => AddToListAsync(SingerListKind.WantToSing)">
+                Add to want to sing
+            </button>
+        }
+        @if (CanAddToWorkingUp)
+        {
+            <button type="button" class="btn btn-outline-primary btn-sm" disabled="@isBusy"
+                    @onclick="() => AddToListAsync(SingerListKind.WorkingUp)">
+                Add to working up
+            </button>
+        }
+        @if (membership.Contains(SingerListKind.WantToSing))
+        {
+            <button type="button" class="btn btn-outline-secondary btn-sm" disabled="@isBusy"
+                    @onclick="() => RemoveFromListAsync(SingerListKind.WantToSing)">
+                Remove from want to sing
+            </button>
+        }
+        @if (membership.Contains(SingerListKind.WorkingUp))
+        {
+            <button type="button" class="btn btn-outline-secondary btn-sm" disabled="@isBusy"
+                    @onclick="() => RemoveFromListAsync(SingerListKind.WorkingUp)">
+                Remove from working up
+            </button>
+        }
+    </div>
+</section>
+
+@code {
+    [Parameter, EditorRequired]
+    public int SongId { get; set; }
+
+    [Parameter]
+    public int PerformanceCount { get; set; }
+
+    [Parameter, EditorRequired]
+    public EventCallback OnMembershipChanged { get; set; }
+
+    [Inject]
+    private IKaraokeApiClient Api { get; set; } = default!;
+
+    private readonly HashSet<SingerListKind> membership = [];
+    private List<SingerListDto> singerLists = [];
+    private bool isBusy;
+    private string? statusMessage;
+    private string? errorMessage;
+
+    private bool CanAddToWantToSing =>
+        !membership.Contains(SingerListKind.WantToSing)
+        && !membership.Contains(SingerListKind.MyRepertoire)
+        && PerformanceCount == 0;
+
+    private bool CanAddToWorkingUp => !membership.Contains(SingerListKind.WorkingUp);
+
+    protected override async Task OnParametersSetAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        statusMessage = null;
+        errorMessage = null;
+
+        var listsResult = await Api.GetMyListsAsync();
+        if (!listsResult.Succeeded)
+        {
+            errorMessage = listsResult.ErrorMessage;
+            return;
+        }
+
+        singerLists = listsResult.Lists;
+
+        var membershipResult = await Api.GetSongListMembershipAsync(SongId);
+        if (!membershipResult.Succeeded)
+        {
+            errorMessage = membershipResult.ErrorMessage;
+            return;
+        }
+
+        membership.Clear();
+        foreach (var kind in membershipResult.Lists)
+        {
+            membership.Add(kind);
+        }
+    }
+
+    private async Task AddToListAsync(SingerListKind kind)
+    {
+        var list = singerLists.FirstOrDefault(l => l.Kind == kind);
+        if (list is null)
+        {
+            errorMessage = "List was not found.";
+            return;
+        }
+
+        isBusy = true;
+        errorMessage = null;
+        statusMessage = null;
+
+        var result = await Api.AddListSongAsync(list.Id, SongId);
+        if (!result.Succeeded)
+        {
+            errorMessage = result.ErrorMessage;
+            isBusy = false;
+            return;
+        }
+
+        statusMessage = $"Added to {SingerListKindNames.DisplayName(kind).ToLowerInvariant()}.";
+        await LoadAsync();
+        await OnMembershipChanged.InvokeAsync();
+        isBusy = false;
+    }
+
+    private async Task RemoveFromListAsync(SingerListKind kind)
+    {
+        var list = singerLists.FirstOrDefault(l => l.Kind == kind);
+        if (list is null)
+        {
+            errorMessage = "List was not found.";
+            return;
+        }
+
+        isBusy = true;
+        errorMessage = null;
+        statusMessage = null;
+
+        var result = await Api.RemoveListSongAsync(list.Id, SongId);
+        if (!result.Succeeded)
+        {
+            errorMessage = result.ErrorMessage;
+            isBusy = false;
+            return;
+        }
+
+        statusMessage = $"Removed from {SingerListKindNames.DisplayName(kind).ToLowerInvariant()}.";
+        await LoadAsync();
+        await OnMembershipChanged.InvokeAsync();
+        isBusy = false;
+    }
+}

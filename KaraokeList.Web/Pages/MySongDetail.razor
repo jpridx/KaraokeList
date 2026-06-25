@@ -63,6 +63,9 @@
             }
         </section>
 
+        <SongListMembershipPanel SongId="SongId" PerformanceCount="summary.PerformanceCount"
+                                 OnMembershipChanged="LoadAsync" />
+
         @if (mySingerId is null)
         {
             <SingerLinkPanel Visible="true" OnLinked="OnSingerLinkedAsync" />

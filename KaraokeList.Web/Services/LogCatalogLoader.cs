@@ -28,6 +28,16 @@ public sealed class LogCatalogLoader(IKaraokeApiClient api, ILogPerformanceLocal
                 ? repertoire.Songs.Select(s => s.SongId).ToHashSet()
                 : [];
 
+            var workingUpList = lists.Succeeded
+                ? lists.Lists.FirstOrDefault(l => l.Kind == SingerListKind.WorkingUp)
+                : null;
+            var workingUp = workingUpList is not null
+                ? await api.GetListSongsAsync(workingUpList.Id)
+                : RepertoireResult.Fail("Could not load Working up list.");
+            var workingUpIds = workingUp.Succeeded
+                ? workingUp.Songs.Select(s => s.SongId).ToHashSet()
+                : [];
+
             var artistNames = artists.ToDictionary(a => a.Id, a => a.Name);
             var pickItems = songs
                 .Select(s => new LogSongPickItem(
@@ -46,7 +56,7 @@ public sealed class LogCatalogLoader(IKaraokeApiClient api, ILogPerformanceLocal
                 venues.Select(v => new CachedVenueEntry(v.Id, v.VenueName)).ToList(),
                 cachedAt));
 
-            return new LogCatalogSnapshot(pickItems, repertoireIds, FromCache: false, HasCatalog: pickItems.Count > 0, cachedAt);
+            return new LogCatalogSnapshot(pickItems, repertoireIds, workingUpIds, FromCache: false, HasCatalog: pickItems.Count > 0, cachedAt);
         }
         catch (Exception ex) when (IsOfflineFailure(ex))
         {
@@ -79,7 +89,7 @@ public sealed class LogCatalogLoader(IKaraokeApiClient api, ILogPerformanceLocal
         var cached = await store.GetCachedCatalogAsync();
         if (cached is null || cached.Songs.Count == 0)
         {
-            return new LogCatalogSnapshot([], [], FromCache: true, HasCatalog: false, cached?.CachedAtUtc);
+            return new LogCatalogSnapshot([], [], [], FromCache: true, HasCatalog: false, cached?.CachedAtUtc);
         }
 
         var repertoireIds = cached.RepertoireSongIds.ToHashSet();
@@ -89,7 +99,7 @@ public sealed class LogCatalogLoader(IKaraokeApiClient api, ILogPerformanceLocal
             .ThenBy(s => s.Title, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        return new LogCatalogSnapshot(pickItems, repertoireIds, FromCache: true, HasCatalog: true, cached.CachedAtUtc);
+        return new LogCatalogSnapshot(pickItems, repertoireIds, [], FromCache: true, HasCatalog: true, cached.CachedAtUtc);
     }
 
     private async Task PatchCachedVenuesAsync(IReadOnlyList<VenueDto> venues)
