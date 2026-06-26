@@ -91,6 +91,10 @@
                     {
                         <button type="button" class="btn btn-link btn-sm ps-0" @onclick="OpenAddSongPanelAsync">+ Add song</button>
                     }
+                    else if (showNewSong)
+                    {
+                        <AddSongPanel OnSongAdded="OnNewCatalogSongAddedAsync" OnCancelled="CloseAddSongPanel" />
+                    }
                     else
                     {
                         <CatalogSongPicker Items="catalogPickerItems" @bind-SelectedSongId="addSongId" />
@@ -102,6 +106,10 @@
                             <button type="button" class="btn btn-primary btn-sm" disabled="@(addSongId is null || isAddingSong)" @onclick="ConfirmAddSongAsync">Add to list</button>
                             <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="CloseAddSongPanel">Cancel</button>
                         </div>
+                        <button type="button" class="btn btn-link btn-sm ps-0 mt-2"
+                                @onclick="() => showNewSong = true">
+                            + New song (not in catalog yet)
+                        </button>
                     }
                 </div>
             }
@@ -339,6 +347,7 @@
     private int visibleGroupedLimit = PageSize;
 
     private bool showAddSong;
+    private bool showNewSong;
     private bool isAddingSong;
     private int? addSongId;
     private string? addSongError;
@@ -643,6 +652,7 @@
 
         listKind = newKind;
         showAddSong = false;
+        showNewSong = false;
         addSongId = null;
         addSongError = null;
 
@@ -693,6 +703,7 @@
     private void CloseAddSongPanel()
     {
         showAddSong = false;
+        showNewSong = false;
         addSongId = null;
         addSongError = null;
     }
@@ -723,6 +734,49 @@
 
         CloseAddSongPanel();
         isAddingSong = false;
+        await ReloadAsync();
+    }
+
+    private async Task OnNewCatalogSongAddedAsync(SongAddedEventArgs args)
+    {
+        addSongError = null;
+
+        // Reload the catalog picker so we can locate the newly created song by ID.
+        var allSongs = await Api.GetSongsAsync();
+        var artists = await Api.GetArtistLookupsAsync();
+        var artistNames = artists.ToDictionary(a => a.Id, a => a.Name);
+        catalogPickerItems = allSongs
+            .Select(s => new LogSongPickItem(
+                s.Id,
+                s.Title,
+                s.Artist is int artistId && artistNames.TryGetValue(artistId, out var name) ? name : string.Empty,
+                false))
+            .OrderBy(s => s.Title, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var newSong = LogArtistPicker.FindCreatedSong(
+            catalogPickerItems,
+            args.Title,
+            args.ArtistName,
+            s => s.Title,
+            s => s.ArtistName);
+
+        if (newSong is not null)
+        {
+            var list = singerLists.FirstOrDefault(l => l.Kind == listKind);
+            if (list is not null)
+            {
+                var result = await Api.AddListSongAsync(list.Id, newSong.Id);
+                if (!result.Succeeded)
+                {
+                    addSongError = result.ErrorMessage;
+                    showNewSong = false;
+                    return;
+                }
+            }
+        }
+
+        CloseAddSongPanel();
         await ReloadAsync();
     }
 
