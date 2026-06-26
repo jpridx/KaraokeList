@@ -1,0 +1,88 @@
+@inject IKaraokeApiClient Api
+
+<SfAutoComplete TValue="string" TItem="ArtistLookupDto" DataSource="@ArtistLookups"
+                @bind-Value="_name" @bind-Value:after="PropagateValueAsync"
+                Placeholder="Search or type artist name..."
+                AllowCustom="true" ShowClearButton="true"
+                FilterType="Syncfusion.Blazor.DropDowns.FilterType.Contains">
+    <AutoCompleteFieldSettings Value="Name" Text="Name" />
+</SfAutoComplete>
+
+@if (LogArtistPicker.NeedsNewArtist(_name, ArtistLookups))
+{
+    <div class="alert alert-info small py-2 px-3 mt-2 mb-0" role="status">
+        <strong>@_name.Trim()</strong> isn't in the catalog yet.
+        Add the artist first — your song title stays filled in.
+    </div>
+    @if (!string.IsNullOrEmpty(_localError))
+    {
+        <div class="alert alert-danger small mt-2 mb-0">@_localError</div>
+    }
+    <button type="button" class="btn btn-outline-primary w-100 mt-2"
+            disabled="@(_isBusy || Disabled)" @onclick="AddArtistAsync">
+        Add artist "@_name.Trim()"
+    </button>
+}
+else if (!string.IsNullOrWhiteSpace(_name) && LogArtistPicker.ResolveArtistId(_name, ArtistLookups) is not null)
+{
+    <p class="small text-muted mt-2 mb-0">Artist selected.</p>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyList<ArtistLookupDto> ArtistLookups { get; set; } = [];
+
+    [Parameter, EditorRequired]
+    public string ArtistName { get; set; } = string.Empty;
+
+    [Parameter]
+    public EventCallback<string> ArtistNameChanged { get; set; }
+
+    [Parameter]
+    public EventCallback<IReadOnlyList<ArtistLookupDto>> ArtistLookupsChanged { get; set; }
+
+    /// <summary>When true, disables the "Add artist" button (e.g. parent is saving).</summary>
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    private string _name = string.Empty;
+    private bool _isBusy;
+    private string? _localError;
+
+    protected override void OnParametersSet()
+    {
+        if (_name != ArtistName)
+            _name = ArtistName;
+    }
+
+    private Task PropagateValueAsync() => ArtistNameChanged.InvokeAsync(_name);
+
+    private async Task AddArtistAsync()
+    {
+        _localError = null;
+        var trimmedName = _name.Trim();
+        if (string.IsNullOrWhiteSpace(trimmedName))
+        {
+            _localError = "Artist name is required.";
+            return;
+        }
+
+        _isBusy = true;
+        try
+        {
+            await Api.CreateArtistAsync(new ArtistDto { Name = trimmedName });
+            var refreshed = await Api.GetArtistLookupsAsync();
+            _name = trimmedName;
+            await ArtistLookupsChanged.InvokeAsync(refreshed);
+            await ArtistNameChanged.InvokeAsync(trimmedName);
+        }
+        catch (Exception ex)
+        {
+            _localError = ex.Message;
+        }
+        finally
+        {
+            _isBusy = false;
+        }
+    }
+}

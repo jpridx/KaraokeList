@@ -95,11 +95,11 @@
                     }
                     else
                     {
-                        <LogNewSongPanel ArtistLookups="artistLookups" Genres="genres"
-                                         ArtistLookupsChanged="OnArtistLookupsRefreshedAsync"
-                                         GenresChanged="OnGenresRefreshedAsync"
-                                         OnSongAdded="OnNewSongAddedAsync"
-                                         OnCancelled="CloseNewSongPanel" />
+                        <AddSongPanel ArtistLookups="artistLookups" Genres="genres"
+                                      ArtistLookupsChanged="OnArtistLookupsRefreshedAsync"
+                                      GenresChanged="OnGenresRefreshedAsync"
+                                      OnSongAdded="OnNewSongAddedAsync"
+                                      OnCancelled="CloseNewSongPanel" />
                     }
                 }
             </div>
@@ -363,7 +363,7 @@
         return Task.CompletedTask;
     }
 
-    private async Task OnNewSongAddedAsync(LogNewSongAddedEventArgs args)
+    private async Task OnNewSongAddedAsync(SongAddedEventArgs args)
     {
         saveError = null;
         var catalog = await CatalogLoader.LoadAsync();
