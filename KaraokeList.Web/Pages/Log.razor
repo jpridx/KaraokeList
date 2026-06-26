@@ -95,11 +95,8 @@
                     }
                     else
                     {
-                        <LogNewSongPanel ArtistLookups="artistLookups" Genres="genres"
-                                         ArtistLookupsChanged="OnArtistLookupsRefreshedAsync"
-                                         GenresChanged="OnGenresRefreshedAsync"
-                                         OnSongAdded="OnNewSongAddedAsync"
-                                         OnCancelled="CloseNewSongPanel" />
+                        <AddSongPanel OnSongAdded="OnNewSongAddedAsync"
+                                      OnCancelled="CloseNewSongPanel" />
                     }
                 }
             </div>
@@ -146,8 +143,6 @@
     private bool hasCachedCatalog;
     private DateTime? catalogCachedAt;
     private int? mySingerId;
-    private List<ArtistLookupDto> artistLookups = [];
-    private List<GenreDto> genres = [];
     private HashSet<int> repertoireSongIds = [];
     private HashSet<int> workingUpSongIds = [];
     private List<SingerListDto> singerLists = [];
@@ -255,9 +250,6 @@
             {
                 singerLists = listsResult.Lists;
             }
-
-            artistLookups = await Api.GetArtistLookupsAsync();
-            genres = await Api.GetGenresAsync();
         }
 
         recentLogs = await LogStore.GetRecentLogsAsync();
@@ -349,21 +341,7 @@
 
     private void CloseNewSongPanel() => showNewSong = false;
 
-    private Task OnArtistLookupsRefreshedAsync(IReadOnlyList<ArtistLookupDto> lookups)
-    {
-        artistLookups = lookups.ToList();
-        saveMessage = "Artist added.";
-        return Task.CompletedTask;
-    }
-
-    private Task OnGenresRefreshedAsync(IReadOnlyList<GenreDto> refreshed)
-    {
-        genres = refreshed.ToList();
-        saveMessage = "Genre added.";
-        return Task.CompletedTask;
-    }
-
-    private async Task OnNewSongAddedAsync(LogNewSongAddedEventArgs args)
+    private async Task OnNewSongAddedAsync(SongAddedEventArgs args)
     {
         saveError = null;
         var catalog = await CatalogLoader.LoadAsync();

@@ -1,0 +1,122 @@
+@inject IKaraokeApiClient Api
+
+<div class="log-new-song-panel border-top pt-3 mt-2">
+    @if (isLoading)
+    {
+        <p class="text-muted small">Loading…</p>
+    }
+    else
+    {
+        <label class="form-label">Title</label>
+        <input class="form-control mb-2" @bind="title" />
+
+        <label class="form-label">Artist</label>
+        <AddArtistField ArtistLookups="artistLookups" @bind-ArtistName="artistName"
+                        ArtistLookupsChanged="OnArtistLookupsRefreshed" Disabled="isBusy" />
+
+        <label class="form-label mt-3">Genre (optional)</label>
+        <AddGenreField Genres="genres" @bind-GenreName="genreName"
+                       GenresChanged="OnGenresRefreshed" Disabled="isBusy" />
+
+        @if (!string.IsNullOrEmpty(localError))
+        {
+            <div class="alert alert-danger small mt-3 mb-0">@localError</div>
+        }
+
+        <div class="d-flex gap-2 mt-3">
+            <button type="button" class="btn btn-outline-secondary flex-fill" disabled="@isBusy" @onclick="CancelAsync">
+                Cancel
+            </button>
+            <button type="button" class="btn btn-outline-primary flex-fill" disabled="@(!CanAddSong || isBusy)"
+                    @onclick="AddSongAsync">
+                Add song
+            </button>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public EventCallback<SongAddedEventArgs> OnSongAdded { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancelled { get; set; }
+
+    private IReadOnlyList<ArtistLookupDto> artistLookups = [];
+    private IReadOnlyList<GenreDto> genres = [];
+    private string title = string.Empty;
+    private string artistName = string.Empty;
+    private string genreName = string.Empty;
+    private string? localError;
+    private bool isBusy;
+    private bool isLoading = true;
+
+    private bool CanAddSong =>
+        !string.IsNullOrWhiteSpace(title)
+        && LogArtistPicker.ResolveArtistId(artistName, artistLookups) is not null
+        && !LogGenrePicker.NeedsNewGenre(genreName, genres);
+
+    protected override async Task OnInitializedAsync()
+    {
+        artistLookups = await Api.GetArtistLookupsAsync();
+        genres = await Api.GetGenresAsync();
+        isLoading = false;
+    }
+
+    private void OnArtistLookupsRefreshed(IReadOnlyList<ArtistLookupDto> refreshed) => artistLookups = refreshed;
+
+    private void OnGenresRefreshed(IReadOnlyList<GenreDto> refreshed) => genres = refreshed;
+
+    private async Task AddSongAsync()
+    {
+        localError = null;
+        var trimmedTitle = title.Trim();
+        var trimmedArtist = artistName.Trim();
+        var trimmedGenre = genreName.Trim();
+        var artistId = LogArtistPicker.ResolveArtistId(trimmedArtist, artistLookups);
+        var resolvedGenreId = LogGenrePicker.ResolveGenreId(trimmedGenre, genres);
+
+        if (string.IsNullOrWhiteSpace(trimmedTitle))
+        {
+            localError = "Song title is required.";
+            return;
+        }
+
+        if (artistId is null)
+        {
+            localError = LogArtistPicker.NeedsNewArtist(trimmedArtist, artistLookups)
+                ? $"Add artist \"{trimmedArtist}\" first, then tap Add song."
+                : "Artist is required.";
+            return;
+        }
+
+        if (LogGenrePicker.NeedsNewGenre(trimmedGenre, genres))
+        {
+            localError = $"Add genre \"{trimmedGenre}\" first, then tap Add song.";
+            return;
+        }
+
+        isBusy = true;
+        try
+        {
+            await Api.CreateSongAsync(new SongDto
+            {
+                Title = trimmedTitle,
+                Artist = artistId,
+                Genre = resolvedGenreId
+            });
+
+            await OnSongAdded.InvokeAsync(new SongAddedEventArgs(trimmedTitle, trimmedArtist));
+        }
+        catch (Exception ex)
+        {
+            localError = ex.Message;
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    private Task CancelAsync() => OnCancelled.InvokeAsync();
+}

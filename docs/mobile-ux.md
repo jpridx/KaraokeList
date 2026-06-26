@@ -147,7 +147,9 @@ Implemented in `ShowHostMessageFormatting` (`KaraokeList.Shared`). Shown on Log 
 | Component | Role |
 |-----------|------|
 | `QuickLogPerformance` | Venue, date, key, host message, save — venue/date from last log; key from last time **you sang this song** (or original key); queues offline |
-| `LogNewSongPanel` | Add song + artist inline on Log — autocomplete artist, explicit **Add artist** when missing, title preserved |
+| `AddSongPanel` | Add catalog song inline — title field + `AddArtistField` + `AddGenreField`; fires `SongAddedEventArgs` on success |
+| `AddArtistField` | Artist autocomplete (`AllowCustom`) with inline **Add artist** button when the typed name isn't in the catalog |
+| `AddGenreField` | Genre autocomplete (`AllowCustom`) with inline **Add genre** button when the typed name isn't in the catalog |
 | `LogCatalogLoader` | Online catalog fetch + offline cache for Log song/venue picker (★ repertoire, 🎯 working up) |
 | `MySongsLoader` | Online list fetch + offline cache for My Songs browse |
 | `PendingPerformancesNotice` | Pending sync banner + auto/manual sync |
