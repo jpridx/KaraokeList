@@ -73,8 +73,11 @@ else if (!string.IsNullOrWhiteSpace(_name) && LogGenrePicker.ResolveGenreId(_nam
             await Api.CreateGenreAsync(new GenreDto { GenreName = trimmedName });
             var refreshed = await Api.GetGenresAsync();
             _name = trimmedName;
-            await GenresChanged.InvokeAsync(refreshed);
+            // Propagate the confirmed name first so that when the lookup change
+            // triggers a parent re-render, GenreName is already correct and
+            // OnParametersSet does not reset _name back to the old value.
             await GenreNameChanged.InvokeAsync(trimmedName);
+            await GenresChanged.InvokeAsync(refreshed);
         }
         catch (Exception ex)
         {
