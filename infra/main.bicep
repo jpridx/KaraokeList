@@ -22,6 +22,8 @@ var databaseName = 'KaraokeList'
 var appServicePlanName = 'asp-${baseName}'
 var apiWebAppName = 'api-${baseName}'
 var staticWebAppName = 'stapp-${baseName}'
+var logAnalyticsWorkspaceName = 'law-${baseName}'
+var appInsightsName = 'appi-${baseName}'
 
 resource sqlServer 'Microsoft.Sql/servers@2023-05-01-preview' = {
   name: sqlServerName
@@ -58,6 +60,27 @@ resource database 'Microsoft.Sql/servers/databases@2023-05-01-preview' = {
     collation: 'SQL_Latin1_General_CP1_CI_AS'
     maxSizeBytes: 34359738368
     requestedBackupStorageRedundancy: 'Local'
+  }
+}
+
+resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
+  name: logAnalyticsWorkspaceName
+  location: location
+  properties: {
+    sku: {
+      name: 'PerGB2018'
+    }
+    retentionInDays: 30
+  }
+}
+
+resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
+  name: appInsightsName
+  location: location
+  kind: 'web'
+  properties: {
+    Application_Type: 'web'
+    WorkspaceResourceId: logAnalyticsWorkspace.id
   }
 }
 
@@ -108,6 +131,14 @@ resource apiWebApp 'Microsoft.Web/sites@2023-12-01' = {
           name: 'Security__Registration__RequireInviteCode'
           value: 'true'
         }
+        {
+          name: 'ApplicationInsights__ConnectionString'
+          value: appInsights.properties.ConnectionString
+        }
+        {
+          name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+          value: appInsights.properties.ConnectionString
+        }
       ]
     }
   }
@@ -134,3 +165,5 @@ output staticWebAppDefaultHostName string = staticWebApp.properties.defaultHostn
 output staticWebAppDeploymentToken string = staticWebApp.listSecrets().properties.apiKey
 output sqlServerFqdn string = sqlServer.properties.fullyQualifiedDomainName
 output databaseName string = database.name
+output appInsightsName string = appInsights.name
+output appInsightsConnectionString string = appInsights.properties.ConnectionString

@@ -7,6 +7,7 @@ This guide deploys the **WASM + API** stack to Azure:
 | **KaraokeList.Web** (Blazor WASM) | **Azure Static Web Apps** (Free tier) |
 | **KaraokeList.Api** (JWT + SQL) | **App Service** (Linux, .NET 10) |
 | Database | **Azure SQL** (General Purpose serverless) |
+| Telemetry | **Application Insights** + Log Analytics workspace |
 
 Friends sign in on the WASM app; the API validates JWTs and stores catalog + performances in SQL. See [wasm-api-local-dev.md](wasm-api-local-dev.md) and [security-private-access.md](security-private-access.md).
 
@@ -54,6 +55,8 @@ Note the outputs:
 | `staticWebAppDefaultHostName` | WASM URL → `https://<name>/` |
 | `staticWebAppDeploymentToken` | WASM deploy (store in password manager) |
 | `sqlServerFqdn` | Migration + SSMS |
+| `appInsightsName` | Portal navigation |
+| `appInsightsConnectionString` | Auto-injected into API App Service; also shown here for reference |
 
 `baseName` must be globally unique (e.g. `karaokelist-jp`). Resources created:
 
@@ -63,7 +66,7 @@ Note the outputs:
 
 ## 2. Configure API secrets (portal)
 
-Bicep sets SQL connection string and basic JWT issuer/audience. Add **production secrets** in the API App Service → **Configuration** → Application settings:
+Bicep sets SQL connection string, JWT issuer/audience, and Application Insights connection string automatically. Add **production secrets** in the API App Service → **Configuration** → Application settings:
 
 | Setting | Value |
 |---------|--------|
@@ -71,6 +74,8 @@ Bicep sets SQL connection string and basic JWT issuer/audience. Add **production
 | `Security__Registration__InviteCode` | **Required** — share only with friends |
 | `Security__Registration__AllowRegistration` | `true` until everyone has joined |
 | `Cors__Origins__0` | `https://<staticWebAppDefaultHostName>` (no trailing slash) |
+
+> **Application Insights** is auto-configured by Bicep — no manual steps needed. View telemetry in the Azure portal under `appi-<baseName>` → **Logs** or **Live Metrics**.
 
 After custom domains:
 
