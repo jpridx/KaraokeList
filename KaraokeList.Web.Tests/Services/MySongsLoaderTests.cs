@@ -115,6 +115,9 @@ public sealed class MySongsLoaderTests
         public Task<ListSongActionResult> AddListSongAsync(int listId, int songId) => throw new NotSupportedException();
         public Task<ListSongActionResult> RemoveListSongAsync(int listId, int songId) => throw new NotSupportedException();
         public Task<SongListMembershipResult> GetSongListMembershipAsync(int songId) => throw new NotSupportedException();
+        public Task<SongTicklerExclusionResult> GetSongTicklerExclusionAsync(int songId) => throw new NotSupportedException();
+        public Task<TicklerExclusionActionResult> SetSongTicklerExclusionAsync(int songId, UpdateSongTicklerExclusionRequest request) => throw new NotSupportedException();
+        public Task<TicklerExclusionActionResult> RemoveSongTicklerExclusionAsync(int songId) => throw new NotSupportedException();
         public Task<List<SongDto>> GetSongsAsync() => throw new NotSupportedException();
         public Task<List<ArtistLookupDto>> GetArtistLookupsAsync() => throw new NotSupportedException();
         public Task<List<VenueDto>> GetVenuesAsync() => throw new NotSupportedException();

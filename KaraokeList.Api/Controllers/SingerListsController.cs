@@ -12,6 +12,7 @@ namespace KaraokeList.Api.Controllers;
 [Authorize]
 public class SingerListsController(
     SingerListService singerListService,
+    TicklerExclusionService ticklerExclusionService,
     ICurrentUserSingerResolver currentUserSinger) : ControllerBase
 {
     [HttpGet]
@@ -77,6 +78,60 @@ public class SingerListsController(
 
         var kinds = await singerListService.GetListKindsForSongAsync(singerId.Value!.Value, songId);
         return Ok(new SongListMembershipDto { Lists = kinds });
+    }
+
+    [HttpGet("~/api/singers/me/songs/{songId:int}/tickler-exclusion")]
+    public async Task<ActionResult<SongTicklerExclusionDto>> GetSongTicklerExclusion(int songId)
+    {
+        var singerId = await RequireSingerIdAsync();
+        if (singerId.Result is not null)
+        {
+            return singerId.Result;
+        }
+
+        if (!await singerListService.SongExistsAsync(songId))
+        {
+            return NotFound();
+        }
+
+        var exclusion = await ticklerExclusionService.GetExclusionAsync(singerId.Value!.Value, songId);
+        return Ok(exclusion);
+    }
+
+    [HttpPut("~/api/singers/me/songs/{songId:int}/tickler-exclusion")]
+    public async Task<IActionResult> SetSongTicklerExclusion(
+        int songId,
+        [FromBody] UpdateSongTicklerExclusionRequest request)
+    {
+        var singerId = await RequireSingerIdAsync();
+        if (singerId.Result is not null)
+        {
+            return singerId.Result;
+        }
+
+        var result = await ticklerExclusionService.SetExclusionAsync(
+            singerId.Value!.Value, songId, request.Reason);
+        if (!result.Succeeded)
+        {
+            return result.Error == "Song was not found."
+                ? NotFound()
+                : BadRequest(new ApiErrorResponse { Message = result.Error ?? "Could not update tickler exclusion." });
+        }
+
+        return NoContent();
+    }
+
+    [HttpDelete("~/api/singers/me/songs/{songId:int}/tickler-exclusion")]
+    public async Task<IActionResult> RemoveSongTicklerExclusion(int songId)
+    {
+        var singerId = await RequireSingerIdAsync();
+        if (singerId.Result is not null)
+        {
+            return singerId.Result;
+        }
+
+        var removed = await ticklerExclusionService.RemoveExclusionAsync(singerId.Value!.Value, songId);
+        return removed ? NoContent() : NotFound();
     }
 
     [HttpPost("import")]

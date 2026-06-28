@@ -1,0 +1,132 @@
+@inject IKaraokeApiClient Api
+
+<section class="mobile-panel tickler-exclusion-panel">
+    <h2 class="h6 mb-2">Haven't sung in a while</h2>
+
+    @if (!string.IsNullOrEmpty(statusMessage))
+    {
+        <p class="small text-success mb-2">@statusMessage</p>
+    }
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <p class="small text-danger mb-2">@errorMessage</p>
+    }
+
+    @if (isLoading)
+    {
+        <p class="small text-muted mb-0">Loading...</p>
+    }
+    else if (exclusion?.Excluded == true)
+    {
+        <p class="small text-muted mb-2">
+            Excluded from tickler suggestions.
+            @if (!string.IsNullOrWhiteSpace(exclusion.Reason))
+            {
+                <text> Reason: @exclusion.Reason</text>
+            }
+        </p>
+        <button type="button" class="btn btn-outline-secondary btn-sm" disabled="@isBusy"
+                @onclick="RemoveExclusionAsync">
+            Include in tickler again
+        </button>
+    }
+    else
+    {
+        <p class="small text-muted mb-2">
+            Keep performance history but stop this song from appearing in tickler suggestions.
+        </p>
+        <div class="tickler-exclusion-form">
+            <label class="form-label small mb-1" for="tickler-reason-@SongId">
+                Reason (optional, @TicklerExclusionValidation.MaxReasonLength characters)
+            </label>
+            <input id="tickler-reason-@SongId" class="form-control form-control-sm mb-2"
+                   maxlength="@TicklerExclusionValidation.MaxReasonLength"
+                   @bind="reasonInput" disabled="@isBusy" />
+            <button type="button" class="btn btn-outline-secondary btn-sm" disabled="@isBusy"
+                    @onclick="SetExclusionAsync">
+                Exclude from tickler
+            </button>
+        </div>
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired]
+    public int SongId { get; set; }
+
+    [Parameter, EditorRequired]
+    public EventCallback OnExclusionChanged { get; set; }
+
+    private bool isLoading = true;
+    private bool isBusy;
+    private string? statusMessage;
+    private string? errorMessage;
+    private SongTicklerExclusionDto? exclusion;
+    private string reasonInput = string.Empty;
+
+    protected override async Task OnParametersSetAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        isLoading = true;
+        statusMessage = null;
+        errorMessage = null;
+
+        var result = await Api.GetSongTicklerExclusionAsync(SongId);
+        if (!result.Succeeded)
+        {
+            errorMessage = result.ErrorMessage;
+            exclusion = null;
+        }
+        else
+        {
+            exclusion = result.Exclusion;
+            reasonInput = exclusion?.Reason ?? string.Empty;
+        }
+
+        isLoading = false;
+    }
+
+    private async Task SetExclusionAsync()
+    {
+        isBusy = true;
+        statusMessage = null;
+        errorMessage = null;
+
+        var result = await Api.SetSongTicklerExclusionAsync(
+            SongId,
+            new UpdateSongTicklerExclusionRequest { Reason = reasonInput });
+        if (!result.Succeeded)
+        {
+            errorMessage = result.ErrorMessage;
+            isBusy = false;
+            return;
+        }
+
+        statusMessage = "Excluded from tickler.";
+        await LoadAsync();
+        await OnExclusionChanged.InvokeAsync();
+        isBusy = false;
+    }
+
+    private async Task RemoveExclusionAsync()
+    {
+        isBusy = true;
+        statusMessage = null;
+        errorMessage = null;
+
+        var result = await Api.RemoveSongTicklerExclusionAsync(SongId);
+        if (!result.Succeeded)
+        {
+            errorMessage = result.ErrorMessage;
+            isBusy = false;
+            return;
+        }
+
+        statusMessage = "Included in tickler again.";
+        reasonInput = string.Empty;
+        await LoadAsync();
+        await OnExclusionChanged.InvokeAsync();
+        isBusy = false;
+    }
+}

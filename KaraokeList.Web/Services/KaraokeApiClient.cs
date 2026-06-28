@@ -54,6 +54,9 @@ public interface IKaraokeApiClient
     Task<ListSongActionResult> AddListSongAsync(int listId, int songId);
     Task<ListSongActionResult> RemoveListSongAsync(int listId, int songId);
     Task<SongListMembershipResult> GetSongListMembershipAsync(int songId);
+    Task<SongTicklerExclusionResult> GetSongTicklerExclusionAsync(int songId);
+    Task<TicklerExclusionActionResult> SetSongTicklerExclusionAsync(int songId, UpdateSongTicklerExclusionRequest request);
+    Task<TicklerExclusionActionResult> RemoveSongTicklerExclusionAsync(int songId);
     Task<StaleSongsResult> GetMyStaleSongsAsync(int? days = null, int? limit = null);
     Task<TicklerSettingsResult> GetTicklerSettingsAsync();
     Task<TicklerSettingsUpdateResult> UpdateTicklerSettingsAsync(UpdateTicklerSettingsRequest request);
@@ -409,6 +412,52 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
 
         var message = await ReadApiErrorMessageAsync(response);
         return SongListMembershipResult.Fail(message ?? "Could not load list membership.");
+    }
+
+    public async Task<SongTicklerExclusionResult> GetSongTicklerExclusionAsync(int songId)
+    {
+        var response = await http.GetAsync($"api/singers/me/songs/{songId}/tickler-exclusion");
+        if (response.IsSuccessStatusCode)
+        {
+            var exclusion = await response.Content.ReadFromJsonAsync<SongTicklerExclusionDto>(JsonOptions);
+            return exclusion is null
+                ? SongTicklerExclusionResult.Fail("Unexpected empty response from the server.")
+                : SongTicklerExclusionResult.Ok(exclusion);
+        }
+
+        var message = await ReadApiErrorMessageAsync(response);
+        return SongTicklerExclusionResult.Fail(message ?? "Could not load tickler exclusion.");
+    }
+
+    public async Task<TicklerExclusionActionResult> SetSongTicklerExclusionAsync(
+        int songId,
+        UpdateSongTicklerExclusionRequest request)
+    {
+        var response = await http.PutAsJsonAsync($"api/singers/me/songs/{songId}/tickler-exclusion", request);
+        if (response.IsSuccessStatusCode)
+        {
+            return TicklerExclusionActionResult.Ok();
+        }
+
+        var message = await ReadApiErrorMessageAsync(response);
+        return TicklerExclusionActionResult.Fail(message ?? "Could not exclude song from tickler.");
+    }
+
+    public async Task<TicklerExclusionActionResult> RemoveSongTicklerExclusionAsync(int songId)
+    {
+        var response = await http.DeleteAsync($"api/singers/me/songs/{songId}/tickler-exclusion");
+        if (response.IsSuccessStatusCode)
+        {
+            return TicklerExclusionActionResult.Ok();
+        }
+
+        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return TicklerExclusionActionResult.Fail("Song was not excluded from the tickler.");
+        }
+
+        var message = await ReadApiErrorMessageAsync(response);
+        return TicklerExclusionActionResult.Fail(message ?? "Could not include song in tickler again.");
     }
 
     public async Task<StaleSongsResult> GetMyStaleSongsAsync(int? days = null, int? limit = null)

@@ -15,6 +15,7 @@ namespace KaraokeList.Data
         public DbSet<PerformanceParticipant> PerformanceParticipants { get; set; } = null!;
         public DbSet<SingerList> SingerLists { get; set; } = null!;
         public DbSet<SingerListSong> SingerListSongs { get; set; } = null!;
+        public DbSet<SingerSongTicklerExclusion> SingerSongTicklerExclusions { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -113,6 +114,22 @@ namespace KaraokeList.Data
                 entity.HasOne(s => s.Song)
                     .WithMany()
                     .HasForeignKey(s => s.SongId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            builder.Entity<SingerSongTicklerExclusion>(entity =>
+            {
+                entity.HasKey(e => new { e.SingerId, e.SongId });
+                entity.Property(e => e.Reason).HasMaxLength(TicklerExclusionValidation.MaxReasonLength);
+
+                entity.HasOne(e => e.Singer)
+                    .WithMany()
+                    .HasForeignKey(e => e.SingerId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.Song)
+                    .WithMany()
+                    .HasForeignKey(e => e.SongId)
                     .OnDelete(DeleteBehavior.Cascade);
             });
         }
