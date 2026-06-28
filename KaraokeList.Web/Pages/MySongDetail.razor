@@ -82,8 +82,11 @@
         }
         else
         {
+            <CoPerformersEditor PrimarySingerId="mySingerId.Value" @bind-OtherPerformers="hostCoPerformers" />
+
             <HostMessagePanel Title="@songMeta.Title" ArtistName="@songMeta.ArtistName"
-                              KeyChangeSemitones="summary.LastKeyChangeSemitones" ShowKeyPicker="false" />
+                              KeyChangeSemitones="summary.LastKeyChangeSemitones" ShowKeyPicker="false"
+                              CoPerformerNames="hostCoPerformerNames" />
 
             <details class="mobile-panel history-details mt-2" open>
                 <summary class="history-details-summary">
@@ -98,6 +101,7 @@
                 <div class="log-again-form mt-2">
                     <QuickLogPerformance SongId="SongId" Title="@songMeta.Title" ArtistName="@songMeta.ArtistName"
                                          SingerId="mySingerId" SaveButtonText="Log again"
+                                         OtherPerformers="hostCoPerformers" ShowCoPerformersEditor="false"
                                          OnPerformanceSaved="OnPerformanceSavedAsync" />
                 </div>
             </details>
@@ -115,6 +119,15 @@
     private SongPerformanceSummaryDto? summary;
     private RepertoireSongDto? songMeta;
     private int? mySingerId;
+    private List<SingerDto> singers = [];
+    private List<CoPerformerInputDto> hostCoPerformers = [];
+
+    private IReadOnlyList<string> hostCoPerformerNames => hostCoPerformers
+        .Select(p => p.SingerId is int singerId
+            ? singers.FirstOrDefault(s => s.Id == singerId)?.Name ?? string.Empty
+            : p.DisplayName?.Trim() ?? string.Empty)
+        .Where(name => !string.IsNullOrWhiteSpace(name))
+        .ToList();
 
     protected override async Task OnParametersSetAsync() => await LoadAsync();
 
@@ -134,9 +147,19 @@
         isLoading = true;
         loadError = null;
         summary = null;
+        hostCoPerformers = [];
 
         var profile = await Api.GetProfileAsync();
         mySingerId = profile?.SingerId;
+
+        try
+        {
+            singers = await Api.GetSingersAsync();
+        }
+        catch
+        {
+            singers = [];
+        }
 
         var repertoire = await Api.GetMyRepertoireAsync(includeAll: true);
         if (repertoire.Succeeded)

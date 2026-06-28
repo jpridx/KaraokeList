@@ -49,4 +49,17 @@ public sealed class HostMessagePanelTests : TestContext
 
         JSInterop.VerifyInvoke("copyTextToClipboard");
     }
+
+    [Fact]
+    public void Renders_co_performer_names_in_message()
+    {
+        var cut = RenderComponent<HostMessagePanel>(parameters => parameters
+            .Add(p => p.Title, "Islands in the Stream")
+            .Add(p => p.ArtistName, "Kenny Rogers")
+            .Add(p => p.ShowKeyPicker, false)
+            .Add(p => p.CoPerformerNames, new[] { "Dolly Parton" }));
+
+        var text = cut.Find(".host-message-text").TextContent;
+        Assert.Equal("Islands in the Stream - Kenny Rogers (with Dolly Parton)", text);
+    }
 }

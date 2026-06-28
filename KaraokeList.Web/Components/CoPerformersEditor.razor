@@ -31,7 +31,7 @@
 
     <label class="form-label small text-muted mb-1">Guest name</label>
     <div class="d-flex gap-2">
-        <input class="form-control" @bind="guestName" placeholder="Name not in the app" />
+        <input class="form-control" @bind="guestName" @bind:event="oninput" placeholder="Name not in the app" />
         <button type="button" class="btn btn-outline-primary" disabled="@string.IsNullOrWhiteSpace(guestName)"
                 @onclick="AddGuest">Add</button>
     </div>
@@ -52,6 +52,7 @@
         .Where(s => s.Id != PrimarySingerId && otherPerformers.All(p => p.SingerId != s.Id))
         .ToList();
     private List<CoPerformerInputDto> otherPerformers = [];
+    private List<CoPerformerInputDto>? syncedFromParent;
     private int? selectedSingerId;
     private string guestName = string.Empty;
 
@@ -62,9 +63,15 @@
 
     protected override void OnParametersSet()
     {
+        if (ReferenceEquals(OtherPerformers, syncedFromParent))
+        {
+            return;
+        }
+
         otherPerformers = OtherPerformers
             .Select(p => new CoPerformerInputDto { SingerId = p.SingerId, DisplayName = p.DisplayName })
             .ToList();
+        syncedFromParent = OtherPerformers;
     }
 
     private string GetDisplayName(CoPerformerInputDto performer)
@@ -110,7 +117,9 @@
 
     private async Task NotifyChangedAsync()
     {
-        OtherPerformers = otherPerformers;
-        await OtherPerformersChanged.InvokeAsync(otherPerformers);
+        var snapshot = otherPerformers
+            .Select(p => new CoPerformerInputDto { SingerId = p.SingerId, DisplayName = p.DisplayName })
+            .ToList();
+        await OtherPerformersChanged.InvokeAsync(snapshot);
     }
 }

@@ -181,6 +181,33 @@ public sealed class PerformancesScopingTests(KaraokeApiFactory factory)
         Assert.Contains(row.OtherPerformers, p => p.Name == "Guest Singer");
     }
 
+    [SkippableFact]
+    public async Task UpdatePerformance_WithGuestCoPerformer_PersistsAndReturnsOnHistory()
+    {
+        Skip.IfNot(factory.IsDatabaseAvailable, IntegrationTestConnection.SkipReason);
+
+        var client = await CreateAuthedClientAsync();
+        var (songId, venueId) = await PerformanceTestDataHelper.CreateCatalogAsync(client);
+        var performanceId = await PerformanceTestDataHelper.CreatePerformanceAsync(client, songId, venueId);
+
+        var update = await client.PutAsJsonAsync($"/api/performances/{performanceId}", new PerformanceDto
+        {
+            Id = performanceId,
+            Song = songId,
+            Venue = venueId,
+            PerformedOn = DateTime.Today,
+            OtherPerformers = [new CoPerformerInputDto { DisplayName = "Guest Singer" }]
+        });
+        Assert.Equal(HttpStatusCode.NoContent, update.StatusCode);
+
+        var history = await client.GetFromJsonAsync<List<MyPerformanceEntryDto>>("/api/performances/my-history");
+        Assert.NotNull(history);
+        var row = Assert.Single(history, p => p.Id == performanceId);
+        var guest = Assert.Single(row.OtherPerformers);
+        Assert.Equal("Guest Singer", guest.Name);
+        Assert.Null(guest.SingerId);
+    }
+
     private async Task<HttpClient> CreateAuthedClientAsync()
     {
         var client = factory.CreateClient();
