@@ -34,6 +34,8 @@ builder.Services.AddSyncfusionBlazor();
 builder.Services.AddScoped<JwtAuthenticationStateProvider>();
 builder.Services.AddScoped<AuthenticationStateProvider>(sp => sp.GetRequiredService<JwtAuthenticationStateProvider>());
 builder.Services.AddScoped<ApiSlowRequestNotifier>();
+builder.Services.AddSingleton<AppUpdateNotifier>();
+builder.Services.AddScoped<IAppUpdateService, AppUpdateService>();
 builder.Services.AddScoped<AuthorizationMessageHandler>();
 builder.Services.AddScoped<SlowApiRequestHandler>();
 builder.Services.AddScoped<IKaraokeApiClient, KaraokeApiClient>();
