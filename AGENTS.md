@@ -30,6 +30,17 @@ dotnet run --project KaraokeList.Web/KaraokeList.Web.csproj
 
 See `docs/wasm-api-local-dev.md` for CORS, JWT, and Syncfusion license setup.
 
+### Cloud agent environment
+
+Repo-level config in `.cursor/environment.json` takes precedence over saved dashboard snapshots. We intentionally **do not pin a `snapshot` ID** there — expired snapshots trigger fallback warnings and failed installs.
+
+On each agent start, `.cursor/install.sh` runs (idempotent):
+
+- Installs **.NET 10 SDK** if missing (`dotnet-sdk-10.0` via apt)
+- Runs `dotnet restore`
+
+Verification: `dotnet build`. Do not rely on a stale dashboard install script without `sudo`; use the committed install script instead.
+
 ### Mobile routes (`KaraokeList.Web`)
 
 | Route | Purpose |
