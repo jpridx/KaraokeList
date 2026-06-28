@@ -189,6 +189,40 @@ public sealed class SingerListsIntegrationTests(KaraokeApiFactory factory)
         Assert.Contains(repertoireSongs, s => s.SongId == songId);
     }
 
+    [SkippableFact]
+    public async Task GetListSongs_SortByLastPerformedDesc_PutsUnperformedSongsLast()
+    {
+        Skip.IfNot(factory.IsDatabaseAvailable, IntegrationTestConnection.SkipReason);
+
+        var client = await CreateAuthedClientAsync();
+        var lists = await GetListsAsync(client);
+        var repertoireListId = lists.Single(l => l.Kind == SingerListKind.MyRepertoire).Id;
+
+        var (recentSongId, venueId) = await PerformanceTestDataHelper.CreateCatalogAsync(client);
+        var (olderSongId, _) = await PerformanceTestDataHelper.CreateCatalogAsync(client);
+        var (unperformedSongId, _) = await PerformanceTestDataHelper.CreateCatalogAsync(client);
+
+        await PerformanceTestDataHelper.CreatePerformanceAsync(
+            client, olderSongId, venueId, DateTime.Today.AddDays(-30));
+        await PerformanceTestDataHelper.CreatePerformanceAsync(
+            client, recentSongId, venueId, DateTime.Today.AddDays(-1));
+
+        var addUnperformed = await client.PostAsJsonAsync(
+            $"/api/singers/me/lists/{repertoireListId}/songs",
+            new AddSingerListSongRequest { SongId = unperformedSongId });
+        Assert.Equal(HttpStatusCode.NoContent, addUnperformed.StatusCode);
+
+        var songs = await client.GetFromJsonAsync<List<RepertoireSongDto>>(
+            $"/api/singers/me/lists/{repertoireListId}/songs?sortBy=lastPerformed&sortDir=desc");
+
+        Assert.NotNull(songs);
+        var orderedIds = songs.Select(s => s.SongId).ToList();
+        Assert.Equal(recentSongId, orderedIds[0]);
+        Assert.Equal(olderSongId, orderedIds[1]);
+        Assert.Equal(unperformedSongId, orderedIds[^1]);
+        Assert.Null(songs.Single(s => s.SongId == unperformedSongId).LastPerformedOn);
+    }
+
     private static async Task<List<SingerListDto>> GetListsAsync(HttpClient client)
     {
         var lists = await client.GetFromJsonAsync<List<SingerListDto>>("/api/singers/me/lists");

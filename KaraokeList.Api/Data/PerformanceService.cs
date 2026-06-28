@@ -226,7 +226,7 @@ public class PerformanceService(string connectionString)
             ? $"CASE WHEN MAX(p.PerformedOn) IS NULL THEN {(nullsFirst ? 0 : 1)} ELSE {(nullsFirst ? 1 : 0)} END, MAX(p.PerformedOn) {direction}"
             : $"{orderColumn} {direction}";
         var tiebreaker = sortBy.Equals("title", StringComparison.OrdinalIgnoreCase)
-            ? "s.Id ASC"
+            ? "ISNULL(a.SortableName, a.Name) ASC"
             : "s.Title ASC";
         var orderClause = $"{orderBy}, {tiebreaker}";
 
