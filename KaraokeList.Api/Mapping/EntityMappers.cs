@@ -117,7 +117,7 @@ public static class EntityMappers
 
     public static StaleSongDto ToDto(this StaleSong song, DateTime today)
     {
-        var lastPerformed = song.LastPerformedOn.Date;
+        var lastPerformed = song.LastPerformedOn?.Date;
         return new StaleSongDto
         {
             SongId = song.SongId,
@@ -125,7 +125,9 @@ public static class EntityMappers
             ArtistName = song.ArtistName,
             LastPerformedOn = lastPerformed,
             PerformanceCount = song.PerformanceCount,
-            DaysSinceLastPerformed = Math.Max(0, (today - lastPerformed).Days)
+            DaysSinceLastPerformed = lastPerformed is DateTime performed
+                ? Math.Max(0, (today - performed).Days)
+                : 0
         };
     }
 

@@ -46,6 +46,32 @@ public sealed class StaleSongsIntegrationTests(KaraokeApiFactory factory)
     }
 
     [SkippableFact]
+    public async Task GetMyStaleSongs_IncludesUnperformedRepertoireSongs()
+    {
+        Skip.IfNot(factory.IsDatabaseAvailable, IntegrationTestConnection.SkipReason);
+
+        var client = await CreateAuthedClientAsync();
+        var lists = await client.GetFromJsonAsync<List<SingerListDto>>("/api/singers/me/lists");
+        Assert.NotNull(lists);
+        var repertoireListId = lists.Single(l => l.Kind == SingerListKind.MyRepertoire).Id;
+
+        var (unperformedSongId, _) = await PerformanceTestDataHelper.CreateCatalogAsync(client);
+        var add = await client.PostAsJsonAsync(
+            $"/api/singers/me/lists/{repertoireListId}/songs",
+            new AddSingerListSongRequest { SongId = unperformedSongId });
+        Assert.Equal(HttpStatusCode.NoContent, add.StatusCode);
+
+        var response = await client.GetFromJsonAsync<StaleSongsResponseDto>(
+            "/api/performances/my-stale-songs?days=90&limit=5");
+
+        Assert.NotNull(response);
+        var song = Assert.Single(response.Songs, s => s.SongId == unperformedSongId);
+        Assert.Null(song.LastPerformedOn);
+        Assert.Equal(0, song.PerformanceCount);
+        Assert.Equal(0, song.DaysSinceLastPerformed);
+    }
+
+    [SkippableFact]
     public async Task GetMyStaleSongs_ReturnsRandomSubsetWhenMultipleSongsQualify()
     {
         Skip.IfNot(factory.IsDatabaseAvailable, IntegrationTestConnection.SkipReason);

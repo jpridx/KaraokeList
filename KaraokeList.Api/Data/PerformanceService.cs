@@ -1,3 +1,4 @@
+using KaraokeList.Shared;
 using Microsoft.Data.SqlClient;
 
 namespace KaraokeList.Data;
@@ -47,7 +48,7 @@ public class StaleSong
     public int SongId { get; set; }
     public string Title { get; set; } = string.Empty;
     public string ArtistName { get; set; } = string.Empty;
-    public DateTime LastPerformedOn { get; set; }
+    public DateTime? LastPerformedOn { get; set; }
     public int PerformanceCount { get; set; }
 }
 
@@ -304,22 +305,49 @@ public class PerformanceService(string connectionString)
         await using var command = connection.CreateCommand();
         command.CommandText = """
             SELECT TOP (@Limit)
-                   s.Id,
-                   s.Title,
-                   ISNULL(a.Name, N'') AS ArtistName,
-                   MAX(p.PerformedOn) AS LastPerformedOn,
-                   COUNT(*) AS PerformanceCount
-            FROM Performances p
-            INNER JOIN Songs s ON s.Id = p.Song
-            LEFT JOIN Artists a ON a.Id = s.Artist
-            WHERE p.Singer = @Singer
-            GROUP BY s.Id, s.Title, a.Name
-            HAVING MAX(p.PerformedOn) < @Cutoff
+                   SongId,
+                   Title,
+                   ArtistName,
+                   LastPerformedOn,
+                   PerformanceCount
+            FROM (
+                SELECT s.Id AS SongId,
+                       s.Title,
+                       ISNULL(a.Name, N'') AS ArtistName,
+                       MAX(p.PerformedOn) AS LastPerformedOn,
+                       COUNT(*) AS PerformanceCount
+                FROM Performances p
+                INNER JOIN Songs s ON s.Id = p.Song
+                LEFT JOIN Artists a ON a.Id = s.Artist
+                WHERE p.Singer = @Singer
+                GROUP BY s.Id, s.Title, a.Name
+                HAVING MAX(p.PerformedOn) < @Cutoff
+
+                UNION ALL
+
+                SELECT s.Id AS SongId,
+                       s.Title,
+                       ISNULL(a.Name, N'') AS ArtistName,
+                       CAST(NULL AS datetime2) AS LastPerformedOn,
+                       0 AS PerformanceCount
+                FROM SingerListSongs sls
+                INNER JOIN SingerLists sl ON sl.Id = sls.ListId
+                INNER JOIN Songs s ON s.Id = sls.SongId
+                LEFT JOIN Artists a ON a.Id = s.Artist
+                WHERE sl.SingerId = @Singer
+                  AND sl.Kind = @RepertoireKind
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM Performances p
+                      WHERE p.Singer = @Singer
+                        AND p.Song = s.Id)
+            ) AS candidates
             ORDER BY NEWID()
             """;
         command.Parameters.AddWithValue("@Singer", singerId);
         command.Parameters.AddWithValue("@Cutoff", cutoff);
         command.Parameters.AddWithValue("@Limit", limit);
+        command.Parameters.AddWithValue("@RepertoireKind", (int)SingerListKind.MyRepertoire);
 
         var songs = new List<StaleSong>();
         await using var reader = await command.ExecuteReaderAsync();
@@ -330,7 +358,7 @@ public class PerformanceService(string connectionString)
                 SongId = reader.GetInt32(0),
                 Title = reader.GetString(1),
                 ArtistName = reader.GetString(2),
-                LastPerformedOn = reader.GetDateTime(3),
+                LastPerformedOn = reader.IsDBNull(3) ? null : reader.GetDateTime(3),
                 PerformanceCount = reader.GetInt32(4)
             });
         }
