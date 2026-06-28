@@ -12,11 +12,15 @@
 
         <label class="form-label">Artist</label>
         <AddArtistField ArtistLookups="artistLookups" @bind-ArtistName="artistName"
-                        ArtistLookupsChanged="OnArtistLookupsRefreshed" Disabled="isBusy" />
+                        @bind-ArtistName:after="SyncArtistFromNameAsync"
+                        ArtistLookupsChanged="OnArtistLookupsRefreshed"
+                        OnArtistConfirmed="OnArtistConfirmedAsync" Disabled="isBusy" />
 
         <label class="form-label mt-3">Genre (optional)</label>
         <AddGenreField Genres="genres" @bind-GenreName="genreName"
-                       GenresChanged="OnGenresRefreshed" Disabled="isBusy" />
+                       @bind-GenreName:after="SyncGenreFromNameAsync"
+                       GenresChanged="OnGenresRefreshed"
+                       OnGenreConfirmed="OnGenreConfirmedAsync" Disabled="isBusy" />
 
         @if (!string.IsNullOrEmpty(localError))
         {
@@ -47,14 +51,26 @@
     private string title = string.Empty;
     private string artistName = string.Empty;
     private string genreName = string.Empty;
+    private int? confirmedArtistId;
+    private int? confirmedGenreId;
     private string? localError;
     private bool isBusy;
     private bool isLoading = true;
 
     private bool CanAddSong =>
         !string.IsNullOrWhiteSpace(title)
-        && LogArtistPicker.ResolveArtistId(artistName, artistLookups) is not null
-        && !LogGenrePicker.NeedsNewGenre(genreName, genres);
+        && ResolveArtistId() is not null
+        && !NeedsNewGenre();
+
+    private int? ResolveArtistId() =>
+        confirmedArtistId ?? LogArtistPicker.ResolveArtistId(artistName, artistLookups);
+
+    private int? ResolveGenreId() =>
+        confirmedGenreId ?? LogGenrePicker.ResolveGenreId(genreName, genres);
+
+    private bool NeedsNewGenre() =>
+        !string.IsNullOrWhiteSpace(genreName)
+        && ResolveGenreId() is null;
 
     protected override async Task OnInitializedAsync()
     {
@@ -63,9 +79,43 @@
         isLoading = false;
     }
 
-    private void OnArtistLookupsRefreshed(IReadOnlyList<ArtistLookupDto> refreshed) => artistLookups = refreshed;
+    private void OnArtistLookupsRefreshed(IReadOnlyList<ArtistLookupDto> refreshed)
+    {
+        artistLookups = refreshed;
+        confirmedArtistId ??= LogArtistPicker.ResolveArtistId(artistName, refreshed);
+    }
 
-    private void OnGenresRefreshed(IReadOnlyList<GenreDto> refreshed) => genres = refreshed;
+    private void OnGenresRefreshed(IReadOnlyList<GenreDto> refreshed)
+    {
+        genres = refreshed;
+        confirmedGenreId ??= LogGenrePicker.ResolveGenreId(genreName, refreshed);
+    }
+
+    private Task SyncArtistFromNameAsync()
+    {
+        confirmedArtistId = LogArtistPicker.ResolveArtistId(artistName, artistLookups);
+        return Task.CompletedTask;
+    }
+
+    private Task SyncGenreFromNameAsync()
+    {
+        confirmedGenreId = LogGenrePicker.ResolveGenreId(genreName, genres);
+        return Task.CompletedTask;
+    }
+
+    private Task OnArtistConfirmedAsync(ArtistConfirmedEventArgs args)
+    {
+        artistName = args.Name;
+        confirmedArtistId = args.Id;
+        return Task.CompletedTask;
+    }
+
+    private Task OnGenreConfirmedAsync(GenreConfirmedEventArgs args)
+    {
+        genreName = args.Name;
+        confirmedGenreId = args.Id;
+        return Task.CompletedTask;
+    }
 
     private async Task AddSongAsync()
     {
@@ -73,8 +123,8 @@
         var trimmedTitle = title.Trim();
         var trimmedArtist = artistName.Trim();
         var trimmedGenre = genreName.Trim();
-        var artistId = LogArtistPicker.ResolveArtistId(trimmedArtist, artistLookups);
-        var resolvedGenreId = LogGenrePicker.ResolveGenreId(trimmedGenre, genres);
+        var artistId = confirmedArtistId ?? LogArtistPicker.ResolveArtistId(trimmedArtist, artistLookups);
+        var resolvedGenreId = confirmedGenreId ?? LogGenrePicker.ResolveGenreId(trimmedGenre, genres);
 
         if (string.IsNullOrWhiteSpace(trimmedTitle))
         {
@@ -90,7 +140,7 @@
             return;
         }
 
-        if (LogGenrePicker.NeedsNewGenre(trimmedGenre, genres))
+        if (NeedsNewGenre())
         {
             localError = $"Add genre \"{trimmedGenre}\" first, then tap Add song.";
             return;
