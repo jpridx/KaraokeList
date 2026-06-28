@@ -64,7 +64,10 @@
     </SfDropDownList>
 </div>
 
-<CoPerformersEditor PrimarySingerId="SingerId ?? 0" @bind-OtherPerformers="otherPerformers" />
+@if (ShowCoPerformersEditor)
+{
+    <CoPerformersEditor PrimarySingerId="SingerId ?? 0" @bind-OtherPerformers="localOtherPerformers" />
+}
 
 <HostMessagePanel Title="@Title" ArtistName="@ArtistName"
                   KeyChangeSemitones="keyChangeSemitones" ShowKeyPicker="false"
@@ -94,6 +97,12 @@
     [Parameter]
     public EventCallback<string?> OnPerformanceSaved { get; set; }
 
+    [Parameter]
+    public List<CoPerformerInputDto>? OtherPerformers { get; set; }
+
+    [Parameter]
+    public bool ShowCoPerformersEditor { get; set; } = true;
+
     private List<VenueDto> venues = [];
     private List<SingerDto> singers = [];
     private IReadOnlyList<PerformanceKeyOption> keyOptions = PerformanceKeyOption.Choices;
@@ -108,9 +117,12 @@
     private bool defaultsLoaded;
     private bool usingOfflineCatalog;
     private bool venuesLoaded;
-    private List<CoPerformerInputDto> otherPerformers = [];
+    private List<CoPerformerInputDto> localOtherPerformers = [];
 
-    private IReadOnlyList<string> coPerformerNames => otherPerformers
+    private IReadOnlyList<CoPerformerInputDto> ActiveOtherPerformers =>
+        ShowCoPerformersEditor ? localOtherPerformers : (OtherPerformers ?? []);
+
+    private IReadOnlyList<string> coPerformerNames => ActiveOtherPerformers
         .Select(GetCoPerformerDisplayName)
         .Where(name => !string.IsNullOrWhiteSpace(name))
         .ToList();
@@ -150,7 +162,10 @@
         saveMessage = null;
         saveWarning = null;
         saveError = null;
-        otherPerformers = [];
+        if (ShowCoPerformersEditor)
+        {
+            localOtherPerformers = [];
+        }
 
         var stored = await LogStore.GetFormDefaultsAsync();
         SongPerformanceSummaryDto? summary = null;
@@ -207,7 +222,7 @@
                 Venue = selectedVenueId,
                 PerformedOn = performedOn,
                 KeyChangeSemitones = keyChangeSemitones == 0 ? null : keyChangeSemitones,
-                OtherPerformers = otherPerformers
+                OtherPerformers = ActiveOtherPerformers.ToList()
             };
 
             var result = await Api.TryCreatePerformanceAsync(dto);
@@ -256,7 +271,7 @@
                 ArtistName,
                 venueName,
                 DateTime.Now,
-                otherPerformers));
+                ActiveOtherPerformers.ToList()));
         }
     }
 
