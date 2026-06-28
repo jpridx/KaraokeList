@@ -1,0 +1,43 @@
+@inject IJSRuntime Js
+@inject AppUpdateNotifier Notifier
+@implements IAsyncDisposable
+
+@code {
+    private DotNetObjectReference<AppUpdateListener>? dotNetRef;
+    private bool initialized;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || initialized)
+        {
+            return;
+        }
+
+        initialized = true;
+        dotNetRef = DotNetObjectReference.Create(this);
+        await Js.InvokeVoidAsync("karaokeListAppUpdates.init", dotNetRef);
+    }
+
+    [JSInvokable]
+    public Task OnUpdateAvailable()
+    {
+        Notifier.MarkUpdateAvailable();
+        return Task.CompletedTask;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (dotNetRef is not null)
+        {
+            try
+            {
+                await Js.InvokeVoidAsync("karaokeListAppUpdates.dispose");
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+
+            dotNetRef.Dispose();
+        }
+    }
+}

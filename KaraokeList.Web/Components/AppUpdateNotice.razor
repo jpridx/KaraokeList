@@ -1,0 +1,61 @@
+@inject AppUpdateNotifier Notifier
+@inject IAppUpdateService UpdateService
+@implements IDisposable
+
+@if (updateAvailable)
+{
+    <div class="alert alert-primary app-update-banner mb-3" role="status" aria-live="polite">
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <span>A new version of KaraokeList is ready.</span>
+            <button type="button" class="btn btn-sm btn-light" disabled="@isRefreshing" @onclick="RefreshAsync">
+                @(isRefreshing ? "Refreshing…" : "Refresh now")
+            </button>
+        </div>
+        <p class="small mb-0 mt-2 text-white-50">
+            Tap refresh to load the update. Your pending offline logs stay on this device until they sync.
+        </p>
+    </div>
+}
+
+@code {
+    private bool updateAvailable;
+    private bool isRefreshing;
+
+    protected override void OnInitialized()
+    {
+        updateAvailable = Notifier.UpdateAvailable;
+        Notifier.Changed += OnNotifierChanged;
+    }
+
+    private void OnNotifierChanged()
+    {
+        var next = Notifier.UpdateAvailable;
+        if (next == updateAvailable)
+        {
+            return;
+        }
+
+        updateAvailable = next;
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private async Task RefreshAsync()
+    {
+        if (isRefreshing)
+        {
+            return;
+        }
+
+        isRefreshing = true;
+        try
+        {
+            await UpdateService.ApplyUpdateAsync();
+        }
+        catch
+        {
+            isRefreshing = false;
+        }
+    }
+
+    public void Dispose() => Notifier.Changed -= OnNotifierChanged;
+}

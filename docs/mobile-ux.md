@@ -130,6 +130,8 @@ Signed-in phone users land on **Tonight** at `/`:
 
 On HTTPS (production), use the browser **Add to Home Screen** / **Install app** option. KaraokeList ships a web manifest and service worker so it opens full-screen like a native app at the venue.
 
+When a new version is deployed while you still have the app open, a blue **Refresh now** banner appears at the top of the screen. Tap it to load the update — you no longer need to force-quit the app. Pending offline performance logs remain on the device until they sync.
+
 ## Copy for host
 
 Formatted message for the show runner:
@@ -153,6 +155,7 @@ Implemented in `ShowHostMessageFormatting` (`KaraokeList.Shared`). Shown on Log 
 | `LogCatalogLoader` | Online catalog fetch + offline cache for Log song/venue picker (★ repertoire, 🎯 working up) |
 | `MySongsLoader` | Online list fetch + offline cache for My Songs browse |
 | `PendingPerformancesNotice` | Pending sync banner + auto/manual sync |
+| `AppUpdateNotice` | PWA update banner when a new app version is waiting |
 | `HostMessagePanel` | Preview + copy button |
 | `SongListItem` | Repertoire row: tap body = history, **Log** = quick log |
 | `PerformanceBrowseList` | Mobile performance browse rows with edit/delete |
