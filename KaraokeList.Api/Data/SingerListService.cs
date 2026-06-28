@@ -68,18 +68,21 @@ public sealed class SingerListService(
 
         var orderColumn = sortBy.ToLowerInvariant() switch
         {
+            "title" => "s.Title",
             "artist" => "ISNULL(a.SortableName, a.Name)",
             "genre" => "ISNULL(g.GenreName, N'')",
-            "lastPerformed" => "MAX(p.PerformedOn)",
-            _ => "s.Title"
+            _ => "MAX(p.PerformedOn)"
         };
 
         var direction = string.Equals(sortDir, "desc", StringComparison.OrdinalIgnoreCase) ? "DESC" : "ASC";
-        var orderClause = sortBy.Equals("lastPerformed", StringComparison.OrdinalIgnoreCase)
-            ? $"MAX(p.PerformedOn) {direction}, s.Title ASC"
-            : sortBy.Equals("title", StringComparison.OrdinalIgnoreCase)
-                ? $"s.Title {direction}"
-                : $"{orderColumn} {direction}, s.Title ASC";
+        var nullsFirst = string.Equals(sortDir, "asc", StringComparison.OrdinalIgnoreCase);
+        var orderBy = sortBy.Equals("lastPerformed", StringComparison.OrdinalIgnoreCase)
+            ? $"CASE WHEN MAX(p.PerformedOn) IS NULL THEN {(nullsFirst ? 0 : 1)} ELSE {(nullsFirst ? 1 : 0)} END, MAX(p.PerformedOn) {direction}"
+            : $"{orderColumn} {direction}";
+        var tiebreaker = sortBy.Equals("title", StringComparison.OrdinalIgnoreCase)
+            ? "ISNULL(a.SortableName, a.Name) ASC"
+            : "s.Title ASC";
+        var orderClause = $"{orderBy}, {tiebreaker}";
 
         await using var connection = new SqlConnection(connectionString);
         await connection.OpenAsync();
@@ -99,7 +102,7 @@ public sealed class SingerListService(
             LEFT JOIN Performances p ON p.Song = s.Id AND p.Singer = @SingerId
             WHERE sls.ListId = @ListId
               AND (@GenreId IS NULL OR s.Genre = @GenreId)
-            GROUP BY s.Id, s.Title, a.Name, g.Id, g.GenreName
+            GROUP BY s.Id, s.Title, a.Name, a.SortableName, g.Id, g.GenreName
             ORDER BY {orderClause}
             """;
         command.Parameters.AddWithValue("@ListId", listId);
