@@ -59,7 +59,7 @@
 
     <label class="form-label mt-3">Key</label>
     <SfDropDownList TValue="int?" TItem="PerformanceKeyOption" DataSource="@keyOptions"
-                    @bind-Value="keyChangeSemitones">
+                    Value="ActiveKeyChangeSemitones" ValueChanged="OnKeyChangedAsync">
         <DropDownListFieldSettings Value="Semitones" Text="Label" />
     </SfDropDownList>
 </div>
@@ -69,9 +69,12 @@
     <CoPerformersEditor PrimarySingerId="SingerId ?? 0" @bind-OtherPerformers="localOtherPerformers" />
 }
 
-<HostMessagePanel Title="@Title" ArtistName="@ArtistName"
-                  KeyChangeSemitones="keyChangeSemitones" ShowKeyPicker="false"
-                  CoPerformerNames="@coPerformerNames" />
+@if (ShowHostMessagePanel)
+{
+    <HostMessagePanel Title="@Title" ArtistName="@ArtistName"
+                      KeyChangeSemitones="ActiveKeyChangeSemitones" ShowKeyPicker="false"
+                      CoPerformerNames="@coPerformerNames" />
+}
 
 <button type="button" class="btn btn-primary btn-lg w-100 mobile-primary-action"
         disabled="@(!CanSave)" @onclick="SavePerformanceAsync">
@@ -103,12 +106,20 @@
     [Parameter]
     public bool ShowCoPerformersEditor { get; set; } = true;
 
+    [Parameter]
+    public bool ShowHostMessagePanel { get; set; } = true;
+
+    [Parameter]
+    public int? KeyChangeSemitones { get; set; }
+
+    [Parameter]
+    public EventCallback<int?> KeyChangeSemitonesChanged { get; set; }
+
     private List<VenueDto> venues = [];
     private List<SingerDto> singers = [];
     private IReadOnlyList<PerformanceKeyOption> keyOptions = PerformanceKeyOption.Choices;
     private int? selectedVenueId;
     private DateTime performedOn = DateTime.Today;
-    private int? keyChangeSemitones;
     private string? saveMessage;
     private string? saveWarning;
     private string? saveError;
@@ -118,14 +129,17 @@
     private bool usingOfflineCatalog;
     private bool venuesLoaded;
     private List<CoPerformerInputDto> localOtherPerformers = [];
+    private int? formKeyChangeSemitones;
+
+    private bool KeyIsParentBound => KeyChangeSemitonesChanged.HasDelegate;
+
+    private int? ActiveKeyChangeSemitones => KeyIsParentBound ? KeyChangeSemitones : formKeyChangeSemitones;
 
     private IReadOnlyList<CoPerformerInputDto> ActiveOtherPerformers =>
         ShowCoPerformersEditor ? localOtherPerformers : (OtherPerformers ?? []);
 
-    private IReadOnlyList<string> coPerformerNames => ActiveOtherPerformers
-        .Select(GetCoPerformerDisplayName)
-        .Where(name => !string.IsNullOrWhiteSpace(name))
-        .ToList();
+    private IReadOnlyList<string> coPerformerNames =>
+        CoPerformerFormatting.GetDisplayNames(ActiveOtherPerformers.ToList(), singers);
 
     private bool CanSave => selectedVenueId is not null && SingerId is not null;
 
@@ -184,7 +198,15 @@
         var recentKeyForSong = (await LogStore.GetRecentLogsAsync())
             .FirstOrDefault(r => r.SongId == SongId)
             ?.KeyChangeSemitones;
-        keyChangeSemitones = LogKeyChangeDefaults.ForSong(summary, recentKeyForSong);
+        var key = LogKeyChangeDefaults.ForSong(summary, recentKeyForSong);
+        if (KeyIsParentBound)
+        {
+            await KeyChangeSemitonesChanged.InvokeAsync(key);
+        }
+        else
+        {
+            formKeyChangeSemitones = key;
+        }
 
         if (stored?.VenueId is int storedVenueId && venues.Any(v => v.Id == storedVenueId))
         {
@@ -221,7 +243,7 @@
                 Song = SongId,
                 Venue = selectedVenueId,
                 PerformedOn = performedOn,
-                KeyChangeSemitones = keyChangeSemitones == 0 ? null : keyChangeSemitones,
+                KeyChangeSemitones = ActiveKeyChangeSemitones == 0 ? null : ActiveKeyChangeSemitones,
                 OtherPerformers = ActiveOtherPerformers.ToList()
             };
 
@@ -256,7 +278,7 @@
     {
         await LogStore.SaveFormDefaultsAsync(new LogFormDefaults(selectedVenueId));
         await LogStore.AddRecentLogAsync(new RecentLoggedPerformance(
-            SongId, Title, ArtistName, venueName, performedOn, keyChangeSemitones, DateTime.Now));
+            SongId, Title, ArtistName, venueName, performedOn, ActiveKeyChangeSemitones, DateTime.Now));
 
         if (queuedOffline && SingerId is int singerId && selectedVenueId is int venueId)
         {
@@ -266,7 +288,7 @@
                 SongId,
                 venueId,
                 performedOn,
-                keyChangeSemitones == 0 ? null : keyChangeSemitones,
+                ActiveKeyChangeSemitones == 0 ? null : ActiveKeyChangeSemitones,
                 Title,
                 ArtistName,
                 venueName,
@@ -275,14 +297,15 @@
         }
     }
 
-    private string GetCoPerformerDisplayName(CoPerformerInputDto performer)
+    private Task OnKeyChangedAsync(int? value)
     {
-        if (performer.SingerId is int singerId)
+        if (KeyIsParentBound)
         {
-            return singers.FirstOrDefault(s => s.Id == singerId)?.Name ?? string.Empty;
+            return KeyChangeSemitonesChanged.InvokeAsync(value);
         }
 
-        return performer.DisplayName?.Trim() ?? string.Empty;
+        formKeyChangeSemitones = value;
+        return Task.CompletedTask;
     }
 
     private async Task SaveNewVenueAsync()
