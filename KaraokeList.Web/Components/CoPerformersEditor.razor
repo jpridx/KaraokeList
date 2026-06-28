@@ -68,9 +68,7 @@
             return;
         }
 
-        otherPerformers = OtherPerformers
-            .Select(p => new CoPerformerInputDto { SingerId = p.SingerId, DisplayName = p.DisplayName })
-            .ToList();
+        otherPerformers = CoPerformerInputDto.CloneList(OtherPerformers);
         syncedFromParent = OtherPerformers;
     }
 
@@ -117,9 +115,6 @@
 
     private async Task NotifyChangedAsync()
     {
-        var snapshot = otherPerformers
-            .Select(p => new CoPerformerInputDto { SingerId = p.SingerId, DisplayName = p.DisplayName })
-            .ToList();
-        await OtherPerformersChanged.InvokeAsync(snapshot);
+        await OtherPerformersChanged.InvokeAsync(CoPerformerInputDto.CloneList(otherPerformers));
     }
 }

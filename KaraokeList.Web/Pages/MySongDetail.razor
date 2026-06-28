@@ -85,7 +85,7 @@
             <CoPerformersEditor PrimarySingerId="mySingerId.Value" @bind-OtherPerformers="hostCoPerformers" />
 
             <HostMessagePanel Title="@songMeta.Title" ArtistName="@songMeta.ArtistName"
-                              KeyChangeSemitones="summary.LastKeyChangeSemitones" ShowKeyPicker="false"
+                              KeyChangeSemitones="hostKeyChangeSemitones" ShowKeyPicker="false"
                               CoPerformerNames="hostCoPerformerNames" />
 
             <details class="mobile-panel history-details mt-2" open>
@@ -102,6 +102,8 @@
                     <QuickLogPerformance SongId="SongId" Title="@songMeta.Title" ArtistName="@songMeta.ArtistName"
                                          SingerId="mySingerId" SaveButtonText="Log again"
                                          OtherPerformers="hostCoPerformers" ShowCoPerformersEditor="false"
+                                         ShowHostMessagePanel="false"
+                                         @bind-KeyChangeSemitones="hostKeyChangeSemitones"
                                          OnPerformanceSaved="OnPerformanceSavedAsync" />
                 </div>
             </details>
@@ -121,13 +123,10 @@
     private int? mySingerId;
     private List<SingerDto> singers = [];
     private List<CoPerformerInputDto> hostCoPerformers = [];
+    private int? hostKeyChangeSemitones;
 
-    private IReadOnlyList<string> hostCoPerformerNames => hostCoPerformers
-        .Select(p => p.SingerId is int singerId
-            ? singers.FirstOrDefault(s => s.Id == singerId)?.Name ?? string.Empty
-            : p.DisplayName?.Trim() ?? string.Empty)
-        .Where(name => !string.IsNullOrWhiteSpace(name))
-        .ToList();
+    private IReadOnlyList<string> hostCoPerformerNames =>
+        CoPerformerFormatting.GetDisplayNames(hostCoPerformers, singers);
 
     protected override async Task OnParametersSetAsync() => await LoadAsync();
 
@@ -148,6 +147,7 @@
         loadError = null;
         summary = null;
         hostCoPerformers = [];
+        hostKeyChangeSemitones = null;
 
         var profile = await Api.GetProfileAsync();
         mySingerId = profile?.SingerId;

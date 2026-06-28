@@ -26,7 +26,7 @@ public sealed class CoPerformersEditorTests : BunitTestContext
     [Fact]
     public void Adding_guest_notifies_parent_with_display_name()
     {
-        var cut = RenderComponent<CoPerformerBindingHost>(parameters => parameters
+        var cut = RenderComponent<CoPerformerTestHost>(parameters => parameters
             .Add(p => p.PrimarySingerId, 1));
 
         cut.Find("input[placeholder='Name not in the app']").Input("Guest Singer");
@@ -43,10 +43,11 @@ public sealed class CoPerformersEditorTests : BunitTestContext
     [Fact]
     public void Adding_guest_updates_host_message_in_parent()
     {
-        var cut = RenderComponent<CoPerformerHostMessageHost>(parameters => parameters
+        var cut = RenderComponent<CoPerformerTestHost>(parameters => parameters
             .Add(p => p.PrimarySingerId, 1)
             .Add(p => p.Title, "Islands in the Stream")
-            .Add(p => p.ArtistName, "Kenny Rogers"));
+            .Add(p => p.ArtistName, "Kenny Rogers")
+            .Add(p => p.IncludeHostMessage, true));
 
         cut.Find("input[placeholder='Name not in the app']").Input("Dolly Parton");
         ClickGuestAddButton(cut);
@@ -65,31 +66,7 @@ public sealed class CoPerformersEditorTests : BunitTestContext
         addButton.Click();
     }
 
-    private sealed class CoPerformerBindingHost : ComponentBase
-    {
-        [Parameter]
-        public int PrimarySingerId { get; set; }
-
-        public List<CoPerformerInputDto> Performers { get; private set; } = [];
-
-        private Task OnOtherPerformersChanged(List<CoPerformerInputDto> performers)
-        {
-            Performers = performers;
-            return Task.CompletedTask;
-        }
-
-        protected override void BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder)
-        {
-            builder.OpenComponent<CoPerformersEditor>(0);
-            builder.AddAttribute(1, nameof(CoPerformersEditor.PrimarySingerId), PrimarySingerId);
-            builder.AddAttribute(2, nameof(CoPerformersEditor.OtherPerformers), Performers);
-            builder.AddAttribute(3, nameof(CoPerformersEditor.OtherPerformersChanged),
-                EventCallback.Factory.Create<List<CoPerformerInputDto>>(this, OnOtherPerformersChanged));
-            builder.CloseComponent();
-        }
-    }
-
-    private sealed class CoPerformerHostMessageHost : ComponentBase
+    private sealed class CoPerformerTestHost : ComponentBase
     {
         [Parameter]
         public int PrimarySingerId { get; set; }
@@ -99,6 +76,9 @@ public sealed class CoPerformersEditorTests : BunitTestContext
 
         [Parameter]
         public string ArtistName { get; set; } = string.Empty;
+
+        [Parameter]
+        public bool IncludeHostMessage { get; set; }
 
         public List<CoPerformerInputDto> Performers { get; private set; } = [];
 
@@ -121,6 +101,11 @@ public sealed class CoPerformersEditorTests : BunitTestContext
             builder.AddAttribute(3, nameof(CoPerformersEditor.OtherPerformersChanged),
                 EventCallback.Factory.Create<List<CoPerformerInputDto>>(this, OnOtherPerformersChanged));
             builder.CloseComponent();
+
+            if (!IncludeHostMessage)
+            {
+                return;
+            }
 
             builder.OpenComponent<HostMessagePanel>(4);
             builder.AddAttribute(5, nameof(HostMessagePanel.Title), Title);

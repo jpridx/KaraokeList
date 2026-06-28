@@ -112,12 +112,8 @@
     private string? statusMessage;
     private string? errorMessage;
 
-    private IReadOnlyList<string> editCoPerformerNames => editOtherPerformers
-        .Select(p => p.SingerId is int singerId
-            ? singers.FirstOrDefault(s => s.Id == singerId)?.Name ?? string.Empty
-            : p.DisplayName?.Trim() ?? string.Empty)
-        .Where(name => !string.IsNullOrWhiteSpace(name))
-        .ToList();
+    private IReadOnlyList<string> editCoPerformerNames =>
+        CoPerformerFormatting.GetDisplayNames(editOtherPerformers, singers);
 
     protected override async Task OnInitializedAsync()
     {

@@ -52,6 +52,11 @@ public class CoPerformerInputDto
 {
     public int? SingerId { get; set; }
     public string? DisplayName { get; set; }
+
+    public CoPerformerInputDto Clone() => new() { SingerId = SingerId, DisplayName = DisplayName };
+
+    public static List<CoPerformerInputDto> CloneList(IEnumerable<CoPerformerInputDto> performers) =>
+        performers.Select(p => p.Clone()).ToList();
 }
 
 public class PerformanceDto
@@ -213,6 +218,27 @@ public static class ShowHostMessageFormatting
 
         return message;
     }
+}
+
+public static class CoPerformerFormatting
+{
+    public static string GetDisplayName(CoPerformerInputDto performer, IReadOnlyList<SingerDto> singers)
+    {
+        if (performer.SingerId is int singerId)
+        {
+            return singers.FirstOrDefault(s => s.Id == singerId)?.Name ?? string.Empty;
+        }
+
+        return performer.DisplayName?.Trim() ?? string.Empty;
+    }
+
+    public static List<string> GetDisplayNames(
+        IReadOnlyList<CoPerformerInputDto> performers,
+        IReadOnlyList<SingerDto> singers) =>
+        performers
+            .Select(p => GetDisplayName(p, singers))
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .ToList();
 }
 
 public static class CoPerformerValidation
