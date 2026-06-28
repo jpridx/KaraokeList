@@ -57,6 +57,17 @@ public sealed class LogPerformanceLocalStoreTests
         Assert.Single(loaded.Venues);
     }
 
+    [Fact]
+    public async Task SaveFormDefaultsAsync_persists_venue()
+    {
+        var store = CreateStore();
+        await store.SaveFormDefaultsAsync(new LogFormDefaults(7));
+
+        var loaded = await store.GetFormDefaultsAsync();
+        Assert.NotNull(loaded);
+        Assert.Equal(7, loaded!.VenueId);
+    }
+
     private static PendingPerformanceEntry CreatePendingEntry() =>
         new(
             Guid.NewGuid(),
