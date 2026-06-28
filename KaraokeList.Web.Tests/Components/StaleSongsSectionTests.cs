@@ -55,4 +55,34 @@ public sealed class StaleSongsSectionTests : AuthPageTestContext
             Assert.Contains("120 days ago", cut.Markup);
         });
     }
+
+    [Fact]
+    public void Shows_never_performed_repertoire_song()
+    {
+        Api.Setup(client => client.GetMyStaleSongsAsync(null, null))
+            .ReturnsAsync(StaleSongsResult.Ok(new StaleSongsResponseDto
+            {
+                StaleAfterDays = 90,
+                Songs =
+                [
+                    new StaleSongDto
+                    {
+                        SongId = 7,
+                        Title = "New Song",
+                        ArtistName = "Test Artist",
+                        LastPerformedOn = null,
+                        PerformanceCount = 0,
+                        DaysSinceLastPerformed = 0
+                    }
+                ]
+            }));
+
+        var cut = RenderComponent<StaleSongsSection>();
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Contains("Never performed", cut.Markup);
+            Assert.Contains("href=\"log?songId=7\"", cut.Markup);
+        });
+    }
 }
