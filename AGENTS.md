@@ -30,6 +30,19 @@ dotnet run --project KaraokeList.Web/KaraokeList.Web.csproj
 
 See `docs/wasm-api-local-dev.md` for CORS, JWT, and Syncfusion license setup.
 
+### Cloud agent environment
+
+**Expired-environment warnings in Cursor** (yellow “environment configuration issue” cards that stay in the chat while you work) are a **Cursor Cloud UI behavior**, not app code. They appear when Cursor cannot restore a saved VM snapshot (expired, invalid, or inaccessible) and falls back to the base image, then runs the install script. Cursor keeps the warning visible in that conversation even after recovery succeeds.
+
+**For agents:** if you see that warning but `dotnet --version` and `dotnet build` succeed, **ignore the banner and continue the task**. Do not stop to re-run dashboard environment setup unless builds actually fail.
+
+**Repo config** (takes precedence over dashboard snapshots):
+
+- `.cursor/environment.json` — runs install on every agent start; **no `snapshot` field** (pinning snapshots causes expiry warnings)
+- `.cursor/install.sh` — idempotently installs `dotnet-sdk-10.0` (with `sudo`) and runs `dotnet restore`
+
+**For humans:** merge this config, then start **new** cloud agents from an updated branch. Old chat threads may still show the warning card; only new sessions benefit. If warnings persist, remove duplicate saved environments at [Cloud Agents → Environments](https://cursor.com/dashboard/cloud-agents#environments) (dashboard delete is inconsistent — repo `environment.json` is the reliable fix).
+
 ### Mobile routes (`KaraokeList.Web`)
 
 | Route | Purpose |
