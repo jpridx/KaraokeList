@@ -146,6 +146,41 @@ public sealed class PerformancesScopingTests(KaraokeApiFactory factory)
         Assert.DoesNotContain(historyB, p => p.Id == performanceIdA);
     }
 
+    [SkippableFact]
+    public async Task CreatePerformance_WithCoPerformers_PersistsAndReturnsOnHistory()
+    {
+        Skip.IfNot(factory.IsDatabaseAvailable, IntegrationTestConnection.SkipReason);
+
+        var clientA = await CreateAuthedClientAsync();
+        var clientB = await CreateAuthedClientAsync();
+        var profileB = await clientB.GetFromJsonAsync<UserProfileDto>("/api/auth/me");
+        Assert.NotNull(profileB?.SingerId);
+
+        var (songId, venueId) = await PerformanceTestDataHelper.CreateCatalogAsync(clientA);
+        var performanceId = await PerformanceTestDataHelper.CreatePerformanceAsync(
+            clientA,
+            songId,
+            venueId,
+            otherPerformers:
+            [
+                new CoPerformerInputDto { SingerId = profileB.SingerId },
+                new CoPerformerInputDto { DisplayName = "Guest Singer" }
+            ]);
+
+        var performances = await clientA.GetFromJsonAsync<List<PerformanceDto>>("/api/performances");
+        Assert.NotNull(performances);
+        var performance = Assert.Single(performances, p => p.Id == performanceId);
+        Assert.Equal(2, performance.CoPerformers.Count);
+        Assert.Contains(performance.CoPerformers, p => p.SingerId == profileB.SingerId);
+        Assert.Contains(performance.CoPerformers, p => p.Name == "Guest Singer");
+
+        var history = await clientA.GetFromJsonAsync<List<MyPerformanceEntryDto>>("/api/performances/my-history");
+        Assert.NotNull(history);
+        var row = Assert.Single(history, p => p.Id == performanceId);
+        Assert.Equal(2, row.OtherPerformers.Count);
+        Assert.Contains(row.OtherPerformers, p => p.Name == "Guest Singer");
+    }
+
     private async Task<HttpClient> CreateAuthedClientAsync()
     {
         var client = factory.CreateClient();
@@ -208,7 +243,8 @@ internal static class PerformanceTestDataHelper
         int songId,
         int venueId,
         DateTime? performedOn = null,
-        int? keyChangeSemitones = null)
+        int? keyChangeSemitones = null,
+        IReadOnlyList<CoPerformerInputDto>? otherPerformers = null)
     {
         var performed = performedOn ?? DateTime.Today;
         var create = await client.PostAsJsonAsync("/api/performances", new PerformanceDto
@@ -216,7 +252,8 @@ internal static class PerformanceTestDataHelper
             Song = songId,
             Venue = venueId,
             PerformedOn = performed,
-            KeyChangeSemitones = keyChangeSemitones
+            KeyChangeSemitones = keyChangeSemitones,
+            OtherPerformers = otherPerformers?.ToList()
         });
         Assert.Equal(HttpStatusCode.NoContent, create.StatusCode);
 

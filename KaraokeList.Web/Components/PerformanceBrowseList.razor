@@ -18,7 +18,11 @@
             {
                 <div class="history-edit-form">
                     <p class="performance-browse-song mb-2">
-                        @ShowHostMessageFormatting.Format(entry.Title, entry.ArtistName, editKeyChangeSemitones)
+                        @ShowHostMessageFormatting.Format(
+                            entry.Title,
+                            entry.ArtistName,
+                            editKeyChangeSemitones,
+                            editCoPerformerNames)
                     </p>
                     <label class="form-label small text-muted mb-1">Date</label>
                     <InputDate class="form-control form-control-sm mb-2" @bind-Value="editPerformedOn" />
@@ -33,6 +37,7 @@
                                     @bind-Value="editKeyChangeSemitones">
                         <DropDownListFieldSettings Value="Semitones" Text="Label" />
                     </SfDropDownList>
+                    <CoPerformersEditor PrimarySingerId="SingerId" @bind-OtherPerformers="editOtherPerformers" />
                     <div class="d-flex gap-2 mt-3">
                         <button type="button" class="btn btn-primary btn-sm flex-fill" disabled="@isSaving"
                                 @onclick="() => SaveEditAsync(entry)">Save</button>
@@ -44,7 +49,11 @@
             else if (deleteConfirmId == entry.Id)
             {
                 <p class="performance-browse-song mb-2">
-                    @ShowHostMessageFormatting.Format(entry.Title, entry.ArtistName, entry.KeyChangeSemitones)
+                    @ShowHostMessageFormatting.Format(
+                        entry.Title,
+                        entry.ArtistName,
+                        entry.KeyChangeSemitones,
+                        entry.OtherPerformers.Select(p => p.Name).ToList())
                 </p>
                 <p class="small mb-2">Delete this performance?</p>
                 <div class="d-flex gap-2">
@@ -59,7 +68,11 @@
                 <div class="performance-browse-row">
                     <button type="button" class="performance-browse-main" @onclick="() => GoToSongAsync(entry.SongId)">
                         <span class="performance-browse-song">
-                            @ShowHostMessageFormatting.Format(entry.Title, entry.ArtistName, entry.KeyChangeSemitones)
+                            @ShowHostMessageFormatting.Format(
+                                entry.Title,
+                                entry.ArtistName,
+                                entry.KeyChangeSemitones,
+                                entry.OtherPerformers.Select(p => p.Name).ToList())
                         </span>
                         <span class="performance-browse-meta">
                             @entry.PerformedOn.ToString("d") · @entry.VenueName · @KeyChangeFormatting.Describe(entry.KeyChangeSemitones)
@@ -87,19 +100,29 @@
     public EventCallback OnChanged { get; set; }
 
     private List<VenueDto> venues = [];
+    private List<SingerDto> singers = [];
     private IReadOnlyList<PerformanceKeyOption> keyOptions = PerformanceKeyOption.Choices;
     private int? editingId;
     private int? deleteConfirmId;
     private DateTime editPerformedOn = DateTime.Today;
     private int? editVenueId;
     private int? editKeyChangeSemitones;
+    private List<CoPerformerInputDto> editOtherPerformers = [];
     private bool isSaving;
     private string? statusMessage;
     private string? errorMessage;
 
+    private IReadOnlyList<string> editCoPerformerNames => editOtherPerformers
+        .Select(p => p.SingerId is int singerId
+            ? singers.FirstOrDefault(s => s.Id == singerId)?.Name ?? string.Empty
+            : p.DisplayName?.Trim() ?? string.Empty)
+        .Where(name => !string.IsNullOrWhiteSpace(name))
+        .ToList();
+
     protected override async Task OnInitializedAsync()
     {
         venues = await Api.GetVenuesAsync();
+        singers = await Api.GetSingersAsync();
     }
 
     private void GoToSongAsync(int songId) => Navigation.NavigateTo($"my-songs/{songId}");
@@ -113,6 +136,11 @@
         editPerformedOn = entry.PerformedOn;
         editVenueId = entry.VenueId;
         editKeyChangeSemitones = entry.KeyChangeSemitones;
+        editOtherPerformers = entry.OtherPerformers
+            .Select(p => p.SingerId is int singerId
+                ? new CoPerformerInputDto { SingerId = singerId }
+                : new CoPerformerInputDto { DisplayName = p.Name })
+            .ToList();
     }
 
     private void CancelEdit() => editingId = null;
@@ -148,7 +176,8 @@
                 Song = entry.SongId,
                 Venue = editVenueId,
                 PerformedOn = editPerformedOn,
-                KeyChangeSemitones = editKeyChangeSemitones == 0 ? null : editKeyChangeSemitones
+                KeyChangeSemitones = editKeyChangeSemitones == 0 ? null : editKeyChangeSemitones,
+                OtherPerformers = editOtherPerformers
             });
 
             editingId = null;

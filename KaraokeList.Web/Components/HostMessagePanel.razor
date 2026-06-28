@@ -36,12 +36,15 @@
     [Parameter]
     public bool ShowKeyPicker { get; set; } = true;
 
+    [Parameter]
+    public IReadOnlyList<string>? CoPerformerNames { get; set; }
+
     private IReadOnlyList<PerformanceKeyOption> keyOptions = PerformanceKeyOption.Choices;
     private bool copyFeedback;
 
     private string? Message => string.IsNullOrWhiteSpace(Title)
         ? null
-        : ShowHostMessageFormatting.Format(Title, ArtistName, KeyChangeSemitones);
+        : ShowHostMessageFormatting.Format(Title, ArtistName, KeyChangeSemitones, CoPerformerNames);
 
     private Task OnKeyChangedAsync(int? value) => KeyChangeSemitonesChanged.InvokeAsync(value);
 

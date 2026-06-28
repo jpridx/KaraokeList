@@ -26,7 +26,10 @@ public class PerformancesController(
         }
 
         var performances = await performanceService.GetPerformancesAsync(singerId.Value!.Value, songId);
-        return Ok(performances.Select(p => p.ToDto()).ToList());
+        var coPerformers = await performanceService.GetCoPerformersByPerformanceIdsAsync(
+            performances.Select(p => p.Id).ToList());
+        return Ok(performances.Select(p =>
+            p.ToDto(coPerformers.GetValueOrDefault(p.Id))).ToList());
     }
 
     [HttpGet("my-history")]
@@ -188,17 +191,26 @@ public class PerformancesController(
         }
 
         dto.Singer = singerId.Value;
-        var validation = await ValidatePerformanceAsync(dto);
+        var validation = await ValidatePerformanceAsync(dto, singerId.Value!.Value);
         if (validation is not null)
         {
             return validation;
         }
 
-        await performanceService.AddPerformanceAsync(dto.ToEntity());
+        var coPerformers = NormalizeCoPerformers(dto.OtherPerformers);
+        var performanceId = await performanceService.AddPerformanceAsync(dto.ToEntity());
+        await performanceService.SetCoPerformersAsync(performanceId, coPerformers);
         if (dto.Song is int songId)
         {
             await singerListService.AddToMyRepertoireAsync(singerId.Value!.Value, songId);
             await singerListService.RemoveFromListByKindAsync(singerId.Value.Value, SingerListKind.WantToSing, songId);
+            foreach (var coPerformer in coPerformers)
+            {
+                if (coPerformer.SingerId is int coSingerId)
+                {
+                    await singerListService.AddToMyRepertoireAsync(coSingerId, songId);
+                }
+            }
         }
 
         return NoContent();
@@ -221,13 +233,18 @@ public class PerformancesController(
 
         dto.Id = id;
         dto.Singer = singerId.Value;
-        var validation = await ValidatePerformanceAsync(dto);
+        var validation = await ValidatePerformanceAsync(dto, singerId.Value!.Value);
         if (validation is not null)
         {
             return validation;
         }
 
         await performanceService.UpdatePerformanceAsync(dto.ToEntity());
+        if (dto.OtherPerformers is not null)
+        {
+            await performanceService.SetCoPerformersAsync(id, NormalizeCoPerformers(dto.OtherPerformers));
+        }
+
         return NoContent();
     }
 
@@ -273,7 +290,7 @@ public class PerformancesController(
         sortDir.Equals("asc", StringComparison.OrdinalIgnoreCase)
         || sortDir.Equals("desc", StringComparison.OrdinalIgnoreCase);
 
-    private async Task<ActionResult?> ValidatePerformanceAsync(PerformanceDto dto)
+    private async Task<ActionResult?> ValidatePerformanceAsync(PerformanceDto dto, int primarySingerId)
     {
         if (dto.Song is not int songId)
         {
@@ -290,7 +307,34 @@ public class PerformancesController(
             return BadRequest(new ApiErrorResponse { Message = "Venue was not found." });
         }
 
+        if (dto.OtherPerformers is not null)
+        {
+            var coPerformers = NormalizeCoPerformers(dto.OtherPerformers);
+            foreach (var performer in coPerformers)
+            {
+                if (performer.SingerId is int coSingerId && !await integrity.SingerExistsAsync(coSingerId))
+                {
+                    return BadRequest(new ApiErrorResponse { Message = "A co-performer singer was not found." });
+                }
+            }
+
+            var coPerformerError = CoPerformerValidation.ValidateInputs(
+                coPerformers,
+                primarySingerId,
+                _ => true);
+            if (coPerformerError is not null)
+            {
+                return BadRequest(new ApiErrorResponse { Message = coPerformerError });
+            }
+        }
+
         return null;
     }
+
+    private static List<CoPerformerInputDto> NormalizeCoPerformers(IReadOnlyList<CoPerformerInputDto>? performers) =>
+        performers?.Where(p =>
+                p.SingerId is int
+                || !string.IsNullOrWhiteSpace(p.DisplayName))
+            .ToList() ?? [];
 
 }

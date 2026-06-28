@@ -55,14 +55,21 @@ public static class EntityMappers
 
     public static ArtistLookupDto ToDto(this ArtistLookup entity) => new() { Id = entity.Id, Name = entity.Name };
 
-    public static PerformanceDto ToDto(this Performance entity) => new()
+    public static PerformanceDto ToDto(this Performance entity, IReadOnlyList<CoPerformerInfo>? coPerformers = null) => new()
     {
         Id = entity.Id,
         Singer = entity.Singer,
         Song = entity.Song,
         Venue = entity.Venue,
         PerformedOn = entity.PerformedOn,
-        KeyChangeSemitones = entity.KeyChangeSemitones
+        KeyChangeSemitones = entity.KeyChangeSemitones,
+        CoPerformers = coPerformers?.Select(ToDto).ToList() ?? []
+    };
+
+    public static CoPerformerDto ToDto(this CoPerformerInfo info) => new()
+    {
+        SingerId = info.SingerId,
+        Name = info.Name
     };
 
     public static Performance ToEntity(this PerformanceDto dto) => new()
@@ -99,7 +106,8 @@ public static class EntityMappers
             PerformedOn = h.PerformedOn,
             VenueId = h.VenueId,
             VenueName = h.VenueName,
-            KeyChangeSemitones = h.KeyChangeSemitones
+            KeyChangeSemitones = h.KeyChangeSemitones,
+            OtherPerformers = h.OtherPerformers.Select(ToDto).ToList()
         }).ToList()
     };
 
@@ -112,7 +120,8 @@ public static class EntityMappers
         PerformedOn = entry.PerformedOn,
         VenueId = entry.VenueId,
         VenueName = entry.VenueName,
-        KeyChangeSemitones = entry.KeyChangeSemitones
+        KeyChangeSemitones = entry.KeyChangeSemitones,
+        OtherPerformers = entry.OtherPerformers.Select(ToDto).ToList()
     };
 
     public static StaleSongDto ToDto(this StaleSong song, DateTime today)

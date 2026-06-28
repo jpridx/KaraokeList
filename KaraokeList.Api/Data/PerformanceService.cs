@@ -13,6 +13,21 @@ public class Performance
     public int? KeyChangeSemitones { get; set; }
 }
 
+public class PerformanceParticipant
+{
+    public int Id { get; set; }
+    public int PerformanceId { get; set; }
+    public int? SingerId { get; set; }
+    public string? DisplayName { get; set; }
+    public int SortOrder { get; set; }
+}
+
+public class CoPerformerInfo
+{
+    public int? SingerId { get; set; }
+    public string Name { get; set; } = string.Empty;
+}
+
 public class PerformanceHistoryEntry
 {
     public int Id { get; set; }
@@ -20,6 +35,7 @@ public class PerformanceHistoryEntry
     public int? VenueId { get; set; }
     public string VenueName { get; set; } = string.Empty;
     public int? KeyChangeSemitones { get; set; }
+    public List<CoPerformerInfo> OtherPerformers { get; set; } = [];
 }
 
 public class SongPerformanceSummary
@@ -112,6 +128,7 @@ public class MyPerformanceEntry
     public int? VenueId { get; set; }
     public string VenueName { get; set; } = string.Empty;
     public int? KeyChangeSemitones { get; set; }
+    public List<CoPerformerInfo> OtherPerformers { get; set; } = [];
 }
 
 public class PerformanceService(string connectionString)
@@ -192,7 +209,92 @@ public class PerformanceService(string connectionString)
             });
         }
 
+        var coPerformers = await GetCoPerformersByPerformanceIdsAsync(performances.Select(p => p.Id).ToList());
+        foreach (var performance in performances)
+        {
+            if (coPerformers.TryGetValue(performance.Id, out var performers))
+            {
+                performance.OtherPerformers = performers;
+            }
+        }
+
         return performances;
+    }
+
+    public async Task<Dictionary<int, List<CoPerformerInfo>>> GetCoPerformersByPerformanceIdsAsync(
+        IReadOnlyCollection<int> performanceIds)
+    {
+        var result = new Dictionary<int, List<CoPerformerInfo>>();
+        if (performanceIds.Count == 0)
+        {
+            return result;
+        }
+
+        await using var connection = new SqlConnection(connectionString);
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        var idList = string.Join(",", performanceIds);
+        command.CommandText = $"""
+            SELECT pp.PerformanceId, pp.SingerId, ISNULL(s.Name, N''), ISNULL(pp.DisplayName, N''), pp.SortOrder
+            FROM PerformanceParticipants pp
+            LEFT JOIN Singers s ON s.Id = pp.SingerId
+            WHERE pp.PerformanceId IN ({idList})
+            ORDER BY pp.PerformanceId, pp.SortOrder, pp.Id
+            """;
+        await using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            var performanceId = reader.GetInt32(0);
+            var singerId = reader.IsDBNull(1) ? (int?)null : reader.GetInt32(1);
+            var singerName = reader.GetString(2);
+            var displayName = reader.GetString(3);
+            var name = singerId is int ? singerName : displayName;
+            if (!result.TryGetValue(performanceId, out var performers))
+            {
+                performers = [];
+                result[performanceId] = performers;
+            }
+
+            performers.Add(new CoPerformerInfo
+            {
+                SingerId = singerId,
+                Name = name
+            });
+        }
+
+        return result;
+    }
+
+    public async Task SetCoPerformersAsync(int performanceId, IReadOnlyList<CoPerformerInputDto> performers)
+    {
+        await using var connection = new SqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using (var deleteCommand = connection.CreateCommand())
+        {
+            deleteCommand.CommandText = "DELETE FROM PerformanceParticipants WHERE PerformanceId = @PerformanceId;";
+            deleteCommand.Parameters.AddWithValue("@PerformanceId", performanceId);
+            await deleteCommand.ExecuteNonQueryAsync();
+        }
+
+        for (var i = 0; i < performers.Count; i++)
+        {
+            var performer = performers[i];
+            await using var insertCommand = connection.CreateCommand();
+            insertCommand.CommandText = """
+                INSERT INTO PerformanceParticipants (PerformanceId, SingerId, DisplayName, SortOrder)
+                VALUES (@PerformanceId, @SingerId, @DisplayName, @SortOrder);
+                """;
+            insertCommand.Parameters.AddWithValue("@PerformanceId", performanceId);
+            insertCommand.Parameters.AddWithValue("@SingerId", (object?)performer.SingerId ?? DBNull.Value);
+            insertCommand.Parameters.AddWithValue(
+                "@DisplayName",
+                performer.SingerId is int
+                    ? DBNull.Value
+                    : performer.DisplayName?.Trim() ?? string.Empty);
+            insertCommand.Parameters.AddWithValue("@SortOrder", i);
+            await insertCommand.ExecuteNonQueryAsync();
+        }
     }
 
     public async Task<Performance?> GetPerformanceByIdAsync(int id)
@@ -636,6 +738,16 @@ public class PerformanceService(string connectionString)
             });
         }
 
+        var historyIds = history.Select(h => h.Id).ToList();
+        var coPerformers = await GetCoPerformersByPerformanceIdsAsync(historyIds);
+        foreach (var entry in history)
+        {
+            if (coPerformers.TryGetValue(entry.Id, out var performers))
+            {
+                entry.OtherPerformers = performers;
+            }
+        }
+
         return new SongPerformanceSummary
         {
             SongId = songId,
@@ -647,17 +759,18 @@ public class PerformanceService(string connectionString)
         };
     }
 
-    public async Task AddPerformanceAsync(Performance performance)
+    public async Task<int> AddPerformanceAsync(Performance performance)
     {
         await using var connection = new SqlConnection(connectionString);
         await connection.OpenAsync();
         await using var command = connection.CreateCommand();
         command.CommandText = """
             INSERT INTO Performances (Singer, Song, Venue, PerformedOn, KeyChangeSemitones)
+            OUTPUT INSERTED.Id
             VALUES (@Singer, @Song, @Venue, @PerformedOn, @KeyChangeSemitones);
             """;
         AddParameters(command, performance);
-        await command.ExecuteNonQueryAsync();
+        return (int)(await command.ExecuteScalarAsync() ?? 0);
     }
 
     public async Task UpdatePerformanceAsync(Performance performance)

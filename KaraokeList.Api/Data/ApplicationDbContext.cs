@@ -12,6 +12,7 @@ namespace KaraokeList.Data
         public DbSet<Singer> Singers { get; set; } = null!;
         public DbSet<Venue> Venues { get; set; } = null!;
         public DbSet<Performance> Performances { get; set; } = null!;
+        public DbSet<PerformanceParticipant> PerformanceParticipants { get; set; } = null!;
         public DbSet<SingerList> SingerLists { get; set; } = null!;
         public DbSet<SingerListSong> SingerListSongs { get; set; } = null!;
 
@@ -59,6 +60,22 @@ namespace KaraokeList.Data
                     .WithMany()
                     .HasForeignKey(p => p.Venue)
                     .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            builder.Entity<PerformanceParticipant>(entity =>
+            {
+                entity.Property(p => p.DisplayName).HasMaxLength(128);
+                entity.HasIndex(p => p.PerformanceId);
+
+                entity.HasOne<Performance>()
+                    .WithMany()
+                    .HasForeignKey(p => p.PerformanceId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne<Singer>()
+                    .WithMany()
+                    .HasForeignKey(p => p.SingerId)
+                    .OnDelete(DeleteBehavior.Restrict);
             });
 
             builder.Entity<Song>(entity =>
