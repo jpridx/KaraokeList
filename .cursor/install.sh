@@ -10,3 +10,5 @@ if ! command -v dotnet >/dev/null 2>&1; then
 fi
 
 dotnet restore
+dotnet --version
+echo "KaraokeList cloud environment ready."
