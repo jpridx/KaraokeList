@@ -424,6 +424,11 @@ public class PerformanceService(string connectionString)
                 WHERE p.Singer = @Singer
                 GROUP BY s.Id, s.Title, a.Name
                 HAVING MAX(p.PerformedOn) < @Cutoff
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM SingerSongTicklerExclusions ex
+                      WHERE ex.SingerId = @Singer
+                        AND ex.SongId = s.Id)
 
                 UNION ALL
 
@@ -443,6 +448,11 @@ public class PerformanceService(string connectionString)
                       FROM Performances p
                       WHERE p.Singer = @Singer
                         AND p.Song = s.Id)
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM SingerSongTicklerExclusions ex
+                      WHERE ex.SingerId = @Singer
+                        AND ex.SongId = s.Id)
             ) AS candidates
             ORDER BY NEWID()
             """;

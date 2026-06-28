@@ -66,6 +66,8 @@
         <SongListMembershipPanel SongId="SongId" PerformanceCount="summary.PerformanceCount"
                                  OnMembershipChanged="LoadAsync" />
 
+        <TicklerExclusionPanel SongId="SongId" OnExclusionChanged="LoadAsync" />
+
         @if (mySingerId is null)
         {
             <SingerLinkPanel Visible="true" OnLinked="OnSingerLinkedAsync" />

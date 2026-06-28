@@ -200,6 +200,15 @@ public sealed class LogCatalogLoaderTests
         public Task<SongListMembershipResult> GetSongListMembershipAsync(int songId) =>
             throw new NotSupportedException();
 
+        public Task<SongTicklerExclusionResult> GetSongTicklerExclusionAsync(int songId) =>
+            throw new NotSupportedException();
+
+        public Task<TicklerExclusionActionResult> SetSongTicklerExclusionAsync(int songId, UpdateSongTicklerExclusionRequest request) =>
+            throw new NotSupportedException();
+
+        public Task<TicklerExclusionActionResult> RemoveSongTicklerExclusionAsync(int songId) =>
+            throw new NotSupportedException();
+
         public Task<PerformanceCreateResult> TryCreatePerformanceAsync(PerformanceDto dto) => throw new NotSupportedException();
         public Task CreatePerformanceAsync(PerformanceDto dto) => throw new NotSupportedException();
         public Task<AuthResult> LoginAsync(LoginRequest request) => throw new NotSupportedException();

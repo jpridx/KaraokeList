@@ -16,6 +16,7 @@ public static class KaraokeServiceCollectionExtensions
             sp.GetRequiredService<ApplicationDbContext>(),
             sp.GetRequiredService<CatalogIntegrityService>(),
             connectionString));
+        services.AddScoped<TicklerExclusionService>();
         return services;
     }
 }
