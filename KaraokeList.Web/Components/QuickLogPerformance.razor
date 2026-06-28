@@ -64,8 +64,11 @@
     </SfDropDownList>
 </div>
 
+<CoPerformersEditor PrimarySingerId="SingerId ?? 0" @bind-OtherPerformers="otherPerformers" />
+
 <HostMessagePanel Title="@Title" ArtistName="@ArtistName"
-                  KeyChangeSemitones="keyChangeSemitones" ShowKeyPicker="false" />
+                  KeyChangeSemitones="keyChangeSemitones" ShowKeyPicker="false"
+                  CoPerformerNames="@coPerformerNames" />
 
 <button type="button" class="btn btn-primary btn-lg w-100 mobile-primary-action"
         disabled="@(!CanSave)" @onclick="SavePerformanceAsync">
@@ -92,6 +95,7 @@
     public EventCallback<string?> OnPerformanceSaved { get; set; }
 
     private List<VenueDto> venues = [];
+    private List<SingerDto> singers = [];
     private IReadOnlyList<PerformanceKeyOption> keyOptions = PerformanceKeyOption.Choices;
     private int? selectedVenueId;
     private DateTime performedOn = DateTime.Today;
@@ -104,6 +108,12 @@
     private bool defaultsLoaded;
     private bool usingOfflineCatalog;
     private bool venuesLoaded;
+    private List<CoPerformerInputDto> otherPerformers = [];
+
+    private IReadOnlyList<string> coPerformerNames => otherPerformers
+        .Select(GetCoPerformerDisplayName)
+        .Where(name => !string.IsNullOrWhiteSpace(name))
+        .ToList();
 
     private bool CanSave => selectedVenueId is not null && SingerId is not null;
 
@@ -115,6 +125,14 @@
             venues = venueResult.Venues.ToList();
             usingOfflineCatalog = venueResult.FromCache;
             venuesLoaded = true;
+            try
+            {
+                singers = await Api.GetSingersAsync();
+            }
+            catch (Exception ex) when (ApiTransientFailure.IsTransient(ex) || ex is HttpRequestException)
+            {
+                usingOfflineCatalog = true;
+            }
         }
 
         if (!defaultsLoaded || SongId != _loadedSongId)
@@ -132,6 +150,7 @@
         saveMessage = null;
         saveWarning = null;
         saveError = null;
+        otherPerformers = [];
 
         var stored = await LogStore.GetFormDefaultsAsync();
         SongPerformanceSummaryDto? summary = null;
@@ -187,7 +206,8 @@
                 Song = SongId,
                 Venue = selectedVenueId,
                 PerformedOn = performedOn,
-                KeyChangeSemitones = keyChangeSemitones == 0 ? null : keyChangeSemitones
+                KeyChangeSemitones = keyChangeSemitones == 0 ? null : keyChangeSemitones,
+                OtherPerformers = otherPerformers
             };
 
             var result = await Api.TryCreatePerformanceAsync(dto);
@@ -235,8 +255,19 @@
                 Title,
                 ArtistName,
                 venueName,
-                DateTime.Now));
+                DateTime.Now,
+                otherPerformers));
         }
+    }
+
+    private string GetCoPerformerDisplayName(CoPerformerInputDto performer)
+    {
+        if (performer.SingerId is int singerId)
+        {
+            return singers.FirstOrDefault(s => s.Id == singerId)?.Name ?? string.Empty;
+        }
+
+        return performer.DisplayName?.Trim() ?? string.Empty;
     }
 
     private async Task SaveNewVenueAsync()

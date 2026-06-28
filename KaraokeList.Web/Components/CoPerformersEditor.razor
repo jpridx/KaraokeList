@@ -1,0 +1,116 @@
+@inject IKaraokeApiClient Api
+
+<div class="mobile-panel">
+    <label class="form-label">Other performers</label>
+    <p class="small text-muted mb-2">Optional duet or group — pick a registered singer or add a guest name.</p>
+
+    @if (otherPerformers.Count > 0)
+    {
+        <div class="d-flex flex-wrap gap-2 mb-3">
+            @foreach (var (performer, index) in otherPerformers.Select((p, i) => (p, i)))
+            {
+                <span class="badge rounded-pill text-bg-secondary d-inline-flex align-items-center gap-1 py-2 px-3">
+                    @GetDisplayName(performer)
+                    <button type="button" class="btn-close btn-close-white btn-sm" aria-label="Remove"
+                            @onclick="() => RemoveAt(index)"></button>
+                </span>
+            }
+        </div>
+    }
+
+    <label class="form-label small text-muted mb-1">Registered singer</label>
+    <div class="d-flex gap-2 mb-3">
+        <SfDropDownList TValue="int?" TItem="SingerDto" DataSource="@availableSingers" @bind-Value="selectedSingerId"
+                        Placeholder="Search singers" AllowFiltering="true" CssClass="flex-grow-1"
+                        FilterType="Syncfusion.Blazor.DropDowns.FilterType.Contains">
+            <DropDownListFieldSettings Value="Id" Text="Name" />
+        </SfDropDownList>
+        <button type="button" class="btn btn-outline-primary" disabled="@(selectedSingerId is null)"
+                @onclick="AddSelectedSinger">Add</button>
+    </div>
+
+    <label class="form-label small text-muted mb-1">Guest name</label>
+    <div class="d-flex gap-2">
+        <input class="form-control" @bind="guestName" placeholder="Name not in the app" />
+        <button type="button" class="btn btn-outline-primary" disabled="@string.IsNullOrWhiteSpace(guestName)"
+                @onclick="AddGuest">Add</button>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public int PrimarySingerId { get; set; }
+
+    [Parameter]
+    public List<CoPerformerInputDto> OtherPerformers { get; set; } = [];
+
+    [Parameter]
+    public EventCallback<List<CoPerformerInputDto>> OtherPerformersChanged { get; set; }
+
+    private List<SingerDto> singers = [];
+    private List<SingerDto> availableSingers => singers
+        .Where(s => s.Id != PrimarySingerId && otherPerformers.All(p => p.SingerId != s.Id))
+        .ToList();
+    private List<CoPerformerInputDto> otherPerformers = [];
+    private int? selectedSingerId;
+    private string guestName = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        singers = await Api.GetSingersAsync();
+    }
+
+    protected override void OnParametersSet()
+    {
+        otherPerformers = OtherPerformers
+            .Select(p => new CoPerformerInputDto { SingerId = p.SingerId, DisplayName = p.DisplayName })
+            .ToList();
+    }
+
+    private string GetDisplayName(CoPerformerInputDto performer)
+    {
+        if (performer.SingerId is int singerId)
+        {
+            return singers.FirstOrDefault(s => s.Id == singerId)?.Name ?? "Singer";
+        }
+
+        return performer.DisplayName?.Trim() ?? string.Empty;
+    }
+
+    private async Task AddSelectedSinger()
+    {
+        if (selectedSingerId is not int singerId)
+        {
+            return;
+        }
+
+        otherPerformers.Add(new CoPerformerInputDto { SingerId = singerId });
+        selectedSingerId = null;
+        await NotifyChangedAsync();
+    }
+
+    private async Task AddGuest()
+    {
+        var name = guestName.Trim();
+        if (string.IsNullOrEmpty(name))
+        {
+            return;
+        }
+
+        otherPerformers.Add(new CoPerformerInputDto { DisplayName = name });
+        guestName = string.Empty;
+        await NotifyChangedAsync();
+    }
+
+    private async Task RemoveAt(int index)
+    {
+        otherPerformers.RemoveAt(index);
+        await NotifyChangedAsync();
+    }
+
+    private async Task NotifyChangedAsync()
+    {
+        OtherPerformers = otherPerformers;
+        await OtherPerformersChanged.InvokeAsync(otherPerformers);
+    }
+}

@@ -29,6 +29,7 @@
                                     @bind-Value="editKeyChangeSemitones">
                         <DropDownListFieldSettings Value="Semitones" Text="Label" />
                     </SfDropDownList>
+                    <CoPerformersEditor PrimarySingerId="SingerId" @bind-OtherPerformers="editOtherPerformers" />
                     <div class="d-flex gap-2 mt-3">
                         <button type="button" class="btn btn-primary btn-sm flex-fill" disabled="@isSaving"
                                 @onclick="SaveEditAsync">Save</button>
@@ -54,6 +55,12 @@
                         <span class="history-date">@entry.PerformedOn.ToString("d")</span>
                         <span class="history-venue">@entry.VenueName</span>
                         <span class="history-key">@KeyChangeFormatting.Describe(entry.KeyChangeSemitones)</span>
+                        @if (entry.OtherPerformers.Count > 0)
+                        {
+                            <span class="history-co-performers small text-muted">
+                                with @string.Join(" & ", entry.OtherPerformers.Select(p => p.Name))
+                            </span>
+                        }
                     </div>
                     <div class="history-row-actions">
                         <button type="button" class="btn btn-link btn-sm p-0" @onclick="() => BeginEdit(entry)">Edit</button>
@@ -85,6 +92,7 @@
     private DateTime editPerformedOn = DateTime.Today;
     private int? editVenueId;
     private int? editKeyChangeSemitones;
+    private List<CoPerformerInputDto> editOtherPerformers = [];
     private bool isSaving;
     private string? statusMessage;
     private string? errorMessage;
@@ -103,6 +111,11 @@
         editPerformedOn = entry.PerformedOn;
         editVenueId = entry.VenueId;
         editKeyChangeSemitones = entry.KeyChangeSemitones;
+        editOtherPerformers = entry.OtherPerformers
+            .Select(p => p.SingerId is int singerId
+                ? new CoPerformerInputDto { SingerId = singerId }
+                : new CoPerformerInputDto { DisplayName = p.Name })
+            .ToList();
     }
 
     private void CancelEdit() => editingId = null;
@@ -143,7 +156,8 @@
                 Song = SongId,
                 Venue = editVenueId,
                 PerformedOn = editPerformedOn,
-                KeyChangeSemitones = editKeyChangeSemitones == 0 ? null : editKeyChangeSemitones
+                KeyChangeSemitones = editKeyChangeSemitones == 0 ? null : editKeyChangeSemitones,
+                OtherPerformers = editOtherPerformers
             });
 
             editingId = null;

@@ -24,7 +24,8 @@ public sealed record PendingPerformanceEntry(
     string Title,
     string ArtistName,
     string VenueName,
-    DateTime QueuedAt)
+    DateTime QueuedAt,
+    List<CoPerformerInputDto>? OtherPerformers = null)
 {
     public PerformanceDto ToDto() => new()
     {
@@ -32,7 +33,8 @@ public sealed record PendingPerformanceEntry(
         Song = SongId,
         Venue = VenueId,
         PerformedOn = PerformedOn,
-        KeyChangeSemitones = KeyChangeSemitones
+        KeyChangeSemitones = KeyChangeSemitones,
+        OtherPerformers = OtherPerformers
     };
 }
 
