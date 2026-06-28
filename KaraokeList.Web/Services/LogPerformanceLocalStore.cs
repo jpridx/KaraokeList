@@ -3,7 +3,7 @@ using KaraokeList.Shared;
 
 namespace KaraokeList.Web.Services;
 
-public sealed record LogFormDefaults(int? VenueId, DateTime PerformedOn, int? KeyChangeSemitones);
+public sealed record LogFormDefaults(int? VenueId);
 
 public sealed record RecentLoggedPerformance(
     int SongId,

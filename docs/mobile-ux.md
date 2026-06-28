@@ -148,7 +148,7 @@ Implemented in `ShowHostMessageFormatting` (`KaraokeList.Shared`). Shown on Log 
 
 | Component | Role |
 |-----------|------|
-| `QuickLogPerformance` | Venue, date, key, host message, save — venue/date from last log; key from last time **you sang this song** (or original key); queues offline |
+| `QuickLogPerformance` | Venue, date, key, host message, save — venue from last log; date defaults to today; key from last time **you sang this song** (or original key); queues offline |
 | `AddSongPanel` | Add catalog song inline — title field + `AddArtistField` + `AddGenreField`; fires `SongAddedEventArgs` on success |
 | `AddArtistField` | Artist autocomplete (`AllowCustom`) with inline **Add artist** button when the typed name isn't in the catalog |
 | `AddGenreField` | Genre autocomplete (`AllowCustom`) with inline **Add genre** button when the typed name isn't in the catalog |

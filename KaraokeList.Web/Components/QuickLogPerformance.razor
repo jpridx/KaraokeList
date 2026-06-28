@@ -47,7 +47,15 @@
 
 <div class="mobile-panel">
     <label class="form-label">Date</label>
-    <InputDate class="form-control" @bind-Value="performedOn" />
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+        <InputDate class="form-control flex-grow-1" @bind-Value="performedOn" style="min-width: 10rem;" />
+        @if (performedOn.Date != DateTime.Today)
+        {
+            <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="UseToday">
+                Use today
+            </button>
+        }
+    </div>
 
     <label class="form-label mt-3">Key</label>
     <SfDropDownList TValue="int?" TItem="PerformanceKeyOption" DataSource="@keyOptions"
@@ -137,7 +145,7 @@
             usingOfflineCatalog = true;
         }
 
-        performedOn = stored?.PerformedOn ?? DateTime.Today;
+        performedOn = DateTime.Today;
 
         var recentKeyForSong = (await LogStore.GetRecentLogsAsync())
             .FirstOrDefault(r => r.SongId == SongId)
@@ -211,7 +219,7 @@
 
     private async Task SaveLocallyAsync(string venueName, bool queuedOffline)
     {
-        await LogStore.SaveFormDefaultsAsync(new LogFormDefaults(selectedVenueId, performedOn, KeyChangeSemitones: null));
+        await LogStore.SaveFormDefaultsAsync(new LogFormDefaults(selectedVenueId));
         await LogStore.AddRecentLogAsync(new RecentLoggedPerformance(
             SongId, Title, ArtistName, venueName, performedOn, keyChangeSemitones, DateTime.Now));
 
@@ -262,4 +270,6 @@
     }
 
     private void ToggleNewVenue() => showNewVenue = !showNewVenue;
+
+    private void UseToday() => performedOn = DateTime.Today;
 }
