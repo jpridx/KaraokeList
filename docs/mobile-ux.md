@@ -171,7 +171,7 @@ Implemented in `ShowHostMessageFormatting` (`KaraokeList.Shared`). Shown on Log 
 | `OfflineCacheNotice` | Cached-data / offline-unavailable banner for Log and My Songs |
 | `RecentLogList` | Recently logged performance rows (links or tap-to-select) |
 | `PerformanceEditForm` | Shared date/venue/key/co-performers edit block for history and browse lists |
-| `SingerProfileGate` | Resolves singer ID, shows `SingerLinkPanel` when missing, cascades `SingerId` to child content (used on `/log`, `/my-performances`) |
+| `SingerProfileGate` | Resolves singer ID, shows `SingerLinkPanel` when missing, cascades `SingerId` to child content (used on `/log`, `/my-songs`, `/my-performances`) |
 | `SingerProfileResolver` | Static helper: JWT claim → profile API fallback for singer ID |
 | `CatalogSongMapper` | Maps catalog songs to `LogSongPickItem` (used by Log loader and add-to-list panel) |
 | `CatalogSongPicker` | Syncfusion song combobox with ★/🎯 badges |

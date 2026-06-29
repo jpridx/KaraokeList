@@ -1,25 +1,12 @@
 @page "/my-songs"
-
 @attribute [Authorize]
-
-@inject IKaraokeApiClient Api
-
 @inject IMySongsLocalStore MySongsStore
-
 @inject IMySongsLoader MySongsLoader
-
 @inject NavigationManager Navigation
-
-@using KaraokeList.Shared
-
-
 
 <PageTitle>My Songs</PageTitle>
 
-
-
 <div class="mobile-page">
-
     <MobilePageHeader Title="My Songs">
         <Subtitle>Browse your lists. Tap for details, or <strong>Log</strong> to record a performance.</Subtitle>
     </MobilePageHeader>
@@ -29,304 +16,169 @@
         <div class="alert alert-success small mb-0 mt-3" role="status">@addSongMessage</div>
     }
 
-
-
-    @if (isLoading)
-
-    {
-
-        <p class="mt-3">Loading...</p>
-
-    }
-
-    else
-
-    {
-
-        <SingerLinkPanel Visible="needsSingerLink" OnLinked="OnSingerLinkedAsync" />
-
-
-
-        @if (!needsSingerLink)
-
-        {
-
-            <OfflineCacheNotice UsingOffline="usingOfflineLists"
-                                HasCachedData="hasCachedLists"
-                                CachedAt="listsCachedAt"
-                                ResourceName="lists"
-                                RefreshHint="Connect to refresh or edit lists.">
-                <UnavailableContent>
-                    Lists aren't available offline yet. Open My Songs once while online to cache them.
-                </UnavailableContent>
-            </OfflineCacheNotice>
-
-            <div class="mobile-toolbar">
-
-                <label class="form-label small text-muted mb-1">List</label>
-
-                <div class="genre-chips">
-
-                    @foreach (var list in singerLists)
-
-                    {
-
-                        <button type="button" class="genre-chip @(listKind == list.Kind ? "active" : "")"
-
-                                @onclick="() => SetListKindAsync(list.Kind)">@list.DisplayName</button>
-
-                    }
-
-                </div>
-
-            </div>
-
-            @if (SupportsCatalogAdd && !usingOfflineLists && CurrentList is not null)
+    <SingerProfileGate @ref="singerGate" OnResolved="LoadListsAsync">
+        <ChildContent Context="_">
+            @if (isLoading)
             {
-                <div class="mobile-toolbar">
-                    <AddSongToListPanel @ref="addSongPanel" @key="listKind"
-                                        ListId="CurrentList.Id" ListDisplayName="@CurrentList.DisplayName"
-                                        OnSongAdded="OnSongAddedToListAsync" />
-                </div>
+                <p class="mt-3">Loading...</p>
             }
-
-            <div class="mobile-toolbar">
-
-                <input class="form-control" placeholder="Search title or artist"
-
-                       @bind="searchText" @bind:event="oninput" @bind:after="RefreshDisplayList" />
-
-                @if (displaySongs.Count > 0)
-
-                {
-
-                    <p class="small text-muted mb-0 mt-2">@displaySongs.Count song@(displaySongs.Count == 1 ? "" : "s")</p>
-
-                }
-
-            </div>
-
-
-
-            <div class="mobile-toolbar">
-
-                <label class="form-label small text-muted mb-1">Sort</label>
-
-                <select class="form-select" @bind="sortBy" @bind:after="ReloadAsync">
-
-                    <option value="lastPerformed">Last performed</option>
-
-                    <option value="title">Song title</option>
-
-                    <option value="artist">Artist</option>
-
-                    <option value="genre">Genre</option>
-
-                </select>
-
-                <button type="button" class="btn btn-outline-secondary btn-sm mt-2"
-
-                        @onclick="ToggleSortDirAsync" title="Toggle sort direction">
-
-                    @(sortDir == "desc" ? "↓ Newest / Z–A" : "↑ Oldest / A–Z")
-
-                </button>
-
-            </div>
-
-
-
-            <div class="mobile-toolbar">
-
-                <button type="button" class="btn btn-link btn-sm ps-0" @onclick="ToggleGenreFiltersAsync">
-
-                    @(showGenreFilters ? "Hide genre filters" : "Show genre filters")
-
-                </button>
-
-            </div>
-
-
-
-            @if (showGenreFilters)
-
-            {
-
-                <div class="mobile-toolbar">
-
-                    <label class="form-label small text-muted mb-1">Genre</label>
-
-                    <div class="genre-chips">
-
-                        <button type="button" class="genre-chip @(filterGenreId is null ? "active" : "")"
-
-                                @onclick="() => SetGenreFilterAsync(null)">All</button>
-
-                        @foreach (var genre in filterGenres)
-
-                        {
-
-                            <button type="button" class="genre-chip @(filterGenreId == genre.Id ? "active" : "")"
-
-                                    @onclick="() => SetGenreFilterAsync(genre.Id)">@genre.GenreName</button>
-
-                        }
-
-                    </div>
-
-                    <div class="form-check mt-2">
-
-                        <input class="form-check-input" type="checkbox" id="groupByGenre"
-
-                               @bind="groupByGenre" @bind:after="ResetGroupedPaging" />
-
-                        <label class="form-check-label" for="groupByGenre">Group by genre</label>
-
-                    </div>
-
-                </div>
-
-            }
-
-
-
-            @if (!string.IsNullOrEmpty(loadError))
-
-            {
-
-                <p class="text-danger">@loadError</p>
-
-            }
-
-            else if (!FilteredSongs.Any())
-
-            {
-
-                <div class="empty-state">
-
-                    @if (!string.IsNullOrWhiteSpace(searchText))
-
-                    {
-
-                        <p>No songs match your search.</p>
-
-                    }
-
-                    else
-
-                    {
-
-                        <p>@EmptyListMessage</p>
-                        @if (SupportsCatalogAdd && !usingOfflineLists)
-                        {
-                            <div class="d-flex flex-wrap gap-2 mt-2">
-                                <button type="button" class="btn btn-outline-primary btn-sm" @onclick="OpenAddFromCatalogAsync">
-                                    + Add from catalog
-                                </button>
-                                <button type="button" class="btn btn-outline-primary btn-sm" @onclick="OpenAddNewSongAsync">
-                                    + New song
-                                </button>
-                            </div>
-                        }
-
-                    }
-
-                </div>
-
-            }
-
-            else if (groupByGenre)
-
-            {
-
-                @foreach (var group in VisibleGroupedSongs)
-
-                {
-
-                    <h2 class="repertoire-group-heading">@group.Key</h2>
-
-                    @foreach (var song in group.Songs)
-
-                    {
-
-                        <SongListItem Song="song" OnHistory="GoToHistoryAsync" OnLog="GoToLogAsync" />
-
-                    }
-
-                }
-
-                @if (HasMoreGroupedSongs)
-
-                {
-
-                    <button type="button" class="btn btn-outline-primary w-100 mt-2" @onclick="LoadMoreGroupedSongs">
-
-                        Load more (@VisibleGroupedSongCount of @displaySongs.Count)
-
-                    </button>
-
-                }
-
-            }
-
             else
-
             {
+                <OfflineCacheNotice UsingOffline="usingOfflineLists"
+                                    HasCachedData="hasCachedLists"
+                                    CachedAt="listsCachedAt"
+                                    ResourceName="lists"
+                                    RefreshHint="Connect to refresh or edit lists.">
+                    <UnavailableContent>
+                        Lists aren't available offline yet. Open My Songs once while online to cache them.
+                    </UnavailableContent>
+                </OfflineCacheNotice>
 
-                <Virtualize TItem="RepertoireSongDto" Items="displaySongs" ItemSize="88" OverscanCount="6">
+                <div class="mobile-toolbar">
+                    <label class="form-label small text-muted mb-1">List</label>
+                    <div class="genre-chips">
+                        @foreach (var list in singerLists)
+                        {
+                            <button type="button" class="genre-chip @(listKind == list.Kind ? "active" : "")"
+                                    @onclick="() => SetListKindAsync(list.Kind)">@list.DisplayName</button>
+                        }
+                    </div>
+                </div>
 
-                    <SongListItem Song="context" OnHistory="GoToHistoryAsync" OnLog="GoToLogAsync" />
+                @if (SupportsCatalogAdd && !usingOfflineLists && CurrentList is not null)
+                {
+                    <div class="mobile-toolbar">
+                        <AddSongToListPanel @ref="addSongPanel" @key="listKind"
+                                            ListId="CurrentList.Id" ListDisplayName="@CurrentList.DisplayName"
+                                            OnSongAdded="OnSongAddedToListAsync" />
+                    </div>
+                }
 
-                </Virtualize>
+                <div class="mobile-toolbar">
+                    <input class="form-control" placeholder="Search title or artist"
+                           @bind="searchText" @bind:event="oninput" @bind:after="RefreshDisplayList" />
+                    @if (displaySongs.Count > 0)
+                    {
+                        <p class="small text-muted mb-0 mt-2">@displaySongs.Count song@(displaySongs.Count == 1 ? "" : "s")</p>
+                    }
+                </div>
 
+                <div class="mobile-toolbar">
+                    <label class="form-label small text-muted mb-1">Sort</label>
+                    <select class="form-select" @bind="sortBy" @bind:after="ReloadListsAsync">
+                        <option value="lastPerformed">Last performed</option>
+                        <option value="title">Song title</option>
+                        <option value="artist">Artist</option>
+                        <option value="genre">Genre</option>
+                    </select>
+                    <button type="button" class="btn btn-outline-secondary btn-sm mt-2"
+                            @onclick="ToggleSortDirAsync" title="Toggle sort direction">
+                        @(sortDir == "desc" ? "↓ Newest / Z–A" : "↑ Oldest / A–Z")
+                    </button>
+                </div>
+
+                <div class="mobile-toolbar">
+                    <button type="button" class="btn btn-link btn-sm ps-0" @onclick="ToggleGenreFiltersAsync">
+                        @(showGenreFilters ? "Hide genre filters" : "Show genre filters")
+                    </button>
+                </div>
+
+                @if (showGenreFilters)
+                {
+                    <div class="mobile-toolbar">
+                        <label class="form-label small text-muted mb-1">Genre</label>
+                        <div class="genre-chips">
+                            <button type="button" class="genre-chip @(filterGenreId is null ? "active" : "")"
+                                    @onclick="() => SetGenreFilterAsync(null)">All</button>
+                            @foreach (var genre in filterGenres)
+                            {
+                                <button type="button" class="genre-chip @(filterGenreId == genre.Id ? "active" : "")"
+                                        @onclick="() => SetGenreFilterAsync(genre.Id)">@genre.GenreName</button>
+                            }
+                        </div>
+                        <div class="form-check mt-2">
+                            <input class="form-check-input" type="checkbox" id="groupByGenre"
+                                   @bind="groupByGenre" @bind:after="ResetGroupedPaging" />
+                            <label class="form-check-label" for="groupByGenre">Group by genre</label>
+                        </div>
+                    </div>
+                }
+
+                @if (!string.IsNullOrEmpty(loadError))
+                {
+                    <p class="text-danger">@loadError</p>
+                }
+                else if (!FilteredSongs.Any())
+                {
+                    <div class="empty-state">
+                        @if (!string.IsNullOrWhiteSpace(searchText))
+                        {
+                            <p>No songs match your search.</p>
+                        }
+                        else
+                        {
+                            <p>@EmptyListMessage</p>
+                            @if (SupportsCatalogAdd && !usingOfflineLists)
+                            {
+                                <div class="d-flex flex-wrap gap-2 mt-2">
+                                    <button type="button" class="btn btn-outline-primary btn-sm" @onclick="OpenAddFromCatalogAsync">
+                                        + Add from catalog
+                                    </button>
+                                    <button type="button" class="btn btn-outline-primary btn-sm" @onclick="OpenAddNewSongAsync">
+                                        + New song
+                                    </button>
+                                </div>
+                            }
+                        }
+                    </div>
+                }
+                else if (groupByGenre)
+                {
+                    @foreach (var group in VisibleGroupedSongs)
+                    {
+                        <h2 class="repertoire-group-heading">@group.Key</h2>
+                        @foreach (var song in group.Songs)
+                        {
+                            <SongListItem Song="song" OnHistory="GoToHistoryAsync" OnLog="GoToLogAsync" />
+                        }
+                    }
+                    @if (HasMoreGroupedSongs)
+                    {
+                        <button type="button" class="btn btn-outline-primary w-100 mt-2" @onclick="LoadMoreGroupedSongs">
+                            Load more (@VisibleGroupedSongCount of @displaySongs.Count)
+                        </button>
+                    }
+                }
+                else
+                {
+                    <Virtualize TItem="RepertoireSongDto" Items="displaySongs" ItemSize="88" OverscanCount="6">
+                        <SongListItem Song="context" OnHistory="GoToHistoryAsync" OnLog="GoToLogAsync" />
+                    </Virtualize>
+                }
             }
-
-        }
-
-    }
-
+        </ChildContent>
+    </SingerProfileGate>
 </div>
 
-
-
 @code {
-
+    private SingerProfileGate? singerGate;
     private bool isLoading = true;
-
-    private bool needsSingerLink;
-
     private bool usingOfflineLists;
-
     private bool hasCachedLists;
-
     private DateTime? listsCachedAt;
-
     private string? loadError;
-
     private List<RepertoireSongDto> songs = [];
-
     private List<SingerListDto> singerLists = [];
-
     private List<GenreDto> filterGenres = [];
-
     private string searchText = string.Empty;
-
     private string sortBy = "lastPerformed";
-
     private string sortDir = "desc";
-
     private int? filterGenreId;
-
     private bool groupByGenre;
-
     private bool showGenreFilters;
-
     private SingerListKind listKind = SingerListKind.MyRepertoire;
-
     private List<RepertoireSongDto> displaySongs = [];
-
     private int visibleGroupedLimit = PageSize;
-
     private AddSongToListPanel? addSongPanel;
     private string? addSongMessage;
 
@@ -338,321 +190,157 @@
     private SingerListDto? CurrentList =>
         singerLists.FirstOrDefault(l => l.Kind == listKind);
 
-
-
     private IEnumerable<RepertoireSongDto> FilteredSongs =>
-
         RepertoireSearch.Filter(songs, searchText);
 
-
-
     private string EmptyListMessage => listKind switch
-
     {
-
         SingerListKind.WantToSing => "No songs on your want-to-sing list yet.",
-
         SingerListKind.WorkingUp => "No songs on your working-up list yet.",
-
         _ => "No songs on your repertoire yet."
-
     };
 
-
-
     private IEnumerable<IGrouping<string, RepertoireSongDto>> GroupedSongs =>
-
         displaySongs.GroupBy(s => string.IsNullOrWhiteSpace(s.GenreName) ? "(No genre)" : s.GenreName)
-
             .OrderBy(g => g.Key);
 
-
-
     private IReadOnlyList<GroupedSongSection> VisibleGroupedSongs
-
     {
-
         get
-
         {
-
             var sections = new List<GroupedSongSection>();
-
             var remaining = visibleGroupedLimit;
 
-
-
             foreach (var group in GroupedSongs)
-
             {
-
                 if (remaining <= 0)
-
                 {
-
                     break;
-
                 }
-
-
 
                 var groupSongs = group.Take(remaining).ToList();
-
                 if (groupSongs.Count == 0)
-
                 {
-
                     continue;
-
                 }
 
-
-
                 sections.Add(new GroupedSongSection(group.Key, groupSongs));
-
                 remaining -= groupSongs.Count;
-
             }
 
-
-
             return sections;
-
         }
-
     }
-
-
 
     private int VisibleGroupedSongCount => VisibleGroupedSongs.Sum(g => g.Songs.Count);
 
-
-
     private bool HasMoreGroupedSongs => VisibleGroupedSongCount < displaySongs.Count;
 
-
-
     protected override async Task OnInitializedAsync()
-
     {
-
         showGenreFilters = await MySongsStore.GetShowGenreFiltersAsync();
-
         listKind = await MySongsStore.GetListKindAsync();
-
-        await ReloadAsync();
-
     }
 
+    private Task LoadListsAsync(int singerId) => ReloadListsAsync();
 
-
-    private async Task OnSingerLinkedAsync(int? singerId)
-
+    private async Task ReloadListsAsync()
     {
-
-        needsSingerLink = false;
-
-        await ReloadAsync();
-
-    }
-
-
-
-    private async Task ReloadAsync()
-
-    {
-
         isLoading = true;
-
         loadError = null;
-
         usingOfflineLists = false;
-
         hasCachedLists = false;
-
         listsCachedAt = null;
 
-
-
         var result = await MySongsLoader.LoadAsync(listKind, sortBy, sortDir, filterGenreId);
-
         usingOfflineLists = result.FromCache;
-
         hasCachedLists = result.HasCache;
-
         listsCachedAt = result.CachedAtUtc;
 
-
-
         if (result.NeedsSingerLink)
-
         {
-
-            needsSingerLink = true;
-
             loadError = result.ErrorMessage;
-
+            singerGate?.RequireSingerLink();
             isLoading = false;
-
             return;
-
         }
-
-
 
         if (!string.IsNullOrEmpty(result.ErrorMessage))
-
         {
-
             loadError = result.ErrorMessage;
-
             isLoading = false;
-
             return;
-
         }
-
-
 
         singerLists = result.Lists.ToList();
-
         var selectedList = singerLists.FirstOrDefault(l => l.Kind == listKind)
-
             ?? singerLists.FirstOrDefault(l => l.Kind == SingerListKind.MyRepertoire);
-
         if (selectedList is null)
-
         {
-
             loadError = "Could not load your singer lists.";
-
             isLoading = false;
-
             return;
-
         }
-
-
 
         listKind = selectedList.Kind;
-
         songs = result.Songs.ToList();
 
-        needsSingerLink = false;
-
-
-
         if (filterGenreId is null)
-
         {
-
             filterGenres = result.FilterGenres.ToList();
-
         }
 
-
-
         RefreshDisplayList();
-
         isLoading = false;
-
     }
-
-
 
     private void RefreshDisplayList()
-
     {
-
         displaySongs = FilteredSongs.ToList();
-
         visibleGroupedLimit = PageSize;
-
     }
-
-
 
     private void LoadMoreGroupedSongs() => visibleGroupedLimit += PageSize;
 
-
-
     private void ResetGroupedPaging() => visibleGroupedLimit = PageSize;
 
-
-
     private async Task ToggleGenreFiltersAsync()
-
     {
-
         showGenreFilters = !showGenreFilters;
-
         await MySongsStore.SetShowGenreFiltersAsync(showGenreFilters);
-
     }
-
-
 
     private async Task ToggleSortDirAsync()
-
     {
-
         sortDir = sortDir == "desc" ? "asc" : "desc";
-
-        await ReloadAsync();
-
+        await ReloadListsAsync();
     }
-
-
 
     private async Task SetGenreFilterAsync(int? genreId)
-
     {
-
         filterGenreId = genreId;
-
-        await ReloadAsync();
-
+        await ReloadListsAsync();
     }
 
-
-
     private async Task SetListKindAsync(SingerListKind newKind)
-
     {
-
         if (listKind == newKind)
-
         {
-
             return;
-
         }
-
-
 
         listKind = newKind;
         addSongMessage = null;
-
         await MySongsStore.SetListKindAsync(newKind);
-
-        await ReloadAsync();
-
+        await ReloadListsAsync();
     }
-
-
 
     private sealed record GroupedSongSection(string Key, IReadOnlyList<RepertoireSongDto> Songs);
 
-
-
     private void GoToHistoryAsync(RepertoireSongDto song) =>
-
         Navigation.NavigateTo($"my-songs/{song.SongId}");
 
-
-
     private void GoToLogAsync(RepertoireSongDto song) =>
-
         Navigation.NavigateTo($"log?songId={song.SongId}");
 
     private Task OpenAddFromCatalogAsync() =>
@@ -663,8 +351,6 @@
     private async Task OnSongAddedToListAsync(SongAddedToListEventArgs args)
     {
         addSongMessage = args.Message;
-        await ReloadAsync();
+        await ReloadListsAsync();
     }
-
 }
-
