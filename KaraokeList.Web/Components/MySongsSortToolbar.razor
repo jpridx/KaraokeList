@@ -7,7 +7,7 @@
         <option value="genre">Genre</option>
     </select>
     <SortDirectionToggle Label="@(SortDir == "desc" ? "↓ Newest / Z–A" : "↑ Oldest / A–Z")"
-                         OnClick="OnToggleSortDir"
+                         OnClick="@OnToggleSortDir"
                          CssClass="mt-2" />
 </div>
 

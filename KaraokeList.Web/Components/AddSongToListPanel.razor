@@ -20,7 +20,7 @@
         }
         else
         {
-            <CatalogSongPicker Items="catalogPickerItems" @bind-SelectedSongId="selectedSongId" />
+            <CatalogSongPicker Items="@catalogPickerItems" @bind-SelectedSongId="selectedSongId" />
             @if (!string.IsNullOrEmpty(localError))
             {
                 <p class="small text-danger mt-2 mb-0">@localError</p>

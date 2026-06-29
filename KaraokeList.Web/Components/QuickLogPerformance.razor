@@ -55,13 +55,13 @@
 
 @if (ShowCoPerformersEditor)
 {
-    <CoPerformersEditor PrimarySingerId="SingerId ?? 0" @bind-OtherPerformers="localOtherPerformers" />
+    <CoPerformersEditor PrimarySingerId="@(SingerId ?? 0)" @bind-OtherPerformers="localOtherPerformers" />
 }
 
 @if (ShowHostMessagePanel)
 {
     <HostMessagePanel Title="@Title" ArtistName="@ArtistName"
-                      KeyChangeSemitones="ActiveKeyChangeSemitones" ShowKeyPicker="false"
+                      KeyChangeSemitones="@ActiveKeyChangeSemitones" ShowKeyPicker="false"
                       CoPerformerNames="@coPerformerNames" />
 }
 

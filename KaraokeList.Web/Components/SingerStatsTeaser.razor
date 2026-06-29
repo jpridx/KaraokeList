@@ -3,7 +3,7 @@
 @if (!loading && stats is { TotalPerformances: > 0 })
 {
     <section class="singer-stats-teaser mobile-panel mt-3" aria-label="Stats summary">
-        <SingerStatsDisplay Stats="stats" HeaderClass="h6" />
+        <SingerStatsDisplay Stats="@stats" HeaderClass="h6" />
 
         <p class="mb-0 mt-3">
             <a class="btn btn-sm btn-outline-primary" href="my-stats">View all stats</a>

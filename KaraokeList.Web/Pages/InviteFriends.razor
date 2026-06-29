@@ -10,7 +10,7 @@
         <Subtitle>Copy a registration link or message for text or email.</Subtitle>
     </MobilePageHeader>
 
-    <MobileLoadingState IsLoading="loading" CssClass="text-muted mt-3">
+    <MobileLoadingState IsLoading="@loading" CssClass="text-muted mt-3">
         @if (content.Share is null)
         {
             <StatusAlerts ErrorMessage="Could not load invite settings. Is the API running?" />
