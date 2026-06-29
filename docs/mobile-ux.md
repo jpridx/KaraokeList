@@ -181,6 +181,9 @@ Implemented in `ShowHostMessageFormatting` (`KaraokeList.Shared`). Shown on Log 
 | `LoadMoreButton` | Shared paging footer for mobile browse lists |
 | `SongLinkList` | Song title/meta link rows (used by stale-songs section) |
 | `PerformanceEditOperations` | Shared update/delete helpers for performance list editors |
+| `SingerListResolver` | Find singer list by kind; load lists from API |
+| `SingerListActions` | Add/remove song on want-to-sing or working-up lists |
+| `AddToWorkingUpButton` | Log page shortcut to add selected song to working up |
 
 ## Invite friends
 

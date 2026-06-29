@@ -1,0 +1,71 @@
+@inject IKaraokeApiClient Api
+
+@if (Visible)
+{
+    <button type="button" class="btn btn-outline-secondary btn-sm mt-2" disabled="@isAdding"
+            @onclick="AddAsync">
+        Add to working up
+    </button>
+    @if (!string.IsNullOrEmpty(successMessage))
+    {
+        <p class="small text-success mt-1 mb-0">@successMessage</p>
+    }
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <p class="small text-danger mt-1 mb-0">@errorMessage</p>
+    }
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public int SongId { get; set; }
+
+    [Parameter]
+    public IReadOnlyList<SingerListDto> SingerLists { get; set; } = [];
+
+    [Parameter]
+    public bool AlreadyOnWorkingUp { get; set; }
+
+    [Parameter]
+    public EventCallback OnAdded { get; set; }
+
+    private bool isAdding;
+    private string? successMessage;
+    private string? errorMessage;
+
+    private bool Visible => !AlreadyOnWorkingUp && SingerLists.Count > 0;
+
+    protected override void OnParametersSet()
+    {
+        if (AlreadyOnWorkingUp)
+        {
+            successMessage = null;
+            errorMessage = null;
+        }
+    }
+
+    private async Task AddAsync()
+    {
+        isAdding = true;
+        errorMessage = null;
+        successMessage = null;
+
+        var result = await SingerListActions.AddSongAsync(
+            Api,
+            SingerLists,
+            SingerListKind.WorkingUp,
+            SongId);
+
+        if (result.Succeeded)
+        {
+            successMessage = result.SuccessMessage;
+            await OnAdded.InvokeAsync();
+        }
+        else
+        {
+            errorMessage = result.ErrorMessage;
+        }
+
+        isAdding = false;
+    }
+}

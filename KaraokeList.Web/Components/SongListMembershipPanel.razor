@@ -91,7 +91,7 @@
         statusMessage = null;
         errorMessage = null;
 
-        var listsResult = await Api.GetMyListsAsync();
+        var listsResult = await SingerListResolver.LoadListsAsync(Api);
         if (!listsResult.Succeeded)
         {
             errorMessage = listsResult.ErrorMessage;
@@ -116,18 +116,11 @@
 
     private async Task AddToListAsync(SingerListKind kind)
     {
-        var list = singerLists.FirstOrDefault(l => l.Kind == kind);
-        if (list is null)
-        {
-            errorMessage = "List was not found.";
-            return;
-        }
-
         isBusy = true;
         errorMessage = null;
         statusMessage = null;
 
-        var result = await Api.AddListSongAsync(list.Id, SongId);
+        var result = await SingerListActions.AddSongAsync(Api, singerLists, kind, SongId);
         if (!result.Succeeded)
         {
             errorMessage = result.ErrorMessage;
@@ -135,7 +128,7 @@
             return;
         }
 
-        statusMessage = $"Added to {SingerListKindNames.DisplayName(kind).ToLowerInvariant()}.";
+        statusMessage = result.SuccessMessage;
         await LoadAsync();
         await OnMembershipChanged.InvokeAsync();
         isBusy = false;
@@ -143,18 +136,11 @@
 
     private async Task RemoveFromListAsync(SingerListKind kind)
     {
-        var list = singerLists.FirstOrDefault(l => l.Kind == kind);
-        if (list is null)
-        {
-            errorMessage = "List was not found.";
-            return;
-        }
-
         isBusy = true;
         errorMessage = null;
         statusMessage = null;
 
-        var result = await Api.RemoveListSongAsync(list.Id, SongId);
+        var result = await SingerListActions.RemoveSongAsync(Api, singerLists, kind, SongId);
         if (!result.Succeeded)
         {
             errorMessage = result.ErrorMessage;
@@ -162,7 +148,7 @@
             return;
         }
 
-        statusMessage = $"Removed from {SingerListKindNames.DisplayName(kind).ToLowerInvariant()}.";
+        statusMessage = result.SuccessMessage;
         await LoadAsync();
         await OnMembershipChanged.InvokeAsync();
         isBusy = false;
