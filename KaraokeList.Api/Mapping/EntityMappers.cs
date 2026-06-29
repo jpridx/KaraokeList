@@ -134,17 +134,13 @@ public static class EntityMappers
             ArtistName = song.ArtistName,
             LastPerformedOn = lastPerformed,
             PerformanceCount = song.PerformanceCount,
-            DaysSinceLastPerformed = lastPerformed is DateTime performed
-                ? Math.Max(0, (today - performed).Days)
-                : 0
+            DaysSinceLastPerformed = PerformanceRelativeDate.DaysSince(lastPerformed, today) ?? 0
         };
     }
 
     public static SingerStatsDto ToDto(this SingerStats stats, DateTime today)
     {
-        int? daysSince = stats.LastPerformedOn is DateTime last
-            ? Math.Max(0, (today - last.Date).Days)
-            : null;
+        int? daysSince = PerformanceRelativeDate.DaysSince(stats.LastPerformedOn, today);
 
         return new SingerStatsDto
         {

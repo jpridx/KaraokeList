@@ -19,12 +19,13 @@
     private bool loading = true;
     private int staleAfterDays = TicklerSettingsLimits.DefaultStaleAfterDays;
     private List<StaleSongDto> songs = [];
+    private readonly DateTime localToday = DateTime.Today;
 
     private IReadOnlyList<SongLinkItem> linkItems =>
         songs.Select(song =>
         {
             var meta = song.LastPerformedOn is DateTime lastPerformed
-                ? $"Last {lastPerformed:MMM d, yyyy} · {FormatDaysSince(song.DaysSinceLastPerformed)}{(song.PerformanceCount > 1 ? $" · {song.PerformanceCount} times" : string.Empty)}"
+                ? $"Last {lastPerformed:MMM d, yyyy} · {PerformanceRelativeDate.FormatDaysSince(PerformanceRelativeDate.DaysSince(lastPerformed, localToday) ?? 0)}{(song.PerformanceCount > 1 ? $" · {song.PerformanceCount} times" : string.Empty)}"
                 : "Never performed";
 
             return new SongLinkItem(
@@ -45,6 +46,4 @@
         loading = false;
     }
 
-    private static string FormatDaysSince(int days) =>
-        days == 1 ? "1 day ago" : $"{days} days ago";
 }

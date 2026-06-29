@@ -36,7 +36,7 @@
         @if (Stats.LastPerformedOn is DateTime lastPerformed)
         {
             <p class="singer-stats-last small text-muted mb-0 mt-3">
-                Last sang @FormatLastPerformance(lastPerformed, Stats.DaysSinceLastPerformance, Stats.LastVenueName)
+                Last sang @PerformanceRelativeDate.FormatLastSang(lastPerformed, localToday, Stats.LastVenueName)
             </p>
         }
 
@@ -131,18 +131,5 @@
     [Parameter]
     public string CssClass { get; set; } = string.Empty;
 
-    private static string FormatLastPerformance(DateTime date, int? daysSince, string? venueName)
-    {
-        var when = daysSince switch
-        {
-            0 => "today",
-            1 => "yesterday",
-            int d => $"{d} days ago",
-            _ => date.ToString("MMM d, yyyy")
-        };
-
-        return string.IsNullOrWhiteSpace(venueName)
-            ? $"{when} ({date:M/d/yyyy})"
-            : $"{when} at {venueName} ({date:M/d/yyyy})";
-    }
+    private readonly DateTime localToday = DateTime.Today;
 }

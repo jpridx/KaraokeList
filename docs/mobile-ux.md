@@ -206,9 +206,9 @@ See [Performances.md](Performances.md) for schema and endpoints. Key calls:
 - `GET api/performances/my-repertoire` — My Songs list
 - `GET api/performances/my-history` — mobile performance browse
 - `GET api/performances/my-song-summary?songId=` — defaults + history
-- `GET api/performances/my-stale-songs` — random sample of songs not performed recently (uses saved tickler settings; optional `days` / `limit` overrides)
+- `GET api/performances/my-stale-songs` — random sample of songs not performed recently (uses saved tickler settings; optional `days` / `limit` / `asOfDate=yyyy-MM-dd`)
+- `GET api/performances/my-stats?topVenues=&topSongs=&topArtists=&newRepertoireDays=` — singer totals, recency, ranked lists (0 = omit a section; optional `asOfDate=yyyy-MM-dd`; WASM sends browser-local today)
 - `GET api/auth/tickler-settings`, `PUT api/auth/tickler-settings` — per-user stale-song days and limit
-- `GET api/performances/my-stats?topVenues=&topSongs=&topArtists=&newRepertoireDays=` — singer totals, recency, ranked lists (0 = omit a section)
 - `POST api/performances` — save (singer from JWT if omitted)
 - `GET api/auth/me` — singer link status
 - `GET api/auth/invite-share` — invite link/message payload for signed-in users (when invite-only registration is configured)

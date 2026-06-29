@@ -27,6 +27,7 @@ public sealed class StaleSongsSectionTests : AuthPageTestContext
     [Fact]
     public void Shows_stale_songs_with_log_links()
     {
+        var lastOn = new DateTime(2024, 1, 15);
         Api.Setup(client => client.GetMyStaleSongsAsync(null, null))
             .ReturnsAsync(StaleSongsResult.Ok(new StaleSongsResponseDto
             {
@@ -38,21 +39,25 @@ public sealed class StaleSongsSectionTests : AuthPageTestContext
                         SongId = 42,
                         Title = "Footloose",
                         ArtistName = "Kenny Loggins",
-                        LastPerformedOn = new DateTime(2024, 1, 15),
+                        LastPerformedOn = lastOn,
                         PerformanceCount = 3,
-                        DaysSinceLastPerformed = 120
+                        DaysSinceLastPerformed = 999
                     }
                 ]
             }));
 
         var cut = RenderComponent<StaleSongsSection>();
 
+        var expectedDays = PerformanceRelativeDate.FormatDaysSince(
+            PerformanceRelativeDate.DaysSince(lastOn, DateTime.Today) ?? 0);
+
         cut.WaitForAssertion(() =>
         {
             Assert.Contains("Haven't sung in a while", cut.Markup);
             Assert.Contains("Footloose", cut.Markup);
             Assert.Contains("href=\"log?songId=42\"", cut.Markup);
-            Assert.Contains("120 days ago", cut.Markup);
+            Assert.Contains(expectedDays, cut.Markup);
+            Assert.DoesNotContain("999 days ago", cut.Markup);
         });
     }
 

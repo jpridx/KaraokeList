@@ -18,7 +18,7 @@
             <MobileLoadingState IsLoading="isLoading">
                 @if (!string.IsNullOrEmpty(loadError))
                 {
-                    <StatusAlerts ErrorMessage="loadError" InlineError="true" />
+                    <StatusAlerts ErrorMessage="@loadError" InlineError="true" />
                 }
                 else if (summary is null || songMeta is null)
                 {

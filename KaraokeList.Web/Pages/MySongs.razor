@@ -11,7 +11,7 @@
         <Subtitle>Browse your lists. Tap for details, or <strong>Log</strong> to record a performance.</Subtitle>
     </MobilePageHeader>
 
-    <StatusAlerts SuccessMessage="addSongMessage" Small="true" CssClass="mb-0 mt-3" />
+    <StatusAlerts SuccessMessage="@addSongMessage" Small="true" CssClass="mb-0 mt-3" />
 
     <SingerProfileGate @ref="singerGate" OnResolved="LoadListsAsync">
         <ChildContent Context="singerId">
@@ -74,7 +74,7 @@
                     </ChipFilterBar>
                 }
 
-                <StatusAlerts ErrorMessage="loadError" />
+                <StatusAlerts ErrorMessage="@loadError" />
 
                 @if (string.IsNullOrEmpty(loadError) && !FilteredSongs.Any())
                 {

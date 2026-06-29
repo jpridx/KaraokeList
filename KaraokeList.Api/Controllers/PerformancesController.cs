@@ -110,12 +110,18 @@ public class PerformancesController(
     [HttpGet("my-stale-songs")]
     public async Task<ActionResult<StaleSongsResponseDto>> GetMyStaleSongs(
         [FromQuery] int? days = null,
-        [FromQuery] int? limit = null)
+        [FromQuery] int? limit = null,
+        [FromQuery] string? asOfDate = null)
     {
         var singerId = await RequireSingerIdAsync();
         if (singerId.Result is not null)
         {
             return singerId.Result;
+        }
+
+        if (!PerformanceRelativeDate.TryParseAsOfDate(asOfDate, out var today))
+        {
+            return BadRequest(new ApiErrorResponse { Message = "Invalid asOfDate. Use yyyy-MM-dd." });
         }
 
         var user = await currentUserSinger.GetUserAsync(User);
@@ -125,8 +131,8 @@ public class PerformancesController(
             return BadRequest(new ApiErrorResponse { Message = error });
         }
 
-        var songs = await performanceService.GetStaleSongsAsync(singerId.Value!.Value, effectiveDays, effectiveLimit);
-        var today = DateTime.Today;
+        var songs = await performanceService.GetStaleSongsAsync(
+            singerId.Value!.Value, effectiveDays, effectiveLimit, today);
         return Ok(new StaleSongsResponseDto
         {
             StaleAfterDays = effectiveDays,
@@ -139,12 +145,18 @@ public class PerformancesController(
         [FromQuery] int topVenues = 3,
         [FromQuery] int topSongs = 0,
         [FromQuery] int topArtists = 0,
-        [FromQuery] int newRepertoireDays = 0)
+        [FromQuery] int newRepertoireDays = 0,
+        [FromQuery] string? asOfDate = null)
     {
         var singerId = await RequireSingerIdAsync();
         if (singerId.Result is not null)
         {
             return singerId.Result;
+        }
+
+        if (!PerformanceRelativeDate.TryParseAsOfDate(asOfDate, out var today))
+        {
+            return BadRequest(new ApiErrorResponse { Message = "Invalid asOfDate. Use yyyy-MM-dd." });
         }
 
         if (topVenues is < 0 or > 10)
@@ -172,8 +184,9 @@ public class PerformancesController(
             topVenues,
             topSongs,
             topArtists,
-            newRepertoireDays);
-        return Ok(stats.ToDto(DateTime.Today));
+            newRepertoireDays,
+            today);
+        return Ok(stats.ToDto(today));
     }
 
     [HttpPost]
