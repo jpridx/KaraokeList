@@ -1,0 +1,32 @@
+@foreach (var group in PagingView.Sections)
+{
+    <h2 class="repertoire-group-heading">@group.Key</h2>
+    @foreach (var song in group.Songs)
+    {
+        <SongListItem Song="song" OnHistory="OnHistory" OnLog="OnLog" />
+    }
+}
+@if (PagingView.HasMore)
+{
+    <LoadMoreButton Visible="PagingView.HasMore"
+                    VisibleCount="PagingView.VisibleCount"
+                    TotalCount="TotalCount"
+                    OnClick="OnLoadMore" />
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public GroupedPagingView PagingView { get; set; } = new([], 0, false);
+
+    [Parameter, EditorRequired]
+    public int TotalCount { get; set; }
+
+    [Parameter, EditorRequired]
+    public EventCallback OnLoadMore { get; set; }
+
+    [Parameter, EditorRequired]
+    public EventCallback<RepertoireSongDto> OnHistory { get; set; }
+
+    [Parameter, EditorRequired]
+    public EventCallback<RepertoireSongDto> OnLog { get; set; }
+}

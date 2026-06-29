@@ -1,0 +1,74 @@
+@inject IJSRuntime Js
+
+@if (Layout == InviteSharePanelLayout.Full)
+{
+    <StatusAlerts SuccessMessage="@copySuccessMessage" CssClass="mb-0" />
+
+    <section class="mobile-panel invite-share-panel mb-3 mt-3">
+        <label class="form-label">Registration link</label>
+        <p class="invite-share-text mb-2">@RegisterUrl</p>
+        <button type="button" class="btn btn-outline-primary w-100 mb-3" @onclick="() => CopyAsync(RegisterUrl!, CopyTarget.Link)">
+            @(copiedTarget == CopyTarget.Link ? "Copied!" : "Copy link")
+        </button>
+
+        <label class="form-label">Full message</label>
+        <p class="invite-share-text mb-2">@ShareMessage</p>
+        <button type="button" class="btn btn-primary w-100" @onclick="() => CopyAsync(ShareMessage!, CopyTarget.Message)">
+            @(copiedTarget == CopyTarget.Message ? "Copied!" : "Copy message")
+        </button>
+    </section>
+}
+else
+{
+    <button type="button" class="btn btn-sm btn-primary" @onclick="() => CopyAsync(RegisterUrl!, CopyTarget.Link)">
+        @(copiedTarget == CopyTarget.Link ? "Copied!" : "Copy link")
+    </button>
+    <a class="btn btn-sm btn-outline-primary" href="invite-friends">Invite friends</a>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public string RegisterUrl { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public string ShareMessage { get; set; } = string.Empty;
+
+    [Parameter]
+    public InviteSharePanelLayout Layout { get; set; } = InviteSharePanelLayout.Full;
+
+    private CopyTarget? copiedTarget;
+    private string? copySuccessMessage;
+
+    private async Task CopyAsync(string text, CopyTarget target)
+    {
+        try
+        {
+            await Js.InvokeVoidAsync("copyTextToClipboard", text);
+            copiedTarget = target;
+            if (Layout == InviteSharePanelLayout.Full)
+            {
+                copySuccessMessage = target == CopyTarget.Link ? "Link copied." : "Message copied.";
+            }
+
+            _ = ClearCopyFeedbackAsync();
+        }
+        catch
+        {
+            // Clipboard may fail without a secure context.
+        }
+    }
+
+    private async Task ClearCopyFeedbackAsync()
+    {
+        await Task.Delay(2000);
+        copiedTarget = null;
+        copySuccessMessage = null;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private enum CopyTarget
+    {
+        Link,
+        Message
+    }
+}

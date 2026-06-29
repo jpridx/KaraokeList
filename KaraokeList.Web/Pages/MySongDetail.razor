@@ -29,53 +29,33 @@
                 }
                 else
                 {
-                <SongPerformanceSummaryPanel Summary="summary" GenreName="@songMeta.GenreName" />
+                    <SongPerformanceSummaryPanel Summary="summary" GenreName="@songMeta.GenreName" />
 
-                <SongListMembershipPanel SongId="SongId" PerformanceCount="summary.PerformanceCount"
-                                         OnMembershipChanged="ReloadSongDetailAsync" />
+                    <SongListMembershipPanel SongId="SongId" PerformanceCount="summary.PerformanceCount"
+                                             OnMembershipChanged="ReloadSongDetailAsync" />
 
-                <TicklerExclusionPanel SongId="SongId" OnExclusionChanged="ReloadSongDetailAsync" />
+                    <TicklerExclusionPanel SongId="SongId" OnExclusionChanged="ReloadSongDetailAsync" />
 
-                @if (summary.PerformanceCount == 0)
-                {
-                    <div class="song-detail-empty-state mobile-panel">
-                        <p class="mb-0">Log your first performance below — venue, date, and key are saved for next time.</p>
-                    </div>
-
-                    <QuickLogPerformance SongId="SongId" Title="@songMeta.Title" ArtistName="@songMeta.ArtistName"
-                                         SingerId="singerId" SaveButtonText="Log performance"
-                                         OnPerformanceSaved="OnPerformanceSavedAsync" />
-                }
-                else
-                {
-                    <CoPerformersEditor PrimarySingerId="singerId" @bind-OtherPerformers="hostCoPerformers" />
-
-                    <HostMessagePanel Title="@songMeta.Title" ArtistName="@songMeta.ArtistName"
-                                      KeyChangeSemitones="hostKeyChangeSemitones" ShowKeyPicker="false"
-                                      CoPerformerNames="hostCoPerformerNames" />
-
-                    <details class="mobile-panel history-details mt-2" open>
-                        <summary class="history-details-summary">
-                            Performance history (@summary.PerformanceCount)
-                        </summary>
-                        <EditablePerformanceList SingerId="singerId"
-                                                 Variant="EditablePerformanceListVariant.History"
-                                                 Entries="historyEntries"
-                                                 OnChanged="OnHistoryChangedAsync" />
-                    </details>
-
-                    <details class="mobile-panel log-again-details mt-2">
-                        <summary class="history-details-summary">Log again</summary>
-                        <div class="log-again-form mt-2">
-                            <QuickLogPerformance SongId="SongId" Title="@songMeta.Title" ArtistName="@songMeta.ArtistName"
-                                                 SingerId="singerId" SaveButtonText="Log again"
-                                                 OtherPerformers="hostCoPerformers" ShowCoPerformersEditor="false"
-                                                 ShowHostMessagePanel="false"
-                                                 @bind-KeyChangeSemitones="hostKeyChangeSemitones"
-                                                 OnPerformanceSaved="OnPerformanceSavedAsync" />
-                        </div>
-                    </details>
-                }
+                    @if (summary.PerformanceCount == 0)
+                    {
+                        <MobileEmptyState Message="Log your first performance below — venue, date, and key are saved for next time."
+                                          CssClass="song-detail-empty-state mobile-panel"
+                                          MessageClass="mb-0" />
+                        <SongDetailFirstLog SongId="SongId" Title="@songMeta.Title" ArtistName="@songMeta.ArtistName"
+                                            SingerId="singerId" OnPerformanceSaved="OnPerformanceSavedAsync" />
+                    }
+                    else
+                    {
+                        <SongDetailWithHistory SongId="SongId" SingerId="singerId"
+                                               Title="@songMeta.Title" ArtistName="@songMeta.ArtistName"
+                                               PerformanceCount="summary.PerformanceCount"
+                                               HistoryEntries="historyEntries"
+                                               CoPerformerNames="hostCoPerformerNames"
+                                               @bind-OtherPerformers="hostCoPerformers"
+                                               @bind-KeyChangeSemitones="hostKeyChangeSemitones"
+                                               OnHistoryChanged="OnHistoryChangedAsync"
+                                               OnPerformanceSaved="OnPerformanceSavedAsync" />
+                    }
                 }
             </MobileLoadingState>
         </ChildContent>

@@ -14,9 +14,9 @@
     <SingerProfileGate OnResolved="LoadCatalogAsync">
         <ChildContent Context="singerId">
             <MobileLoadingState IsLoading="isLoading">
-                <OfflineCacheNotice UsingOffline="usingOfflineCatalog"
-                                    HasCachedData="hasCachedCatalog"
-                                    CachedAt="catalogCachedAt"
+                <OfflineCacheNotice UsingOffline="catalogState.UsingOfflineCatalog"
+                                    HasCachedData="catalogState.HasCachedCatalog"
+                                    CachedAt="catalogState.CatalogCachedAt"
                                     ResourceName="songs"
                                     RefreshHint="Connect to refresh the catalog.">
                     <UnavailableContent>
@@ -27,46 +27,15 @@
 
                 <StatusAlerts SuccessMessage="@saveMessage" ErrorMessage="@saveError" />
 
-                <div class="mobile-panel">
-                    <label class="form-label">Song</label>
-                    @if (songPickerItems.Count == 0)
-                    {
-                        <p class="text-muted small mb-0">No songs in the catalog yet. Use + New song below.</p>
-                    }
-                    else
-                    {
-                        <CatalogSongPicker Items="songPickerItems" @bind-SelectedSongId="selectedSongId"
-                                           @bind-SelectedSongId:after="OnSongSelectedAsync"
-                                           Enabled="@(!showNewSong)" />
-                        <p class="small text-muted mt-1 mb-0">@songPickerItems.Count songs · ★ = on My repertoire · 🎯 = working up</p>
-                    }
-                    @if (selectedSongId is int songId && songHint is not null)
-                    {
-                        <p class="small text-muted mt-2 mb-0">@songHint</p>
-                    }
-                    @if (selectedSongId is int workingUpSongId && !usingOfflineCatalog)
-                    {
-                        <AddToWorkingUpButton SongId="workingUpSongId"
-                                              SingerLists="singerLists"
-                                              AlreadyOnWorkingUp="workingUpSongIds.Contains(workingUpSongId)"
-                                              OnAdded="OnAddedToWorkingUpAsync" />
-                    }
-
-                    @if (!usingOfflineCatalog)
-                    {
-                        @if (!showNewSong)
-                        {
-                            <button type="button" class="btn btn-link btn-sm ps-0 mt-2" @onclick="OpenNewSongPanel">
-                                + New song
-                            </button>
-                        }
-                        else
-                        {
-                            <AddSongPanel OnSongAdded="OnNewSongAddedAsync"
-                                          OnCancelled="CloseNewSongPanel" />
-                        }
-                    }
-                </div>
+                <LogSongPickerPanel Items="catalogState.SongPickerItems"
+                                    @bind-SelectedSongId="selectedSongId"
+                                    @bind-SelectedSongId:after="OnSongSelectedAsync"
+                                    SongHint="songHint"
+                                    UsingOfflineCatalog="catalogState.UsingOfflineCatalog"
+                                    SingerLists="singerLists"
+                                    WorkingUpSongIds="catalogState.WorkingUpSongIds"
+                                    OnAddedToWorkingUp="OnAddedToWorkingUpAsync"
+                                    OnSongAdded="OnNewSongAddedAsync" />
 
                 @if (SelectedSong is not null)
                 {
@@ -80,7 +49,7 @@
                     <div class="mobile-panel recent-logs-panel">
                         <RecentLogList Items="recentLogs"
                                        Heading="Recently logged"
-                                       HeadingSuffix="@(usingOfflineCatalog && !hasCachedCatalog ? " — tap to pick a song" : string.Empty)"
+                                       HeadingSuffix="@(catalogState.UsingOfflineCatalog && !catalogState.HasCachedCatalog ? " — tap to pick a song" : string.Empty)"
                                        IncludeKeyInMeta="true"
                                        OnItemSelected="SelectSongAsync" />
                     </div>
@@ -94,21 +63,13 @@
     [SupplyParameterFromQuery]
     public int? SongId { get; set; }
 
+    private readonly LogCatalogState catalogState = new();
     private bool isLoading = true;
-    private bool usingOfflineCatalog;
-    private bool hasCachedCatalog;
-    private DateTime? catalogCachedAt;
-    private HashSet<int> repertoireSongIds = [];
-    private HashSet<int> workingUpSongIds = [];
     private List<SingerListDto> singerLists = [];
-    private List<LogSongPickItem> songPickerItems = [];
-
     private int? selectedSongId;
     private string? songHint;
     private string? saveMessage;
     private string? saveError;
-
-    private bool showNewSong;
     private IReadOnlyList<RecentLoggedPerformance> recentLogs = [];
 
     private LogSongPickItem? SelectedSong
@@ -120,7 +81,7 @@
                 return null;
             }
 
-            var fromPicker = songPickerItems.FirstOrDefault(s => s.Id == id);
+            var fromPicker = catalogState.SongPickerItems.FirstOrDefault(s => s.Id == id);
             if (fromPicker is not null)
             {
                 return fromPicker;
@@ -133,8 +94,8 @@
                     fromRecent.SongId,
                     fromRecent.Title,
                     fromRecent.ArtistName,
-                    repertoireSongIds.Contains(id),
-                    workingUpSongIds.Contains(id));
+                    catalogState.RepertoireSongIds.Contains(id),
+                    catalogState.WorkingUpSongIds.Contains(id));
         }
     }
 
@@ -151,19 +112,10 @@
     {
         isLoading = true;
         saveError = null;
-        usingOfflineCatalog = false;
-        hasCachedCatalog = false;
-        catalogCachedAt = null;
 
-        var catalog = await CatalogLoader.LoadAsync();
-        usingOfflineCatalog = catalog.FromCache;
-        hasCachedCatalog = catalog.HasCatalog;
-        catalogCachedAt = catalog.CachedAtUtc;
-        songPickerItems = catalog.Songs.ToList();
-        repertoireSongIds = catalog.RepertoireSongIds;
-        workingUpSongIds = catalog.WorkingUpSongIds;
+        catalogState.Apply(await CatalogLoader.LoadAsync());
 
-        if (!catalog.FromCache)
+        if (!catalogState.UsingOfflineCatalog)
         {
             var listsResult = await SingerListResolver.LoadListsAsync(Api);
             if (listsResult.Succeeded)
@@ -182,6 +134,11 @@
         }
     }
 
+    private async Task ApplyCatalogSnapshotAsync()
+    {
+        catalogState.Apply(await CatalogLoader.LoadAsync());
+    }
+
     private async Task OnSongSelectedAsync() => await OnSongChangedAsync(selectedSongId);
 
     private async Task OnSongChangedAsync(int? songId)
@@ -192,9 +149,9 @@
             return;
         }
 
-        if (usingOfflineCatalog)
+        if (catalogState.UsingOfflineCatalog)
         {
-            songHint = repertoireSongIds.Contains(songId.Value)
+            songHint = catalogState.RepertoireSongIds.Contains(songId.Value)
                 ? "Ready to log (offline — using cached catalog)."
                 : "Ready to log.";
             return;
@@ -211,15 +168,9 @@
         saveError = null;
         recentLogs = await LogStore.GetRecentLogsAsync();
 
-        if (!usingOfflineCatalog)
+        if (!catalogState.UsingOfflineCatalog)
         {
-            var catalog = await CatalogLoader.LoadAsync();
-            songPickerItems = catalog.Songs.ToList();
-            repertoireSongIds = catalog.RepertoireSongIds;
-            workingUpSongIds = catalog.WorkingUpSongIds;
-            usingOfflineCatalog = catalog.FromCache;
-            hasCachedCatalog = catalog.HasCatalog;
-            catalogCachedAt = catalog.CachedAtUtc;
+            await ApplyCatalogSnapshotAsync();
         }
     }
 
@@ -229,32 +180,23 @@
         await OnSongChangedAsync(songId);
     }
 
-    private async Task OnAddedToWorkingUpAsync()
+    private Task OnAddedToWorkingUpAsync()
     {
         if (selectedSongId is int songId)
         {
-            workingUpSongIds.Add(songId);
+            catalogState.WorkingUpSongIds.Add(songId);
         }
-    }
 
-    private void OpenNewSongPanel()
-    {
-        saveError = null;
-        showNewSong = true;
+        return Task.CompletedTask;
     }
-
-    private void CloseNewSongPanel() => showNewSong = false;
 
     private async Task OnNewSongAddedAsync(SongAddedEventArgs args)
     {
         saveError = null;
-        var catalog = await CatalogLoader.LoadAsync();
-        songPickerItems = catalog.Songs.ToList();
-        repertoireSongIds = catalog.RepertoireSongIds;
-        workingUpSongIds = catalog.WorkingUpSongIds;
+        await ApplyCatalogSnapshotAsync();
 
         var created = CatalogSongMapper.FindCreatedPickItem(
-            songPickerItems,
+            catalogState.SongPickerItems,
             args.Title,
             args.ArtistName);
 
@@ -264,7 +206,6 @@
             await OnSongChangedAsync(created.Id);
         }
 
-        showNewSong = false;
         saveMessage = "Song added.";
     }
 }

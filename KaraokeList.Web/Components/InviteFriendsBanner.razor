@@ -1,20 +1,18 @@
 @inject IKaraokeApiClient Api
 @inject NavigationManager Navigation
-@inject IJSRuntime Js
 
-@if (!loading && share?.CanShare == true)
+@if (!loading && content.CanShareInvite)
 {
     <div class="alert alert-info invite-friends-banner mb-3" role="status">
         <p class="small mb-0">Invite a friend to join KaraokeList.</p>
         <div class="d-flex flex-wrap gap-2 mt-2">
-            <button type="button" class="btn btn-sm btn-primary" @onclick="CopyLinkAsync">
-                @(linkCopied ? "Copied!" : "Copy link")
-            </button>
-            <a class="btn btn-sm btn-outline-primary" href="invite-friends">Invite friends</a>
+            <InviteSharePanel Layout="InviteSharePanelLayout.Banner"
+                              RegisterUrl="@content.RegisterUrl"
+                              ShareMessage="@content.ShareMessage" />
         </div>
     </div>
 }
-else if (!loading && registrationInfo?.IsRegistrationOpen == true && !registrationInfo.RequiresInviteCode)
+else if (!loading && content.ShowOpenRegistrationNotice)
 {
     <div class="alert alert-info invite-friends-banner mb-3" role="status">
         <p class="small mb-0">
@@ -25,50 +23,12 @@ else if (!loading && registrationInfo?.IsRegistrationOpen == true && !registrati
 }
 
 @code {
-    private InviteShareDto? share;
-    private RegistrationInfoDto? registrationInfo;
-    private string? registerUrl;
+    private InviteShareContent content = new();
     private bool loading = true;
-    private bool linkCopied;
 
     protected override async Task OnInitializedAsync()
     {
-        share = await Api.GetInviteShareAsync();
-        if (share?.CanShare == true && !string.IsNullOrWhiteSpace(share.InviteCode))
-        {
-            registerUrl = InviteShareFormatting.BuildRegisterUrl(Navigation.BaseUri, share.InviteCode);
-        }
-        else
-        {
-            registrationInfo = await Api.GetRegistrationInfoAsync();
-        }
-
+        content = await InviteShareLoader.LoadAsync(Api, Navigation.BaseUri);
         loading = false;
-    }
-
-    private async Task CopyLinkAsync()
-    {
-        if (string.IsNullOrEmpty(registerUrl))
-        {
-            return;
-        }
-
-        try
-        {
-            await Js.InvokeVoidAsync("copyTextToClipboard", registerUrl);
-            linkCopied = true;
-            _ = ClearCopyFeedbackAsync();
-        }
-        catch
-        {
-            // Clipboard may fail without a secure context.
-        }
-    }
-
-    private async Task ClearCopyFeedbackAsync()
-    {
-        await Task.Delay(2000);
-        linkCopied = false;
-        await InvokeAsync(StateHasChanged);
     }
 }
