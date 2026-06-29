@@ -1,0 +1,76 @@
+<PageTitle>@DocumentTitle</PageTitle>
+
+<div class="@PageContainerClass">
+    <MobilePageHeader Title="@Title"
+                      TitleClass="@TitleClass"
+                      BackHref="@BackHref"
+                      BackText="@BackText"
+                      BackLinkClass="@BackLinkClass"
+                      LeadingContent="@LeadingContent"
+                      Subtitle="@Subtitle" />
+
+    @HeaderContent
+
+    <SingerProfileGate @ref="singerGate" OnResolved="@OnResolved" OnLinked="@OnLinked">
+        <ChildContent Context="singerId">
+            @ChildContent!(singerId)
+        </ChildContent>
+    </SingerProfileGate>
+</div>
+
+@code {
+    private SingerProfileGate? singerGate;
+
+    [Parameter, EditorRequired]
+    public string DocumentTitle { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = string.Empty;
+
+    [Parameter]
+    public string TitleClass { get; set; } = "mb-1";
+
+    [Parameter]
+    public string? BackHref { get; set; }
+
+    [Parameter]
+    public string BackText { get; set; } = "← Back";
+
+    [Parameter]
+    public string BackLinkClass { get; set; } = "btn btn-link btn-sm ps-0";
+
+    [Parameter]
+    public bool WithBottomNav { get; set; }
+
+    [Parameter]
+    public string PageCssClass { get; set; } = string.Empty;
+
+    [Parameter]
+    public RenderFragment? LeadingContent { get; set; }
+
+    [Parameter]
+    public RenderFragment? Subtitle { get; set; }
+
+    [Parameter]
+    public RenderFragment? HeaderContent { get; set; }
+
+    [Parameter, EditorRequired]
+    public RenderFragment<int> ChildContent { get; set; } = default!;
+
+    [Parameter, EditorRequired]
+    public EventCallback<int> OnResolved { get; set; }
+
+    [Parameter]
+    public EventCallback<int?> OnLinked { get; set; }
+
+    public SingerProfileGate? Gate => singerGate;
+
+    public void RequireSingerLink() => singerGate?.RequireSingerLink();
+
+    private string PageContainerClass =>
+        string.IsNullOrWhiteSpace(PageCssClass)
+            ? WithBottomNav ? "mobile-page mobile-page-with-nav" : "mobile-page"
+            : WithBottomNav
+                ? $"mobile-page mobile-page-with-nav {PageCssClass}"
+                : $"mobile-page {PageCssClass}";
+}

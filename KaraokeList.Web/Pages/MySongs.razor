@@ -4,18 +4,17 @@
 @inject IMySongsLoader MySongsLoader
 @inject NavigationManager Navigation
 
-<PageTitle>My Songs</PageTitle>
-
-<div class="mobile-page mobile-page-with-nav">
-    <MobilePageHeader Title="My Songs">
-        <Subtitle>Browse your lists. Tap for details, or <strong>Log</strong> to record a performance.</Subtitle>
-    </MobilePageHeader>
-
-    <StatusAlerts SuccessMessage="@addSongMessage" Small="true" CssClass="mb-0 mt-3" />
-
-    <SingerProfileGate @ref="singerGate" OnResolved="LoadListsAsync">
-        <ChildContent Context="singerId">
-            <MobileLoadingState IsLoading="@isLoading" CssClass="mt-3">
+<SingerGatedPage DocumentTitle="My Songs"
+                 Title="My Songs"
+                 WithBottomNav="true"
+                 OnResolved="LoadListsAsync"
+                 @ref="gatedPage">
+    <Subtitle>Browse your lists. Tap for details, or <strong>Log</strong> to record a performance.</Subtitle>
+    <HeaderContent>
+        <StatusAlerts SuccessMessage="@addSongMessage" Small="true" CssClass="mb-0 mt-3" />
+    </HeaderContent>
+    <ChildContent Context="singerId">
+        <MobileLoadingState IsLoading="@isLoading" CssClass="mt-3">
                 <OfflineCacheNotice UsingOffline="@usingOfflineLists"
                                     HasCachedData="@hasCachedLists"
                                     CachedAt="@listsCachedAt"
@@ -99,13 +98,12 @@
                         <SongListItem Song="@context" OnHistory="GoToHistoryAsync" OnLog="GoToLogAsync" />
                     </Virtualize>
                 }
-            </MobileLoadingState>
-        </ChildContent>
-    </SingerProfileGate>
-</div>
+        </MobileLoadingState>
+    </ChildContent>
+</SingerGatedPage>
 
 @code {
-    private SingerProfileGate? singerGate;
+    private SingerGatedPage? gatedPage;
     private bool isLoading = true;
     private bool usingOfflineLists;
     private bool hasCachedLists;
@@ -186,7 +184,7 @@
         if (result.NeedsSingerLink)
         {
             loadError = result.ErrorMessage;
-            singerGate.RequireLinkIfNotLinked(result.ErrorMessage);
+            gatedPage.RequireLinkIfNotLinked(result.ErrorMessage);
             isLoading = false;
             return;
         }

@@ -4,16 +4,13 @@
 @inject ILogPerformanceLocalStore LogStore
 @inject ILogCatalogLoader CatalogLoader
 
-<PageTitle>Log performance</PageTitle>
-
-<div class="mobile-page mobile-page-with-nav">
-    <MobilePageHeader Title="Log performance">
-        <Subtitle>Pick a song, or open one from <a href="my-songs">My Songs</a>.</Subtitle>
-    </MobilePageHeader>
-
-    <SingerProfileGate OnResolved="LoadCatalogAsync">
-        <ChildContent Context="singerId">
-            <MobileLoadingState IsLoading="@isLoading">
+<SingerGatedPage DocumentTitle="Log performance"
+                 Title="Log performance"
+                 WithBottomNav="true"
+                 OnResolved="LoadCatalogAsync">
+    <Subtitle>Pick a song, or open one from <a href="my-songs">My Songs</a>.</Subtitle>
+    <ChildContent Context="singerId">
+        <MobileLoadingState IsLoading="@isLoading">
                 <OfflineCacheNotice UsingOffline="@catalogState.UsingOfflineCatalog"
                                     HasCachedData="@catalogState.HasCachedCatalog"
                                     CachedAt="@catalogState.CatalogCachedAt"
@@ -55,9 +52,8 @@
                     </div>
                 }
             </MobileLoadingState>
-        </ChildContent>
-    </SingerProfileGate>
-</div>
+    </ChildContent>
+</SingerGatedPage>
 
 @code {
     [SupplyParameterFromQuery]
