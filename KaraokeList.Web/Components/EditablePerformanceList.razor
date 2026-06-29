@@ -3,7 +3,7 @@
 
 @if (!string.IsNullOrEmpty(statusMessage) || !string.IsNullOrEmpty(errorMessage))
 {
-    <StatusAlerts SuccessMessage="statusMessage" ErrorMessage="errorMessage" Small="true" />
+    <StatusAlerts SuccessMessage="@statusMessage" ErrorMessage="@errorMessage" Small="true" />
 }
 
 <ul class="@ListClass">

@@ -24,7 +24,7 @@
         songs.Select(song =>
         {
             var meta = song.LastPerformedOn is DateTime lastPerformed
-                ? $"Last {lastPerformed:MMM d, yyyy} · {FormatDaysSince(song.DaysSinceLastPerformed)}{(song.PerformanceCount > 1 ? $" · {song.PerformanceCount} times" : string.Empty)}"
+                ? $"Last {lastPerformed:MMM d, yyyy} · {PerformanceRelativeDate.FormatDaysSince(PerformanceRelativeDate.DaysSince(lastPerformed, DateTime.Today) ?? 0)}{(song.PerformanceCount > 1 ? $" · {song.PerformanceCount} times" : string.Empty)}"
                 : "Never performed";
 
             return new SongLinkItem(
@@ -45,6 +45,4 @@
         loading = false;
     }
 
-    private static string FormatDaysSince(int days) =>
-        days == 1 ? "1 day ago" : $"{days} days ago";
 }

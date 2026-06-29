@@ -90,6 +90,7 @@ public sealed class MyStatsPageTests : AuthPageTestContext
             Assert.Contains("Bohemian Rhapsody", cut.Markup);
             Assert.Contains("Most performed artists", cut.Markup);
             Assert.Contains("New to your repertoire", cut.Markup);
+            Assert.DoesNotContain(">errorMessage<", cut.Markup);
         });
     }
 }
