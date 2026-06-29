@@ -13,12 +13,7 @@
 
     <SingerProfileGate OnResolved="LoadCatalogAsync">
         <ChildContent Context="singerId">
-            @if (isLoading)
-            {
-                <p>Loading...</p>
-            }
-            else
-            {
+            <MobileLoadingState IsLoading="isLoading">
                 <OfflineCacheNotice UsingOffline="usingOfflineCatalog"
                                     HasCachedData="hasCachedCatalog"
                                     CachedAt="catalogCachedAt"
@@ -30,14 +25,7 @@
                     </UnavailableContent>
                 </OfflineCacheNotice>
 
-                @if (!string.IsNullOrEmpty(saveMessage))
-                {
-                    <div class="alert alert-success">@saveMessage</div>
-                }
-                @if (!string.IsNullOrEmpty(saveError))
-                {
-                    <div class="alert alert-danger">@saveError</div>
-                }
+                <StatusAlerts SuccessMessage="saveMessage" ErrorMessage="saveError" />
 
                 <div class="mobile-panel">
                     <label class="form-label">Song</label>
@@ -56,20 +44,12 @@
                     {
                         <p class="small text-muted mt-2 mb-0">@songHint</p>
                     }
-                    @if (selectedSongId is int workingUpSongId && !usingOfflineCatalog && !workingUpSongIds.Contains(workingUpSongId))
+                    @if (selectedSongId is int workingUpSongId && !usingOfflineCatalog)
                     {
-                        <button type="button" class="btn btn-outline-secondary btn-sm mt-2" disabled="@isAddingToWorkingUp"
-                                @onclick="AddToWorkingUpAsync">
-                            Add to working up
-                        </button>
-                        @if (!string.IsNullOrEmpty(workingUpMessage))
-                        {
-                            <p class="small text-success mt-1 mb-0">@workingUpMessage</p>
-                        }
-                        @if (!string.IsNullOrEmpty(workingUpError))
-                        {
-                            <p class="small text-danger mt-1 mb-0">@workingUpError</p>
-                        }
+                        <AddToWorkingUpButton SongId="workingUpSongId"
+                                              SingerLists="singerLists"
+                                              AlreadyOnWorkingUp="workingUpSongIds.Contains(workingUpSongId)"
+                                              OnAdded="OnAddedToWorkingUpAsync" />
                     }
 
                     @if (!usingOfflineCatalog)
@@ -105,7 +85,7 @@
                                        OnItemSelected="SelectSongAsync" />
                     </div>
                 }
-            }
+            </MobileLoadingState>
         </ChildContent>
     </SingerProfileGate>
 </div>
@@ -129,9 +109,6 @@
     private string? saveError;
 
     private bool showNewSong;
-    private bool isAddingToWorkingUp;
-    private string? workingUpMessage;
-    private string? workingUpError;
     private IReadOnlyList<RecentLoggedPerformance> recentLogs = [];
 
     private LogSongPickItem? SelectedSong
@@ -188,7 +165,7 @@
 
         if (!catalog.FromCache)
         {
-            var listsResult = await Api.GetMyListsAsync();
+            var listsResult = await SingerListResolver.LoadListsAsync(Api);
             if (listsResult.Succeeded)
             {
                 singerLists = listsResult.Lists;
@@ -210,8 +187,6 @@
     private async Task OnSongChangedAsync(int? songId)
     {
         songHint = null;
-        workingUpMessage = null;
-        workingUpError = null;
         if (songId is null)
         {
             return;
@@ -225,29 +200,7 @@
             return;
         }
 
-        try
-        {
-            var result = await Api.GetMySongSummaryAsync(songId.Value);
-            if (!result.Succeeded || result.Summary is null)
-            {
-                songHint = "Ready to log.";
-                return;
-            }
-
-            var summary = result.Summary;
-            if (summary.PerformanceCount > 0)
-            {
-                songHint = $"You've sung this {summary.PerformanceCount} time(s). Last: {summary.LastPerformedOn:d} · {KeyChangeFormatting.Describe(summary.LastKeyChangeSemitones)}";
-            }
-            else
-            {
-                songHint = "First time logging this song for you.";
-            }
-        }
-        catch (Exception ex) when (ApiTransientFailure.IsTransient(ex) || ex is HttpRequestException)
-        {
-            songHint = "Ready to log (offline).";
-        }
+        songHint = await SongSummaryHints.LoadForSongAsync(Api, songId.Value);
     }
 
     private async Task OnPerformanceSavedAsync(string? message)
@@ -276,6 +229,14 @@
         await OnSongChangedAsync(songId);
     }
 
+    private async Task OnAddedToWorkingUpAsync()
+    {
+        if (selectedSongId is int songId)
+        {
+            workingUpSongIds.Add(songId);
+        }
+    }
+
     private void OpenNewSongPanel()
     {
         saveError = null;
@@ -292,12 +253,10 @@
         repertoireSongIds = catalog.RepertoireSongIds;
         workingUpSongIds = catalog.WorkingUpSongIds;
 
-        var created = LogArtistPicker.FindCreatedSong(
+        var created = CatalogSongMapper.FindCreatedPickItem(
             songPickerItems,
             args.Title,
-            args.ArtistName,
-            s => s.Title,
-            s => s.ArtistName);
+            args.ArtistName);
 
         if (created is not null)
         {
@@ -307,36 +266,5 @@
 
         showNewSong = false;
         saveMessage = "Song added.";
-    }
-
-    private async Task AddToWorkingUpAsync()
-    {
-        if (selectedSongId is not int songId)
-        {
-            return;
-        }
-
-        var workingUpList = singerLists.FirstOrDefault(l => l.Kind == SingerListKind.WorkingUp);
-        if (workingUpList is null)
-        {
-            workingUpError = "Working up list was not found.";
-            return;
-        }
-
-        isAddingToWorkingUp = true;
-        workingUpError = null;
-        workingUpMessage = null;
-
-        var result = await Api.AddListSongAsync(workingUpList.Id, songId);
-        if (!result.Succeeded)
-        {
-            workingUpError = result.ErrorMessage;
-            isAddingToWorkingUp = false;
-            return;
-        }
-
-        workingUpSongIds.Add(songId);
-        workingUpMessage = "Added to working up.";
-        isAddingToWorkingUp = false;
     }
 }

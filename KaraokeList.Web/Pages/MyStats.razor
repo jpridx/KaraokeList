@@ -11,26 +11,27 @@
 
     <SingerProfileGate @ref="singerGate" OnResolved="LoadStatsAsync">
         <ChildContent Context="_">
-            @if (loading)
-            {
-                <p class="text-muted small mt-3">Loading stats…</p>
-            }
-            else if (!string.IsNullOrWhiteSpace(errorMessage))
-            {
-                <p class="text-danger small mt-3" role="alert">@errorMessage</p>
-            }
-            else if (stats is null or { TotalPerformances: 0 })
-            {
-                <section class="mobile-panel mt-3">
-                    <p class="mb-2">No performances logged yet.</p>
-                    <a class="btn btn-primary btn-sm" href="log">Log your first performance</a>
-                </section>
-            }
-            else
-            {
-                <SingerStatsDisplay Stats="stats" CssClass="mt-3 mobile-panel"
-                                    Subtitle="Totals, favorites, and recent additions to your repertoire." />
-            }
+            <MobileLoadingState IsLoading="loading" Message="Loading stats…" CssClass="text-muted small mt-3">
+                <StatusAlerts ErrorMessage="errorMessage" InlineError="true" Small="true" CssClass="mt-3" />
+
+                @if (string.IsNullOrWhiteSpace(errorMessage))
+                {
+                    @if (stats is null or { TotalPerformances: 0 })
+                    {
+                        <MobileEmptyState Message="No performances logged yet."
+                                          ActionHref="log"
+                                          ActionText="Log your first performance"
+                                          ActionButtonClass="btn btn-primary btn-sm"
+                                          CssClass="mobile-panel mt-3"
+                                          MessageClass="mb-2" />
+                    }
+                    else
+                    {
+                        <SingerStatsDisplay Stats="stats" CssClass="mt-3 mobile-panel"
+                                            Subtitle="Totals, favorites, and recent additions to your repertoire." />
+                    }
+                }
+            </MobileLoadingState>
         </ChildContent>
     </SingerProfileGate>
 </div>
@@ -66,10 +67,7 @@
         else
         {
             errorMessage = result.ErrorMessage;
-            if (result.ErrorMessage?.Contains("not linked", StringComparison.OrdinalIgnoreCase) == true)
-            {
-                singerGate?.RequireSingerLink();
-            }
+            singerGate.RequireLinkIfNotLinked(result.ErrorMessage);
         }
 
         loading = false;

@@ -1,19 +1,15 @@
 @inject IKaraokeApiClient Api
 @inject NavigationManager Navigation
 
-@if (!string.IsNullOrEmpty(statusMessage))
+@if (!string.IsNullOrEmpty(statusMessage) || !string.IsNullOrEmpty(errorMessage))
 {
-    <div class="alert alert-success py-2 small">@statusMessage</div>
-}
-@if (!string.IsNullOrEmpty(errorMessage))
-{
-    <div class="alert alert-danger py-2 small">@errorMessage</div>
+    <StatusAlerts SuccessMessage="statusMessage" ErrorMessage="errorMessage" Small="true" />
 }
 
-<ul class="performance-browse-list">
+<ul class="@ListClass">
     @foreach (var entry in Entries)
     {
-        <li class="performance-browse-item">
+        <li class="@ItemClass">
             @if (editingId == entry.Id)
             {
                 <PerformanceEditForm SingerId="SingerId"
@@ -27,25 +23,19 @@
                                      OnSave="() => SaveEditAsync(entry)"
                                      OnCancel="CancelEdit">
                     <HeaderContent>
-                        <p class="performance-browse-song mb-2">
-                            @ShowHostMessageFormatting.Format(
-                                entry.Title,
-                                entry.ArtistName,
-                                editKeyChangeSemitones,
-                                editCoPerformerNames)
-                        </p>
+                        @if (Variant == EditablePerformanceListVariant.Browse)
+                        {
+                            <p class="performance-browse-song mb-2">@FormatSongLabel(entry, editKeyChangeSemitones, editCoPerformerNames)</p>
+                        }
                     </HeaderContent>
                 </PerformanceEditForm>
             }
             else if (deleteConfirmId == entry.Id)
             {
-                <p class="performance-browse-song mb-2">
-                    @ShowHostMessageFormatting.Format(
-                        entry.Title,
-                        entry.ArtistName,
-                        entry.KeyChangeSemitones,
-                        entry.OtherPerformers.Select(p => p.Name).ToList())
-                </p>
+                @if (Variant == EditablePerformanceListVariant.Browse)
+                {
+                    <p class="performance-browse-song mb-2">@FormatSongLabel(entry, entry.KeyChangeSemitones, CoPerformerNames(entry))</p>
+                }
                 <p class="small mb-2">Delete this performance?</p>
                 <div class="d-flex gap-2">
                     <button type="button" class="btn btn-danger btn-sm flex-fill" disabled="@isSaving"
@@ -54,23 +44,35 @@
                             @onclick="CancelDelete">Cancel</button>
                 </div>
             }
-            else
+            else if (Variant == EditablePerformanceListVariant.Browse)
             {
                 <div class="performance-browse-row">
                     <button type="button" class="performance-browse-main" @onclick="() => GoToSongAsync(entry.SongId)">
-                        <span class="performance-browse-song">
-                            @ShowHostMessageFormatting.Format(
-                                entry.Title,
-                                entry.ArtistName,
-                                entry.KeyChangeSemitones,
-                                entry.OtherPerformers.Select(p => p.Name).ToList())
-                        </span>
-                        <span class="performance-browse-meta">
-                            @entry.PerformedOn.ToString("d") · @entry.VenueName · @KeyChangeFormatting.Describe(entry.KeyChangeSemitones)
-                        </span>
+                        <span class="performance-browse-song">@FormatSongLabel(entry, entry.KeyChangeSemitones, CoPerformerNames(entry))</span>
+                        <span class="performance-browse-meta">@FormatMeta(entry)</span>
                     </button>
                     <div class="performance-browse-actions">
                         <a class="btn btn-link btn-sm p-0" href="@($"log?songId={entry.SongId}")">Log</a>
+                        <button type="button" class="btn btn-link btn-sm p-0" @onclick="() => BeginEdit(entry)">Edit</button>
+                        <button type="button" class="btn btn-link btn-sm p-0 text-danger" @onclick="() => BeginDelete(entry.Id)">Delete</button>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="history-row">
+                    <div class="history-row-main">
+                        <span class="history-date">@entry.PerformedOn.ToString("d")</span>
+                        <span class="history-venue">@entry.VenueName</span>
+                        <span class="history-key">@KeyChangeFormatting.Describe(entry.KeyChangeSemitones)</span>
+                        @if (entry.OtherPerformers.Count > 0)
+                        {
+                            <span class="history-co-performers small text-muted">
+                                with @string.Join(" & ", entry.OtherPerformers.Select(p => p.Name))
+                            </span>
+                        }
+                    </div>
+                    <div class="history-row-actions">
                         <button type="button" class="btn btn-link btn-sm p-0" @onclick="() => BeginEdit(entry)">Edit</button>
                         <button type="button" class="btn btn-link btn-sm p-0 text-danger" @onclick="() => BeginDelete(entry.Id)">Delete</button>
                     </div>
@@ -85,7 +87,10 @@
     public int SingerId { get; set; }
 
     [Parameter]
-    public IReadOnlyList<MyPerformanceEntryDto> Entries { get; set; } = [];
+    public EditablePerformanceListVariant Variant { get; set; } = EditablePerformanceListVariant.Browse;
+
+    [Parameter]
+    public IReadOnlyList<EditablePerformanceEntry> Entries { get; set; } = [];
 
     [Parameter]
     public EventCallback OnChanged { get; set; }
@@ -103,18 +108,45 @@
     private string? statusMessage;
     private string? errorMessage;
 
+    private string ListClass => Variant == EditablePerformanceListVariant.Browse
+        ? "performance-browse-list"
+        : "history-list";
+
+    private string ItemClass => Variant == EditablePerformanceListVariant.Browse
+        ? "performance-browse-item"
+        : "history-list-item";
+
     private IReadOnlyList<string> editCoPerformerNames =>
         CoPerformerFormatting.GetDisplayNames(editOtherPerformers, singers);
 
     protected override async Task OnInitializedAsync()
     {
         venues = await Api.GetVenuesAsync();
-        singers = await Api.GetSingersAsync();
+        if (Variant == EditablePerformanceListVariant.Browse)
+        {
+            singers = await Api.GetSingersAsync();
+        }
     }
+
+    private static IReadOnlyList<string> CoPerformerNames(EditablePerformanceEntry entry) =>
+        entry.OtherPerformers.Select(p => p.Name).ToList();
+
+    private static string FormatSongLabel(
+        EditablePerformanceEntry entry,
+        int? keyChangeSemitones,
+        IReadOnlyList<string> coPerformerNames) =>
+        ShowHostMessageFormatting.Format(
+            entry.Title ?? string.Empty,
+            entry.ArtistName ?? string.Empty,
+            keyChangeSemitones,
+            coPerformerNames);
+
+    private static string FormatMeta(EditablePerformanceEntry entry) =>
+        $"{entry.PerformedOn:d} · {entry.VenueName} · {KeyChangeFormatting.Describe(entry.KeyChangeSemitones)}";
 
     private void GoToSongAsync(int songId) => Navigation.NavigateTo($"my-songs/{songId}");
 
-    private void BeginEdit(MyPerformanceEntryDto entry)
+    private void BeginEdit(EditablePerformanceEntry entry)
     {
         deleteConfirmId = null;
         statusMessage = null;
@@ -123,11 +155,7 @@
         editPerformedOn = entry.PerformedOn;
         editVenueId = entry.VenueId;
         editKeyChangeSemitones = entry.KeyChangeSemitones;
-        editOtherPerformers = entry.OtherPerformers
-            .Select(p => p.SingerId is int singerId
-                ? new CoPerformerInputDto { SingerId = singerId }
-                : new CoPerformerInputDto { DisplayName = p.Name })
-            .ToList();
+        editOtherPerformers = PerformanceEditOperations.ToCoPerformerInputs(entry.OtherPerformers);
     }
 
     private void CancelEdit() => editingId = null;
@@ -142,43 +170,34 @@
 
     private void CancelDelete() => deleteConfirmId = null;
 
-    private async Task SaveEditAsync(MyPerformanceEntryDto entry)
+    private async Task SaveEditAsync(EditablePerformanceEntry entry)
     {
-        if (editVenueId is null)
-        {
-            errorMessage = "Pick a venue.";
-            return;
-        }
-
         isSaving = true;
         errorMessage = null;
         statusMessage = null;
 
-        try
-        {
-            await Api.UpdatePerformanceAsync(new PerformanceDto
-            {
-                Id = entry.Id,
-                Singer = SingerId,
-                Song = entry.SongId,
-                Venue = editVenueId,
-                PerformedOn = editPerformedOn,
-                KeyChangeSemitones = editKeyChangeSemitones == 0 ? null : editKeyChangeSemitones,
-                OtherPerformers = editOtherPerformers
-            });
+        var result = await PerformanceEditOperations.UpdateAsync(
+            Api,
+            entry.Id,
+            SingerId,
+            entry.SongId,
+            editPerformedOn,
+            editVenueId,
+            editKeyChangeSemitones,
+            editOtherPerformers);
 
+        if (result.Succeeded)
+        {
             editingId = null;
             statusMessage = "Performance updated.";
             await OnChanged.InvokeAsync();
         }
-        catch (Exception ex)
+        else
         {
-            errorMessage = ex.Message;
+            errorMessage = result.ErrorMessage;
         }
-        finally
-        {
-            isSaving = false;
-        }
+
+        isSaving = false;
     }
 
     private async Task ConfirmDeleteAsync(int performanceId)
@@ -187,20 +206,18 @@
         errorMessage = null;
         statusMessage = null;
 
-        try
+        var result = await PerformanceEditOperations.DeleteAsync(Api, performanceId);
+        if (result.Succeeded)
         {
-            await Api.DeletePerformanceAsync(performanceId);
             deleteConfirmId = null;
             statusMessage = "Performance deleted.";
             await OnChanged.InvokeAsync();
         }
-        catch (Exception ex)
+        else
         {
-            errorMessage = ex.Message;
+            errorMessage = result.ErrorMessage;
         }
-        finally
-        {
-            isSaving = false;
-        }
+
+        isSaving = false;
     }
 }

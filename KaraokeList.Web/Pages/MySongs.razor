@@ -11,19 +11,11 @@
         <Subtitle>Browse your lists. Tap for details, or <strong>Log</strong> to record a performance.</Subtitle>
     </MobilePageHeader>
 
-    @if (!string.IsNullOrEmpty(addSongMessage))
-    {
-        <div class="alert alert-success small mb-0 mt-3" role="status">@addSongMessage</div>
-    }
+    <StatusAlerts SuccessMessage="addSongMessage" Small="true" CssClass="mb-0 mt-3" />
 
     <SingerProfileGate @ref="singerGate" OnResolved="LoadListsAsync">
-        <ChildContent Context="_">
-            @if (isLoading)
-            {
-                <p class="mt-3">Loading...</p>
-            }
-            else
-            {
+        <ChildContent Context="singerId">
+            <MobileLoadingState IsLoading="isLoading" CssClass="mt-3">
                 <OfflineCacheNotice UsingOffline="usingOfflineLists"
                                     HasCachedData="hasCachedLists"
                                     CachedAt="listsCachedAt"
@@ -34,16 +26,7 @@
                     </UnavailableContent>
                 </OfflineCacheNotice>
 
-                <div class="mobile-toolbar">
-                    <label class="form-label small text-muted mb-1">List</label>
-                    <div class="genre-chips">
-                        @foreach (var list in singerLists)
-                        {
-                            <button type="button" class="genre-chip @(listKind == list.Kind ? "active" : "")"
-                                    @onclick="() => SetListKindAsync(list.Kind)">@list.DisplayName</button>
-                        }
-                    </div>
-                </div>
+                <ChipFilterBar Label="List" Items="listChipItems" />
 
                 @if (SupportsCatalogAdd && !usingOfflineLists && CurrentList is not null)
                 {
@@ -54,14 +37,9 @@
                     </div>
                 }
 
-                <div class="mobile-toolbar">
-                    <input class="form-control" placeholder="Search title or artist"
-                           @bind="searchText" @bind:event="oninput" @bind:after="RefreshDisplayList" />
-                    @if (displaySongs.Count > 0)
-                    {
-                        <p class="small text-muted mb-0 mt-2">@displaySongs.Count song@(displaySongs.Count == 1 ? "" : "s")</p>
-                    }
-                </div>
+                <MobileSearchToolbar @bind-SearchText="searchText" @bind-SearchText:after="RefreshDisplayList"
+                                     Placeholder="Search title or artist"
+                                     Count="displaySongs.Count" CountNoun="song" />
 
                 <div class="mobile-toolbar">
                     <label class="form-label small text-muted mb-1">Sort</label>
@@ -85,39 +63,28 @@
 
                 @if (showGenreFilters)
                 {
-                    <div class="mobile-toolbar">
-                        <label class="form-label small text-muted mb-1">Genre</label>
-                        <div class="genre-chips">
-                            <button type="button" class="genre-chip @(filterGenreId is null ? "active" : "")"
-                                    @onclick="() => SetGenreFilterAsync(null)">All</button>
-                            @foreach (var genre in filterGenres)
-                            {
-                                <button type="button" class="genre-chip @(filterGenreId == genre.Id ? "active" : "")"
-                                        @onclick="() => SetGenreFilterAsync(genre.Id)">@genre.GenreName</button>
-                            }
-                        </div>
-                        <div class="form-check mt-2">
-                            <input class="form-check-input" type="checkbox" id="groupByGenre"
-                                   @bind="groupByGenre" @bind:after="ResetGroupedPaging" />
-                            <label class="form-check-label" for="groupByGenre">Group by genre</label>
-                        </div>
-                    </div>
+                    <ChipFilterBar Label="Genre" Items="genreChipItems">
+                        <FooterContent>
+                            <div class="form-check mt-2">
+                                <input class="form-check-input" type="checkbox" id="groupByGenre"
+                                       @bind="groupByGenre" @bind:after="ResetGroupedPaging" />
+                                <label class="form-check-label" for="groupByGenre">Group by genre</label>
+                            </div>
+                        </FooterContent>
+                    </ChipFilterBar>
                 }
 
-                @if (!string.IsNullOrEmpty(loadError))
+                <StatusAlerts ErrorMessage="loadError" />
+
+                @if (string.IsNullOrEmpty(loadError) && !FilteredSongs.Any())
                 {
-                    <p class="text-danger">@loadError</p>
-                }
-                else if (!FilteredSongs.Any())
-                {
-                    <div class="empty-state">
-                        @if (!string.IsNullOrWhiteSpace(searchText))
-                        {
-                            <p>No songs match your search.</p>
-                        }
-                        else
-                        {
-                            <p>@EmptyListMessage</p>
+                    @if (!string.IsNullOrWhiteSpace(searchText))
+                    {
+                        <MobileEmptyState Message="No songs match your search." />
+                    }
+                    else
+                    {
+                        <MobileEmptyState Message="@EmptyListMessage">
                             @if (SupportsCatalogAdd && !usingOfflineLists)
                             {
                                 <div class="d-flex flex-wrap gap-2 mt-2">
@@ -129,10 +96,10 @@
                                     </button>
                                 </div>
                             }
-                        }
-                    </div>
+                        </MobileEmptyState>
+                    }
                 }
-                else if (groupByGenre)
+                else if (string.IsNullOrEmpty(loadError) && groupByGenre)
                 {
                     @foreach (var group in VisibleGroupedSongs)
                     {
@@ -144,18 +111,19 @@
                     }
                     @if (HasMoreGroupedSongs)
                     {
-                        <button type="button" class="btn btn-outline-primary w-100 mt-2" @onclick="LoadMoreGroupedSongs">
-                            Load more (@VisibleGroupedSongCount of @displaySongs.Count)
-                        </button>
+                        <LoadMoreButton Visible="HasMoreGroupedSongs"
+                                        VisibleCount="VisibleGroupedSongCount"
+                                        TotalCount="displaySongs.Count"
+                                        OnClick="LoadMoreGroupedSongs" />
                     }
                 }
-                else
+                else if (string.IsNullOrEmpty(loadError))
                 {
                     <Virtualize TItem="RepertoireSongDto" Items="displaySongs" ItemSize="88" OverscanCount="6">
                         <SongListItem Song="context" OnHistory="GoToHistoryAsync" OnLog="GoToLogAsync" />
                     </Virtualize>
                 }
-            }
+            </MobileLoadingState>
         </ChildContent>
     </SingerProfileGate>
 </div>
@@ -236,6 +204,39 @@
 
     private bool HasMoreGroupedSongs => VisibleGroupedSongCount < displaySongs.Count;
 
+    private IReadOnlyList<ChipFilterItem> listChipItems =>
+        singerLists.Select(list => new ChipFilterItem
+        {
+            Label = list.DisplayName,
+            IsActive = listKind == list.Kind,
+            OnClick = EventCallback.Factory.Create(this, () => SetListKindAsync(list.Kind))
+        }).ToList();
+
+    private IReadOnlyList<ChipFilterItem> genreChipItems
+    {
+        get
+        {
+            var items = new List<ChipFilterItem>
+            {
+                new()
+                {
+                    Label = "All",
+                    IsActive = filterGenreId is null,
+                    OnClick = EventCallback.Factory.Create(this, () => SetGenreFilterAsync(null))
+                }
+            };
+
+            items.AddRange(filterGenres.Select(genre => new ChipFilterItem
+            {
+                Label = genre.GenreName,
+                IsActive = filterGenreId == genre.Id,
+                OnClick = EventCallback.Factory.Create(this, () => SetGenreFilterAsync(genre.Id))
+            }));
+
+            return items;
+        }
+    }
+
     protected override async Task OnInitializedAsync()
     {
         showGenreFilters = await MySongsStore.GetShowGenreFiltersAsync();
@@ -260,7 +261,7 @@
         if (result.NeedsSingerLink)
         {
             loadError = result.ErrorMessage;
-            singerGate?.RequireSingerLink();
+            singerGate.RequireLinkIfNotLinked(result.ErrorMessage);
             isLoading = false;
             return;
         }

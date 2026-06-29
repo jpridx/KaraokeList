@@ -11,30 +11,7 @@
             </p>
         </header>
 
-        <ul class="recent-log-list mt-3 mb-0">
-            @foreach (var song in songs)
-            {
-                <li>
-                    <a class="recent-log-item text-decoration-none" href="@($"log?songId={song.SongId}")">
-                        <span class="recent-log-title">@song.Title — @song.ArtistName</span>
-                        <span class="recent-log-meta">
-                            @if (song.LastPerformedOn is DateTime lastPerformed)
-                            {
-                                <text>Last @lastPerformed.ToString("MMM d, yyyy") · @FormatDaysSince(song.DaysSinceLastPerformed)</text>
-                                @if (song.PerformanceCount > 1)
-                                {
-                                    <text> · @song.PerformanceCount times</text>
-                                }
-                            }
-                            else
-                            {
-                                <text>Never performed</text>
-                            }
-                        </span>
-                    </a>
-                </li>
-            }
-        </ul>
+        <SongLinkList Items="linkItems" ListClass="recent-log-list mt-3 mb-0" />
     </section>
 }
 
@@ -42,6 +19,19 @@
     private bool loading = true;
     private int staleAfterDays = TicklerSettingsLimits.DefaultStaleAfterDays;
     private List<StaleSongDto> songs = [];
+
+    private IReadOnlyList<SongLinkItem> linkItems =>
+        songs.Select(song =>
+        {
+            var meta = song.LastPerformedOn is DateTime lastPerformed
+                ? $"Last {lastPerformed:MMM d, yyyy} · {FormatDaysSince(song.DaysSinceLastPerformed)}{(song.PerformanceCount > 1 ? $" · {song.PerformanceCount} times" : string.Empty)}"
+                : "Never performed";
+
+            return new SongLinkItem(
+                song.SongId,
+                $"{song.Title} — {song.ArtistName}",
+                meta);
+        }).ToList();
 
     protected override async Task OnInitializedAsync()
     {

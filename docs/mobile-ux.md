@@ -159,8 +159,9 @@ Implemented in `ShowHostMessageFormatting` (`KaraokeList.Shared`). Shown on Log 
 | `AppUpdateNotice` | PWA update banner when a new app version is waiting |
 | `HostMessagePanel` | Preview + copy button |
 | `SongListItem` | Repertoire row: tap body = history, **Log** = quick log |
-| `PerformanceBrowseList` | Mobile performance browse rows with edit/delete |
-| `PerformanceHistoryList` | Editable performance history on song detail |
+| `PerformanceBrowseList` | *(removed — use `EditablePerformanceList` Browse variant)* |
+| `PerformanceHistoryList` | *(removed — use `EditablePerformanceList` History variant)* |
+| `EditablePerformanceList` | Editable performance rows with edit/delete — Browse (My performances) or History (song detail) |
 | `TonightDashboard` | Mobile home: tonight context + recent logs |
 | `InviteFriendsBanner` | Home prompt when registration is open (invite link or register page) |
 | `StaleSongsSection` | Home list of songs not performed recently (random sample from your stale pool) |
@@ -171,10 +172,23 @@ Implemented in `ShowHostMessageFormatting` (`KaraokeList.Shared`). Shown on Log 
 | `OfflineCacheNotice` | Cached-data / offline-unavailable banner for Log and My Songs |
 | `RecentLogList` | Recently logged performance rows (links or tap-to-select) |
 | `PerformanceEditForm` | Shared date/venue/key/co-performers edit block for history and browse lists |
-| `SingerProfileGate` | Resolves singer ID, shows `SingerLinkPanel` when missing, cascades `SingerId` to child content (used on `/log`, `/my-songs`, `/my-songs/{id}`, `/my-performances`, `/my-stats`) |
+| `SingerProfileGate` | Resolves singer ID, shows `SingerLinkPanel` when missing, cascades `SingerId` to child content (mobile singer pages + admin `/performances`) |
 | `SingerProfileResolver` | Static helper: JWT claim → profile API fallback for singer ID |
 | `CatalogSongMapper` | Maps catalog songs to `LogSongPickItem` (used by Log loader and add-to-list panel) |
 | `CatalogSongPicker` | Syncfusion song combobox with ★/🎯 badges |
+| `MobileSearchToolbar` | Search input + optional result count for mobile browse pages |
+| `ChipFilterBar` | Reusable chip filter row (list kind, genre, venue) |
+| `LoadMoreButton` | Shared paging footer for mobile browse lists |
+| `SongLinkList` | Song title/meta link rows (used by stale-songs section) |
+| `PerformanceEditOperations` | Shared update/delete helpers for performance list editors |
+| `SingerListResolver` | Find singer list by kind; load lists from API |
+| `SingerListActions` | Add/remove song on want-to-sing or working-up lists |
+| `AddToWorkingUpButton` | Log page shortcut to add selected song to working up |
+| `SongPerformanceSummaryPanel` | Times sung / last performance stats (mobile song detail, admin summary) |
+| `SongSummaryHints` | Log page hint text from song performance summary |
+| `MobileLoadingState` | Loading wrapper — shows message while loading, otherwise renders child content |
+| `StatusAlerts` | Success, error, and warning alerts for mobile pages (supports compact and inline error styles) |
+| `MobileEmptyState` | Empty-state message with optional child content and action link |
 
 ## Invite friends
 

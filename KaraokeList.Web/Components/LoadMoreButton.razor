@@ -1,0 +1,20 @@
+@if (Visible)
+{
+    <button type="button" class="btn btn-outline-primary w-100 mt-2" @onclick="OnClick">
+        Load more (@VisibleCount of @TotalCount)
+    </button>
+}
+
+@code {
+    [Parameter]
+    public bool Visible { get; set; }
+
+    [Parameter]
+    public int VisibleCount { get; set; }
+
+    [Parameter]
+    public int TotalCount { get; set; }
+
+    [Parameter]
+    public EventCallback OnClick { get; set; }
+}

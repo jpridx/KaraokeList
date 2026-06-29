@@ -1,0 +1,28 @@
+<div class="mobile-toolbar">
+    @if (!string.IsNullOrEmpty(Label))
+    {
+        <label class="form-label small text-muted mb-1">@Label</label>
+    }
+    <div class="genre-chips">
+        @foreach (var chip in Items)
+        {
+            <button type="button" class="genre-chip @(chip.IsActive ? "active" : "")"
+                    @onclick="chip.OnClick">@chip.Label</button>
+        }
+    </div>
+    @if (FooterContent is not null)
+    {
+        @FooterContent
+    }
+</div>
+
+@code {
+    [Parameter]
+    public string? Label { get; set; }
+
+    [Parameter]
+    public IReadOnlyList<ChipFilterItem> Items { get; set; } = [];
+
+    [Parameter]
+    public RenderFragment? FooterContent { get; set; }
+}

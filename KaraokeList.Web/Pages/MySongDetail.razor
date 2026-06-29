@@ -15,52 +15,21 @@
 
     <SingerProfileGate @ref="singerGate" OnResolved="LoadSongDetailAsync">
         <ChildContent Context="singerId">
-            @if (isLoading)
-            {
-                <p>Loading...</p>
-            }
-            else if (!string.IsNullOrEmpty(loadError))
-            {
-                <p class="text-danger">@loadError</p>
-            }
-            else if (summary is null || songMeta is null)
-            {
-                <p>Could not load song.</p>
-                <a href="my-songs">Back to My Songs</a>
-            }
-            else
-            {
-                <section class="mobile-panel song-stats-panel">
-                    @if (!string.IsNullOrWhiteSpace(songMeta.GenreName))
-                    {
-                        <p class="song-stats-genre small text-muted mb-2">@songMeta.GenreName</p>
-                    }
-
-                    @if (summary.PerformanceCount > 0)
-                    {
-                        <dl class="song-stats-list mb-0">
-                            <div class="song-stats-row">
-                                <dt>Times sung</dt>
-                                <dd>@summary.PerformanceCount</dd>
-                            </div>
-                            <div class="song-stats-row">
-                                <dt>Last performance</dt>
-                                <dd>
-                                    @summary.LastPerformedOn?.ToString("d")
-                                    @if (!string.IsNullOrEmpty(summary.LastVenueName))
-                                    {
-                                        <text> · @summary.LastVenueName</text>
-                                    }
-                                    · @KeyChangeFormatting.Describe(summary.LastKeyChangeSemitones)
-                                </dd>
-                            </div>
-                        </dl>
-                    }
-                    else
-                    {
-                        <p class="song-stats-first-time mb-0">You haven't logged this song yet.</p>
-                    }
-                </section>
+            <MobileLoadingState IsLoading="isLoading">
+                @if (!string.IsNullOrEmpty(loadError))
+                {
+                    <StatusAlerts ErrorMessage="loadError" InlineError="true" />
+                }
+                else if (summary is null || songMeta is null)
+                {
+                    <MobileEmptyState Message="Could not load song."
+                                      ActionHref="my-songs"
+                                      ActionText="Back to My Songs"
+                                      ActionButtonClass="btn btn-link btn-sm ps-0" />
+                }
+                else
+                {
+                <SongPerformanceSummaryPanel Summary="summary" GenreName="@songMeta.GenreName" />
 
                 <SongListMembershipPanel SongId="SongId" PerformanceCount="summary.PerformanceCount"
                                          OnMembershipChanged="ReloadSongDetailAsync" />
@@ -89,8 +58,10 @@
                         <summary class="history-details-summary">
                             Performance history (@summary.PerformanceCount)
                         </summary>
-                        <PerformanceHistoryList SongId="SongId" SingerId="singerId"
-                                                History="summary.History" OnChanged="OnHistoryChangedAsync" />
+                        <EditablePerformanceList SingerId="singerId"
+                                                 Variant="EditablePerformanceListVariant.History"
+                                                 Entries="historyEntries"
+                                                 OnChanged="OnHistoryChangedAsync" />
                     </details>
 
                     <details class="mobile-panel log-again-details mt-2">
@@ -105,7 +76,8 @@
                         </div>
                     </details>
                 }
-            }
+                }
+            </MobileLoadingState>
         </ChildContent>
     </SingerProfileGate>
 </div>
@@ -126,6 +98,9 @@
 
     private IReadOnlyList<string> hostCoPerformerNames =>
         CoPerformerFormatting.GetDisplayNames(hostCoPerformers, singers);
+
+    private IReadOnlyList<EditablePerformanceEntry> historyEntries =>
+        summary?.History.Select(entry => EditablePerformanceEntry.FromHistory(entry, SongId)).ToList() ?? [];
 
     protected override async Task OnParametersSetAsync()
     {
@@ -172,10 +147,7 @@
         else
         {
             loadError = result.ErrorMessage;
-            if (result.ErrorMessage?.Contains("not linked", StringComparison.OrdinalIgnoreCase) == true)
-            {
-                singerGate?.RequireSingerLink();
-            }
+            singerGate.RequireLinkIfNotLinked(result.ErrorMessage);
         }
 
         loadedForSongId = SongId;

@@ -19,7 +19,7 @@ public sealed class LogCatalogLoader(IKaraokeApiClient api, ILogPerformanceLocal
             var venues = await api.GetVenuesAsync();
             var lists = await api.GetMyListsAsync();
             var repertoireList = lists.Succeeded
-                ? lists.Lists.FirstOrDefault(l => l.Kind == SingerListKind.MyRepertoire)
+                ? SingerListResolver.FindList(lists.Lists, SingerListKind.MyRepertoire)
                 : null;
             var repertoire = repertoireList is not null
                 ? await api.GetListSongsAsync(repertoireList.Id)
@@ -29,7 +29,7 @@ public sealed class LogCatalogLoader(IKaraokeApiClient api, ILogPerformanceLocal
                 : [];
 
             var workingUpList = lists.Succeeded
-                ? lists.Lists.FirstOrDefault(l => l.Kind == SingerListKind.WorkingUp)
+                ? SingerListResolver.FindList(lists.Lists, SingerListKind.WorkingUp)
                 : null;
             var workingUp = workingUpList is not null
                 ? await api.GetListSongsAsync(workingUpList.Id)

@@ -11,37 +11,14 @@
 
     <SingerProfileGate @ref="singerGate" OnResolved="LoadPerformancesAsync">
         <ChildContent Context="singerId">
-            @if (isLoading)
-            {
-                <p class="mt-3">Loading...</p>
-            }
-            else
-            {
-                <div class="mobile-toolbar">
-                    <input class="form-control" placeholder="Search song, artist, or venue"
-                           @bind="searchText" @bind:event="oninput" @bind:after="RefreshDisplayList" />
-                    @if (displayPerformances.Count > 0)
-                    {
-                        <p class="small text-muted mb-0 mt-2">
-                            @displayPerformances.Count performance@(displayPerformances.Count == 1 ? "" : "s")
-                        </p>
-                    }
-                </div>
+            <MobileLoadingState IsLoading="isLoading" CssClass="mt-3">
+                <MobileSearchToolbar @bind-SearchText="searchText" @bind-SearchText:after="RefreshDisplayList"
+                                     Placeholder="Search song, artist, or venue"
+                                     Count="displayPerformances.Count" CountNoun="performance" />
 
                 @if (venueFilters.Count > 0)
                 {
-                    <div class="mobile-toolbar">
-                        <label class="form-label small text-muted mb-1">Venue</label>
-                        <div class="genre-chips">
-                            <button type="button" class="genre-chip @(filterVenueId is null ? "active" : "")"
-                                    @onclick="() => SetVenueFilterAsync(null)">All</button>
-                            @foreach (var venue in venueFilters)
-                            {
-                                <button type="button" class="genre-chip @(filterVenueId == venue.Id ? "active" : "")"
-                                        @onclick="() => SetVenueFilterAsync(venue.Id)">@venue.Name</button>
-                            }
-                        </div>
-                    </div>
+                    <ChipFilterBar Label="Venue" Items="venueChipItems" />
                 }
 
                 <div class="mobile-toolbar">
@@ -51,36 +28,36 @@
                     </button>
                 </div>
 
-                @if (!string.IsNullOrEmpty(loadError))
+                <StatusAlerts ErrorMessage="loadError" />
+
+                @if (string.IsNullOrEmpty(loadError))
                 {
-                    <p class="text-danger">@loadError</p>
-                }
-                else if (performances.Count == 0)
-                {
-                    <div class="empty-state">
-                        <p>No performances logged yet.</p>
-                        <a href="log" class="btn btn-primary">Log a performance</a>
-                    </div>
-                }
-                else if (!displayPerformances.Any())
-                {
-                    <div class="empty-state">
-                        <p>No performances match your search.</p>
-                    </div>
-                }
-                else
-                {
-                    <PerformanceBrowseList SingerId="singerId"
-                                           Entries="VisiblePerformances"
-                                           OnChanged="ReloadPerformancesAsync" />
-                    @if (HasMorePerformances)
+                    @if (performances.Count == 0)
                     {
-                        <button type="button" class="btn btn-outline-primary w-100 mt-2" @onclick="LoadMore">
-                            Load more (@VisiblePerformances.Count of @displayPerformances.Count)
-                        </button>
+                        <MobileEmptyState Message="No performances logged yet."
+                                          ActionHref="log"
+                                          ActionText="Log a performance" />
+                    }
+                    else if (!displayPerformances.Any())
+                    {
+                        <MobileEmptyState Message="No performances match your search." />
+                    }
+                    else
+                    {
+                        <EditablePerformanceList SingerId="singerId"
+                                                 Variant="EditablePerformanceListVariant.Browse"
+                                                 Entries="browseEntries"
+                                                 OnChanged="ReloadPerformancesAsync" />
+                        @if (HasMorePerformances)
+                        {
+                            <LoadMoreButton Visible="HasMorePerformances"
+                                            VisibleCount="VisiblePerformances.Count"
+                                            TotalCount="displayPerformances.Count"
+                                            OnClick="LoadMore" />
+                        }
                     }
                 }
-            }
+            </MobileLoadingState>
         </ChildContent>
     </SingerProfileGate>
 </div>
@@ -104,6 +81,34 @@
 
     private bool HasMorePerformances => visibleLimit < displayPerformances.Count;
 
+    private IReadOnlyList<EditablePerformanceEntry> browseEntries =>
+        VisiblePerformances.Select(EditablePerformanceEntry.FromBrowse).ToList();
+
+    private IReadOnlyList<ChipFilterItem> venueChipItems
+    {
+        get
+        {
+            var items = new List<ChipFilterItem>
+            {
+                new()
+                {
+                    Label = "All",
+                    IsActive = filterVenueId is null,
+                    OnClick = EventCallback.Factory.Create(this, () => SetVenueFilterAsync(null))
+                }
+            };
+
+            items.AddRange(venueFilters.Select(venue => new ChipFilterItem
+            {
+                Label = venue.Name,
+                IsActive = filterVenueId == venue.Id,
+                OnClick = EventCallback.Factory.Create(this, () => SetVenueFilterAsync(venue.Id))
+            }));
+
+            return items;
+        }
+    }
+
     private Task LoadPerformancesAsync(int singerId) => ReloadPerformancesAsync();
 
     private async Task ReloadPerformancesAsync()
@@ -115,10 +120,7 @@
         if (!result.Succeeded)
         {
             loadError = result.ErrorMessage;
-            if (result.ErrorMessage?.Contains("not linked", StringComparison.OrdinalIgnoreCase) == true)
-            {
-                singerGate?.RequireSingerLink();
-            }
+            singerGate.RequireLinkIfNotLinked(result.ErrorMessage);
 
             isLoading = false;
             return;
