@@ -1,0 +1,204 @@
+@inject IKaraokeApiClient Api
+
+<div class="add-song-to-list-panel">
+    @if (mode == AddSongMode.Choose)
+    {
+        <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-outline-primary btn-sm" disabled="@Disabled" @onclick="OpenCatalogAsync">
+                + Add from catalog
+            </button>
+            <button type="button" class="btn btn-outline-primary btn-sm" disabled="@Disabled" @onclick="OpenNewSong">
+                + New song
+            </button>
+        </div>
+    }
+    else if (mode == AddSongMode.Catalog)
+    {
+        @if (isLoadingCatalog)
+        {
+            <p class="text-muted small mb-0">Loading catalog…</p>
+        }
+        else
+        {
+            <CatalogSongPicker Items="catalogPickerItems" @bind-SelectedSongId="selectedSongId" />
+            @if (!string.IsNullOrEmpty(localError))
+            {
+                <p class="small text-danger mt-2 mb-0">@localError</p>
+            }
+            <div class="d-flex flex-wrap gap-2 mt-2">
+                <button type="button" class="btn btn-primary btn-sm" disabled="@(selectedSongId is null || isBusy)"
+                        @onclick="ConfirmCatalogAddAsync">
+                    @(isBusy ? "Adding…" : "Add to list")
+                </button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" disabled="@isBusy" @onclick="BackToChoose">
+                    Back
+                </button>
+            </div>
+        }
+    }
+    else
+    {
+        <AddSongPanel OnSongAdded="OnNewSongAddedAsync" OnCancelled="BackToChoose" />
+        @if (!string.IsNullOrEmpty(localError))
+        {
+            <p class="small text-danger mt-2 mb-0">@localError</p>
+        }
+        <button type="button" class="btn btn-outline-secondary btn-sm mt-2" @onclick="BackToChoose">Back</button>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public int ListId { get; set; }
+
+    [Parameter, EditorRequired]
+    public string ListDisplayName { get; set; } = string.Empty;
+
+    [Parameter]
+    public EventCallback<SongAddedToListEventArgs> OnSongAdded { get; set; }
+
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    private AddSongMode mode = AddSongMode.Choose;
+    private List<LogSongPickItem> catalogPickerItems = [];
+    private int? selectedSongId;
+    private string? localError;
+    private bool isLoadingCatalog;
+    private bool isBusy;
+
+    public async Task OpenCatalogAsync()
+    {
+        localError = null;
+        mode = AddSongMode.Catalog;
+        if (catalogPickerItems.Count == 0)
+        {
+            await LoadCatalogAsync();
+        }
+    }
+
+    public void OpenNewSong()
+    {
+        localError = null;
+        mode = AddSongMode.NewSong;
+    }
+
+    private async Task LoadCatalogAsync()
+    {
+        isLoadingCatalog = true;
+        try
+        {
+            var songs = await Api.GetSongsAsync();
+            var artists = await Api.GetArtistLookupsAsync();
+            var artistNames = artists.ToDictionary(a => a.Id, a => a.Name);
+            catalogPickerItems = songs
+                .Select(s => new LogSongPickItem(
+                    s.Id,
+                    s.Title,
+                    s.Artist is int artistId && artistNames.TryGetValue(artistId, out var name) ? name : string.Empty,
+                    false))
+                .OrderBy(s => s.Title, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            localError = ex.Message;
+        }
+        finally
+        {
+            isLoadingCatalog = false;
+        }
+    }
+
+    private async Task ConfirmCatalogAddAsync()
+    {
+        if (selectedSongId is not int songId)
+        {
+            return;
+        }
+
+        isBusy = true;
+        localError = null;
+        try
+        {
+            var result = await Api.AddListSongAsync(ListId, songId);
+            if (!result.Succeeded)
+            {
+                localError = result.ErrorMessage;
+                return;
+            }
+
+            var title = catalogPickerItems.FirstOrDefault(s => s.Id == songId)?.Title ?? "Song";
+            await NotifyAddedAsync(title);
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    private async Task OnNewSongAddedAsync(SongAddedEventArgs args)
+    {
+        localError = null;
+        isBusy = true;
+        try
+        {
+            await LoadCatalogAsync();
+
+            var newSong = LogArtistPicker.FindCreatedSong(
+                catalogPickerItems,
+                args.Title,
+                args.ArtistName,
+                s => s.Title,
+                s => s.ArtistName);
+
+            if (newSong is null)
+            {
+                localError = "Song was created but could not be found in the catalog. Try adding from catalog.";
+                mode = AddSongMode.Catalog;
+                return;
+            }
+
+            var result = await Api.AddListSongAsync(ListId, newSong.Id);
+            if (!result.Succeeded)
+            {
+                localError = result.ErrorMessage;
+                return;
+            }
+
+            await NotifyAddedAsync(args.Title);
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    private async Task NotifyAddedAsync(string title)
+    {
+        var message = $"\"{title}\" added to {ListDisplayName}.";
+        await OnSongAdded.InvokeAsync(new SongAddedToListEventArgs(message));
+        Reset();
+    }
+
+    private void BackToChoose()
+    {
+        localError = null;
+        selectedSongId = null;
+        mode = AddSongMode.Choose;
+    }
+
+    private void Reset()
+    {
+        localError = null;
+        selectedSongId = null;
+        mode = AddSongMode.Choose;
+    }
+
+    public enum AddSongMode
+    {
+        Choose,
+        Catalog,
+        NewSong
+    }
+}
