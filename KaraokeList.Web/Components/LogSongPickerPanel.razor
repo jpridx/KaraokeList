@@ -6,8 +6,9 @@
     }
     else
     {
-        <CatalogSongPicker Items="@Items" @bind-SelectedSongId="SelectedSongId"
-                           @bind-SelectedSongId:after="HandleSelectedSongIdAfterAsync"
+        <CatalogSongPicker Items="@Items"
+                           SelectedSongId="SelectedSongId"
+                           SelectedSongIdChanged="HandleSelectedSongIdChangedAsync"
                            Enabled="@(!showNewSong)" />
         <p class="small text-muted mt-1 mb-0">@Items.Count songs · ★ = on My repertoire · 🎯 = working up</p>
     }
@@ -72,7 +73,12 @@
 
     private bool showNewSong;
 
-    private Task HandleSelectedSongIdAfterAsync() => OnSelectedSongIdAfter.InvokeAsync();
+    private async Task HandleSelectedSongIdChangedAsync(int? songId)
+    {
+        SelectedSongId = songId;
+        await SelectedSongIdChanged.InvokeAsync(songId);
+        await OnSelectedSongIdAfter.InvokeAsync();
+    }
 
     private void OpenNewSongPanel() => showNewSong = true;
 

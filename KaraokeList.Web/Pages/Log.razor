@@ -26,7 +26,7 @@
 
                 <LogSongPickerPanel Items="@catalogState.SongPickerItems"
                                     @bind-SelectedSongId="selectedSongId"
-                                    @bind-SelectedSongId:after="OnSongSelectedAsync"
+                                    OnSelectedSongIdAfter="OnSongSelectedAsync"
                                     SongHint="@songHint"
                                     UsingOfflineCatalog="@catalogState.UsingOfflineCatalog"
                                     SingerLists="@singerLists"
