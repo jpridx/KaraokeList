@@ -464,7 +464,10 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
     {
         try
         {
-            var query = new List<string>();
+            var query = new List<string>
+            {
+                $"asOfDate={PerformanceRelativeDate.ToQueryDate(DateTime.Today)}"
+            };
             if (days is int dayValue)
             {
                 query.Add($"days={dayValue}");
@@ -475,7 +478,7 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
                 query.Add($"limit={limitValue}");
             }
 
-            var suffix = query.Count == 0 ? string.Empty : $"?{string.Join('&', query)}";
+            var suffix = $"?{string.Join('&', query)}";
             var response = await http.GetAsync($"api/performances/my-stale-songs{suffix}");
             if (response.IsSuccessStatusCode)
             {
@@ -552,7 +555,7 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
         try
         {
             var url =
-                $"api/performances/my-stats?topVenues={topVenues}&topSongs={topSongs}&topArtists={topArtists}&newRepertoireDays={newRepertoireDays}";
+                $"api/performances/my-stats?topVenues={topVenues}&topSongs={topSongs}&topArtists={topArtists}&newRepertoireDays={newRepertoireDays}&asOfDate={PerformanceRelativeDate.ToQueryDate(DateTime.Today)}";
             var response = await http.GetAsync(url);
             if (response.IsSuccessStatusCode)
             {

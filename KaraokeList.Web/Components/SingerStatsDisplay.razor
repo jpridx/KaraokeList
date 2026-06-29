@@ -36,7 +36,7 @@
         @if (Stats.LastPerformedOn is DateTime lastPerformed)
         {
             <p class="singer-stats-last small text-muted mb-0 mt-3">
-                Last sang @PerformanceRelativeDate.FormatLastSang(lastPerformed, DateTime.Today, Stats.LastVenueName)
+                Last sang @PerformanceRelativeDate.FormatLastSang(lastPerformed, localToday, Stats.LastVenueName)
             </p>
         }
 
@@ -131,4 +131,5 @@
     [Parameter]
     public string CssClass { get; set; } = string.Empty;
 
+    private readonly DateTime localToday = DateTime.Today;
 }

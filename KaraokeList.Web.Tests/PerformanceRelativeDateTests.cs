@@ -30,6 +30,36 @@ public sealed class PerformanceRelativeDateTests
     }
 
     [Fact]
+    public void StaleCutoff_subtracts_days_from_calendar_date()
+    {
+        var today = new DateTime(2026, 6, 28);
+
+        Assert.Equal(new DateTime(2026, 3, 30), PerformanceRelativeDate.StaleCutoff(90, today));
+    }
+
+    [Fact]
+    public void TryParseAsOfDate_parses_iso_date_and_defaults_when_empty()
+    {
+        Assert.True(PerformanceRelativeDate.TryParseAsOfDate("2026-06-28", out var parsed));
+        Assert.Equal(new DateTime(2026, 6, 28), parsed);
+
+        Assert.True(PerformanceRelativeDate.TryParseAsOfDate(null, out var defaulted));
+        Assert.Equal(DateTime.Today, defaulted.Date);
+    }
+
+    [Fact]
+    public void TryParseAsOfDate_rejects_invalid_value()
+    {
+        Assert.False(PerformanceRelativeDate.TryParseAsOfDate("not-a-date", out _));
+    }
+
+    [Fact]
+    public void ToQueryDate_uses_iso_format()
+    {
+        Assert.Equal("2026-06-28", PerformanceRelativeDate.ToQueryDate(new DateTime(2026, 6, 28)));
+    }
+
+    [Fact]
     public void FormatLastSang_uses_yesterday_for_one_day_ago()
     {
         var today = new DateTime(2026, 6, 28);

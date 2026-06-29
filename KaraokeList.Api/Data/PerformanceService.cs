@@ -399,9 +399,13 @@ public class PerformanceService(string connectionString)
         return songs;
     }
 
-    public async Task<List<StaleSong>> GetStaleSongsAsync(int singerId, int staleAfterDays, int limit)
+    public async Task<List<StaleSong>> GetStaleSongsAsync(
+        int singerId,
+        int staleAfterDays,
+        int limit,
+        DateTime asOfDate)
     {
-        var cutoff = DateTime.Today.AddDays(-staleAfterDays);
+        var cutoff = PerformanceRelativeDate.StaleCutoff(staleAfterDays, asOfDate);
         await using var connection = new SqlConnection(connectionString);
         await connection.OpenAsync();
         await using var command = connection.CreateCommand();
@@ -483,9 +487,10 @@ public class PerformanceService(string connectionString)
         int topVenueLimit = 3,
         int topSongLimit = 0,
         int topArtistLimit = 0,
-        int newRepertoireDays = 0)
+        int newRepertoireDays = 0,
+        DateTime? asOfDate = null)
     {
-        var today = DateTime.Today;
+        var today = PerformanceRelativeDate.ResolveAsOfDate(asOfDate);
         var monthStart = new DateTime(today.Year, today.Month, 1);
         var yearStart = new DateTime(today.Year, 1, 1);
 
@@ -623,7 +628,7 @@ public class PerformanceService(string connectionString)
         if (newRepertoireDays > 0)
         {
             stats.NewRepertoireDays = newRepertoireDays;
-            var cutoff = today.AddDays(-newRepertoireDays);
+            var cutoff = PerformanceRelativeDate.StaleCutoff(newRepertoireDays, today);
             await using var newSongsCommand = connection.CreateCommand();
             newSongsCommand.CommandText = """
                 SELECT s.Id, s.Title, ISNULL(a.Name, N''), MIN(p.PerformedOn) AS FirstPerformedOn

@@ -5,6 +5,36 @@ namespace KaraokeList.Shared;
 /// </summary>
 public static class PerformanceRelativeDate
 {
+    public static DateTime ResolveAsOfDate(DateTime? asOfDate) =>
+        (asOfDate ?? DateTime.Today).Date;
+
+    public static bool TryParseAsOfDate(string? value, out DateTime asOfDate)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            asOfDate = DateTime.Today;
+            return true;
+        }
+
+        if (DateOnly.TryParse(value, out var date))
+        {
+            asOfDate = date.ToDateTime(TimeOnly.MinValue);
+            return true;
+        }
+
+        asOfDate = default;
+        return false;
+    }
+
+    public static string ToQueryDate(DateTime today) => today.ToString("yyyy-MM-dd");
+
+    /// <summary>
+    /// Latest performance date that still qualifies as stale for the given threshold.
+    /// Performances on or before this date are stale; later dates are not.
+    /// </summary>
+    public static DateTime StaleCutoff(int staleAfterDays, DateTime today) =>
+        today.Date.AddDays(-staleAfterDays);
+
     public static int? DaysSince(DateTime? lastPerformedOn, DateTime today)
     {
         if (lastPerformedOn is not DateTime last)

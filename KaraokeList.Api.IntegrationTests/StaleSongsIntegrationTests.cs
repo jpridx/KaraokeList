@@ -112,6 +112,17 @@ public sealed class StaleSongsIntegrationTests(KaraokeApiFactory factory)
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
+    [SkippableFact]
+    public async Task GetMyStaleSongs_InvalidAsOfDate_ReturnsBadRequest()
+    {
+        Skip.IfNot(factory.IsDatabaseAvailable, IntegrationTestConnection.SkipReason);
+
+        var client = await CreateAuthedClientAsync();
+        var response = await client.GetAsync("/api/performances/my-stale-songs?asOfDate=not-a-date");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
     private async Task<HttpClient> CreateAuthedClientAsync()
     {
         var client = factory.CreateClient();
