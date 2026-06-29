@@ -2,6 +2,8 @@
 
 Phone-first flows for logging performances at a venue and browsing songs you've sung. Desktop catalog admin still uses Syncfusion grids under **More → Catalog**.
 
+Refactor planning (Tiers 1–6): [mobile-refactor-roadmap.md](mobile-refactor-roadmap.md).
+
 ## Projects
 
 | Project | Role |

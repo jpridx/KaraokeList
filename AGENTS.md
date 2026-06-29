@@ -54,7 +54,7 @@ See `docs/wasm-api-local-dev.md` for CORS, JWT, and Syncfusion license setup.
 | `/invite-friends` | Copy invite link/message for friends |
 | `/songs`, `/artists`, … | Syncfusion grids |
 
-Details: `docs/mobile-ux.md`. E2E: `docs/e2e-playwright.md`. Admin roles: `docs/admin-roles.md`.
+Details: `docs/mobile-ux.md`. Refactor tiers: `docs/mobile-refactor-roadmap.md`. E2E: `docs/e2e-playwright.md`. Admin roles: `docs/admin-roles.md`.
 
 ### Key API endpoints
 
