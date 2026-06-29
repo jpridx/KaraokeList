@@ -99,11 +99,7 @@
         editPerformedOn = entry.PerformedOn;
         editVenueId = entry.VenueId;
         editKeyChangeSemitones = entry.KeyChangeSemitones;
-        editOtherPerformers = entry.OtherPerformers
-            .Select(p => p.SingerId is int singerId
-                ? new CoPerformerInputDto { SingerId = singerId }
-                : new CoPerformerInputDto { DisplayName = p.Name })
-            .ToList();
+        editOtherPerformers = PerformanceEditOperations.ToCoPerformerInputs(entry.OtherPerformers);
     }
 
     private void CancelEdit() => editingId = null;
@@ -135,31 +131,28 @@
         errorMessage = null;
         statusMessage = null;
 
-        try
-        {
-            await Api.UpdatePerformanceAsync(new PerformanceDto
-            {
-                Id = performanceId,
-                Singer = SingerId,
-                Song = SongId,
-                Venue = editVenueId,
-                PerformedOn = editPerformedOn,
-                KeyChangeSemitones = editKeyChangeSemitones == 0 ? null : editKeyChangeSemitones,
-                OtherPerformers = editOtherPerformers
-            });
+        var result = await PerformanceEditOperations.UpdateAsync(
+            Api,
+            performanceId,
+            SingerId,
+            SongId,
+            editPerformedOn,
+            editVenueId,
+            editKeyChangeSemitones,
+            editOtherPerformers);
 
+        if (result.Succeeded)
+        {
             editingId = null;
             statusMessage = "Performance updated.";
             await OnChanged.InvokeAsync();
         }
-        catch (Exception ex)
+        else
         {
-            errorMessage = ex.Message;
+            errorMessage = result.ErrorMessage;
         }
-        finally
-        {
-            isSaving = false;
-        }
+
+        isSaving = false;
     }
 
     private async Task ConfirmDeleteAsync(int performanceId)
@@ -168,20 +161,18 @@
         errorMessage = null;
         statusMessage = null;
 
-        try
+        var result = await PerformanceEditOperations.DeleteAsync(Api, performanceId);
+        if (result.Succeeded)
         {
-            await Api.DeletePerformanceAsync(performanceId);
             deleteConfirmId = null;
             statusMessage = "Performance deleted.";
             await OnChanged.InvokeAsync();
         }
-        catch (Exception ex)
+        else
         {
-            errorMessage = ex.Message;
+            errorMessage = result.ErrorMessage;
         }
-        finally
-        {
-            isSaving = false;
-        }
+
+        isSaving = false;
     }
 }

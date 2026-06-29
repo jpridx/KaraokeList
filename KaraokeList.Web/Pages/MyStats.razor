@@ -66,10 +66,7 @@
         else
         {
             errorMessage = result.ErrorMessage;
-            if (result.ErrorMessage?.Contains("not linked", StringComparison.OrdinalIgnoreCase) == true)
-            {
-                singerGate?.RequireSingerLink();
-            }
+            singerGate.RequireLinkIfNotLinked(result.ErrorMessage);
         }
 
         loading = false;

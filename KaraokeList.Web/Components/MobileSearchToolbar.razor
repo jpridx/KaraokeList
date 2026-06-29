@@ -1,0 +1,30 @@
+<div class="mobile-toolbar">
+    <input class="form-control" placeholder="@Placeholder"
+           @bind="SearchText" @bind:event="oninput" @bind:after="NotifySearchChanged" />
+    @if (Count is int count && count > 0 && !string.IsNullOrEmpty(CountNoun))
+    {
+        <p class="small text-muted mb-0 mt-2">@count @FormatCountLabel(count)</p>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public string Placeholder { get; set; } = "Search";
+
+    [Parameter]
+    public string SearchText { get; set; } = string.Empty;
+
+    [Parameter]
+    public EventCallback<string> SearchTextChanged { get; set; }
+
+    [Parameter]
+    public int? Count { get; set; }
+
+    [Parameter]
+    public string CountNoun { get; set; } = string.Empty;
+
+    private string FormatCountLabel(int count) =>
+        count == 1 ? CountNoun : $"{CountNoun}s";
+
+    private Task NotifySearchChanged() => SearchTextChanged.InvokeAsync(SearchText);
+}

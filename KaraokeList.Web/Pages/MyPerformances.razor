@@ -17,31 +17,13 @@
             }
             else
             {
-                <div class="mobile-toolbar">
-                    <input class="form-control" placeholder="Search song, artist, or venue"
-                           @bind="searchText" @bind:event="oninput" @bind:after="RefreshDisplayList" />
-                    @if (displayPerformances.Count > 0)
-                    {
-                        <p class="small text-muted mb-0 mt-2">
-                            @displayPerformances.Count performance@(displayPerformances.Count == 1 ? "" : "s")
-                        </p>
-                    }
-                </div>
+                <MobileSearchToolbar @bind-SearchText="searchText" @bind-SearchText:after="RefreshDisplayList"
+                                     Placeholder="Search song, artist, or venue"
+                                     Count="displayPerformances.Count" CountNoun="performance" />
 
                 @if (venueFilters.Count > 0)
                 {
-                    <div class="mobile-toolbar">
-                        <label class="form-label small text-muted mb-1">Venue</label>
-                        <div class="genre-chips">
-                            <button type="button" class="genre-chip @(filterVenueId is null ? "active" : "")"
-                                    @onclick="() => SetVenueFilterAsync(null)">All</button>
-                            @foreach (var venue in venueFilters)
-                            {
-                                <button type="button" class="genre-chip @(filterVenueId == venue.Id ? "active" : "")"
-                                        @onclick="() => SetVenueFilterAsync(venue.Id)">@venue.Name</button>
-                            }
-                        </div>
-                    </div>
+                    <ChipFilterBar Label="Venue" Items="venueChipItems" />
                 }
 
                 <div class="mobile-toolbar">
@@ -75,9 +57,10 @@
                                            OnChanged="ReloadPerformancesAsync" />
                     @if (HasMorePerformances)
                     {
-                        <button type="button" class="btn btn-outline-primary w-100 mt-2" @onclick="LoadMore">
-                            Load more (@VisiblePerformances.Count of @displayPerformances.Count)
-                        </button>
+                        <LoadMoreButton Visible="HasMorePerformances"
+                                        VisibleCount="VisiblePerformances.Count"
+                                        TotalCount="displayPerformances.Count"
+                                        OnClick="LoadMore" />
                     }
                 }
             }
@@ -104,6 +87,31 @@
 
     private bool HasMorePerformances => visibleLimit < displayPerformances.Count;
 
+    private IReadOnlyList<ChipFilterItem> venueChipItems
+    {
+        get
+        {
+            var items = new List<ChipFilterItem>
+            {
+                new()
+                {
+                    Label = "All",
+                    IsActive = filterVenueId is null,
+                    OnClick = EventCallback.Factory.Create(this, () => SetVenueFilterAsync(null))
+                }
+            };
+
+            items.AddRange(venueFilters.Select(venue => new ChipFilterItem
+            {
+                Label = venue.Name,
+                IsActive = filterVenueId == venue.Id,
+                OnClick = EventCallback.Factory.Create(this, () => SetVenueFilterAsync(venue.Id))
+            }));
+
+            return items;
+        }
+    }
+
     private Task LoadPerformancesAsync(int singerId) => ReloadPerformancesAsync();
 
     private async Task ReloadPerformancesAsync()
@@ -115,10 +123,7 @@
         if (!result.Succeeded)
         {
             loadError = result.ErrorMessage;
-            if (result.ErrorMessage?.Contains("not linked", StringComparison.OrdinalIgnoreCase) == true)
-            {
-                singerGate?.RequireSingerLink();
-            }
+            singerGate.RequireLinkIfNotLinked(result.ErrorMessage);
 
             isLoading = false;
             return;
