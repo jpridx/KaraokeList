@@ -84,11 +84,15 @@ else
             </div>
 
             <div class="catalog-container">
-                <SfGrid DataSource="@performances" AllowPaging="true" AllowSorting="true" AllowFiltering="true"
-                        Toolbar="@(new List<string>() { "Add", "Edit", "Delete", "Update", "Cancel", "Search" })">
-                    <GridEvents TValue="PerformanceDto" OnActionBegin="args => OnActionBegin(args, singerId)"></GridEvents>
-                    <GridEditSettings AllowAdding="true" AllowEditing="true" AllowDeleting="true" Mode="EditMode.Normal"></GridEditSettings>
-                    <GridColumns>
+                <CatalogCrudGrid TItem="PerformanceDto"
+                                 Items="@performances"
+                                 @bind-ErrorMessage="gridError"
+                                 GetId="@(performance => performance.Id)"
+                                 OnSaveAsync="SavePerformanceAsync"
+                                 OnDeleteAsync="DeletePerformanceAsync"
+                                 OnReload="ReloadPerformancesAsync"
+                                 OnActionBeginExtra="OnPerformanceActionExtra">
+                    <Columns>
                         <GridColumn Field="@nameof(PerformanceDto.Id)" IsPrimaryKey="true" Visible="false" />
                         <GridColumn Field="@nameof(PerformanceDto.Song)" HeaderText="Song" Width="220">
                             <Template Context="context">
@@ -146,8 +150,8 @@ else
                                 </SfDropDownList>
                             </EditTemplate>
                         </GridColumn>
-                    </GridColumns>
-                </SfGrid>
+                    </Columns>
+                </CatalogCrudGrid>
             </div>
         </ChildContent>
     </SingerProfileGate>
@@ -161,10 +165,12 @@ else
     private List<VenueDto> venues = [];
     private IReadOnlyList<PerformanceKeyOption> keyOptions = PerformanceKeyOption.Choices;
     private bool isLoading = true;
+    private int currentSingerId;
     private int? summarySongId;
     private SongPerformanceSummaryDto? songSummary;
     private string? summaryError;
     private bool summaryLoading;
+    private string? gridError;
 
     protected override async Task OnInitializedAsync()
     {
@@ -173,6 +179,7 @@ else
 
     private async Task OnSingerReadyAsync(int singerId)
     {
+        currentSingerId = singerId;
         await ReloadPerformancesAsync();
         if (summarySongId is not null)
         {
@@ -218,46 +225,42 @@ else
         summaryLoading = false;
     }
 
-    private async Task OnActionBegin(ActionEventArgs<PerformanceDto> args, int singerId)
+    private Task OnPerformanceActionExtra(ActionEventArgs<PerformanceDto> args)
     {
         if (args.RequestType == Action.Add && args.Data is not null)
         {
             args.Data.PerformedOn = DateTime.Today;
-            args.Data.Singer = singerId;
+            args.Data.Singer = currentSingerId;
         }
 
-        if (args.RequestType == Action.Save && args.Data is not null)
+        return Task.CompletedTask;
+    }
+
+    private async Task<CatalogMutateResult> SavePerformanceAsync(PerformanceDto performance, bool isNew)
+    {
+        performance.Singer = currentSingerId;
+        var (succeeded, errorMessage) = await PerformanceEditOperations.SaveAdminAsync(Api, performance);
+        if (succeeded && summarySongId == performance.Song)
         {
-            if (args.Data.KeyChangeSemitones == 0)
-            {
-                args.Data.KeyChangeSemitones = null;
-            }
-
-            args.Data.Singer = singerId;
-
-            if (args.Data.Id <= 0)
-            {
-                await Api.CreatePerformanceAsync(args.Data);
-            }
-            else
-            {
-                await Api.UpdatePerformanceAsync(args.Data);
-            }
-
-            await ReloadPerformancesAsync();
-            if (summarySongId == args.Data.Song)
-            {
-                await LoadSummaryAsync();
-            }
+            await LoadSummaryAsync();
         }
-        else if (args.RequestType == Action.Delete && args.Data is not null)
+
+        return succeeded
+            ? CatalogMutateResult.Ok()
+            : CatalogMutateResult.Fail(errorMessage ?? "Could not save performance.");
+    }
+
+    private async Task<CatalogMutateResult> DeletePerformanceAsync(PerformanceDto performance)
+    {
+        var songId = performance.Song;
+        var (succeeded, errorMessage) = await PerformanceEditOperations.DeleteAsync(Api, performance.Id);
+        if (succeeded && summarySongId == songId)
         {
-            await Api.DeletePerformanceAsync(args.Data.Id);
-            await ReloadPerformancesAsync();
-            if (summarySongId == args.Data.Song)
-            {
-                await LoadSummaryAsync();
-            }
+            await LoadSummaryAsync();
         }
+
+        return succeeded
+            ? CatalogMutateResult.Ok()
+            : CatalogMutateResult.Fail(errorMessage ?? "Could not delete performance.");
     }
 }

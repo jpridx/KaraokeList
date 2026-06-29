@@ -5,8 +5,8 @@ Planning doc for the **architecture review** that started from [#70](https://git
 | Phase | Audience | Tiers |
 |-------|----------|-------|
 | Mobile singer UX | Phone-first flows | **1–4.5** (done) |
-| Admin catalog | Desktop grids under **More → Catalog** | **5** (planned) |
-| Infrastructure | API client, offline helpers, scaling | **6** (optional / when needed) |
+| Admin catalog | Desktop grids under **More → Catalog** | **5** (done) |
+| Infrastructure | API client, offline helpers, scaling | **6** (optional — piecemeal) |
 
 See [mobile-ux.md](mobile-ux.md) for routes, flows, and the shared-components table.
 
@@ -15,122 +15,89 @@ See [mobile-ux.md](mobile-ux.md) for routes, flows, and the shared-components ta
 | Tier | Theme | Status |
 |------|--------|--------|
 | **1** | High-ROI shared components | **Done** — PR [#98](https://github.com/jpridx/KaraokeList/pull/98) |
-| **2** | Browse toolbars + performance edit helpers | **Done** — PR [#99](https://github.com/jpridx/KaraokeList/pull/99) (+ follow-up commits on same branch) |
+| **2** | Browse toolbars + performance edit helpers | **Done** — PR [#99](https://github.com/jpridx/KaraokeList/pull/99) |
 | **3** | Mobile polish (shells, empty states, guidance) | **Done** — PR [#103](https://github.com/jpridx/KaraokeList/pull/103) |
 | **4** | Structural page splits | **Done** — PR [#106](https://github.com/jpridx/KaraokeList/pull/106) |
 | **4.5** | `SingerGatedPage` wrapper | **Done** — PR [#108](https://github.com/jpridx/KaraokeList/pull/108) |
-| **5** | Admin catalog | **Planned** |
-| **6** | Infrastructure (optional / when scaling) | **Planned** |
-
-Post–Tier 4 bugfix PRs ([#107](https://github.com/jpridx/KaraokeList/pull/107) literal bindings, [#109](https://github.com/jpridx/KaraokeList/issues/109)/[#110](https://github.com/jpridx/KaraokeList/pull/110) Log fields, [#111](https://github.com/jpridx/KaraokeList/pull/111) PWA banner text) are not separate tiers.
+| **5** | Admin catalog | **Done** |
+| **6** | Infrastructure (optional) | **Not scheduled** — address individually when pain appears |
 
 ---
 
 ## Tier 1 — High-ROI extractions (done)
-
-**Goal:** Remove the most repeated mobile scaffolding without changing behavior.
 
 | Item | Delivered |
 |------|-----------|
 | Page chrome | `MobilePageHeader`, `OfflineCacheNotice` |
 | Recent logs | `RecentLogList` |
 | Performance editing | `PerformanceEditForm` |
-| Singer resolution | `SingerProfileGate`, `SingerProfileResolver`, `SingerLinkPanel` on admin Performances |
+| Singer resolution | `SingerProfileGate`, `SingerProfileResolver` |
 | Log catalog picker | `CatalogSongMapper`, `CatalogSongPicker`, `LogCatalogLoader` |
 
 ---
 
 ## Tier 2 — Browse + edit helpers (done)
 
-**Goal:** Deduplicate mobile list/browse pages and performance list edit logic.
-
 | Item | Delivered |
 |------|-----------|
 | Search + chips + paging | `MobileSearchToolbar`, `ChipFilterBar`, `LoadMoreButton` |
-| Stale songs links | `SongLinkList` |
-| Performance CRUD helpers | `PerformanceEditOperations` |
-| Unified performance lists | `EditablePerformanceList` (replaces `PerformanceBrowseList` / `PerformanceHistoryList`) |
+| Performance lists | `EditablePerformanceList`, `PerformanceEditOperations` |
 | List membership | `SingerListResolver`, `SingerListActions` |
-| Song stats block | `SongPerformanceSummaryPanel`, catalog post-create helpers |
 | Shell states | `MobileLoadingState`, `StatusAlerts`, `MobileEmptyState` |
-| Gate extensions | `SingerProfileGateExtensions.RequireLinkIfNotLinked` |
 
 ---
 
 ## Tier 3 — Mobile polish (done)
 
-**Goal:** Consistent account/settings shells, navigation, and form guidance.
-
-| Item | Delivered |
-|------|-----------|
-| 3.1 | `MobileBackLink`; `MobilePageHeader` back link params |
-| 3.2 | Account pages → `MobileLoadingState` + `StatusAlerts` |
-| 3.3 | `QuickLogPerformance` → `StatusAlerts` |
-| 3.4 | `ChipFilterBuilder.CreateAllPlusItems` |
-| 3.5 | `SortDirectionToggle` |
-| 3.6 | `NoPerformancesEmptyState` |
-| 3.7 | `mobile-page-with-nav` on browse pages |
-| 3.8 | Add-artist / add-genre / add-song inline guidance |
+Account shells, `MobileBackLink`, `SortDirectionToggle`, empty states, add-artist guidance — see PR [#103](https://github.com/jpridx/KaraokeList/pull/103).
 
 ---
 
 ## Tier 4 — Structural page splits (done)
 
-**Goal:** Slim oversized mobile pages into orchestration shells + focused components.
-
-| Item | Delivered |
-|------|-----------|
-| 4.1 My Songs | `MySongsSortToolbar`, `MySongsGroupedList`, `GroupedPagingState` |
-| 4.2 Log picker | `LogSongPickerPanel`, `LogCatalogState` |
-| 4.3 Song detail | `SongDetailFirstLog`, `SongDetailWithHistory` |
-| 4.4 Invite share | `InviteSharePanel`, `InviteShareLoader` |
-| 4.5 Singer shell | `SingerGatedPage` on Log, My Songs, song detail, My performances, My stats |
-
-Admin `/performances` intentionally still uses `SingerProfileGate` directly (desktop grid layout).
+My Songs, Log picker, song detail, invite share, `SingerGatedPage` — see PRs [#106](https://github.com/jpridx/KaraokeList/pull/106) and [#108](https://github.com/jpridx/KaraokeList/pull/108).
 
 ---
 
-## Tier 5 — Admin catalog (planned)
+## Tier 5 — Admin catalog (done)
 
-**Goal:** Higher-impact refactors for **More → Catalog** admin grids — different audience from mobile singer pages, but shared patterns reduce duplication and silent failures.
+**Goal:** Safer, DRY admin grids under **More → Catalog**.
 
-| # | Item | Effort | Value |
-|---|------|--------|-------|
-| **5.1** | **Admin grid error handling** — try/catch or `TryCreate*` / `TryUpdate*` / `TryDelete*` in `OnActionBegin` | Small–medium | Prevents silent crashes on Genres, Artists, Singers, Venues, Songs, Performances |
-| **5.2** | **`CatalogCrudGrid<T>`** — parameterized Syncfusion grid for Genres / Singers / Venues (+ Artists) | Medium | ~200 lines removed across near-identical pages |
-| **5.3** | **Admin performance edit → `PerformanceEditOperations`** | Medium | Single edit/delete behavior between admin `/performances` grid and mobile lists |
-| **5.4** | **`SongDisplayMapper`** — extract FK mapping from `Songs.razor` | Small | Testable admin helper for artist/genre display IDs |
-| **5.5** | **bUnit smoke tests** — one test per admin page with mocked API | Medium | Safety net when grids or `OnActionBegin` handlers change |
-| **5.6** | **Shared `NotImplementedApiClient` test double** | Small | Stops repeated full-interface stubs in loader/sync tests from breaking on new `IKaraokeApiClient` members |
+| # | Item | Delivered |
+|---|------|-----------|
+| **5.1** | Admin grid error handling | `TryCreate*` / `TryUpdate*` / `TryDelete*` on `IKaraokeApiClient`; `CatalogCrudGrid` cancels failed saves and shows `alert-danger` |
+| **5.2** | `CatalogCrudGrid<T>` | Shared grid for Genres, Singers, Venues, Artists, Songs, Performances |
+| **5.3** | Admin performance edit → `PerformanceEditOperations` | `SaveAdminAsync` + `TryDeletePerformanceAsync` on admin `/performances` |
+| **5.4** | `SongDisplayMapper` | FK/display mapping extracted from `Songs.razor` into `SongDisplay` + mapper |
+| **5.5** | bUnit smoke tests | `AdminCatalogPageTests` — one render test per admin catalog page |
+| **5.6** | Shared test double | `NotImplementedApiClient` in `KaraokeList.Web.Tests/TestDoubles` |
 
-**Exit criteria:** Admin catalog pages share grid CRUD/error patterns; admin smoke tests pass; test doubles centralized.
-
-**Primary files:** `Pages/Genres.razor`, `Artists.razor`, `Singers.razor`, `Venues.razor`, `Songs.razor`, `Performances.razor`; `Services/PerformanceEditOperations.cs`; `KaraokeList.Web.Tests/`.
+**Key files:** `Components/CatalogCrudGrid.razor`, `Services/CatalogMutateResult.cs`, `Services/SongDisplayMapper.cs`, `Models/SongDisplay.cs`.
 
 ---
 
-## Tier 6 — Infrastructure (optional / when scaling)
+## Tier 6 — Infrastructure (optional / piecemeal)
 
-**Goal:** Low-urgency structural improvements — tackle individually when pain appears, not as a single batch.
+**Not a scheduled batch.** Pick items when the corresponding pain shows up — there is no expectation that all of Tier 6 ships together.
 
-| # | Item | When |
-|---|------|------|
-| **6.1** | Move `IsOfflineFailure` to `ApiTransientFailure` | Anytime — trivial; deduplicates offline detection in `LogCatalogLoader`, `MySongsLoader`, etc. |
-| **6.2** | Segment `IKaraokeApiClient` (admin / singer / auth) | When interface churn hurts — fewer stub surfaces per test |
+| # | Item | When to consider |
+|---|------|------------------|
+| **6.1** | Move `IsOfflineFailure` to `ApiTransientFailure` | Anytime — trivial dedup in loaders |
+| **6.2** | Segment `IKaraokeApiClient` (admin / singer / auth) | When interface churn breaks test stubs |
 | **6.3** | Generic `ApiResult<T>` instead of many result types | Large refactor; low urgency |
-| **6.4** | UrlAdaptor + server paging for catalog grids | When catalog size grows beyond in-memory grid loads |
-| **6.5** | Split `QuickLogPerformance` into form + save service | If log flow keeps growing after mobile tiers |
+| **6.4** | UrlAdaptor + server paging for catalog grids | When catalog size outgrows in-memory grids |
+| **6.5** | Split `QuickLogPerformance` into form + save service | If log flow keeps growing |
+
+Mark individual 6.x items done in this table when shipped; no tier-wide exit criteria.
 
 ---
 
 ## Open feature backlog (not tiered)
 
-These are tracked issues outside the refactor tier sequence — ship independently when prioritized:
-
 | Issue | Topic |
 |-------|--------|
-| [#92](https://github.com/jpridx/KaraokeList/issues/92) | More flexible search (punctuation / apostrophe tolerance) |
-| [#62](https://github.com/jpridx/KaraokeList/issues/62) | Genre groups (broad categories, multi-membership) |
+| [#92](https://github.com/jpridx/KaraokeList/issues/92) | More flexible search |
+| [#62](https://github.com/jpridx/KaraokeList/issues/62) | Genre groups |
 | [#57](https://github.com/jpridx/KaraokeList/issues/57) | Excel catalog upload |
 
 ---
@@ -138,15 +105,14 @@ These are tracked issues outside the refactor tier sequence — ship independent
 ## Working conventions
 
 - **Branches:** `cursor/<short-description>-2e87` off `master`; PR into `master`.
-- **Issues:** Put `Closes #nn` in the **PR body** (not just commit messages) for auto-close on squash merge.
-- **Verification:** `dotnet build`; `dotnet test KaraokeList.Web.Tests/KaraokeList.Web.Tests.csproj`; run API + WASM for manual mobile flows; admin grid smoke tests when touching Tier 5.
+- **Issues:** Put `Closes #nn` in the **PR body** for auto-close on squash merge.
+- **Verification:** `dotnet build`; `dotnet test KaraokeList.Web.Tests/KaraokeList.Web.Tests.csproj`.
 - **Docs:** Update this file when a tier item ships; add new components to [mobile-ux.md](mobile-ux.md).
 
 ## Related docs
 
 | Doc | Role |
 |-----|------|
-| [mobile-ux.md](mobile-ux.md) | Routes, venue-night flows, shared components |
+| [mobile-ux.md](mobile-ux.md) | Routes, flows, shared components |
 | [Performances.md](Performances.md) | API + performance schema |
-| [e2e-playwright.md](e2e-playwright.md) | Playwright setup and run commands |
-| [deployment-roadmap.md](deployment-roadmap.md) | Production hosting (separate from UI refactor tiers) |
+| [e2e-playwright.md](e2e-playwright.md) | Playwright setup |

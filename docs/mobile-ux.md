@@ -204,6 +204,8 @@ Implemented in `ShowHostMessageFormatting` (`KaraokeList.Shared`). Shown on Log 
 | `MobileLoadingState` | Loading wrapper — shows message while loading, otherwise renders child content |
 | `StatusAlerts` | Success, error, and warning alerts for mobile pages (supports compact and inline error styles) |
 | `MobileEmptyState` | Empty-state message with optional child content and action link |
+| `CatalogCrudGrid` | Shared Syncfusion CRUD grid for admin catalog pages (error handling + reload) |
+| `SongDisplayMapper` | Maps `SongDto` rows to `SongDisplay` with artist/genre names for the Songs grid |
 
 ## Invite friends
 

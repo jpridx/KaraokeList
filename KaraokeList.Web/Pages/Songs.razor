@@ -6,62 +6,59 @@
 
 <h3>Songs</h3>
 <div class="catalog-container">
-    @if (isLoading)
-    {
-        <p>Loading...</p>
-    }
-    else if (songs.Count == 0)
+    @if (!isLoading && songs.Count == 0)
     {
         <div class="alert alert-warning">No songs found. Add artists and songs to get started.</div>
     }
 
-    @if (!isLoading)
-    {
-        <SfGrid DataSource="@songs" AllowPaging="true" AllowSorting="true" AllowFiltering="true"
-                Toolbar="@(new List<string>() { "Add", "Edit", "Delete", "Update", "Cancel", "Search" })">
-            <GridEvents TValue="SongDisplay" OnActionBegin="OnActionBegin"></GridEvents>
-            <GridEditSettings AllowAdding="true" AllowEditing="true" AllowDeleting="true" Mode="EditMode.Normal"></GridEditSettings>
-            <GridColumns>
-                <GridColumn Field="@nameof(SongDisplay.Id)" IsPrimaryKey="true" Visible="false" />
-                <GridColumn Field="@nameof(SongDisplay.Title)" HeaderText="Title" Width="200" />
-                <GridColumn Field="@nameof(SongDisplay.ArtistName)" HeaderText="Artist" Width="200">
-                    <EditTemplate Context="context">
-                        @{
-                            var song = (SongDisplay)context!;
-                        }
-                        <SfAutoComplete TValue="string" TItem="ArtistLookupDto" DataSource="@artistLookups" @bind-Value="song.ArtistName"
-                                        Placeholder="Search artist...">
-                            <AutoCompleteFieldSettings Value="Name" Text="Name" />
-                        </SfAutoComplete>
-                    </EditTemplate>
-                </GridColumn>
-                <GridColumn Field="@nameof(SongDisplay.GenreName)" HeaderText="Genre" Width="150">
-                    <EditTemplate Context="context">
-                        @{
-                            var song = (SongDisplay)context!;
-                        }
-                        <SfDropDownList TValue="int?" TItem="GenreDto" DataSource="@genres" @bind-Value="song.Genre"
-                                        Placeholder="Select genre" AllowFiltering="true"
-                                        FilterType="Syncfusion.Blazor.DropDowns.FilterType.Contains">
-                            <DropDownListFieldSettings Value="Id" Text="GenreName" />
-                        </SfDropDownList>
-                    </EditTemplate>
-                </GridColumn>
-                <GridColumn Field="@nameof(SongDisplay.SecondaryArtistName)" HeaderText="Secondary Artist" Width="200">
-                    <EditTemplate Context="context">
-                        @{
-                            var song = (SongDisplay)context!;
-                        }
-                        <SfAutoComplete TValue="string" TItem="ArtistLookupDto" DataSource="@artistLookups" @bind-Value="song.SecondaryArtistName"
-                                        Placeholder="Search artist...">
-                            <AutoCompleteFieldSettings Value="Name" Text="Name" />
-                        </SfAutoComplete>
-                    </EditTemplate>
-                </GridColumn>
-                <GridColumn Field="@nameof(SongDisplay.Year)" HeaderText="Year" Width="100" />
-            </GridColumns>
-        </SfGrid>
-    }
+    <CatalogCrudGrid TItem="SongDisplay"
+                     Items="@songs"
+                     IsLoading="@isLoading"
+                     @bind-ErrorMessage="gridError"
+                     GetId="@(song => song.Id)"
+                     OnSaveAsync="SaveSongAsync"
+                     OnDeleteAsync="DeleteSongAsync"
+                     OnReload="ReloadAsync">
+        <Columns>
+            <GridColumn Field="@nameof(SongDisplay.Id)" IsPrimaryKey="true" Visible="false" />
+            <GridColumn Field="@nameof(SongDisplay.Title)" HeaderText="Title" Width="200" />
+            <GridColumn Field="@nameof(SongDisplay.ArtistName)" HeaderText="Artist" Width="200">
+                <EditTemplate Context="context">
+                    @{
+                        var song = (SongDisplay)context!;
+                    }
+                    <SfAutoComplete TValue="string" TItem="ArtistLookupDto" DataSource="@artistLookups" @bind-Value="song.ArtistName"
+                                    Placeholder="Search artist...">
+                        <AutoCompleteFieldSettings Value="Name" Text="Name" />
+                    </SfAutoComplete>
+                </EditTemplate>
+            </GridColumn>
+            <GridColumn Field="@nameof(SongDisplay.GenreName)" HeaderText="Genre" Width="150">
+                <EditTemplate Context="context">
+                    @{
+                        var song = (SongDisplay)context!;
+                    }
+                    <SfDropDownList TValue="int?" TItem="GenreDto" DataSource="@genres" @bind-Value="song.Genre"
+                                    Placeholder="Select genre" AllowFiltering="true"
+                                    FilterType="Syncfusion.Blazor.DropDowns.FilterType.Contains">
+                        <DropDownListFieldSettings Value="Id" Text="GenreName" />
+                    </SfDropDownList>
+                </EditTemplate>
+            </GridColumn>
+            <GridColumn Field="@nameof(SongDisplay.SecondaryArtistName)" HeaderText="Secondary Artist" Width="200">
+                <EditTemplate Context="context">
+                    @{
+                        var song = (SongDisplay)context!;
+                    }
+                    <SfAutoComplete TValue="string" TItem="ArtistLookupDto" DataSource="@artistLookups" @bind-Value="song.SecondaryArtistName"
+                                    Placeholder="Search artist...">
+                        <AutoCompleteFieldSettings Value="Name" Text="Name" />
+                    </SfAutoComplete>
+                </EditTemplate>
+            </GridColumn>
+            <GridColumn Field="@nameof(SongDisplay.Year)" HeaderText="Year" Width="100" />
+        </Columns>
+    </CatalogCrudGrid>
 </div>
 
 @code {
@@ -69,6 +66,7 @@
     private List<ArtistLookupDto> artistLookups = [];
     private List<GenreDto> genres = [];
     private bool isLoading = true;
+    private string? gridError;
 
     protected override async Task OnInitializedAsync() => await ReloadAsync();
 
@@ -78,44 +76,18 @@
         artistLookups = await Api.GetArtistLookupsAsync();
         genres = await Api.GetGenresAsync();
         var raw = await Api.GetSongsAsync();
-        songs = raw.Select(s => new SongDisplay
-        {
-            Id = s.Id,
-            Title = s.Title,
-            Artist = s.Artist,
-            ArtistName = artistLookups.FirstOrDefault(a => a.Id == s.Artist)?.Name ?? "",
-            Genre = s.Genre,
-            GenreName = genres.FirstOrDefault(g => g.Id == s.Genre)?.GenreName ?? "",
-            Year = s.Year,
-            SecondaryArtist = s.SecondaryArtist,
-            SecondaryArtistName = artistLookups.FirstOrDefault(a => a.Id == s.SecondaryArtist)?.Name ?? ""
-        }).ToList();
+        songs = SongDisplayMapper.ToDisplayList(raw, artistLookups, genres);
         isLoading = false;
     }
 
-    private async Task OnActionBegin(ActionEventArgs<SongDisplay> args)
+    private async Task<CatalogMutateResult> SaveSongAsync(SongDisplay song, bool isNew)
     {
-        if (args.RequestType == Action.Save && args.Data is not null)
-        {
-            args.Data.Artist = artistLookups.FirstOrDefault(a => a.Name == args.Data.ArtistName)?.Id;
-            args.Data.SecondaryArtist = string.IsNullOrWhiteSpace(args.Data.SecondaryArtistName)
-                ? null
-                : artistLookups.FirstOrDefault(a => a.Name == args.Data.SecondaryArtistName)?.Id;
-            if (args.Data.Id <= 0) await Api.CreateSongAsync(args.Data);
-            else await Api.UpdateSongAsync(args.Data);
-            await ReloadAsync();
-        }
-        else if (args.RequestType == Action.Delete && args.Data is not null)
-        {
-            await Api.DeleteSongAsync(args.Data.Id);
-            await ReloadAsync();
-        }
+        SongDisplayMapper.ApplyArtistLookups(song, artistLookups);
+        return isNew
+            ? await Api.TryCreateSongAsync(song)
+            : await Api.TryUpdateSongAsync(song);
     }
 
-    private sealed class SongDisplay : SongDto
-    {
-        public string ArtistName { get; set; } = string.Empty;
-        public string GenreName { get; set; } = string.Empty;
-        public string SecondaryArtistName { get; set; } = string.Empty;
-    }
+    private Task<CatalogMutateResult> DeleteSongAsync(SongDisplay song) =>
+        Api.TryDeleteSongAsync(song.Id);
 }

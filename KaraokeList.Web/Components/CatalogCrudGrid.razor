@@ -1,0 +1,118 @@
+@typeparam TItem where TItem : class
+
+@if (IsLoading && ShowLoadingMessage)
+{
+    <p>Loading...</p>
+}
+else if (!IsLoading)
+{
+    @if (!string.IsNullOrEmpty(ErrorMessage))
+    {
+        <div class="alert alert-danger">@ErrorMessage</div>
+    }
+
+    <SfGrid DataSource="@Items" AllowPaging="true" AllowSorting="true" AllowFiltering="true"
+            Toolbar="@DefaultToolbar">
+        <GridEvents TValue="TItem" OnActionBegin="OnActionBegin"></GridEvents>
+        <GridEditSettings AllowAdding="true" AllowEditing="true" AllowDeleting="true" Mode="EditMode.Normal"></GridEditSettings>
+        @if (UseFilterBar)
+        {
+            <GridFilterSettings Type="FilterType.FilterBar"></GridFilterSettings>
+        }
+        @if (UsePageSizes)
+        {
+            <GridPageSettings PageSizes="true"></GridPageSettings>
+        }
+        @Columns
+    </SfGrid>
+}
+
+@code {
+    private static readonly List<string> DefaultToolbar = ["Add", "Edit", "Delete", "Update", "Cancel", "Search"];
+
+    [Parameter, EditorRequired]
+    public IReadOnlyList<TItem> Items { get; set; } = [];
+
+    [Parameter]
+    public bool IsLoading { get; set; }
+
+    [Parameter]
+    public bool ShowLoadingMessage { get; set; }
+
+    [Parameter]
+    public string? ErrorMessage { get; set; }
+
+    [Parameter]
+    public EventCallback<string?> ErrorMessageChanged { get; set; }
+
+    [Parameter, EditorRequired]
+    public Func<TItem, int> GetId { get; set; } = _ => 0;
+
+    [Parameter, EditorRequired]
+    public Func<TItem, bool, Task<CatalogMutateResult>> OnSaveAsync { get; set; } =
+        (_, _) => Task.FromResult(CatalogMutateResult.Fail("Save handler not configured."));
+
+    [Parameter, EditorRequired]
+    public Func<TItem, Task<CatalogMutateResult>> OnDeleteAsync { get; set; } =
+        _ => Task.FromResult(CatalogMutateResult.Fail("Delete handler not configured."));
+
+    [Parameter, EditorRequired]
+    public EventCallback OnReload { get; set; }
+
+    [Parameter]
+    public RenderFragment? Columns { get; set; }
+
+    [Parameter]
+    public bool UseFilterBar { get; set; }
+
+    [Parameter]
+    public bool UsePageSizes { get; set; }
+
+    [Parameter]
+    public EventCallback<ActionEventArgs<TItem>> OnActionBeginExtra { get; set; }
+
+    private async Task OnActionBegin(ActionEventArgs<TItem> args)
+    {
+        if (OnActionBeginExtra.HasDelegate)
+        {
+            await OnActionBeginExtra.InvokeAsync(args);
+        }
+
+        if (args.RequestType == Action.Save && args.Data is not null)
+        {
+            var isNew = GetId(args.Data) <= 0;
+            var result = await OnSaveAsync(args.Data, isNew);
+            if (!result.Succeeded)
+            {
+                args.Cancel = true;
+                await SetErrorAsync(result.ErrorMessage ?? "Save failed.");
+                return;
+            }
+
+            await SetErrorAsync(null);
+            await OnReload.InvokeAsync();
+        }
+        else if (args.RequestType == Action.Delete && args.Data is not null)
+        {
+            var result = await OnDeleteAsync(args.Data);
+            if (!result.Succeeded)
+            {
+                args.Cancel = true;
+                await SetErrorAsync(result.ErrorMessage ?? "Delete failed.");
+                return;
+            }
+
+            await SetErrorAsync(null);
+            await OnReload.InvokeAsync();
+        }
+    }
+
+    private async Task SetErrorAsync(string? message)
+    {
+        ErrorMessage = message;
+        if (ErrorMessageChanged.HasDelegate)
+        {
+            await ErrorMessageChanged.InvokeAsync(message);
+        }
+    }
+}

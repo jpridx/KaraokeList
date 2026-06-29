@@ -28,7 +28,7 @@ public static class PerformanceEditOperations
 
         try
         {
-            await api.UpdatePerformanceAsync(new PerformanceDto
+            var updateResult = await api.TryUpdatePerformanceAsync(new PerformanceDto
             {
                 Id = performanceId,
                 Singer = singerId,
@@ -39,7 +39,7 @@ public static class PerformanceEditOperations
                 OtherPerformers = otherPerformers.ToList()
             });
 
-            return (true, null);
+            return (updateResult.Succeeded, updateResult.ErrorMessage);
         }
         catch (Exception ex)
         {
@@ -51,14 +51,26 @@ public static class PerformanceEditOperations
         IKaraokeApiClient api,
         int performanceId)
     {
-        try
+        var result = await api.TryDeletePerformanceAsync(performanceId);
+        return (result.Succeeded, result.ErrorMessage);
+    }
+
+    public static async Task<(bool Succeeded, string? ErrorMessage)> SaveAdminAsync(
+        IKaraokeApiClient api,
+        PerformanceDto dto)
+    {
+        if (dto.KeyChangeSemitones == 0)
         {
-            await api.DeletePerformanceAsync(performanceId);
-            return (true, null);
+            dto.KeyChangeSemitones = null;
         }
-        catch (Exception ex)
+
+        if (dto.Id <= 0)
         {
-            return (false, ex.Message);
+            var createResult = await api.TryCreatePerformanceAsync(dto);
+            return (createResult.Succeeded, createResult.ErrorMessage);
         }
+
+        var updateResult = await api.TryUpdatePerformanceAsync(dto);
+        return (updateResult.Succeeded, updateResult.ErrorMessage);
     }
 }

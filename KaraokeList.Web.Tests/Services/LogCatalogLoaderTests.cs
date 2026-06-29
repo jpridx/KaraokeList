@@ -105,7 +105,7 @@ public sealed class LogCatalogLoaderTests
         Assert.Equal("Side Room", result.Venues[0].VenueName);
     }
 
-    private sealed class CatalogApiStub : IKaraokeApiClient
+    private sealed class CatalogApiStub : NotImplementedApiClient
     {
         public bool ThrowOffline { get; init; }
         public List<SongDto> Songs { get; init; } = [];
@@ -122,31 +122,25 @@ public sealed class LogCatalogLoaderTests
             }
         }
 
-        public Task<List<SongDto>> GetSongsAsync()
+        public override Task<List<SongDto>> GetSongsAsync()
         {
             ThrowIfOffline();
             return Task.FromResult(Songs);
         }
 
-        public Task<List<ArtistLookupDto>> GetArtistLookupsAsync()
+        public override Task<List<ArtistLookupDto>> GetArtistLookupsAsync()
         {
             ThrowIfOffline();
             return Task.FromResult(Artists);
         }
 
-        public Task<List<VenueDto>> GetVenuesAsync()
+        public override Task<List<VenueDto>> GetVenuesAsync()
         {
             ThrowIfOffline();
             return Task.FromResult(Venues);
         }
 
-        public Task<RepertoireResult> GetMyRepertoireAsync(
-            string sortBy = "lastPerformed",
-            string sortDir = "desc",
-            int? genreId = null,
-            bool includeAll = false) => throw new NotSupportedException();
-
-        public Task<SingerListsResult> GetMyListsAsync()
+        public override Task<SingerListsResult> GetMyListsAsync()
         {
             ThrowIfOffline();
             return Task.FromResult(SingerListsResult.Ok(
@@ -166,7 +160,7 @@ public sealed class LogCatalogLoaderTests
             ]));
         }
 
-        public Task<RepertoireResult> GetListSongsAsync(
+        public override Task<RepertoireResult> GetListSongsAsync(
             int listId,
             string sortBy = "title",
             string sortDir = "asc",
@@ -187,72 +181,5 @@ public sealed class LogCatalogLoaderTests
             return Task.FromResult(RepertoireResult.Ok(
                 RepertoireSongIds.Select(id => new RepertoireSongDto { SongId = id }).ToList()));
         }
-
-        public Task<SingerListImportResult> ImportListSongsAsync(ImportSingerListSongsRequest request) =>
-            throw new NotSupportedException();
-
-        public Task<ListSongActionResult> AddListSongAsync(int listId, int songId) =>
-            throw new NotSupportedException();
-
-        public Task<ListSongActionResult> RemoveListSongAsync(int listId, int songId) =>
-            throw new NotSupportedException();
-
-        public Task<SongListMembershipResult> GetSongListMembershipAsync(int songId) =>
-            throw new NotSupportedException();
-
-        public Task<SongTicklerExclusionResult> GetSongTicklerExclusionAsync(int songId) =>
-            throw new NotSupportedException();
-
-        public Task<TicklerExclusionActionResult> SetSongTicklerExclusionAsync(int songId, UpdateSongTicklerExclusionRequest request) =>
-            throw new NotSupportedException();
-
-        public Task<TicklerExclusionActionResult> RemoveSongTicklerExclusionAsync(int songId) =>
-            throw new NotSupportedException();
-
-        public Task<PerformanceCreateResult> TryCreatePerformanceAsync(PerformanceDto dto) => throw new NotSupportedException();
-        public Task CreatePerformanceAsync(PerformanceDto dto) => throw new NotSupportedException();
-        public Task<AuthResult> LoginAsync(LoginRequest request) => throw new NotSupportedException();
-        public Task<AuthResult> RegisterAsync(RegisterRequest request) => throw new NotSupportedException();
-        public Task<RegistrationInfoDto?> GetRegistrationInfoAsync() => throw new NotSupportedException();
-        public Task CreateVenueAsync(VenueDto dto) => throw new NotSupportedException();
-        public Task UpdateVenueAsync(VenueDto dto) => throw new NotSupportedException();
-        public Task DeleteVenueAsync(int id) => throw new NotSupportedException();
-        public Task<List<GenreDto>> GetGenresAsync() => throw new NotSupportedException();
-        public Task CreateGenreAsync(GenreDto dto) => throw new NotSupportedException();
-        public Task UpdateGenreAsync(GenreDto dto) => throw new NotSupportedException();
-        public Task DeleteGenreAsync(int id) => throw new NotSupportedException();
-        public Task<List<ArtistDto>> GetArtistsAsync() => throw new NotSupportedException();
-        public Task CreateArtistAsync(ArtistDto dto) => throw new NotSupportedException();
-        public Task UpdateArtistAsync(ArtistDto dto) => throw new NotSupportedException();
-        public Task DeleteArtistAsync(int id) => throw new NotSupportedException();
-        public Task<List<SingerDto>> GetSingersAsync() => throw new NotSupportedException();
-        public Task CreateSingerAsync(SingerDto dto) => throw new NotSupportedException();
-        public Task UpdateSingerAsync(SingerDto dto) => throw new NotSupportedException();
-        public Task DeleteSingerAsync(int id) => throw new NotSupportedException();
-        public Task CreateSongAsync(SongDto dto) => throw new NotSupportedException();
-        public Task UpdateSongAsync(SongDto dto) => throw new NotSupportedException();
-        public Task DeleteSongAsync(int id) => throw new NotSupportedException();
-        public Task<List<PerformanceDto>> GetPerformancesAsync(int? songId = null) => throw new NotSupportedException();
-        public Task<UserProfileDto?> GetProfileAsync() => throw new NotSupportedException();
-        public Task<InviteShareDto?> GetInviteShareAsync() => throw new NotSupportedException();
-        public Task<AuthResult> LinkSingerAsync(LinkSingerRequest request) => throw new NotSupportedException();
-        public Task<ChangePasswordResult> ChangePasswordAsync(ChangePasswordRequest request) => throw new NotSupportedException();
-        public Task<PasswordRecoveryResult> ForgotPasswordAsync(ForgotPasswordRequest request) => throw new NotSupportedException();
-        public Task<PasswordRecoveryResult> ResetPasswordAsync(ResetPasswordRequest request) => throw new NotSupportedException();
-        public Task<SongSummaryResult> GetMySongSummaryAsync(int songId) => throw new NotSupportedException();
-        public Task<RepertoireGenresResult> GetMyRepertoireGenresAsync() => throw new NotSupportedException();
-        public Task<StaleSongsResult> GetMyStaleSongsAsync(int? days = null, int? limit = null) => throw new NotSupportedException();
-        public Task<TicklerSettingsResult> GetTicklerSettingsAsync() => throw new NotSupportedException();
-        public Task<TicklerSettingsUpdateResult> UpdateTicklerSettingsAsync(UpdateTicklerSettingsRequest request) => throw new NotSupportedException();
-        public Task<SingerStatsResult> GetMySingerStatsAsync(
-            int topVenues = 0,
-            int topSongs = 0,
-            int topArtists = 0,
-            int newRepertoireDays = 0) => throw new NotSupportedException();
-        public Task<MyPerformancesResult> GetMyPerformancesAsync(int? venueId = null, string sortDir = "desc") => throw new NotSupportedException();
-        public Task UpdatePerformanceAsync(PerformanceDto dto) => throw new NotSupportedException();
-        public Task DeletePerformanceAsync(int id) => throw new NotSupportedException();
-        public Task<List<AdminUserDto>> GetAdminUsersAsync() => throw new NotSupportedException();
-        public Task<AdminUserUpdateResult> UpdateAdminUserAsync(UpdateAdminUserRequest request) => throw new NotSupportedException();
     }
 }
