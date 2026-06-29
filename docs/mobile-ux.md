@@ -159,8 +159,9 @@ Implemented in `ShowHostMessageFormatting` (`KaraokeList.Shared`). Shown on Log 
 | `AppUpdateNotice` | PWA update banner when a new app version is waiting |
 | `HostMessagePanel` | Preview + copy button |
 | `SongListItem` | Repertoire row: tap body = history, **Log** = quick log |
-| `PerformanceBrowseList` | Mobile performance browse rows with edit/delete |
-| `PerformanceHistoryList` | Editable performance history on song detail |
+| `PerformanceBrowseList` | *(removed — use `EditablePerformanceList` Browse variant)* |
+| `PerformanceHistoryList` | *(removed — use `EditablePerformanceList` History variant)* |
+| `EditablePerformanceList` | Editable performance rows with edit/delete — Browse (My performances) or History (song detail) |
 | `TonightDashboard` | Mobile home: tonight context + recent logs |
 | `InviteFriendsBanner` | Home prompt when registration is open (invite link or register page) |
 | `StaleSongsSection` | Home list of songs not performed recently (random sample from your stale pool) |

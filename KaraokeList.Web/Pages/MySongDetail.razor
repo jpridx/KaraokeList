@@ -89,8 +89,10 @@
                         <summary class="history-details-summary">
                             Performance history (@summary.PerformanceCount)
                         </summary>
-                        <PerformanceHistoryList SongId="SongId" SingerId="singerId"
-                                                History="summary.History" OnChanged="OnHistoryChangedAsync" />
+                        <EditablePerformanceList SingerId="singerId"
+                                                 Variant="EditablePerformanceListVariant.History"
+                                                 Entries="historyEntries"
+                                                 OnChanged="OnHistoryChangedAsync" />
                     </details>
 
                     <details class="mobile-panel log-again-details mt-2">
@@ -126,6 +128,9 @@
 
     private IReadOnlyList<string> hostCoPerformerNames =>
         CoPerformerFormatting.GetDisplayNames(hostCoPerformers, singers);
+
+    private IReadOnlyList<EditablePerformanceEntry> historyEntries =>
+        summary?.History.Select(entry => EditablePerformanceEntry.FromHistory(entry, SongId)).ToList() ?? [];
 
     protected override async Task OnParametersSetAsync()
     {

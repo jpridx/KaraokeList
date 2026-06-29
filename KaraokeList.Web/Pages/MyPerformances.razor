@@ -52,9 +52,10 @@
                 }
                 else
                 {
-                    <PerformanceBrowseList SingerId="singerId"
-                                           Entries="VisiblePerformances"
-                                           OnChanged="ReloadPerformancesAsync" />
+                    <EditablePerformanceList SingerId="singerId"
+                                             Variant="EditablePerformanceListVariant.Browse"
+                                             Entries="browseEntries"
+                                             OnChanged="ReloadPerformancesAsync" />
                     @if (HasMorePerformances)
                     {
                         <LoadMoreButton Visible="HasMorePerformances"
@@ -86,6 +87,9 @@
         displayPerformances.Take(visibleLimit).ToList();
 
     private bool HasMorePerformances => visibleLimit < displayPerformances.Count;
+
+    private IReadOnlyList<EditablePerformanceEntry> browseEntries =>
+        VisiblePerformances.Select(EditablePerformanceEntry.FromBrowse).ToList();
 
     private IReadOnlyList<ChipFilterItem> venueChipItems
     {

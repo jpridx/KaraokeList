@@ -1,4 +1,5 @@
 @inject IKaraokeApiClient Api
+@inject NavigationManager Navigation
 
 @if (!string.IsNullOrEmpty(statusMessage))
 {
@@ -9,31 +10,56 @@
     <div class="alert alert-danger py-2 small">@errorMessage</div>
 }
 
-<ul class="history-list">
-    @foreach (var entry in History)
+<ul class="@ListClass">
+    @foreach (var entry in Entries)
     {
-        <li class="history-list-item">
+        <li class="@ItemClass">
             @if (editingId == entry.Id)
             {
                 <PerformanceEditForm SingerId="SingerId"
-                                         Venues="venues"
-                                         KeyOptions="keyOptions"
-                                         @bind-PerformedOn="editPerformedOn"
-                                         @bind-VenueId="editVenueId"
-                                         @bind-KeyChangeSemitones="editKeyChangeSemitones"
-                                         @bind-OtherPerformers="editOtherPerformers"
-                                         IsSaving="isSaving"
-                                         OnSave="SaveEditAsync"
-                                         OnCancel="CancelEdit" />
+                                     Venues="venues"
+                                     KeyOptions="keyOptions"
+                                     @bind-PerformedOn="editPerformedOn"
+                                     @bind-VenueId="editVenueId"
+                                     @bind-KeyChangeSemitones="editKeyChangeSemitones"
+                                     @bind-OtherPerformers="editOtherPerformers"
+                                     IsSaving="isSaving"
+                                     OnSave="() => SaveEditAsync(entry)"
+                                     OnCancel="CancelEdit">
+                    <HeaderContent>
+                        @if (Variant == EditablePerformanceListVariant.Browse)
+                        {
+                            <p class="performance-browse-song mb-2">@FormatSongLabel(entry, editKeyChangeSemitones, editCoPerformerNames)</p>
+                        }
+                    </HeaderContent>
+                </PerformanceEditForm>
             }
             else if (deleteConfirmId == entry.Id)
             {
+                @if (Variant == EditablePerformanceListVariant.Browse)
+                {
+                    <p class="performance-browse-song mb-2">@FormatSongLabel(entry, entry.KeyChangeSemitones, CoPerformerNames(entry))</p>
+                }
                 <p class="small mb-2">Delete this performance?</p>
                 <div class="d-flex gap-2">
                     <button type="button" class="btn btn-danger btn-sm flex-fill" disabled="@isSaving"
                             @onclick="() => ConfirmDeleteAsync(entry.Id)">Delete</button>
                     <button type="button" class="btn btn-outline-secondary btn-sm flex-fill" disabled="@isSaving"
                             @onclick="CancelDelete">Cancel</button>
+                </div>
+            }
+            else if (Variant == EditablePerformanceListVariant.Browse)
+            {
+                <div class="performance-browse-row">
+                    <button type="button" class="performance-browse-main" @onclick="() => GoToSongAsync(entry.SongId)">
+                        <span class="performance-browse-song">@FormatSongLabel(entry, entry.KeyChangeSemitones, CoPerformerNames(entry))</span>
+                        <span class="performance-browse-meta">@FormatMeta(entry)</span>
+                    </button>
+                    <div class="performance-browse-actions">
+                        <a class="btn btn-link btn-sm p-0" href="@($"log?songId={entry.SongId}")">Log</a>
+                        <button type="button" class="btn btn-link btn-sm p-0" @onclick="() => BeginEdit(entry)">Edit</button>
+                        <button type="button" class="btn btn-link btn-sm p-0 text-danger" @onclick="() => BeginDelete(entry.Id)">Delete</button>
+                    </div>
                 </div>
             }
             else
@@ -62,18 +88,19 @@
 
 @code {
     [Parameter, EditorRequired]
-    public int SongId { get; set; }
-
-    [Parameter, EditorRequired]
     public int SingerId { get; set; }
 
     [Parameter]
-    public IReadOnlyList<PerformanceHistoryEntryDto> History { get; set; } = [];
+    public EditablePerformanceListVariant Variant { get; set; } = EditablePerformanceListVariant.Browse;
+
+    [Parameter]
+    public IReadOnlyList<EditablePerformanceEntry> Entries { get; set; } = [];
 
     [Parameter]
     public EventCallback OnChanged { get; set; }
 
     private List<VenueDto> venues = [];
+    private List<SingerDto> singers = [];
     private IReadOnlyList<PerformanceKeyOption> keyOptions = PerformanceKeyOption.Choices;
     private int? editingId;
     private int? deleteConfirmId;
@@ -85,12 +112,45 @@
     private string? statusMessage;
     private string? errorMessage;
 
+    private string ListClass => Variant == EditablePerformanceListVariant.Browse
+        ? "performance-browse-list"
+        : "history-list";
+
+    private string ItemClass => Variant == EditablePerformanceListVariant.Browse
+        ? "performance-browse-item"
+        : "history-list-item";
+
+    private IReadOnlyList<string> editCoPerformerNames =>
+        CoPerformerFormatting.GetDisplayNames(editOtherPerformers, singers);
+
     protected override async Task OnInitializedAsync()
     {
         venues = await Api.GetVenuesAsync();
+        if (Variant == EditablePerformanceListVariant.Browse)
+        {
+            singers = await Api.GetSingersAsync();
+        }
     }
 
-    private void BeginEdit(PerformanceHistoryEntryDto entry)
+    private static IReadOnlyList<string> CoPerformerNames(EditablePerformanceEntry entry) =>
+        entry.OtherPerformers.Select(p => p.Name).ToList();
+
+    private static string FormatSongLabel(
+        EditablePerformanceEntry entry,
+        int? keyChangeSemitones,
+        IReadOnlyList<string> coPerformerNames) =>
+        ShowHostMessageFormatting.Format(
+            entry.Title ?? string.Empty,
+            entry.ArtistName ?? string.Empty,
+            keyChangeSemitones,
+            coPerformerNames);
+
+    private static string FormatMeta(EditablePerformanceEntry entry) =>
+        $"{entry.PerformedOn:d} · {entry.VenueName} · {KeyChangeFormatting.Describe(entry.KeyChangeSemitones)}";
+
+    private void GoToSongAsync(int songId) => Navigation.NavigateTo($"my-songs/{songId}");
+
+    private void BeginEdit(EditablePerformanceEntry entry)
     {
         deleteConfirmId = null;
         statusMessage = null;
@@ -114,28 +174,17 @@
 
     private void CancelDelete() => deleteConfirmId = null;
 
-    private async Task SaveEditAsync()
+    private async Task SaveEditAsync(EditablePerformanceEntry entry)
     {
-        if (editingId is not int performanceId)
-        {
-            return;
-        }
-
-        if (editVenueId is null)
-        {
-            errorMessage = "Pick a venue.";
-            return;
-        }
-
         isSaving = true;
         errorMessage = null;
         statusMessage = null;
 
         var result = await PerformanceEditOperations.UpdateAsync(
             Api,
-            performanceId,
+            entry.Id,
             SingerId,
-            SongId,
+            entry.SongId,
             editPerformedOn,
             editVenueId,
             editKeyChangeSemitones,
