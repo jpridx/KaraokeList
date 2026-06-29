@@ -23,6 +23,9 @@ else if (singerId is int id && ChildContent is not null)
     [Parameter]
     public EventCallback<int?> OnLinked { get; set; }
 
+    [Parameter]
+    public EventCallback<int> OnResolved { get; set; }
+
     private bool isResolving = true;
     private bool needsSingerLink;
     private int? singerId;
@@ -37,6 +40,11 @@ else if (singerId is int id && ChildContent is not null)
 
         needsSingerLink = singerId is null;
         isResolving = false;
+
+        if (singerId is int id)
+        {
+            await OnResolved.InvokeAsync(id);
+        }
     }
 
     private async Task HandleLinkedAsync(int? linkedSingerId)
@@ -44,5 +52,10 @@ else if (singerId is int id && ChildContent is not null)
         singerId = linkedSingerId;
         needsSingerLink = linkedSingerId is null;
         await OnLinked.InvokeAsync(linkedSingerId);
+
+        if (linkedSingerId is int id)
+        {
+            await OnResolved.InvokeAsync(id);
+        }
     }
 }
