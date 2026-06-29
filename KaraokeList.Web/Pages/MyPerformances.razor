@@ -2,16 +2,14 @@
 @attribute [Authorize]
 @inject IKaraokeApiClient Api
 
-<PageTitle>My performances</PageTitle>
-
-<div class="mobile-page mobile-page-with-nav">
-    <MobilePageHeader Title="My performances">
-        <Subtitle>Every time you've logged a song — newest first by default.</Subtitle>
-    </MobilePageHeader>
-
-    <SingerProfileGate @ref="singerGate" OnResolved="LoadPerformancesAsync">
-        <ChildContent Context="singerId">
-            <MobileLoadingState IsLoading="@isLoading" CssClass="mt-3">
+<SingerGatedPage DocumentTitle="My performances"
+                 Title="My performances"
+                 WithBottomNav="true"
+                 OnResolved="LoadPerformancesAsync"
+                 @ref="gatedPage">
+    <Subtitle>Every time you've logged a song — newest first by default.</Subtitle>
+    <ChildContent Context="singerId">
+        <MobileLoadingState IsLoading="@isLoading" CssClass="mt-3">
                 <MobileSearchToolbar @bind-SearchText="searchText" @bind-SearchText:after="RefreshDisplayList"
                                      Placeholder="Search song, artist, or venue"
                                      Count="@displayPerformances.Count" CountNoun="performance" />
@@ -53,13 +51,12 @@
                         }
                     }
                 }
-            </MobileLoadingState>
-        </ChildContent>
-    </SingerProfileGate>
-</div>
+        </MobileLoadingState>
+    </ChildContent>
+</SingerGatedPage>
 
 @code {
-    private SingerProfileGate? singerGate;
+    private SingerGatedPage? gatedPage;
     private bool isLoading = true;
     private string? loadError;
     private List<MyPerformanceEntryDto> performances = [];
@@ -101,7 +98,7 @@
         if (!result.Succeeded)
         {
             loadError = result.ErrorMessage;
-            singerGate.RequireLinkIfNotLinked(result.ErrorMessage);
+            gatedPage.RequireLinkIfNotLinked(result.ErrorMessage);
 
             isLoading = false;
             return;

@@ -2,37 +2,33 @@
 @attribute [Authorize]
 @inject IKaraokeApiClient Api
 
-<PageTitle>My stats</PageTitle>
+<SingerGatedPage DocumentTitle="My stats"
+                 Title="My stats"
+                 OnResolved="LoadStatsAsync"
+                 @ref="gatedPage">
+    <Subtitle>Your karaoke performance history at a glance.</Subtitle>
+    <ChildContent Context="_">
+        <MobileLoadingState IsLoading="@loading" Message="Loading stats…" CssClass="text-muted small mt-3">
+            <StatusAlerts ErrorMessage="@errorMessage" InlineError="true" Small="true" CssClass="mt-3" />
 
-<div class="mobile-page">
-    <MobilePageHeader Title="My stats">
-        <Subtitle>Your karaoke performance history at a glance.</Subtitle>
-    </MobilePageHeader>
-
-    <SingerProfileGate @ref="singerGate" OnResolved="LoadStatsAsync">
-        <ChildContent Context="_">
-            <MobileLoadingState IsLoading="@loading" Message="Loading stats…" CssClass="text-muted small mt-3">
-                <StatusAlerts ErrorMessage="@errorMessage" InlineError="true" Small="true" CssClass="mt-3" />
-
-                @if (string.IsNullOrWhiteSpace(errorMessage))
+            @if (string.IsNullOrWhiteSpace(errorMessage))
+            {
+                @if (stats is null or { TotalPerformances: 0 })
                 {
-                    @if (stats is null or { TotalPerformances: 0 })
-                    {
-                        <NoPerformancesEmptyState ActionText="Log your first performance"
-                                                  ActionButtonClass="btn btn-primary btn-sm"
-                                                  CssClass="mobile-panel mt-3"
-                                                  MessageClass="mb-2" />
-                    }
-                    else
-                    {
-                        <SingerStatsDisplay Stats="@stats" CssClass="mt-3 mobile-panel"
-                                            Subtitle="Totals, favorites, and recent additions to your repertoire." />
-                    }
+                    <NoPerformancesEmptyState ActionText="Log your first performance"
+                                              ActionButtonClass="btn btn-primary btn-sm"
+                                              CssClass="mobile-panel mt-3"
+                                              MessageClass="mb-2" />
                 }
-            </MobileLoadingState>
-        </ChildContent>
-    </SingerProfileGate>
-</div>
+                else
+                {
+                    <SingerStatsDisplay Stats="@stats" CssClass="mt-3 mobile-panel"
+                                        Subtitle="Totals, favorites, and recent additions to your repertoire." />
+                }
+            }
+        </MobileLoadingState>
+    </ChildContent>
+</SingerGatedPage>
 
 @code {
     private const int DefaultTopVenues = 5;
@@ -40,7 +36,7 @@
     private const int DefaultTopArtists = 10;
     private const int DefaultNewRepertoireDays = 30;
 
-    private SingerProfileGate? singerGate;
+    private SingerGatedPage? gatedPage;
     private bool loading = true;
     private SingerStatsDto? stats;
     private string? errorMessage;
@@ -65,7 +61,7 @@
         else
         {
             errorMessage = result.ErrorMessage;
-            singerGate.RequireLinkIfNotLinked(result.ErrorMessage);
+            gatedPage.RequireLinkIfNotLinked(result.ErrorMessage);
         }
 
         loading = false;

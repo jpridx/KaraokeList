@@ -185,6 +185,7 @@ Implemented in `ShowHostMessageFormatting` (`KaraokeList.Shared`). Shown on Log 
 | `RecentLogList` | Recently logged performance rows (links or tap-to-select) |
 | `PerformanceEditForm` | Shared date/venue/key/co-performers edit block for history and browse lists |
 | `SingerProfileGate` | Resolves singer ID, shows `SingerLinkPanel` when missing, cascades `SingerId` to child content (mobile singer pages + admin `/performances`) |
+| `SingerGatedPage` | Mobile page shell: `PageTitle`, `MobilePageHeader`, optional header alerts, and `SingerProfileGate` — used by Log, My Songs, song detail, My performances, My stats |
 | `SingerProfileResolver` | Static helper: JWT claim → profile API fallback for singer ID |
 | `CatalogSongMapper` | Maps catalog songs to `LogSongPickItem` (used by Log loader and add-to-list panel) |
 | `CatalogSongPicker` | Syncfusion song combobox with ★/🎯 badges |

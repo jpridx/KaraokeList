@@ -11,4 +11,7 @@ public static class SingerProfileGateExtensions
             gate?.RequireSingerLink();
         }
     }
+
+    public static void RequireLinkIfNotLinked(this SingerGatedPage? page, string? errorMessage) =>
+        page?.Gate.RequireLinkIfNotLinked(errorMessage);
 }

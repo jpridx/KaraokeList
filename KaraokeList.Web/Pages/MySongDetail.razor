@@ -3,19 +3,17 @@
 @inject IKaraokeApiClient Api
 @inject NavigationManager Navigation
 
-<PageTitle>Song history</PageTitle>
-
-<div class="mobile-page">
-    <MobilePageHeader Title="@(songMeta?.Title ?? "Song history")" TitleClass="mb-0">
-        <LeadingContent>
-            <button type="button" class="btn btn-link btn-sm ps-0" @onclick="GoBack">← My Songs</button>
-        </LeadingContent>
-        <Subtitle>@(songMeta?.ArtistName)</Subtitle>
-    </MobilePageHeader>
-
-    <SingerProfileGate @ref="singerGate" OnResolved="LoadSongDetailAsync">
-        <ChildContent Context="singerId">
-            <MobileLoadingState IsLoading="@isLoading">
+<SingerGatedPage DocumentTitle="Song history"
+                 Title="@(songMeta?.Title ?? "Song history")"
+                 TitleClass="mb-0"
+                 OnResolved="LoadSongDetailAsync"
+                 @ref="gatedPage">
+    <LeadingContent>
+        <button type="button" class="btn btn-link btn-sm ps-0" @onclick="GoBack">← My Songs</button>
+    </LeadingContent>
+    <Subtitle>@(songMeta?.ArtistName)</Subtitle>
+    <ChildContent Context="singerId">
+        <MobileLoadingState IsLoading="@isLoading">
                 @if (!string.IsNullOrEmpty(loadError))
                 {
                     <StatusAlerts ErrorMessage="@loadError" InlineError="true" />
@@ -57,16 +55,15 @@
                                                OnPerformanceSaved="OnPerformanceSavedAsync" />
                     }
                 }
-            </MobileLoadingState>
-        </ChildContent>
-    </SingerProfileGate>
-</div>
+        </MobileLoadingState>
+    </ChildContent>
+</SingerGatedPage>
 
 @code {
     [Parameter]
     public int SongId { get; set; }
 
-    private SingerProfileGate? singerGate;
+    private SingerGatedPage? gatedPage;
     private bool isLoading = true;
     private int? loadedForSongId;
     private string? loadError;
@@ -127,7 +124,7 @@
         else
         {
             loadError = result.ErrorMessage;
-            singerGate.RequireLinkIfNotLinked(result.ErrorMessage);
+            gatedPage.RequireLinkIfNotLinked(result.ErrorMessage);
         }
 
         loadedForSongId = SongId;
