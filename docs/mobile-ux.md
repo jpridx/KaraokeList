@@ -83,7 +83,7 @@ Use **Cancel** to close the add-song panel without losing your place on the Log 
 2. Switch to **Want to sing** or **Working up** to browse other lists
 3. Performance count and last-performed date still appear when you have logged that song
 4. Tap a row for detail/history (list actions on detail), or **Log** to record a performance
-5. On **Want to sing** / **Working up**, use **+ Add song** to search the catalog
+5. On **Want to sing** / **Working up**, use **+ Add from catalog** or **+ New song** (both shown together) to add to the list
 
 ### Browse + history
 
@@ -150,6 +150,7 @@ Implemented in `ShowHostMessageFormatting` (`KaraokeList.Shared`). Shown on Log 
 |-----------|------|
 | `QuickLogPerformance` | Venue, date, key, host message, save — venue from last log; date defaults to today; key from last time **you sang this song** (or original key); queues offline |
 | `AddSongPanel` | Add catalog song inline — title field + `AddArtistField` + `AddGenreField`; fires `SongAddedEventArgs` on success |
+| `AddSongToListPanel` | Want to sing / Working up — **Add from catalog** and **New song** in one step; success message after add |
 | `AddArtistField` | Artist autocomplete (`AllowCustom`) with inline **Add artist** button when the typed name isn't in the catalog |
 | `AddGenreField` | Genre autocomplete (`AllowCustom`) with inline **Add genre** button when the typed name isn't in the catalog |
 | `LogCatalogLoader` | Online catalog fetch + offline cache for Log song/venue picker (★ repertoire, 🎯 working up) |

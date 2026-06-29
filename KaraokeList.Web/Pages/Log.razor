@@ -59,6 +59,7 @@
                     <SfComboBox TValue="int?" TItem="LogSongPickItem" DataSource="@songPickerItems"
                                 @bind-Value="selectedSongId" @bind-Value:after="OnSongSelectedAsync"
                                 Placeholder="Search songs..." AllowFiltering="true" ShowClearButton="true"
+                                Enabled="@(!showNewSong)"
                                 FilterType="Syncfusion.Blazor.DropDowns.FilterType.Contains"
                                 PopupHeight="280px">
                         <ComboBoxFieldSettings Value="Id" Text="Display" />
