@@ -33,6 +33,8 @@ public sealed class AppUpdateNoticeTests : AuthPageTestContext
 
         Assert.Contains("A new version of KaraokeList is ready.", cut.Markup);
         Assert.Contains("Refresh now", cut.Markup);
+        Assert.Contains("Tap refresh to load the update.", cut.Markup);
+        Assert.DoesNotContain("text-white-50", cut.Markup);
     }
 
     private sealed class MockAppUpdateService : IAppUpdateService
