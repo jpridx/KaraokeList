@@ -15,7 +15,7 @@
 
     <SingerProfileGate @ref="singerGate" OnResolved="LoadSongDetailAsync">
         <ChildContent Context="singerId">
-            <MobileLoadingState IsLoading="isLoading">
+            <MobileLoadingState IsLoading="@isLoading">
                 @if (!string.IsNullOrEmpty(loadError))
                 {
                     <StatusAlerts ErrorMessage="@loadError" InlineError="true" />
@@ -29,28 +29,28 @@
                 }
                 else
                 {
-                    <SongPerformanceSummaryPanel Summary="summary" GenreName="@songMeta.GenreName" />
+                    <SongPerformanceSummaryPanel Summary="@summary" GenreName="@songMeta.GenreName" />
 
-                    <SongListMembershipPanel SongId="SongId" PerformanceCount="summary.PerformanceCount"
+                    <SongListMembershipPanel SongId="@SongId" PerformanceCount="@summary.PerformanceCount"
                                              OnMembershipChanged="ReloadSongDetailAsync" />
 
-                    <TicklerExclusionPanel SongId="SongId" OnExclusionChanged="ReloadSongDetailAsync" />
+                    <TicklerExclusionPanel SongId="@SongId" OnExclusionChanged="ReloadSongDetailAsync" />
 
                     @if (summary.PerformanceCount == 0)
                     {
                         <MobileEmptyState Message="Log your first performance below — venue, date, and key are saved for next time."
                                           CssClass="song-detail-empty-state mobile-panel"
                                           MessageClass="mb-0" />
-                        <SongDetailFirstLog SongId="SongId" Title="@songMeta.Title" ArtistName="@songMeta.ArtistName"
-                                            SingerId="singerId" OnPerformanceSaved="OnPerformanceSavedAsync" />
+                        <SongDetailFirstLog SongId="@SongId" Title="@songMeta.Title" ArtistName="@songMeta.ArtistName"
+                                            SingerId="@singerId" OnPerformanceSaved="OnPerformanceSavedAsync" />
                     }
                     else
                     {
-                        <SongDetailWithHistory SongId="SongId" SingerId="singerId"
+                        <SongDetailWithHistory SongId="@SongId" SingerId="@singerId"
                                                Title="@songMeta.Title" ArtistName="@songMeta.ArtistName"
-                                               PerformanceCount="summary.PerformanceCount"
-                                               HistoryEntries="historyEntries"
-                                               CoPerformerNames="hostCoPerformerNames"
+                                               PerformanceCount="@summary.PerformanceCount"
+                                               HistoryEntries="@historyEntries"
+                                               CoPerformerNames="@hostCoPerformerNames"
                                                @bind-OtherPerformers="hostCoPerformers"
                                                @bind-KeyChangeSemitones="hostKeyChangeSemitones"
                                                OnHistoryChanged="OnHistoryChangedAsync"

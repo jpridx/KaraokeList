@@ -15,10 +15,10 @@
 
     <SingerProfileGate @ref="singerGate" OnResolved="LoadListsAsync">
         <ChildContent Context="singerId">
-            <MobileLoadingState IsLoading="isLoading" CssClass="mt-3">
-                <OfflineCacheNotice UsingOffline="usingOfflineLists"
-                                    HasCachedData="hasCachedLists"
-                                    CachedAt="listsCachedAt"
+            <MobileLoadingState IsLoading="@isLoading" CssClass="mt-3">
+                <OfflineCacheNotice UsingOffline="@usingOfflineLists"
+                                    HasCachedData="@hasCachedLists"
+                                    CachedAt="@listsCachedAt"
                                     ResourceName="lists"
                                     RefreshHint="Connect to refresh or edit lists.">
                     <UnavailableContent>
@@ -26,30 +26,30 @@
                     </UnavailableContent>
                 </OfflineCacheNotice>
 
-                <ChipFilterBar Label="List" Items="listChipItems" />
+                <ChipFilterBar Label="List" Items="@listChipItems" />
 
                 @if (SupportsCatalogAdd && !usingOfflineLists && CurrentList is not null)
                 {
                     <div class="mobile-toolbar">
                         <AddSongToListPanel @ref="addSongPanel" @key="listKind"
-                                            ListId="CurrentList.Id" ListDisplayName="@CurrentList.DisplayName"
+                                            ListId="@CurrentList.Id" ListDisplayName="@CurrentList.DisplayName"
                                             OnSongAdded="OnSongAddedToListAsync" />
                     </div>
                 }
 
                 <MobileSearchToolbar @bind-SearchText="searchText" @bind-SearchText:after="RefreshDisplayList"
                                      Placeholder="Search title or artist"
-                                     Count="displaySongs.Count" CountNoun="song" />
+                                     Count="@displaySongs.Count" CountNoun="song" />
 
                 <MySongsSortToolbar @bind-SortBy="sortBy" SortDir="@sortDir"
                                     OnSortChanged="ReloadListsAsync"
                                     OnToggleSortDir="ToggleSortDirAsync"
-                                    ShowGenreFilters="showGenreFilters"
+                                    ShowGenreFilters="@showGenreFilters"
                                     OnToggleGenreFilters="ToggleGenreFiltersAsync" />
 
                 @if (showGenreFilters)
                 {
-                    <ChipFilterBar Label="Genre" Items="genreChipItems">
+                    <ChipFilterBar Label="Genre" Items="@genreChipItems">
                         <FooterContent>
                             <div class="form-check mt-2">
                                 <input class="form-check-input" type="checkbox" id="groupByGenre"
@@ -87,16 +87,16 @@
                 }
                 else if (string.IsNullOrEmpty(loadError) && groupByGenre)
                 {
-                    <MySongsGroupedList PagingView="groupedPagingView"
-                                        TotalCount="displaySongs.Count"
+                    <MySongsGroupedList PagingView="@groupedPagingView"
+                                        TotalCount="@displaySongs.Count"
                                         OnLoadMore="LoadMoreGroupedSongs"
                                         OnHistory="GoToHistoryAsync"
                                         OnLog="GoToLogAsync" />
                 }
                 else if (string.IsNullOrEmpty(loadError))
                 {
-                    <Virtualize TItem="RepertoireSongDto" Items="displaySongs" ItemSize="88" OverscanCount="6">
-                        <SongListItem Song="context" OnHistory="GoToHistoryAsync" OnLog="GoToLogAsync" />
+                    <Virtualize TItem="RepertoireSongDto" Items="@displaySongs" ItemSize="88" OverscanCount="6">
+                        <SongListItem Song="@context" OnHistory="GoToHistoryAsync" OnLog="GoToLogAsync" />
                     </Virtualize>
                 }
             </MobileLoadingState>

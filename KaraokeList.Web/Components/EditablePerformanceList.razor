@@ -12,14 +12,14 @@
         <li class="@ItemClass">
             @if (editingId == entry.Id)
             {
-                <PerformanceEditForm SingerId="SingerId"
-                                     Venues="venues"
-                                     KeyOptions="keyOptions"
+                <PerformanceEditForm SingerId="@SingerId"
+                                     Venues="@venues"
+                                     KeyOptions="@keyOptions"
                                      @bind-PerformedOn="editPerformedOn"
                                      @bind-VenueId="editVenueId"
                                      @bind-KeyChangeSemitones="editKeyChangeSemitones"
                                      @bind-OtherPerformers="editOtherPerformers"
-                                     IsSaving="isSaving"
+                                     IsSaving="@isSaving"
                                      OnSave="() => SaveEditAsync(entry)"
                                      OnCancel="CancelEdit">
                     <HeaderContent>

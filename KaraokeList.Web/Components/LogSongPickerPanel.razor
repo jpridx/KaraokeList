@@ -6,7 +6,7 @@
     }
     else
     {
-        <CatalogSongPicker Items="Items" @bind-SelectedSongId="SelectedSongId"
+        <CatalogSongPicker Items="@Items" @bind-SelectedSongId="SelectedSongId"
                            @bind-SelectedSongId:after="HandleSelectedSongIdAfterAsync"
                            Enabled="@(!showNewSong)" />
         <p class="small text-muted mt-1 mb-0">@Items.Count songs · ★ = on My repertoire · 🎯 = working up</p>
@@ -17,10 +17,10 @@
     }
     @if (SelectedSongId is int workingUpSongId && !UsingOfflineCatalog)
     {
-        <AddToWorkingUpButton SongId="workingUpSongId"
-                              SingerLists="SingerLists"
-                              AlreadyOnWorkingUp="WorkingUpSongIds.Contains(workingUpSongId)"
-                              OnAdded="OnAddedToWorkingUp" />
+        <AddToWorkingUpButton SongId="@workingUpSongId"
+                              SingerLists="@SingerLists"
+                              AlreadyOnWorkingUp="@WorkingUpSongIds.Contains(workingUpSongId)"
+                              OnAdded="@OnAddedToWorkingUp" />
     }
 
     @if (!UsingOfflineCatalog)

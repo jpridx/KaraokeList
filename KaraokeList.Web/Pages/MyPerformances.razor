@@ -11,14 +11,14 @@
 
     <SingerProfileGate @ref="singerGate" OnResolved="LoadPerformancesAsync">
         <ChildContent Context="singerId">
-            <MobileLoadingState IsLoading="isLoading" CssClass="mt-3">
+            <MobileLoadingState IsLoading="@isLoading" CssClass="mt-3">
                 <MobileSearchToolbar @bind-SearchText="searchText" @bind-SearchText:after="RefreshDisplayList"
                                      Placeholder="Search song, artist, or venue"
-                                     Count="displayPerformances.Count" CountNoun="performance" />
+                                     Count="@displayPerformances.Count" CountNoun="performance" />
 
                 @if (venueFilters.Count > 0)
                 {
-                    <ChipFilterBar Label="Venue" Items="venueChipItems" />
+                    <ChipFilterBar Label="Venue" Items="@venueChipItems" />
                 }
 
                 <div class="mobile-toolbar">
@@ -40,15 +40,15 @@
                     }
                     else
                     {
-                        <EditablePerformanceList SingerId="singerId"
+                        <EditablePerformanceList SingerId="@singerId"
                                                  Variant="EditablePerformanceListVariant.Browse"
-                                                 Entries="browseEntries"
+                                                 Entries="@browseEntries"
                                                  OnChanged="ReloadPerformancesAsync" />
                         @if (HasMorePerformances)
                         {
-                            <LoadMoreButton Visible="HasMorePerformances"
-                                            VisibleCount="VisiblePerformances.Count"
-                                            TotalCount="displayPerformances.Count"
+                            <LoadMoreButton Visible="@HasMorePerformances"
+                                            VisibleCount="@VisiblePerformances.Count"
+                                            TotalCount="@displayPerformances.Count"
                                             OnClick="LoadMore" />
                         }
                     }

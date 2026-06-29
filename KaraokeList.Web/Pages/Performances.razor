@@ -54,14 +54,14 @@ else
                     }
                     else if (songSummary.PerformanceCount == 0)
                     {
-                        <SongPerformanceSummaryPanel Summary="songSummary"
+                        <SongPerformanceSummaryPanel Summary="@songSummary"
                                                      Layout="SongPerformanceSummaryLayout.Admin"
                                                      CssClass=""
                                                      EmptyMessageClass="mt-3 mb-0" />
                     }
                     else
                     {
-                        <SongPerformanceSummaryPanel Summary="songSummary"
+                        <SongPerformanceSummaryPanel Summary="@songSummary"
                                                      Layout="SongPerformanceSummaryLayout.Admin"
                                                      CssClass="" />
                         <table class="table table-sm">

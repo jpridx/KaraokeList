@@ -13,10 +13,10 @@
 
     <SingerProfileGate OnResolved="LoadCatalogAsync">
         <ChildContent Context="singerId">
-            <MobileLoadingState IsLoading="isLoading">
-                <OfflineCacheNotice UsingOffline="catalogState.UsingOfflineCatalog"
-                                    HasCachedData="catalogState.HasCachedCatalog"
-                                    CachedAt="catalogState.CatalogCachedAt"
+            <MobileLoadingState IsLoading="@isLoading">
+                <OfflineCacheNotice UsingOffline="@catalogState.UsingOfflineCatalog"
+                                    HasCachedData="@catalogState.HasCachedCatalog"
+                                    CachedAt="@catalogState.CatalogCachedAt"
                                     ResourceName="songs"
                                     RefreshHint="Connect to refresh the catalog.">
                     <UnavailableContent>
@@ -27,27 +27,27 @@
 
                 <StatusAlerts SuccessMessage="@saveMessage" ErrorMessage="@saveError" />
 
-                <LogSongPickerPanel Items="catalogState.SongPickerItems"
+                <LogSongPickerPanel Items="@catalogState.SongPickerItems"
                                     @bind-SelectedSongId="selectedSongId"
                                     @bind-SelectedSongId:after="OnSongSelectedAsync"
-                                    SongHint="songHint"
-                                    UsingOfflineCatalog="catalogState.UsingOfflineCatalog"
-                                    SingerLists="singerLists"
-                                    WorkingUpSongIds="catalogState.WorkingUpSongIds"
+                                    SongHint="@songHint"
+                                    UsingOfflineCatalog="@catalogState.UsingOfflineCatalog"
+                                    SingerLists="@singerLists"
+                                    WorkingUpSongIds="@catalogState.WorkingUpSongIds"
                                     OnAddedToWorkingUp="OnAddedToWorkingUpAsync"
                                     OnSongAdded="OnNewSongAddedAsync" />
 
                 @if (SelectedSong is not null)
                 {
-                    <QuickLogPerformance SongId="SelectedSong.Id" Title="@SelectedSong.Title"
-                                         ArtistName="@SelectedSong.ArtistName" SingerId="singerId"
+                    <QuickLogPerformance SongId="@SelectedSong.Id" Title="@SelectedSong.Title"
+                                         ArtistName="@SelectedSong.ArtistName" SingerId="@singerId"
                                          OnPerformanceSaved="OnPerformanceSavedAsync" />
                 }
 
                 @if (recentLogs.Count > 0)
                 {
                     <div class="mobile-panel recent-logs-panel">
-                        <RecentLogList Items="recentLogs"
+                        <RecentLogList Items="@recentLogs"
                                        Heading="Recently logged"
                                        HeadingSuffix="@(catalogState.UsingOfflineCatalog && !catalogState.HasCachedCatalog ? " — tap to pick a song" : string.Empty)"
                                        IncludeKeyInMeta="true"

@@ -11,16 +11,16 @@
         <input class="form-control mb-2" @bind="title" />
 
         <label class="form-label">Artist</label>
-        <AddArtistField ArtistLookups="artistLookups" @bind-ArtistName="artistName"
+        <AddArtistField ArtistLookups="@artistLookups" @bind-ArtistName="artistName"
                         @bind-ArtistName:after="SyncArtistFromNameAsync"
                         ArtistLookupsChanged="OnArtistLookupsRefreshed"
-                        OnArtistConfirmed="OnArtistConfirmedAsync" Disabled="isBusy" />
+                        OnArtistConfirmed="OnArtistConfirmedAsync" Disabled="@isBusy" />
 
         <label class="form-label mt-3">Genre (optional)</label>
-        <AddGenreField Genres="genres" @bind-GenreName="genreName"
+        <AddGenreField Genres="@genres" @bind-GenreName="genreName"
                        @bind-GenreName:after="SyncGenreFromNameAsync"
                        GenresChanged="OnGenresRefreshed"
-                       OnGenreConfirmed="OnGenreConfirmedAsync" Disabled="isBusy" />
+                       OnGenreConfirmed="OnGenreConfirmedAsync" Disabled="@isBusy" />
 
         @if (!string.IsNullOrEmpty(localError))
         {
