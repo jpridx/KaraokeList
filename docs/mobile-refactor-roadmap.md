@@ -96,7 +96,7 @@ Mark individual 6.x items done in this table when shipped; no tier-wide exit cri
 
 | Issue | Topic |
 |-------|--------|
-| [#92](https://github.com/jpridx/KaraokeList/issues/92) | More flexible search |
+| [#92](https://github.com/jpridx/KaraokeList/issues/92) | More flexible search — see [flexible-search-options.md](flexible-search-options.md) |
 | [#62](https://github.com/jpridx/KaraokeList/issues/62) | Genre groups |
 | [#57](https://github.com/jpridx/KaraokeList/issues/57) | Excel catalog upload |
 
@@ -116,3 +116,4 @@ Mark individual 6.x items done in this table when shipped; no tier-wide exit cri
 | [mobile-ux.md](mobile-ux.md) | Routes, flows, shared components |
 | [Performances.md](Performances.md) | API + performance schema |
 | [e2e-playwright.md](e2e-playwright.md) | Playwright setup |
+| [flexible-search-options.md](flexible-search-options.md) | #92 design options (not implemented) |
