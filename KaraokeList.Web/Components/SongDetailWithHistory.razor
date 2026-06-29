@@ -1,0 +1,65 @@
+<CoPerformersEditor PrimarySingerId="SingerId" @bind-OtherPerformers="OtherPerformers" />
+
+<HostMessagePanel Title="@Title" ArtistName="@ArtistName"
+                  KeyChangeSemitones="KeyChangeSemitones" ShowKeyPicker="false"
+                  CoPerformerNames="CoPerformerNames" />
+
+<details class="mobile-panel history-details mt-2" open>
+    <summary class="history-details-summary">
+        Performance history (@PerformanceCount)
+    </summary>
+    <EditablePerformanceList SingerId="SingerId"
+                             Variant="EditablePerformanceListVariant.History"
+                             Entries="HistoryEntries"
+                             OnChanged="OnHistoryChanged" />
+</details>
+
+<details class="mobile-panel log-again-details mt-2">
+    <summary class="history-details-summary">Log again</summary>
+    <div class="log-again-form mt-2">
+        <QuickLogPerformance SongId="SongId" Title="@Title" ArtistName="@ArtistName"
+                             SingerId="SingerId" SaveButtonText="Log again"
+                             OtherPerformers="OtherPerformers" ShowCoPerformersEditor="false"
+                             ShowHostMessagePanel="false"
+                             @bind-KeyChangeSemitones="KeyChangeSemitones"
+                             OnPerformanceSaved="OnPerformanceSaved" />
+    </div>
+</details>
+
+@code {
+    [Parameter, EditorRequired]
+    public int SongId { get; set; }
+
+    [Parameter, EditorRequired]
+    public int SingerId { get; set; }
+
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public string ArtistName { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public int PerformanceCount { get; set; }
+
+    [Parameter, EditorRequired]
+    public IReadOnlyList<EditablePerformanceEntry> HistoryEntries { get; set; } = [];
+
+    [Parameter, EditorRequired]
+    public IReadOnlyList<string> CoPerformerNames { get; set; } = [];
+
+    [Parameter, EditorRequired]
+    public List<CoPerformerInputDto> OtherPerformers { get; set; } = [];
+
+    [Parameter]
+    public int? KeyChangeSemitones { get; set; }
+
+    [Parameter]
+    public EventCallback<int?> KeyChangeSemitonesChanged { get; set; }
+
+    [Parameter, EditorRequired]
+    public EventCallback OnHistoryChanged { get; set; }
+
+    [Parameter, EditorRequired]
+    public EventCallback<string?> OnPerformanceSaved { get; set; }
+}

@@ -1,0 +1,86 @@
+<div class="mobile-panel">
+    <label class="form-label">Song</label>
+    @if (Items.Count == 0)
+    {
+        <p class="text-muted small mb-0">No songs in the catalog yet. Use + New song below.</p>
+    }
+    else
+    {
+        <CatalogSongPicker Items="Items" @bind-SelectedSongId="SelectedSongId"
+                           @bind-SelectedSongId:after="HandleSelectedSongIdAfterAsync"
+                           Enabled="@(!showNewSong)" />
+        <p class="small text-muted mt-1 mb-0">@Items.Count songs · ★ = on My repertoire · 🎯 = working up</p>
+    }
+    @if (SelectedSongId is int songId && SongHint is not null)
+    {
+        <p class="small text-muted mt-2 mb-0">@SongHint</p>
+    }
+    @if (SelectedSongId is int workingUpSongId && !UsingOfflineCatalog)
+    {
+        <AddToWorkingUpButton SongId="workingUpSongId"
+                              SingerLists="SingerLists"
+                              AlreadyOnWorkingUp="WorkingUpSongIds.Contains(workingUpSongId)"
+                              OnAdded="OnAddedToWorkingUp" />
+    }
+
+    @if (!UsingOfflineCatalog)
+    {
+        @if (!showNewSong)
+        {
+            <button type="button" class="btn btn-link btn-sm ps-0 mt-2" @onclick="OpenNewSongPanel">
+                + New song
+            </button>
+        }
+        else
+        {
+            <AddSongPanel OnSongAdded="OnSongAddedInternalAsync"
+                          OnCancelled="CloseNewSongPanel" />
+        }
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyList<LogSongPickItem> Items { get; set; } = [];
+
+    [Parameter]
+    public int? SelectedSongId { get; set; }
+
+    [Parameter]
+    public EventCallback<int?> SelectedSongIdChanged { get; set; }
+
+    [Parameter]
+    public EventCallback OnSelectedSongIdAfter { get; set; }
+
+    [Parameter]
+    public string? SongHint { get; set; }
+
+    [Parameter]
+    public bool UsingOfflineCatalog { get; set; }
+
+    [Parameter]
+    public IReadOnlyList<SingerListDto> SingerLists { get; set; } = [];
+
+    [Parameter, EditorRequired]
+    public HashSet<int> WorkingUpSongIds { get; set; } = [];
+
+    [Parameter]
+    public EventCallback OnAddedToWorkingUp { get; set; }
+
+    [Parameter]
+    public EventCallback<SongAddedEventArgs> OnSongAdded { get; set; }
+
+    private bool showNewSong;
+
+    private Task HandleSelectedSongIdAfterAsync() => OnSelectedSongIdAfter.InvokeAsync();
+
+    private void OpenNewSongPanel() => showNewSong = true;
+
+    private void CloseNewSongPanel() => showNewSong = false;
+
+    private async Task OnSongAddedInternalAsync(SongAddedEventArgs args)
+    {
+        showNewSong = false;
+        await OnSongAdded.InvokeAsync(args);
+    }
+}

@@ -1,0 +1,20 @@
+<QuickLogPerformance SongId="SongId" Title="@Title" ArtistName="@ArtistName"
+                     SingerId="SingerId" SaveButtonText="Log performance"
+                     OnPerformanceSaved="OnPerformanceSaved" />
+
+@code {
+    [Parameter, EditorRequired]
+    public int SongId { get; set; }
+
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public string ArtistName { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public int SingerId { get; set; }
+
+    [Parameter, EditorRequired]
+    public EventCallback<string?> OnPerformanceSaved { get; set; }
+}

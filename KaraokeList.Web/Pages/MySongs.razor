@@ -41,24 +41,11 @@
                                      Placeholder="Search title or artist"
                                      Count="displaySongs.Count" CountNoun="song" />
 
-                <div class="mobile-toolbar">
-                    <label class="form-label small text-muted mb-1">Sort</label>
-                    <select class="form-select" @bind="sortBy" @bind:after="ReloadListsAsync">
-                        <option value="lastPerformed">Last performed</option>
-                        <option value="title">Song title</option>
-                        <option value="artist">Artist</option>
-                        <option value="genre">Genre</option>
-                    </select>
-                    <SortDirectionToggle Label="@(sortDir == "desc" ? "↓ Newest / Z–A" : "↑ Oldest / A–Z")"
-                                         OnClick="ToggleSortDirAsync"
-                                         CssClass="mt-2" />
-                </div>
-
-                <div class="mobile-toolbar">
-                    <button type="button" class="btn btn-link btn-sm ps-0" @onclick="ToggleGenreFiltersAsync">
-                        @(showGenreFilters ? "Hide genre filters" : "Show genre filters")
-                    </button>
-                </div>
+                <MySongsSortToolbar @bind-SortBy="sortBy" SortDir="@sortDir"
+                                    OnSortChanged="ReloadListsAsync"
+                                    OnToggleSortDir="ToggleSortDirAsync"
+                                    ShowGenreFilters="showGenreFilters"
+                                    OnToggleGenreFilters="ToggleGenreFiltersAsync" />
 
                 @if (showGenreFilters)
                 {
@@ -100,21 +87,11 @@
                 }
                 else if (string.IsNullOrEmpty(loadError) && groupByGenre)
                 {
-                    @foreach (var group in VisibleGroupedSongs)
-                    {
-                        <h2 class="repertoire-group-heading">@group.Key</h2>
-                        @foreach (var song in group.Songs)
-                        {
-                            <SongListItem Song="song" OnHistory="GoToHistoryAsync" OnLog="GoToLogAsync" />
-                        }
-                    }
-                    @if (HasMoreGroupedSongs)
-                    {
-                        <LoadMoreButton Visible="HasMoreGroupedSongs"
-                                        VisibleCount="VisibleGroupedSongCount"
+                    <MySongsGroupedList PagingView="groupedPagingView"
                                         TotalCount="displaySongs.Count"
-                                        OnClick="LoadMoreGroupedSongs" />
-                    }
+                                        OnLoadMore="LoadMoreGroupedSongs"
+                                        OnHistory="GoToHistoryAsync"
+                                        OnLog="GoToLogAsync" />
                 }
                 else if (string.IsNullOrEmpty(loadError))
                 {
@@ -145,11 +122,11 @@
     private bool showGenreFilters;
     private SingerListKind listKind = SingerListKind.MyRepertoire;
     private List<RepertoireSongDto> displaySongs = [];
-    private int visibleGroupedLimit = PageSize;
+    private readonly GroupedPagingState groupedPaging = new();
     private AddSongToListPanel? addSongPanel;
     private string? addSongMessage;
 
-    private const int PageSize = 40;
+    private GroupedPagingView groupedPagingView => groupedPaging.BuildVisible(displaySongs);
 
     private bool SupportsCatalogAdd =>
         listKind is SingerListKind.WantToSing or SingerListKind.WorkingUp;
@@ -166,42 +143,6 @@
         SingerListKind.WorkingUp => "No songs on your working-up list yet.",
         _ => "No songs on your repertoire yet."
     };
-
-    private IEnumerable<IGrouping<string, RepertoireSongDto>> GroupedSongs =>
-        displaySongs.GroupBy(s => string.IsNullOrWhiteSpace(s.GenreName) ? "(No genre)" : s.GenreName)
-            .OrderBy(g => g.Key);
-
-    private IReadOnlyList<GroupedSongSection> VisibleGroupedSongs
-    {
-        get
-        {
-            var sections = new List<GroupedSongSection>();
-            var remaining = visibleGroupedLimit;
-
-            foreach (var group in GroupedSongs)
-            {
-                if (remaining <= 0)
-                {
-                    break;
-                }
-
-                var groupSongs = group.Take(remaining).ToList();
-                if (groupSongs.Count == 0)
-                {
-                    continue;
-                }
-
-                sections.Add(new GroupedSongSection(group.Key, groupSongs));
-                remaining -= groupSongs.Count;
-            }
-
-            return sections;
-        }
-    }
-
-    private int VisibleGroupedSongCount => VisibleGroupedSongs.Sum(g => g.Songs.Count);
-
-    private bool HasMoreGroupedSongs => VisibleGroupedSongCount < displaySongs.Count;
 
     private IReadOnlyList<ChipFilterItem> listChipItems =>
         singerLists.Select(list => new ChipFilterItem
@@ -282,12 +223,12 @@
     private void RefreshDisplayList()
     {
         displaySongs = FilteredSongs.ToList();
-        visibleGroupedLimit = PageSize;
+        groupedPaging.Reset();
     }
 
-    private void LoadMoreGroupedSongs() => visibleGroupedLimit += PageSize;
+    private void LoadMoreGroupedSongs() => groupedPaging.LoadMore();
 
-    private void ResetGroupedPaging() => visibleGroupedLimit = PageSize;
+    private void ResetGroupedPaging() => groupedPaging.Reset();
 
     private async Task ToggleGenreFiltersAsync()
     {
@@ -319,8 +260,6 @@
         await MySongsStore.SetListKindAsync(newKind);
         await ReloadListsAsync();
     }
-
-    private sealed record GroupedSongSection(string Key, IReadOnlyList<RepertoireSongDto> Songs);
 
     private void GoToHistoryAsync(RepertoireSongDto song) =>
         Navigation.NavigateTo($"my-songs/{song.SongId}");

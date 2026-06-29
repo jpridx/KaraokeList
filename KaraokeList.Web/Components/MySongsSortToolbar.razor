@@ -1,0 +1,43 @@
+<div class="mobile-toolbar">
+    <label class="form-label small text-muted mb-1">Sort</label>
+    <select class="form-select" @bind="SortBy" @bind:after="HandleSortChangedAsync">
+        <option value="lastPerformed">Last performed</option>
+        <option value="title">Song title</option>
+        <option value="artist">Artist</option>
+        <option value="genre">Genre</option>
+    </select>
+    <SortDirectionToggle Label="@(SortDir == "desc" ? "↓ Newest / Z–A" : "↑ Oldest / A–Z")"
+                         OnClick="OnToggleSortDir"
+                         CssClass="mt-2" />
+</div>
+
+<div class="mobile-toolbar">
+    <button type="button" class="btn btn-link btn-sm ps-0" @onclick="OnToggleGenreFilters">
+        @(ShowGenreFilters ? "Hide genre filters" : "Show genre filters")
+    </button>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public string SortBy { get; set; } = "lastPerformed";
+
+    [Parameter]
+    public EventCallback<string> SortByChanged { get; set; }
+
+    [Parameter, EditorRequired]
+    public string SortDir { get; set; } = "desc";
+
+    [Parameter, EditorRequired]
+    public EventCallback OnSortChanged { get; set; }
+
+    [Parameter, EditorRequired]
+    public EventCallback OnToggleSortDir { get; set; }
+
+    [Parameter]
+    public bool ShowGenreFilters { get; set; }
+
+    [Parameter, EditorRequired]
+    public EventCallback OnToggleGenreFilters { get; set; }
+
+    private Task HandleSortChangedAsync() => OnSortChanged.InvokeAsync();
+}

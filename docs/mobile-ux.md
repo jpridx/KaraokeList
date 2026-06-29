@@ -164,6 +164,15 @@ Implemented in `ShowHostMessageFormatting` (`KaraokeList.Shared`). Shown on Log 
 | `EditablePerformanceList` | Editable performance rows with edit/delete — Browse (My performances) or History (song detail) |
 | `TonightDashboard` | Mobile home: tonight context + recent logs |
 | `InviteFriendsBanner` | Home prompt when registration is open (invite link or register page) |
+| `InviteSharePanel` | Copy registration link/message — full page or compact home banner layout |
+| `InviteShareLoader` | Loads invite-share payload + registration info for invite UI |
+| `LogSongPickerPanel` | Log page song combobox, working-up shortcut, and inline new-song panel |
+| `LogCatalogState` | Mutable catalog snapshot for Log (offline flags, picker items, repertoire/working-up IDs) |
+| `MySongsSortToolbar` | Sort dropdown, direction toggle, and genre-filter show/hide for My Songs |
+| `MySongsGroupedList` | Genre-grouped repertoire rows with load-more paging |
+| `GroupedPagingState` | Load-more paging across genre groups on My Songs |
+| `SongDetailFirstLog` | First-performance quick log block on song detail |
+| `SongDetailWithHistory` | Co-performers, host message, history, and log-again on song detail |
 | `StaleSongsSection` | Home list of songs not performed recently (random sample from your stale pool) |
 | `SingerStatsTeaser` | Home summary with link to `/my-stats` |
 | `SingerStatsDisplay` | Shared stats layout (used on `/my-stats`) |
