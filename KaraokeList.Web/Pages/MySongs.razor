@@ -11,19 +11,11 @@
         <Subtitle>Browse your lists. Tap for details, or <strong>Log</strong> to record a performance.</Subtitle>
     </MobilePageHeader>
 
-    @if (!string.IsNullOrEmpty(addSongMessage))
-    {
-        <div class="alert alert-success small mb-0 mt-3" role="status">@addSongMessage</div>
-    }
+    <StatusAlerts SuccessMessage="addSongMessage" Small="true" CssClass="mb-0 mt-3" />
 
     <SingerProfileGate @ref="singerGate" OnResolved="LoadListsAsync">
         <ChildContent Context="singerId">
-            @if (isLoading)
-            {
-                <p class="mt-3">Loading...</p>
-            }
-            else
-            {
+            <MobileLoadingState IsLoading="isLoading" CssClass="mt-3">
                 <OfflineCacheNotice UsingOffline="usingOfflineLists"
                                     HasCachedData="hasCachedLists"
                                     CachedAt="listsCachedAt"
@@ -82,20 +74,17 @@
                     </ChipFilterBar>
                 }
 
-                @if (!string.IsNullOrEmpty(loadError))
+                <StatusAlerts ErrorMessage="loadError" />
+
+                @if (string.IsNullOrEmpty(loadError) && !FilteredSongs.Any())
                 {
-                    <p class="text-danger">@loadError</p>
-                }
-                else if (!FilteredSongs.Any())
-                {
-                    <div class="empty-state">
-                        @if (!string.IsNullOrWhiteSpace(searchText))
-                        {
-                            <p>No songs match your search.</p>
-                        }
-                        else
-                        {
-                            <p>@EmptyListMessage</p>
+                    @if (!string.IsNullOrWhiteSpace(searchText))
+                    {
+                        <MobileEmptyState Message="No songs match your search." />
+                    }
+                    else
+                    {
+                        <MobileEmptyState Message="@EmptyListMessage">
                             @if (SupportsCatalogAdd && !usingOfflineLists)
                             {
                                 <div class="d-flex flex-wrap gap-2 mt-2">
@@ -107,10 +96,10 @@
                                     </button>
                                 </div>
                             }
-                        }
-                    </div>
+                        </MobileEmptyState>
+                    }
                 }
-                else if (groupByGenre)
+                else if (string.IsNullOrEmpty(loadError) && groupByGenre)
                 {
                     @foreach (var group in VisibleGroupedSongs)
                     {
@@ -128,13 +117,13 @@
                                         OnClick="LoadMoreGroupedSongs" />
                     }
                 }
-                else
+                else if (string.IsNullOrEmpty(loadError))
                 {
                     <Virtualize TItem="RepertoireSongDto" Items="displaySongs" ItemSize="88" OverscanCount="6">
                         <SongListItem Song="context" OnHistory="GoToHistoryAsync" OnLog="GoToLogAsync" />
                     </Virtualize>
                 }
-            }
+            </MobileLoadingState>
         </ChildContent>
     </SingerProfileGate>
 </div>

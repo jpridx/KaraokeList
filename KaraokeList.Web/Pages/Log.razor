@@ -13,12 +13,7 @@
 
     <SingerProfileGate OnResolved="LoadCatalogAsync">
         <ChildContent Context="singerId">
-            @if (isLoading)
-            {
-                <p>Loading...</p>
-            }
-            else
-            {
+            <MobileLoadingState IsLoading="isLoading">
                 <OfflineCacheNotice UsingOffline="usingOfflineCatalog"
                                     HasCachedData="hasCachedCatalog"
                                     CachedAt="catalogCachedAt"
@@ -30,14 +25,7 @@
                     </UnavailableContent>
                 </OfflineCacheNotice>
 
-                @if (!string.IsNullOrEmpty(saveMessage))
-                {
-                    <div class="alert alert-success">@saveMessage</div>
-                }
-                @if (!string.IsNullOrEmpty(saveError))
-                {
-                    <div class="alert alert-danger">@saveError</div>
-                }
+                <StatusAlerts SuccessMessage="saveMessage" ErrorMessage="saveError" />
 
                 <div class="mobile-panel">
                     <label class="form-label">Song</label>
@@ -97,7 +85,7 @@
                                        OnItemSelected="SelectSongAsync" />
                     </div>
                 }
-            }
+            </MobileLoadingState>
         </ChildContent>
     </SingerProfileGate>
 </div>

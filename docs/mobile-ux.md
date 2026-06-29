@@ -186,6 +186,9 @@ Implemented in `ShowHostMessageFormatting` (`KaraokeList.Shared`). Shown on Log 
 | `AddToWorkingUpButton` | Log page shortcut to add selected song to working up |
 | `SongPerformanceSummaryPanel` | Times sung / last performance stats (mobile song detail, admin summary) |
 | `SongSummaryHints` | Log page hint text from song performance summary |
+| `MobileLoadingState` | Loading wrapper — shows message while loading, otherwise renders child content |
+| `StatusAlerts` | Success, error, and warning alerts for mobile pages (supports compact and inline error styles) |
+| `MobileEmptyState` | Empty-state message with optional child content and action link |
 
 ## Invite friends
 

@@ -15,21 +15,20 @@
 
     <SingerProfileGate @ref="singerGate" OnResolved="LoadSongDetailAsync">
         <ChildContent Context="singerId">
-            @if (isLoading)
-            {
-                <p>Loading...</p>
-            }
-            else if (!string.IsNullOrEmpty(loadError))
-            {
-                <p class="text-danger">@loadError</p>
-            }
-            else if (summary is null || songMeta is null)
-            {
-                <p>Could not load song.</p>
-                <a href="my-songs">Back to My Songs</a>
-            }
-            else
-            {
+            <MobileLoadingState IsLoading="isLoading">
+                @if (!string.IsNullOrEmpty(loadError))
+                {
+                    <StatusAlerts ErrorMessage="loadError" InlineError="true" />
+                }
+                else if (summary is null || songMeta is null)
+                {
+                    <MobileEmptyState Message="Could not load song."
+                                      ActionHref="my-songs"
+                                      ActionText="Back to My Songs"
+                                      ActionButtonClass="btn btn-link btn-sm ps-0" />
+                }
+                else
+                {
                 <SongPerformanceSummaryPanel Summary="summary" GenreName="@songMeta.GenreName" />
 
                 <SongListMembershipPanel SongId="SongId" PerformanceCount="summary.PerformanceCount"
@@ -77,7 +76,8 @@
                         </div>
                     </details>
                 }
-            }
+                }
+            </MobileLoadingState>
         </ChildContent>
     </SingerProfileGate>
 </div>

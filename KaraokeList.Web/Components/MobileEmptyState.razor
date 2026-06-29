@@ -1,0 +1,38 @@
+<div class="@ContainerClass">
+    @if (!string.IsNullOrEmpty(Message))
+    {
+        <p class="@MessageClass">@Message</p>
+    }
+    @ChildContent
+    @if (!string.IsNullOrEmpty(ActionHref))
+    {
+        <a href="@ActionHref" class="@ActionButtonClass">@ActionText</a>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public string? Message { get; set; }
+
+    [Parameter]
+    public string? ActionHref { get; set; }
+
+    [Parameter]
+    public string? ActionText { get; set; }
+
+    [Parameter]
+    public string ActionButtonClass { get; set; } = "btn btn-primary";
+
+    [Parameter]
+    public string CssClass { get; set; } = string.Empty;
+
+    [Parameter]
+    public string MessageClass { get; set; } = string.Empty;
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    private string ContainerClass => string.IsNullOrEmpty(CssClass)
+        ? "empty-state"
+        : $"empty-state {CssClass}";
+}

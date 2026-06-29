@@ -1,13 +1,9 @@
 @inject IKaraokeApiClient Api
 @inject NavigationManager Navigation
 
-@if (!string.IsNullOrEmpty(statusMessage))
+@if (!string.IsNullOrEmpty(statusMessage) || !string.IsNullOrEmpty(errorMessage))
 {
-    <div class="alert alert-success py-2 small">@statusMessage</div>
-}
-@if (!string.IsNullOrEmpty(errorMessage))
-{
-    <div class="alert alert-danger py-2 small">@errorMessage</div>
+    <StatusAlerts SuccessMessage="statusMessage" ErrorMessage="errorMessage" Small="true" />
 }
 
 <ul class="@ListClass">

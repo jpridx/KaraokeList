@@ -1,0 +1,51 @@
+@if (!string.IsNullOrEmpty(SuccessMessage))
+{
+    <div class="@SuccessClass" role="status">@SuccessMessage</div>
+}
+@if (!string.IsNullOrEmpty(ErrorMessage))
+{
+    @if (InlineError)
+    {
+        <p class="@InlineErrorClass" role="alert">@ErrorMessage</p>
+    }
+    else
+    {
+        <div class="@ErrorClass" role="alert">@ErrorMessage</div>
+    }
+}
+@if (!string.IsNullOrEmpty(WarningMessage))
+{
+    <div class="@WarningClass" role="status">@WarningMessage</div>
+}
+
+@code {
+    [Parameter]
+    public string? SuccessMessage { get; set; }
+
+    [Parameter]
+    public string? ErrorMessage { get; set; }
+
+    [Parameter]
+    public string? WarningMessage { get; set; }
+
+    [Parameter]
+    public bool Small { get; set; }
+
+    [Parameter]
+    public bool InlineError { get; set; }
+
+    [Parameter]
+    public string CssClass { get; set; } = string.Empty;
+
+    private string SizeClass => Small ? " py-2 small" : string.Empty;
+
+    private string MarginClass => string.IsNullOrEmpty(CssClass) ? string.Empty : $" {CssClass}";
+
+    private string SuccessClass => $"alert alert-success{SizeClass}{MarginClass}";
+
+    private string ErrorClass => $"alert alert-danger{SizeClass}{MarginClass}";
+
+    private string WarningClass => $"alert alert-warning{SizeClass}{MarginClass}";
+
+    private string InlineErrorClass => $"text-danger{(Small ? " small" : string.Empty)}{MarginClass}".Trim();
+}

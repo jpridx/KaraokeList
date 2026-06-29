@@ -11,12 +11,7 @@
 
     <SingerProfileGate @ref="singerGate" OnResolved="LoadPerformancesAsync">
         <ChildContent Context="singerId">
-            @if (isLoading)
-            {
-                <p class="mt-3">Loading...</p>
-            }
-            else
-            {
+            <MobileLoadingState IsLoading="isLoading" CssClass="mt-3">
                 <MobileSearchToolbar @bind-SearchText="searchText" @bind-SearchText:after="RefreshDisplayList"
                                      Placeholder="Search song, artist, or venue"
                                      Count="displayPerformances.Count" CountNoun="performance" />
@@ -33,38 +28,36 @@
                     </button>
                 </div>
 
-                @if (!string.IsNullOrEmpty(loadError))
+                <StatusAlerts ErrorMessage="loadError" />
+
+                @if (string.IsNullOrEmpty(loadError))
                 {
-                    <p class="text-danger">@loadError</p>
-                }
-                else if (performances.Count == 0)
-                {
-                    <div class="empty-state">
-                        <p>No performances logged yet.</p>
-                        <a href="log" class="btn btn-primary">Log a performance</a>
-                    </div>
-                }
-                else if (!displayPerformances.Any())
-                {
-                    <div class="empty-state">
-                        <p>No performances match your search.</p>
-                    </div>
-                }
-                else
-                {
-                    <EditablePerformanceList SingerId="singerId"
-                                             Variant="EditablePerformanceListVariant.Browse"
-                                             Entries="browseEntries"
-                                             OnChanged="ReloadPerformancesAsync" />
-                    @if (HasMorePerformances)
+                    @if (performances.Count == 0)
                     {
-                        <LoadMoreButton Visible="HasMorePerformances"
-                                        VisibleCount="VisiblePerformances.Count"
-                                        TotalCount="displayPerformances.Count"
-                                        OnClick="LoadMore" />
+                        <MobileEmptyState Message="No performances logged yet."
+                                          ActionHref="log"
+                                          ActionText="Log a performance" />
+                    }
+                    else if (!displayPerformances.Any())
+                    {
+                        <MobileEmptyState Message="No performances match your search." />
+                    }
+                    else
+                    {
+                        <EditablePerformanceList SingerId="singerId"
+                                                 Variant="EditablePerformanceListVariant.Browse"
+                                                 Entries="browseEntries"
+                                                 OnChanged="ReloadPerformancesAsync" />
+                        @if (HasMorePerformances)
+                        {
+                            <LoadMoreButton Visible="HasMorePerformances"
+                                            VisibleCount="VisiblePerformances.Count"
+                                            TotalCount="displayPerformances.Count"
+                                            OnClick="LoadMore" />
+                        }
                     }
                 }
-            }
+            </MobileLoadingState>
         </ChildContent>
     </SingerProfileGate>
 </div>
