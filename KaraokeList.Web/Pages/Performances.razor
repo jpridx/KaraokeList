@@ -54,15 +54,16 @@ else
                     }
                     else if (songSummary.PerformanceCount == 0)
                     {
-                        <p class="mt-3 mb-0">You have not logged any performances of this song yet.</p>
+                        <SongPerformanceSummaryPanel Summary="songSummary"
+                                                     Layout="SongPerformanceSummaryLayout.Admin"
+                                                     CssClass=""
+                                                     EmptyMessageClass="mt-3 mb-0" />
                     }
                     else
                     {
-                        <ul class="mt-3 mb-2">
-                            <li><strong>Times sung:</strong> @songSummary.PerformanceCount</li>
-                            <li><strong>Last time:</strong> @songSummary.LastPerformedOn?.ToString("d") at @(songSummary.LastVenueName ?? "unknown venue")</li>
-                            <li><strong>Last key:</strong> @KeyChangeFormatting.Describe(songSummary.LastKeyChangeSemitones)</li>
-                        </ul>
+                        <SongPerformanceSummaryPanel Summary="songSummary"
+                                                     Layout="SongPerformanceSummaryLayout.Admin"
+                                                     CssClass="" />
                         <table class="table table-sm">
                             <thead>
                                 <tr><th>Date</th><th>Venue</th><th>Key</th></tr>

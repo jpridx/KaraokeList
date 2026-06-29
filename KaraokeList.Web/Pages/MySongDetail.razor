@@ -30,37 +30,7 @@
             }
             else
             {
-                <section class="mobile-panel song-stats-panel">
-                    @if (!string.IsNullOrWhiteSpace(songMeta.GenreName))
-                    {
-                        <p class="song-stats-genre small text-muted mb-2">@songMeta.GenreName</p>
-                    }
-
-                    @if (summary.PerformanceCount > 0)
-                    {
-                        <dl class="song-stats-list mb-0">
-                            <div class="song-stats-row">
-                                <dt>Times sung</dt>
-                                <dd>@summary.PerformanceCount</dd>
-                            </div>
-                            <div class="song-stats-row">
-                                <dt>Last performance</dt>
-                                <dd>
-                                    @summary.LastPerformedOn?.ToString("d")
-                                    @if (!string.IsNullOrEmpty(summary.LastVenueName))
-                                    {
-                                        <text> · @summary.LastVenueName</text>
-                                    }
-                                    · @KeyChangeFormatting.Describe(summary.LastKeyChangeSemitones)
-                                </dd>
-                            </div>
-                        </dl>
-                    }
-                    else
-                    {
-                        <p class="song-stats-first-time mb-0">You haven't logged this song yet.</p>
-                    }
-                </section>
+                <SongPerformanceSummaryPanel Summary="summary" GenreName="@songMeta.GenreName" />
 
                 <SongListMembershipPanel SongId="SongId" PerformanceCount="summary.PerformanceCount"
                                          OnMembershipChanged="ReloadSongDetailAsync" />

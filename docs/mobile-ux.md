@@ -184,6 +184,8 @@ Implemented in `ShowHostMessageFormatting` (`KaraokeList.Shared`). Shown on Log 
 | `SingerListResolver` | Find singer list by kind; load lists from API |
 | `SingerListActions` | Add/remove song on want-to-sing or working-up lists |
 | `AddToWorkingUpButton` | Log page shortcut to add selected song to working up |
+| `SongPerformanceSummaryPanel` | Times sung / last performance stats (mobile song detail, admin summary) |
+| `SongSummaryHints` | Log page hint text from song performance summary |
 
 ## Invite friends
 

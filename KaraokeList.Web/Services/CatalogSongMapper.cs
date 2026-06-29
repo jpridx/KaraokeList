@@ -31,4 +31,10 @@ public static class CatalogSongMapper
         var artistNames = artists.ToDictionary(a => a.Id, a => a.Name);
         return ToPickItems(songs, artistNames, repertoireSongIds, workingUpSongIds);
     }
+
+    public static LogSongPickItem? FindCreatedPickItem(
+        IEnumerable<LogSongPickItem> items,
+        string title,
+        string artistName) =>
+        LogArtistPicker.FindCreatedSong(items, title, artistName, s => s.Title, s => s.ArtistName);
 }

@@ -212,29 +212,7 @@
             return;
         }
 
-        try
-        {
-            var result = await Api.GetMySongSummaryAsync(songId.Value);
-            if (!result.Succeeded || result.Summary is null)
-            {
-                songHint = "Ready to log.";
-                return;
-            }
-
-            var summary = result.Summary;
-            if (summary.PerformanceCount > 0)
-            {
-                songHint = $"You've sung this {summary.PerformanceCount} time(s). Last: {summary.LastPerformedOn:d} · {KeyChangeFormatting.Describe(summary.LastKeyChangeSemitones)}";
-            }
-            else
-            {
-                songHint = "First time logging this song for you.";
-            }
-        }
-        catch (Exception ex) when (ApiTransientFailure.IsTransient(ex) || ex is HttpRequestException)
-        {
-            songHint = "Ready to log (offline).";
-        }
+        songHint = await SongSummaryHints.LoadForSongAsync(Api, songId.Value);
     }
 
     private async Task OnPerformanceSavedAsync(string? message)
@@ -287,12 +265,10 @@
         repertoireSongIds = catalog.RepertoireSongIds;
         workingUpSongIds = catalog.WorkingUpSongIds;
 
-        var created = LogArtistPicker.FindCreatedSong(
+        var created = CatalogSongMapper.FindCreatedPickItem(
             songPickerItems,
             args.Title,
-            args.ArtistName,
-            s => s.Title,
-            s => s.ArtistName);
+            args.ArtistName);
 
         if (created is not null)
         {

@@ -135,12 +135,10 @@
         {
             await LoadCatalogAsync();
 
-            var newSong = LogArtistPicker.FindCreatedSong(
+            var newSong = CatalogSongMapper.FindCreatedPickItem(
                 catalogPickerItems,
                 args.Title,
-                args.ArtistName,
-                s => s.Title,
-                s => s.ArtistName);
+                args.ArtistName);
 
             if (newSong is null)
             {

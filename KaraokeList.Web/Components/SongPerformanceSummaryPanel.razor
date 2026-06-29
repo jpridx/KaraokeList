@@ -1,0 +1,69 @@
+<section class="@CssClass">
+    @if (!string.IsNullOrWhiteSpace(GenreName))
+    {
+        <p class="song-stats-genre small text-muted mb-2">@GenreName</p>
+    }
+
+    @if (Summary.PerformanceCount > 0)
+    {
+        @if (Layout == SongPerformanceSummaryLayout.Mobile)
+        {
+            <dl class="song-stats-list mb-0">
+                <div class="song-stats-row">
+                    <dt>Times sung</dt>
+                    <dd>@Summary.PerformanceCount</dd>
+                </div>
+                <div class="song-stats-row">
+                    <dt>Last performance</dt>
+                    <dd>
+                        @Summary.LastPerformedOn?.ToString("d")
+                        @if (!string.IsNullOrEmpty(Summary.LastVenueName))
+                        {
+                            <text> · @Summary.LastVenueName</text>
+                        }
+                        · @KeyChangeFormatting.Describe(Summary.LastKeyChangeSemitones)
+                    </dd>
+                </div>
+            </dl>
+        }
+        else
+        {
+            <ul class="@(string.IsNullOrEmpty(ListClass) ? "mt-3 mb-2" : ListClass)">
+                <li><strong>Times sung:</strong> @Summary.PerformanceCount</li>
+                <li><strong>Last time:</strong> @Summary.LastPerformedOn?.ToString("d") at @(Summary.LastVenueName ?? "unknown venue")</li>
+                <li><strong>Last key:</strong> @KeyChangeFormatting.Describe(Summary.LastKeyChangeSemitones)</li>
+            </ul>
+        }
+    }
+    else
+    {
+        <p class="@EmptyMessageClass">@DisplayEmptyMessage</p>
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired]
+    public SongPerformanceSummaryDto Summary { get; set; } = default!;
+
+    [Parameter]
+    public string? GenreName { get; set; }
+
+    [Parameter]
+    public SongPerformanceSummaryLayout Layout { get; set; } = SongPerformanceSummaryLayout.Mobile;
+
+    [Parameter]
+    public string CssClass { get; set; } = "mobile-panel song-stats-panel";
+
+    [Parameter]
+    public string? ListClass { get; set; }
+
+    [Parameter]
+    public string? EmptyMessage { get; set; }
+
+    [Parameter]
+    public string EmptyMessageClass { get; set; } = "song-stats-first-time mb-0";
+
+    private string DisplayEmptyMessage => EmptyMessage ?? (Layout == SongPerformanceSummaryLayout.Mobile
+        ? "You haven't logged this song yet."
+        : "You have not logged any performances of this song yet.");
+}
