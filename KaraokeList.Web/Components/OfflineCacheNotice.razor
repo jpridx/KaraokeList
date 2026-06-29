@@ -1,0 +1,33 @@
+@if (UsingOffline && CachedAt is DateTime cachedAt)
+{
+    <div class="alert alert-warning small mb-3" role="status">
+        Using cached @ResourceName from @cachedAt.ToLocalTime().ToString("g").
+        @RefreshHint
+    </div>
+}
+else if (UsingOffline && !HasCachedData)
+{
+    <div class="alert alert-warning small mb-3" role="status">
+        @UnavailableContent
+    </div>
+}
+
+@code {
+    [Parameter]
+    public bool UsingOffline { get; set; }
+
+    [Parameter]
+    public bool HasCachedData { get; set; }
+
+    [Parameter]
+    public DateTime? CachedAt { get; set; }
+
+    [Parameter]
+    public string ResourceName { get; set; } = "data";
+
+    [Parameter]
+    public string RefreshHint { get; set; } = "Connect to refresh.";
+
+    [Parameter]
+    public RenderFragment? UnavailableContent { get; set; }
+}

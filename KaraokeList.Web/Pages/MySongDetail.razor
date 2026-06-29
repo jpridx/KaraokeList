@@ -6,14 +6,12 @@
 <PageTitle>Song history</PageTitle>
 
 <div class="mobile-page">
-    <header class="mobile-page-header">
-        <button type="button" class="btn btn-link btn-sm ps-0" @onclick="GoBack">← My Songs</button>
-        @if (songMeta is not null)
-        {
-            <h1 class="h4 mb-0">@songMeta.Title</h1>
-            <p class="text-muted mb-0">@songMeta.ArtistName</p>
-        }
-    </header>
+    <MobilePageHeader Title="@(songMeta?.Title ?? "Song history")" TitleClass="mb-0">
+        <LeadingContent>
+            <button type="button" class="btn btn-link btn-sm ps-0" @onclick="GoBack">← My Songs</button>
+        </LeadingContent>
+        <Subtitle>@(songMeta?.ArtistName)</Subtitle>
+    </MobilePageHeader>
 
     @if (isLoading)
     {

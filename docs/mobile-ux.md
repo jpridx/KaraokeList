@@ -167,6 +167,14 @@ Implemented in `ShowHostMessageFormatting` (`KaraokeList.Shared`). Shown on Log 
 | `SingerStatsTeaser` | Home summary with link to `/my-stats` |
 | `SingerStatsDisplay` | Shared stats layout (used on `/my-stats`) |
 | `SingerLinkPanel` | Link login to a singer profile when `SingerId` is missing |
+| `MobilePageHeader` | Consistent mobile page title + optional subtitle and leading content (back button) |
+| `OfflineCacheNotice` | Cached-data / offline-unavailable banner for Log and My Songs |
+| `RecentLogList` | Recently logged performance rows (links or tap-to-select) |
+| `PerformanceEditForm` | Shared date/venue/key/co-performers edit block for history and browse lists |
+| `SingerProfileGate` | Resolves singer ID, shows `SingerLinkPanel` when missing, cascades `SingerId` to child content |
+| `SingerProfileResolver` | Static helper: JWT claim → profile API fallback for singer ID |
+| `CatalogSongMapper` | Maps catalog songs to `LogSongPickItem` (used by Log loader and add-to-list panel) |
+| `CatalogSongPicker` | Syncfusion song combobox with ★/🎯 badges |
 
 ## Invite friends
 

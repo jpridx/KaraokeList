@@ -39,17 +39,7 @@ public sealed class LogCatalogLoader(IKaraokeApiClient api, ILogPerformanceLocal
                 : [];
 
             var artistNames = artists.ToDictionary(a => a.Id, a => a.Name);
-            var pickItems = songs
-                .Select(s => new LogSongPickItem(
-                    s.Id,
-                    s.Title,
-                    s.Artist is int artistId && artistNames.TryGetValue(artistId, out var name) ? name : string.Empty,
-                    repertoireIds.Contains(s.Id),
-                    workingUpIds.Contains(s.Id)))
-                .OrderByDescending(s => s.InRepertoire)
-                .ThenByDescending(s => s.InWorkingUp)
-                .ThenBy(s => s.Title, StringComparer.OrdinalIgnoreCase)
-                .ToList();
+        var pickItems = CatalogSongMapper.ToPickItems(songs, artistNames, repertoireIds, workingUpIds);
 
             var cachedAt = DateTime.UtcNow;
             await store.SaveCachedCatalogAsync(new CachedLogCatalog(

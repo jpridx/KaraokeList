@@ -1,0 +1,25 @@
+<header class="mobile-page-header">
+    @if (LeadingContent is not null)
+    {
+        @LeadingContent
+    }
+    <h1 class="h4 @TitleClass">@Title</h1>
+    @if (Subtitle is not null)
+    {
+        <p class="text-muted small mb-0">@Subtitle</p>
+    }
+</header>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = string.Empty;
+
+    [Parameter]
+    public string TitleClass { get; set; } = "mb-1";
+
+    [Parameter]
+    public RenderFragment? LeadingContent { get; set; }
+
+    [Parameter]
+    public RenderFragment? Subtitle { get; set; }
+}

@@ -15,28 +15,16 @@
         <li class="history-list-item">
             @if (editingId == entry.Id)
             {
-                <div class="history-edit-form">
-                    <label class="form-label small text-muted mb-1">Date</label>
-                    <InputDate class="form-control form-control-sm mb-2" @bind-Value="editPerformedOn" />
-                    <label class="form-label small text-muted mb-1">Venue</label>
-                    <SfDropDownList TValue="int?" TItem="VenueDto" DataSource="@venues" @bind-Value="editVenueId"
-                                    Placeholder="Select venue" AllowFiltering="true"
-                                    FilterType="Syncfusion.Blazor.DropDowns.FilterType.Contains">
-                        <DropDownListFieldSettings Value="Id" Text="VenueName" />
-                    </SfDropDownList>
-                    <label class="form-label small text-muted mb-1 mt-2">Key</label>
-                    <SfDropDownList TValue="int?" TItem="PerformanceKeyOption" DataSource="@keyOptions"
-                                    @bind-Value="editKeyChangeSemitones">
-                        <DropDownListFieldSettings Value="Semitones" Text="Label" />
-                    </SfDropDownList>
-                    <CoPerformersEditor PrimarySingerId="SingerId" @bind-OtherPerformers="editOtherPerformers" />
-                    <div class="d-flex gap-2 mt-3">
-                        <button type="button" class="btn btn-primary btn-sm flex-fill" disabled="@isSaving"
-                                @onclick="SaveEditAsync">Save</button>
-                        <button type="button" class="btn btn-outline-secondary btn-sm flex-fill" disabled="@isSaving"
-                                @onclick="CancelEdit">Cancel</button>
-                    </div>
-                </div>
+                <PerformanceEditForm SingerId="SingerId"
+                                         Venues="venues"
+                                         KeyOptions="keyOptions"
+                                         @bind-PerformedOn="editPerformedOn"
+                                         @bind-VenueId="editVenueId"
+                                         @bind-KeyChangeSemitones="editKeyChangeSemitones"
+                                         @bind-OtherPerformers="editOtherPerformers"
+                                         IsSaving="isSaving"
+                                         OnSave="SaveEditAsync"
+                                         OnCancel="CancelEdit" />
             }
             else if (deleteConfirmId == entry.Id)
             {

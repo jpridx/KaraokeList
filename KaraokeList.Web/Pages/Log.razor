@@ -9,10 +9,9 @@
 <PageTitle>Log performance</PageTitle>
 
 <div class="mobile-page mobile-page-with-nav">
-    <header class="mobile-page-header">
-        <h1 class="h4 mb-1">Log performance</h1>
-        <p class="text-muted small mb-0">Pick a song, or open one from <a href="my-songs">My Songs</a>.</p>
-    </header>
+    <MobilePageHeader Title="Log performance">
+        <Subtitle>Pick a song, or open one from <a href="my-songs">My Songs</a>.</Subtitle>
+    </MobilePageHeader>
 
     @if (isLoading)
     {
@@ -24,20 +23,16 @@
 
         @if (!needsSingerLink)
         {
-            @if (usingOfflineCatalog && catalogCachedAt is DateTime cachedAt)
-            {
-                <div class="alert alert-warning small mb-3" role="status">
-                    Using cached songs from @cachedAt.ToLocalTime().ToString("g").
-                    Connect to refresh the catalog.
-                </div>
-            }
-            else if (usingOfflineCatalog && !hasCachedCatalog)
-            {
-                <div class="alert alert-warning small mb-3" role="status">
+            <OfflineCacheNotice UsingOffline="usingOfflineCatalog"
+                                HasCachedData="hasCachedCatalog"
+                                CachedAt="catalogCachedAt"
+                                ResourceName="songs"
+                                RefreshHint="Connect to refresh the catalog.">
+                <UnavailableContent>
                     Song catalog isn't available offline yet. Pick from <strong>Recently logged</strong> below,
                     or open Log once while online to cache songs.
-                </div>
-            }
+                </UnavailableContent>
+            </OfflineCacheNotice>
 
             @if (!string.IsNullOrEmpty(saveMessage))
             {
@@ -56,14 +51,9 @@
                 }
                 else
                 {
-                    <SfComboBox TValue="int?" TItem="LogSongPickItem" DataSource="@songPickerItems"
-                                @bind-Value="selectedSongId" @bind-Value:after="OnSongSelectedAsync"
-                                Placeholder="Search songs..." AllowFiltering="true" ShowClearButton="true"
-                                Enabled="@(!showNewSong)"
-                                FilterType="Syncfusion.Blazor.DropDowns.FilterType.Contains"
-                                PopupHeight="280px">
-                        <ComboBoxFieldSettings Value="Id" Text="Display" />
-                    </SfComboBox>
+                    <CatalogSongPicker Items="songPickerItems" @bind-SelectedSongId="selectedSongId"
+                                       @bind-SelectedSongId:after="OnSongSelectedAsync"
+                                       Enabled="@(!showNewSong)" />
                     <p class="small text-muted mt-1 mb-0">@songPickerItems.Count songs · ★ = on My repertoire · 🎯 = working up</p>
                 }
                 @if (selectedSongId is int songId && songHint is not null)
@@ -112,22 +102,11 @@
             @if (recentLogs.Count > 0)
             {
                 <div class="mobile-panel recent-logs-panel">
-                    <h2 class="h6 mb-2">Recently logged@(usingOfflineCatalog && !hasCachedCatalog ? " — tap to pick a song" : "")</h2>
-                    <ul class="recent-log-list">
-                        @foreach (var entry in recentLogs)
-                        {
-                            <li>
-                                <button type="button" class="recent-log-item" @onclick="() => SelectSongAsync(entry.SongId)">
-                                    <span class="recent-log-title">
-                                        @ShowHostMessageFormatting.Format(entry.Title, entry.ArtistName, entry.KeyChangeSemitones)
-                                    </span>
-                                    <span class="recent-log-meta">
-                                        @entry.PerformedOn.ToString("d") · @entry.VenueName · @KeyChangeFormatting.Describe(entry.KeyChangeSemitones)
-                                    </span>
-                                </button>
-                            </li>
-                        }
-                    </ul>
+                    <RecentLogList Items="recentLogs"
+                                   Heading="Recently logged"
+                                   HeadingSuffix="@(usingOfflineCatalog && !hasCachedCatalog ? " — tap to pick a song" : string.Empty)"
+                                   IncludeKeyInMeta="true"
+                                   OnItemSelected="SelectSongAsync" />
                 </div>
             }
         }
@@ -213,20 +192,7 @@
         hasCachedCatalog = false;
         catalogCachedAt = null;
 
-        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        mySingerId = authState.User.GetSingerId();
-        if (mySingerId is null)
-        {
-            try
-            {
-                var profile = await Api.GetProfileAsync();
-                mySingerId = profile?.SingerId;
-            }
-            catch (Exception ex) when (ApiTransientFailure.IsTransient(ex) || ex is HttpRequestException)
-            {
-                // Offline: rely on singer claim from JWT when profile API is unreachable.
-            }
-        }
+        mySingerId = await SingerProfileResolver.ResolveSingerIdAsync(AuthStateProvider, Api);
 
         needsSingerLink = mySingerId is null;
 
