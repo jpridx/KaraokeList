@@ -3,6 +3,10 @@
     {
         @LeadingContent
     }
+    else if (!string.IsNullOrEmpty(BackHref))
+    {
+        <a class="@BackLinkClass" href="@BackHref">@BackText</a>
+    }
     <h1 class="h4 @TitleClass">@Title</h1>
     @if (Subtitle is not null)
     {
@@ -19,6 +23,15 @@
 
     [Parameter]
     public RenderFragment? LeadingContent { get; set; }
+
+    [Parameter]
+    public string? BackHref { get; set; }
+
+    [Parameter]
+    public string BackText { get; set; } = "← Back";
+
+    [Parameter]
+    public string BackLinkClass { get; set; } = "btn btn-link btn-sm ps-0";
 
     [Parameter]
     public RenderFragment? Subtitle { get; set; }

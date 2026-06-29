@@ -1,0 +1,20 @@
+<MobileEmptyState Message="No performances logged yet."
+                  ActionHref="log"
+                  ActionText="@ActionText"
+                  ActionButtonClass="@ActionButtonClass"
+                  CssClass="@CssClass"
+                  MessageClass="@MessageClass" />
+
+@code {
+    [Parameter]
+    public string ActionText { get; set; } = "Log a performance";
+
+    [Parameter]
+    public string ActionButtonClass { get; set; } = "btn btn-primary";
+
+    [Parameter]
+    public string CssClass { get; set; } = string.Empty;
+
+    [Parameter]
+    public string MessageClass { get; set; } = string.Empty;
+}

@@ -6,7 +6,7 @@
 
 <PageTitle>My Songs</PageTitle>
 
-<div class="mobile-page">
+<div class="mobile-page mobile-page-with-nav">
     <MobilePageHeader Title="My Songs">
         <Subtitle>Browse your lists. Tap for details, or <strong>Log</strong> to record a performance.</Subtitle>
     </MobilePageHeader>
@@ -49,10 +49,9 @@
                         <option value="artist">Artist</option>
                         <option value="genre">Genre</option>
                     </select>
-                    <button type="button" class="btn btn-outline-secondary btn-sm mt-2"
-                            @onclick="ToggleSortDirAsync" title="Toggle sort direction">
-                        @(sortDir == "desc" ? "↓ Newest / Z–A" : "↑ Oldest / A–Z")
-                    </button>
+                    <SortDirectionToggle Label="@(sortDir == "desc" ? "↓ Newest / Z–A" : "↑ Oldest / A–Z")"
+                                         OnClick="ToggleSortDirAsync"
+                                         CssClass="mt-2" />
                 </div>
 
                 <div class="mobile-toolbar">
@@ -212,30 +211,15 @@
             OnClick = EventCallback.Factory.Create(this, () => SetListKindAsync(list.Kind))
         }).ToList();
 
-    private IReadOnlyList<ChipFilterItem> genreChipItems
-    {
-        get
-        {
-            var items = new List<ChipFilterItem>
-            {
-                new()
-                {
-                    Label = "All",
-                    IsActive = filterGenreId is null,
-                    OnClick = EventCallback.Factory.Create(this, () => SetGenreFilterAsync(null))
-                }
-            };
-
-            items.AddRange(filterGenres.Select(genre => new ChipFilterItem
-            {
-                Label = genre.GenreName,
-                IsActive = filterGenreId == genre.Id,
-                OnClick = EventCallback.Factory.Create(this, () => SetGenreFilterAsync(genre.Id))
-            }));
-
-            return items;
-        }
-    }
+    private IReadOnlyList<ChipFilterItem> genreChipItems =>
+        ChipFilterBuilder.CreateAllPlusItems(
+            filterGenreId,
+            filterGenres,
+            genre => genre.Id,
+            genre => genre.GenreName,
+            EventCallback.Factory,
+            this,
+            SetGenreFilterAsync);
 
     protected override async Task OnInitializedAsync()
     {

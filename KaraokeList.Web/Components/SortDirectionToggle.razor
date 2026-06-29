@@ -1,0 +1,18 @@
+<button type="button" class="btn btn-outline-secondary btn-sm @CssClass"
+        @onclick="OnClick" title="@Title">
+    @Label
+</button>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Label { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public EventCallback OnClick { get; set; }
+
+    [Parameter]
+    public string Title { get; set; } = "Toggle sort direction";
+
+    [Parameter]
+    public string CssClass { get; set; } = string.Empty;
+}

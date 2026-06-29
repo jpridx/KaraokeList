@@ -11,51 +11,41 @@
         </Subtitle>
     </MobilePageHeader>
 
-    @if (isLoading)
-    {
-        <p class="text-muted small mt-3">Loading preferences…</p>
-    }
-    else if (!string.IsNullOrEmpty(loadError))
-    {
-        <div class="alert alert-danger mt-3" role="alert">@loadError</div>
-    }
-    else
-    {
-        @if (!string.IsNullOrEmpty(successMessage))
+    <MobileLoadingState IsLoading="isLoading" Message="Loading preferences…" CssClass="text-muted small mt-3">
+        @if (!string.IsNullOrEmpty(loadError))
         {
-            <div class="alert alert-success mt-3">@successMessage</div>
+            <StatusAlerts ErrorMessage="@loadError" CssClass="mt-3" />
         }
-
-        @if (!string.IsNullOrEmpty(errorMessage))
+        else
         {
-            <div class="alert alert-danger mt-3" role="alert">@errorMessage</div>
+            <StatusAlerts SuccessMessage="@successMessage" ErrorMessage="@errorMessage" CssClass="mt-3" />
+
+            <section class="mobile-panel mt-3">
+                <EditForm Model="Input" OnValidSubmit="SubmitAsync">
+                    <DataAnnotationsValidator />
+                    <div class="mb-3">
+                        <label class="form-label" for="stale-after-days">Days since last performance</label>
+                        <InputNumber id="stale-after-days" class="form-control" @bind-Value="Input.StaleAfterDays" disabled="@isSubmitting" />
+                        <div class="form-text">
+                            Show songs you haven't sung in at least this many days (@TicklerSettingsLimits.MinStaleAfterDays–@TicklerSettingsLimits.MaxStaleAfterDays).
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="song-limit">Maximum songs to show</label>
+                        <InputNumber id="song-limit" class="form-control" @bind-Value="Input.SongLimit" disabled="@isSubmitting" />
+                        <div class="form-text">
+                            How many suggestions appear on Home (@TicklerSettingsLimits.MinSongLimit–@TicklerSettingsLimits.MaxSongLimit).
+                        </div>
+                    </div>
+                    <button class="btn btn-primary w-100" type="submit" disabled="@isSubmitting">
+                        @(isSubmitting ? "Saving…" : "Save preferences")
+                    </button>
+                </EditForm>
+            </section>
         }
+    </MobileLoadingState>
 
-        <section class="mobile-panel mt-3">
-            <EditForm Model="Input" OnValidSubmit="SubmitAsync">
-                <DataAnnotationsValidator />
-                <div class="mb-3">
-                    <label class="form-label" for="stale-after-days">Days since last performance</label>
-                    <InputNumber id="stale-after-days" class="form-control" @bind-Value="Input.StaleAfterDays" disabled="@isSubmitting" />
-                    <div class="form-text">
-                        Show songs you haven't sung in at least this many days (@TicklerSettingsLimits.MinStaleAfterDays–@TicklerSettingsLimits.MaxStaleAfterDays).
-                    </div>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label" for="song-limit">Maximum songs to show</label>
-                    <InputNumber id="song-limit" class="form-control" @bind-Value="Input.SongLimit" disabled="@isSubmitting" />
-                    <div class="form-text">
-                        How many suggestions appear on Home (@TicklerSettingsLimits.MinSongLimit–@TicklerSettingsLimits.MaxSongLimit).
-                    </div>
-                </div>
-                <button class="btn btn-primary w-100" type="submit" disabled="@isSubmitting">
-                    @(isSubmitting ? "Saving…" : "Save preferences")
-                </button>
-            </EditForm>
-        </section>
-    }
-
-    <a class="more-link d-inline-block mt-3" href="more">Back to More</a>
+    <MobileBackLink />
 </div>
 
 @code {

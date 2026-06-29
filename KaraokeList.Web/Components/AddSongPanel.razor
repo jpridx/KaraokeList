@@ -36,6 +36,10 @@
                 Add song
             </button>
         </div>
+        @if (!CanAddSong && !isBusy && !string.IsNullOrEmpty(AddSongHint))
+        {
+            <p class="form-text mb-0 mt-2">@AddSongHint</p>
+        }
     }
 </div>
 
@@ -61,6 +65,36 @@
         !string.IsNullOrWhiteSpace(title)
         && ResolveArtistId() is not null
         && !NeedsNewGenre();
+
+    private string? AddSongHint
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(title.Trim()))
+            {
+                return "Enter a song title first.";
+            }
+
+            if (string.IsNullOrWhiteSpace(artistName.Trim()))
+            {
+                return "Type the artist name, then pick from the list or add them.";
+            }
+
+            if (ResolveArtistId() is null)
+            {
+                return LogArtistPicker.NeedsNewArtist(artistName, artistLookups)
+                    ? $"Tap Add artist \"{artistName.Trim()}\" above, then Add song."
+                    : "Select an artist from the list.";
+            }
+
+            if (NeedsNewGenre())
+            {
+                return $"Tap Add genre \"{genreName.Trim()}\" above, then Add song.";
+            }
+
+            return null;
+        }
+    }
 
     private int? ResolveArtistId() =>
         confirmedArtistId ?? LogArtistPicker.ResolveArtistId(artistName, artistLookups);

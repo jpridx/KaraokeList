@@ -22,10 +22,8 @@
                 }
 
                 <div class="mobile-toolbar">
-                    <button type="button" class="btn btn-outline-secondary btn-sm"
-                            @onclick="ToggleSortDirAsync" title="Toggle sort direction">
-                        @(sortDir == "desc" ? "↓ Newest first" : "↑ Oldest first")
-                    </button>
+                    <SortDirectionToggle Label="@(sortDir == "desc" ? "↓ Newest first" : "↑ Oldest first")"
+                                         OnClick="ToggleSortDirAsync" />
                 </div>
 
                 <StatusAlerts ErrorMessage="@loadError" />
@@ -34,9 +32,7 @@
                 {
                     @if (performances.Count == 0)
                     {
-                        <MobileEmptyState Message="No performances logged yet."
-                                          ActionHref="log"
-                                          ActionText="Log a performance" />
+                        <NoPerformancesEmptyState />
                     }
                     else if (!displayPerformances.Any())
                     {
@@ -84,30 +80,15 @@
     private IReadOnlyList<EditablePerformanceEntry> browseEntries =>
         VisiblePerformances.Select(EditablePerformanceEntry.FromBrowse).ToList();
 
-    private IReadOnlyList<ChipFilterItem> venueChipItems
-    {
-        get
-        {
-            var items = new List<ChipFilterItem>
-            {
-                new()
-                {
-                    Label = "All",
-                    IsActive = filterVenueId is null,
-                    OnClick = EventCallback.Factory.Create(this, () => SetVenueFilterAsync(null))
-                }
-            };
-
-            items.AddRange(venueFilters.Select(venue => new ChipFilterItem
-            {
-                Label = venue.Name,
-                IsActive = filterVenueId == venue.Id,
-                OnClick = EventCallback.Factory.Create(this, () => SetVenueFilterAsync(venue.Id))
-            }));
-
-            return items;
-        }
-    }
+    private IReadOnlyList<ChipFilterItem> venueChipItems =>
+        ChipFilterBuilder.CreateAllPlusItems(
+            filterVenueId,
+            venueFilters,
+            venue => venue.Id,
+            venue => venue.Name,
+            EventCallback.Factory,
+            this,
+            SetVenueFilterAsync);
 
     private Task LoadPerformancesAsync(int singerId) => ReloadPerformancesAsync();
 

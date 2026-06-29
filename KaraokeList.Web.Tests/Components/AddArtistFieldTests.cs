@@ -19,6 +19,20 @@ public sealed class AddArtistFieldTests : BunitTestContext
     }
 
     [Fact]
+    public void Shows_hint_when_artist_field_empty()
+    {
+        var cut = RenderComponent<AddArtistField>(parameters => parameters
+            .Add(p => p.ArtistLookups, Array.Empty<ArtistLookupDto>())
+            .Add(p => p.ArtistName, string.Empty)
+            .Add(p => p.ArtistNameChanged, EventCallback.Factory.Create<string>(this, _ => { }))
+            .Add(p => p.ArtistLookupsChanged, EventCallback.Factory.Create<IReadOnlyList<ArtistLookupDto>>(this, _ => { }))
+            .Add(p => p.OnArtistConfirmed, EventCallback.Factory.Create<ArtistConfirmedEventArgs>(this, _ => { })));
+
+        Assert.Contains("Type the artist name", cut.Markup);
+        Assert.Contains("Add artist", cut.Markup);
+    }
+
+    [Fact]
     public async Task AddArtistAsync_fires_OnArtistConfirmed_with_catalog_id()
     {
         ArtistConfirmedEventArgs? confirmed = null;

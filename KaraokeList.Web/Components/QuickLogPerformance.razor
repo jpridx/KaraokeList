@@ -2,18 +2,7 @@
 @inject ILogPerformanceLocalStore LogStore
 @inject ILogCatalogLoader CatalogLoader
 
-@if (!string.IsNullOrEmpty(saveMessage))
-{
-    <div class="alert alert-success">@saveMessage</div>
-}
-@if (!string.IsNullOrEmpty(saveWarning))
-{
-    <div class="alert alert-warning">@saveWarning</div>
-}
-@if (!string.IsNullOrEmpty(saveError))
-{
-    <div class="alert alert-danger">@saveError</div>
-}
+<StatusAlerts SuccessMessage="@saveMessage" WarningMessage="@saveWarning" ErrorMessage="@saveError" />
 
 <div class="mobile-panel">
     <label class="form-label">Venue</label>
