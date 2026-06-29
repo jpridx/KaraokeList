@@ -46,6 +46,12 @@ public sealed class SingerStatsTeaserTests : AuthPageTestContext
 
 public sealed class MyStatsPageTests : AuthPageTestContext
 {
+    public MyStatsPageTests()
+    {
+        Api.Setup(client => client.GetProfileAsync())
+            .ReturnsAsync(new UserProfileDto { SingerId = 1 });
+    }
+
     [Fact]
     public void Shows_extended_sections_when_stats_available()
     {
