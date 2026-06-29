@@ -1,8 +1,6 @@
 @page "/my-performances"
 @attribute [Authorize]
-@using Microsoft.AspNetCore.Components.Authorization
 @inject IKaraokeApiClient Api
-@inject AuthenticationStateProvider AuthStateProvider
 
 <PageTitle>My performances</PageTitle>
 
@@ -11,88 +9,86 @@
         <Subtitle>Every time you've logged a song — newest first by default.</Subtitle>
     </MobilePageHeader>
 
-    @if (isLoading)
-    {
-        <p class="mt-3">Loading...</p>
-    }
-    else
-    {
-        <SingerLinkPanel Visible="needsSingerLink" OnLinked="OnSingerLinkedAsync" />
-
-        @if (!needsSingerLink && mySingerId is int singerId)
-        {
-            <div class="mobile-toolbar">
-                <input class="form-control" placeholder="Search song, artist, or venue"
-                       @bind="searchText" @bind:event="oninput" @bind:after="RefreshDisplayList" />
-                @if (displayPerformances.Count > 0)
-                {
-                    <p class="small text-muted mb-0 mt-2">
-                        @displayPerformances.Count performance@(displayPerformances.Count == 1 ? "" : "s")
-                    </p>
-                }
-            </div>
-
-            @if (venueFilters.Count > 0)
+    <SingerProfileGate @ref="singerGate" OnResolved="LoadPerformancesAsync">
+        <ChildContent Context="singerId">
+            @if (isLoading)
             {
-                <div class="mobile-toolbar">
-                    <label class="form-label small text-muted mb-1">Venue</label>
-                    <div class="genre-chips">
-                        <button type="button" class="genre-chip @(filterVenueId is null ? "active" : "")"
-                                @onclick="() => SetVenueFilterAsync(null)">All</button>
-                        @foreach (var venue in venueFilters)
-                        {
-                            <button type="button" class="genre-chip @(filterVenueId == venue.Id ? "active" : "")"
-                                    @onclick="() => SetVenueFilterAsync(venue.Id)">@venue.Name</button>
-                        }
-                    </div>
-                </div>
-            }
-
-            <div class="mobile-toolbar">
-                <button type="button" class="btn btn-outline-secondary btn-sm"
-                        @onclick="ToggleSortDirAsync" title="Toggle sort direction">
-                    @(sortDir == "desc" ? "↓ Newest first" : "↑ Oldest first")
-                </button>
-            </div>
-
-            @if (!string.IsNullOrEmpty(loadError))
-            {
-                <p class="text-danger">@loadError</p>
-            }
-            else if (performances.Count == 0)
-            {
-                <div class="empty-state">
-                    <p>No performances logged yet.</p>
-                    <a href="log" class="btn btn-primary">Log a performance</a>
-                </div>
-            }
-            else if (!displayPerformances.Any())
-            {
-                <div class="empty-state">
-                    <p>No performances match your search.</p>
-                </div>
+                <p class="mt-3">Loading...</p>
             }
             else
             {
-                <PerformanceBrowseList SingerId="singerId"
-                                       Entries="VisiblePerformances"
-                                       OnChanged="ReloadAsync" />
-                @if (HasMorePerformances)
+                <div class="mobile-toolbar">
+                    <input class="form-control" placeholder="Search song, artist, or venue"
+                           @bind="searchText" @bind:event="oninput" @bind:after="RefreshDisplayList" />
+                    @if (displayPerformances.Count > 0)
+                    {
+                        <p class="small text-muted mb-0 mt-2">
+                            @displayPerformances.Count performance@(displayPerformances.Count == 1 ? "" : "s")
+                        </p>
+                    }
+                </div>
+
+                @if (venueFilters.Count > 0)
                 {
-                    <button type="button" class="btn btn-outline-primary w-100 mt-2" @onclick="LoadMore">
-                        Load more (@VisiblePerformances.Count of @displayPerformances.Count)
+                    <div class="mobile-toolbar">
+                        <label class="form-label small text-muted mb-1">Venue</label>
+                        <div class="genre-chips">
+                            <button type="button" class="genre-chip @(filterVenueId is null ? "active" : "")"
+                                    @onclick="() => SetVenueFilterAsync(null)">All</button>
+                            @foreach (var venue in venueFilters)
+                            {
+                                <button type="button" class="genre-chip @(filterVenueId == venue.Id ? "active" : "")"
+                                        @onclick="() => SetVenueFilterAsync(venue.Id)">@venue.Name</button>
+                            }
+                        </div>
+                    </div>
+                }
+
+                <div class="mobile-toolbar">
+                    <button type="button" class="btn btn-outline-secondary btn-sm"
+                            @onclick="ToggleSortDirAsync" title="Toggle sort direction">
+                        @(sortDir == "desc" ? "↓ Newest first" : "↑ Oldest first")
                     </button>
+                </div>
+
+                @if (!string.IsNullOrEmpty(loadError))
+                {
+                    <p class="text-danger">@loadError</p>
+                }
+                else if (performances.Count == 0)
+                {
+                    <div class="empty-state">
+                        <p>No performances logged yet.</p>
+                        <a href="log" class="btn btn-primary">Log a performance</a>
+                    </div>
+                }
+                else if (!displayPerformances.Any())
+                {
+                    <div class="empty-state">
+                        <p>No performances match your search.</p>
+                    </div>
+                }
+                else
+                {
+                    <PerformanceBrowseList SingerId="singerId"
+                                           Entries="VisiblePerformances"
+                                           OnChanged="ReloadPerformancesAsync" />
+                    @if (HasMorePerformances)
+                    {
+                        <button type="button" class="btn btn-outline-primary w-100 mt-2" @onclick="LoadMore">
+                            Load more (@VisiblePerformances.Count of @displayPerformances.Count)
+                        </button>
+                    }
                 }
             }
-        }
-    }
+        </ChildContent>
+    </SingerProfileGate>
 </div>
 
 @code {
+    private SingerProfileGate? singerGate;
     private bool isLoading = true;
-    private bool needsSingerLink;
     private string? loadError;
-    private int? mySingerId;
     private List<MyPerformanceEntryDto> performances = [];
     private List<MyPerformanceEntryDto> displayPerformances = [];
     private List<VenueFilterOption> venueFilters = [];
@@ -108,27 +104,12 @@
 
     private bool HasMorePerformances => visibleLimit < displayPerformances.Count;
 
-    protected override async Task OnInitializedAsync() => await ReloadAsync();
+    private Task LoadPerformancesAsync(int singerId) => ReloadPerformancesAsync();
 
-    private async Task OnSingerLinkedAsync(int? singerId)
-    {
-        mySingerId = singerId;
-        needsSingerLink = false;
-        await ReloadAsync();
-    }
-
-    private async Task ReloadAsync()
+    private async Task ReloadPerformancesAsync()
     {
         isLoading = true;
         loadError = null;
-
-        mySingerId = await SingerProfileResolver.ResolveSingerIdAsync(AuthStateProvider, Api);
-        needsSingerLink = mySingerId is null;
-        if (needsSingerLink)
-        {
-            isLoading = false;
-            return;
-        }
 
         var result = await Api.GetMyPerformancesAsync(filterVenueId, sortDir);
         if (!result.Succeeded)
@@ -136,7 +117,7 @@
             loadError = result.ErrorMessage;
             if (result.ErrorMessage?.Contains("not linked", StringComparison.OrdinalIgnoreCase) == true)
             {
-                needsSingerLink = true;
+                singerGate?.RequireSingerLink();
             }
 
             isLoading = false;
@@ -169,13 +150,13 @@
     private async Task ToggleSortDirAsync()
     {
         sortDir = sortDir == "desc" ? "asc" : "desc";
-        await ReloadAsync();
+        await ReloadPerformancesAsync();
     }
 
     private async Task SetVenueFilterAsync(int? venueId)
     {
         filterVenueId = venueId;
-        await ReloadAsync();
+        await ReloadPerformancesAsync();
     }
 
     private sealed record VenueFilterOption(int Id, string Name);

@@ -47,6 +47,15 @@ else if (singerId is int id && ChildContent is not null)
         }
     }
 
+    /// <summary>
+    /// Forces the link panel when the API rejects the current profile (e.g. stale JWT claim).
+    /// </summary>
+    public void RequireSingerLink()
+    {
+        singerId = null;
+        needsSingerLink = true;
+    }
+
     private async Task HandleLinkedAsync(int? linkedSingerId)
     {
         singerId = linkedSingerId;

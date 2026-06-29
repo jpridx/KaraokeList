@@ -89,4 +89,24 @@ public sealed class SingerProfileGateTests : BunitTestContext
         cut.WaitForAssertion(() => Assert.Contains("Singer 42", cut.Markup));
         Assert.Equal([42], resolvedIds);
     }
+
+    [Fact]
+    public async Task RequireSingerLink_shows_link_panel_after_child_was_rendered()
+    {
+        api.Setup(client => client.GetProfileAsync())
+            .ReturnsAsync(new UserProfileDto { SingerId = 9 });
+
+        var cut = RenderComponent<SingerProfileGate>(parameters => parameters
+            .Add(p => p.OnResolved, EventCallback.Factory.Create<int>(this, _ => { }))
+            .Add(p => p.ChildContent, (RenderFragment<int>)(singerId => builder =>
+                builder.AddMarkupContent(0, $"<p>Singer {singerId}</p>"))));
+
+        cut.WaitForAssertion(() => Assert.Contains("Singer 9", cut.Markup));
+
+        cut.Instance.RequireSingerLink();
+        cut.Render();
+
+        Assert.Contains("Link your account to a singer profile", cut.Markup);
+        Assert.DoesNotContain("Singer 9", cut.Markup);
+    }
 }
