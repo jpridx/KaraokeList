@@ -1,3 +1,7 @@
+@if (!string.IsNullOrEmpty(InfoMessage))
+{
+    <div class="@InfoClass" role="status">@InfoMessage</div>
+}
 @if (!string.IsNullOrEmpty(SuccessMessage))
 {
     <div class="@SuccessClass" role="status">@SuccessMessage</div>
@@ -19,6 +23,9 @@
 }
 
 @code {
+    [Parameter]
+    public string? InfoMessage { get; set; }
+
     [Parameter]
     public string? SuccessMessage { get; set; }
 
@@ -42,6 +49,8 @@
     private string MarginClass => string.IsNullOrEmpty(CssClass) ? string.Empty : $" {CssClass}";
 
     private string SuccessClass => $"alert alert-success{SizeClass}{MarginClass}";
+
+    private string InfoClass => $"alert alert-info{SizeClass}{MarginClass}";
 
     private string ErrorClass => $"alert alert-danger{SizeClass}{MarginClass}";
 

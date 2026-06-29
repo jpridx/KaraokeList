@@ -51,6 +51,16 @@ public sealed class StatusAlertsTests : BunitTestContext
     }
 
     [Fact]
+    public void Renders_info_alert()
+    {
+        var cut = RenderComponent<StatusAlerts>(parameters => parameters
+            .Add(p => p.InfoMessage, "Invite sharing is not available right now."));
+
+        Assert.Contains("alert-info", cut.Markup);
+        Assert.Contains("Invite sharing is not available right now.", cut.Markup);
+    }
+
+    [Fact]
     public void Renders_nothing_when_all_messages_empty()
     {
         var cut = RenderComponent<StatusAlerts>();

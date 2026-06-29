@@ -1,0 +1,12 @@
+<a class="@CssClass" href="@Href">@Text</a>
+
+@code {
+    [Parameter]
+    public string Href { get; set; } = "more";
+
+    [Parameter]
+    public string Text { get; set; } = "Back to More";
+
+    [Parameter]
+    public string CssClass { get; set; } = "more-link d-inline-block mt-3";
+}

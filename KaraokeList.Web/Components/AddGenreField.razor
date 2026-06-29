@@ -8,6 +8,13 @@
     <AutoCompleteFieldSettings Value="GenreName" Text="GenreName" />
 </SfAutoComplete>
 
+@if (string.IsNullOrWhiteSpace(_name))
+{
+    <p class="form-text mb-0 mt-2">
+        Optional. Type a genre, pick from the list, or tap <strong>Add genre</strong> if it's new.
+    </p>
+}
+
 @if (LogGenrePicker.NeedsNewGenre(_name, Genres))
 {
     <div class="alert alert-info small py-2 px-3 mt-2 mb-0" role="status">

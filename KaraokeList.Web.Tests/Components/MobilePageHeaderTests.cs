@@ -30,4 +30,16 @@ public sealed class MobilePageHeaderTests : BunitTestContext
         Assert.Contains("Song title", cut.Markup);
         Assert.Contains("Artist name", cut.Markup);
     }
+
+    [Fact]
+    public void Renders_back_link_when_back_href_set()
+    {
+        var cut = RenderComponent<MobilePageHeader>(parameters => parameters
+            .Add(p => p.Title, "Preferences")
+            .Add(p => p.BackHref, "more")
+            .Add(p => p.BackText, "← Back to More"));
+
+        Assert.Contains("href=\"more\"", cut.Markup);
+        Assert.Contains("← Back to More", cut.Markup);
+    }
 }

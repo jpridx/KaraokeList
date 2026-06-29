@@ -18,12 +18,10 @@
                 {
                     @if (stats is null or { TotalPerformances: 0 })
                     {
-                        <MobileEmptyState Message="No performances logged yet."
-                                          ActionHref="log"
-                                          ActionText="Log your first performance"
-                                          ActionButtonClass="btn btn-primary btn-sm"
-                                          CssClass="mobile-panel mt-3"
-                                          MessageClass="mb-2" />
+                        <NoPerformancesEmptyState ActionText="Log your first performance"
+                                                  ActionButtonClass="btn btn-primary btn-sm"
+                                                  CssClass="mobile-panel mt-3"
+                                                  MessageClass="mb-2" />
                     }
                     else
                     {

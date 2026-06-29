@@ -8,11 +8,18 @@
     <AutoCompleteFieldSettings Value="Name" Text="Name" />
 </SfAutoComplete>
 
+@if (string.IsNullOrWhiteSpace(_name))
+{
+    <p class="form-text mb-0 mt-2">
+        Type the artist name. Pick from the list, or tap <strong>Add artist</strong> below if they're new to the catalog.
+    </p>
+}
+
 @if (LogArtistPicker.NeedsNewArtist(_name, ArtistLookups))
 {
     <div class="alert alert-info small py-2 px-3 mt-2 mb-0" role="status">
         <strong>@_name.Trim()</strong> isn't in the catalog yet.
-        Add the artist first — your song title stays filled in.
+        Tap <strong>Add artist</strong> below — your song title stays filled in.
     </div>
     @if (!string.IsNullOrEmpty(_localError))
     {

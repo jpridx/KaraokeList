@@ -71,7 +71,7 @@ There is no sidebar. Catalog grids live under `/more`.
 
 1. Open **Log** → **+ New song**
 2. Enter the **title**, then type the **artist** name (autocomplete search)
-3. If the artist isn't in the catalog, tap **Add artist** — your title stays filled in
+3. If the artist isn't in the catalog, type their name and tap **Add artist** — your title stays filled in
 4. Tap **Add song** — the new song is selected and the log form appears below
 5. Pick venue, date, key, and **Save performance**
 
@@ -151,7 +151,7 @@ Implemented in `ShowHostMessageFormatting` (`KaraokeList.Shared`). Shown on Log 
 | `QuickLogPerformance` | Venue, date, key, host message, save — venue from last log; date defaults to today; key from last time **you sang this song** (or original key); queues offline |
 | `AddSongPanel` | Add catalog song inline — title field + `AddArtistField` + `AddGenreField`; fires `SongAddedEventArgs` on success |
 | `AddSongToListPanel` | Want to sing / Working up — **Add from catalog** and **New song** in one step; success message after add |
-| `AddArtistField` | Artist autocomplete (`AllowCustom`) with inline **Add artist** button when the typed name isn't in the catalog |
+| `AddArtistField` | Artist autocomplete (`AllowCustom`) with inline guidance and **Add artist** button when the typed name isn't in the catalog |
 | `AddGenreField` | Genre autocomplete (`AllowCustom`) with inline **Add genre** button when the typed name isn't in the catalog |
 | `LogCatalogLoader` | Online catalog fetch + offline cache for Log song/venue picker (★ repertoire, 🎯 working up) |
 | `MySongsLoader` | Online list fetch + offline cache for My Songs browse |
@@ -168,7 +168,10 @@ Implemented in `ShowHostMessageFormatting` (`KaraokeList.Shared`). Shown on Log 
 | `SingerStatsTeaser` | Home summary with link to `/my-stats` |
 | `SingerStatsDisplay` | Shared stats layout (used on `/my-stats`) |
 | `SingerLinkPanel` | Link login to a singer profile when `SingerId` is missing |
-| `MobilePageHeader` | Consistent mobile page title + optional subtitle and leading content (back button) |
+| `MobilePageHeader` | Consistent mobile page title + optional subtitle, back link, or leading content |
+| `MobileBackLink` | Standard “Back to More” footer link on account/settings pages |
+| `SortDirectionToggle` | Shared newest/oldest sort button for mobile browse pages |
+| `NoPerformancesEmptyState` | Preset empty state for “no performances logged yet” with log CTA |
 | `OfflineCacheNotice` | Cached-data / offline-unavailable banner for Log and My Songs |
 | `RecentLogList` | Recently logged performance rows (links or tap-to-select) |
 | `PerformanceEditForm` | Shared date/venue/key/co-performers edit block for history and browse lists |
