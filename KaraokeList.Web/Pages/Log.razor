@@ -1,137 +1,113 @@
 @page "/log"
 @attribute [Authorize]
-@using Microsoft.AspNetCore.Components.Authorization
 @inject IKaraokeApiClient Api
 @inject ILogPerformanceLocalStore LogStore
 @inject ILogCatalogLoader CatalogLoader
-@inject AuthenticationStateProvider AuthStateProvider
 
 <PageTitle>Log performance</PageTitle>
 
 <div class="mobile-page mobile-page-with-nav">
-    <header class="mobile-page-header">
-        <h1 class="h4 mb-1">Log performance</h1>
-        <p class="text-muted small mb-0">Pick a song, or open one from <a href="my-songs">My Songs</a>.</p>
-    </header>
+    <MobilePageHeader Title="Log performance">
+        <Subtitle>Pick a song, or open one from <a href="my-songs">My Songs</a>.</Subtitle>
+    </MobilePageHeader>
 
-    @if (isLoading)
-    {
-        <p>Loading...</p>
-    }
-    else
-    {
-        <SingerLinkPanel Visible="needsSingerLink" OnLinked="OnSingerLinkedAsync" />
+    <SingerProfileGate OnResolved="LoadCatalogAsync">
+        <ChildContent Context="singerId">
+            @if (isLoading)
+            {
+                <p>Loading...</p>
+            }
+            else
+            {
+                <OfflineCacheNotice UsingOffline="usingOfflineCatalog"
+                                    HasCachedData="hasCachedCatalog"
+                                    CachedAt="catalogCachedAt"
+                                    ResourceName="songs"
+                                    RefreshHint="Connect to refresh the catalog.">
+                    <UnavailableContent>
+                        Song catalog isn't available offline yet. Pick from <strong>Recently logged</strong> below,
+                        or open Log once while online to cache songs.
+                    </UnavailableContent>
+                </OfflineCacheNotice>
 
-        @if (!needsSingerLink)
-        {
-            @if (usingOfflineCatalog && catalogCachedAt is DateTime cachedAt)
-            {
-                <div class="alert alert-warning small mb-3" role="status">
-                    Using cached songs from @cachedAt.ToLocalTime().ToString("g").
-                    Connect to refresh the catalog.
-                </div>
-            }
-            else if (usingOfflineCatalog && !hasCachedCatalog)
-            {
-                <div class="alert alert-warning small mb-3" role="status">
-                    Song catalog isn't available offline yet. Pick from <strong>Recently logged</strong> below,
-                    or open Log once while online to cache songs.
-                </div>
-            }
-
-            @if (!string.IsNullOrEmpty(saveMessage))
-            {
-                <div class="alert alert-success">@saveMessage</div>
-            }
-            @if (!string.IsNullOrEmpty(saveError))
-            {
-                <div class="alert alert-danger">@saveError</div>
-            }
-
-            <div class="mobile-panel">
-                <label class="form-label">Song</label>
-                @if (songPickerItems.Count == 0)
+                @if (!string.IsNullOrEmpty(saveMessage))
                 {
-                    <p class="text-muted small mb-0">No songs in the catalog yet. Use + New song below.</p>
+                    <div class="alert alert-success">@saveMessage</div>
                 }
-                else
+                @if (!string.IsNullOrEmpty(saveError))
                 {
-                    <SfComboBox TValue="int?" TItem="LogSongPickItem" DataSource="@songPickerItems"
-                                @bind-Value="selectedSongId" @bind-Value:after="OnSongSelectedAsync"
-                                Placeholder="Search songs..." AllowFiltering="true" ShowClearButton="true"
-                                Enabled="@(!showNewSong)"
-                                FilterType="Syncfusion.Blazor.DropDowns.FilterType.Contains"
-                                PopupHeight="280px">
-                        <ComboBoxFieldSettings Value="Id" Text="Display" />
-                    </SfComboBox>
-                    <p class="small text-muted mt-1 mb-0">@songPickerItems.Count songs · ★ = on My repertoire · 🎯 = working up</p>
+                    <div class="alert alert-danger">@saveError</div>
                 }
-                @if (selectedSongId is int songId && songHint is not null)
-                {
-                    <p class="small text-muted mt-2 mb-0">@songHint</p>
-                }
-                @if (selectedSongId is int workingUpSongId && !usingOfflineCatalog && !workingUpSongIds.Contains(workingUpSongId))
-                {
-                    <button type="button" class="btn btn-outline-secondary btn-sm mt-2" disabled="@isAddingToWorkingUp"
-                            @onclick="AddToWorkingUpAsync">
-                        Add to working up
-                    </button>
-                    @if (!string.IsNullOrEmpty(workingUpMessage))
+
+                <div class="mobile-panel">
+                    <label class="form-label">Song</label>
+                    @if (songPickerItems.Count == 0)
                     {
-                        <p class="small text-success mt-1 mb-0">@workingUpMessage</p>
-                    }
-                    @if (!string.IsNullOrEmpty(workingUpError))
-                    {
-                        <p class="small text-danger mt-1 mb-0">@workingUpError</p>
-                    }
-                }
-
-                @if (!usingOfflineCatalog)
-                {
-                    @if (!showNewSong)
-                    {
-                        <button type="button" class="btn btn-link btn-sm ps-0 mt-2" @onclick="OpenNewSongPanel">
-                            + New song
-                        </button>
+                        <p class="text-muted small mb-0">No songs in the catalog yet. Use + New song below.</p>
                     }
                     else
                     {
-                        <AddSongPanel OnSongAdded="OnNewSongAddedAsync"
-                                      OnCancelled="CloseNewSongPanel" />
+                        <CatalogSongPicker Items="songPickerItems" @bind-SelectedSongId="selectedSongId"
+                                           @bind-SelectedSongId:after="OnSongSelectedAsync"
+                                           Enabled="@(!showNewSong)" />
+                        <p class="small text-muted mt-1 mb-0">@songPickerItems.Count songs · ★ = on My repertoire · 🎯 = working up</p>
                     }
-                }
-            </div>
-
-            @if (SelectedSong is not null && mySingerId is not null)
-            {
-                <QuickLogPerformance SongId="SelectedSong.Id" Title="@SelectedSong.Title"
-                                     ArtistName="@SelectedSong.ArtistName" SingerId="mySingerId"
-                                     OnPerformanceSaved="OnPerformanceSavedAsync" />
-            }
-
-            @if (recentLogs.Count > 0)
-            {
-                <div class="mobile-panel recent-logs-panel">
-                    <h2 class="h6 mb-2">Recently logged@(usingOfflineCatalog && !hasCachedCatalog ? " — tap to pick a song" : "")</h2>
-                    <ul class="recent-log-list">
-                        @foreach (var entry in recentLogs)
+                    @if (selectedSongId is int songId && songHint is not null)
+                    {
+                        <p class="small text-muted mt-2 mb-0">@songHint</p>
+                    }
+                    @if (selectedSongId is int workingUpSongId && !usingOfflineCatalog && !workingUpSongIds.Contains(workingUpSongId))
+                    {
+                        <button type="button" class="btn btn-outline-secondary btn-sm mt-2" disabled="@isAddingToWorkingUp"
+                                @onclick="AddToWorkingUpAsync">
+                            Add to working up
+                        </button>
+                        @if (!string.IsNullOrEmpty(workingUpMessage))
                         {
-                            <li>
-                                <button type="button" class="recent-log-item" @onclick="() => SelectSongAsync(entry.SongId)">
-                                    <span class="recent-log-title">
-                                        @ShowHostMessageFormatting.Format(entry.Title, entry.ArtistName, entry.KeyChangeSemitones)
-                                    </span>
-                                    <span class="recent-log-meta">
-                                        @entry.PerformedOn.ToString("d") · @entry.VenueName · @KeyChangeFormatting.Describe(entry.KeyChangeSemitones)
-                                    </span>
-                                </button>
-                            </li>
+                            <p class="small text-success mt-1 mb-0">@workingUpMessage</p>
                         }
-                    </ul>
+                        @if (!string.IsNullOrEmpty(workingUpError))
+                        {
+                            <p class="small text-danger mt-1 mb-0">@workingUpError</p>
+                        }
+                    }
+
+                    @if (!usingOfflineCatalog)
+                    {
+                        @if (!showNewSong)
+                        {
+                            <button type="button" class="btn btn-link btn-sm ps-0 mt-2" @onclick="OpenNewSongPanel">
+                                + New song
+                            </button>
+                        }
+                        else
+                        {
+                            <AddSongPanel OnSongAdded="OnNewSongAddedAsync"
+                                          OnCancelled="CloseNewSongPanel" />
+                        }
+                    }
                 </div>
+
+                @if (SelectedSong is not null)
+                {
+                    <QuickLogPerformance SongId="SelectedSong.Id" Title="@SelectedSong.Title"
+                                         ArtistName="@SelectedSong.ArtistName" SingerId="singerId"
+                                         OnPerformanceSaved="OnPerformanceSavedAsync" />
+                }
+
+                @if (recentLogs.Count > 0)
+                {
+                    <div class="mobile-panel recent-logs-panel">
+                        <RecentLogList Items="recentLogs"
+                                       Heading="Recently logged"
+                                       HeadingSuffix="@(usingOfflineCatalog && !hasCachedCatalog ? " — tap to pick a song" : string.Empty)"
+                                       IncludeKeyInMeta="true"
+                                       OnItemSelected="SelectSongAsync" />
+                    </div>
+                }
             }
-        }
-    }
+        </ChildContent>
+    </SingerProfileGate>
 </div>
 
 @code {
@@ -139,11 +115,9 @@
     public int? SongId { get; set; }
 
     private bool isLoading = true;
-    private bool needsSingerLink;
     private bool usingOfflineCatalog;
     private bool hasCachedCatalog;
     private DateTime? catalogCachedAt;
-    private int? mySingerId;
     private HashSet<int> repertoireSongIds = [];
     private HashSet<int> workingUpSongIds = [];
     private List<SingerListDto> singerLists = [];
@@ -187,8 +161,6 @@
         }
     }
 
-    protected override async Task OnInitializedAsync() => await LoadAsync();
-
     protected override async Task OnParametersSetAsync()
     {
         if (SongId is int id && !isLoading && selectedSongId != id)
@@ -198,43 +170,13 @@
         }
     }
 
-    private async Task OnSingerLinkedAsync(int? singerId)
-    {
-        mySingerId = singerId;
-        needsSingerLink = false;
-        await LoadAsync();
-    }
-
-    private async Task LoadAsync()
+    private async Task LoadCatalogAsync(int singerId)
     {
         isLoading = true;
         saveError = null;
         usingOfflineCatalog = false;
         hasCachedCatalog = false;
         catalogCachedAt = null;
-
-        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        mySingerId = authState.User.GetSingerId();
-        if (mySingerId is null)
-        {
-            try
-            {
-                var profile = await Api.GetProfileAsync();
-                mySingerId = profile?.SingerId;
-            }
-            catch (Exception ex) when (ApiTransientFailure.IsTransient(ex) || ex is HttpRequestException)
-            {
-                // Offline: rely on singer claim from JWT when profile API is unreachable.
-            }
-        }
-
-        needsSingerLink = mySingerId is null;
-
-        if (needsSingerLink)
-        {
-            isLoading = false;
-            return;
-        }
 
         var catalog = await CatalogLoader.LoadAsync();
         usingOfflineCatalog = catalog.FromCache;

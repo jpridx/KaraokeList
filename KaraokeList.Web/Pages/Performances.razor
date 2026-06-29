@@ -2,7 +2,6 @@
 @attribute [Authorize(Roles = KaraokeRoles.Admin)]
 @inject IKaraokeApiClient Api
 @inject AuthenticationStateProvider AuthenticationStateProvider
-@inject JwtAuthenticationStateProvider AuthProvider
 
 <PageTitle>Performances</PageTitle>
 
@@ -84,30 +83,7 @@ else
 
     @if (needsSingerLink)
     {
-        <div class="alert alert-info">
-            <p class="mb-2">Your login is not linked to a singer profile yet, so &quot;my song&quot; history cannot load.</p>
-            <div class="row g-2 align-items-end">
-                <div class="col-md-4">
-                    <label class="form-label">Use existing singer</label>
-                    <SfDropDownList TValue="int?" TItem="SingerDto" DataSource="@singers" @bind-Value="linkSingerId"
-                                    Placeholder="Select your name" AllowFiltering="true"
-                                    FilterType="Syncfusion.Blazor.DropDowns.FilterType.Contains">
-                        <DropDownListFieldSettings Value="Id" Text="Name" />
-                    </SfDropDownList>
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">Or create new</label>
-                    <input class="form-control" @bind="linkSingerName" placeholder="Your stage name" />
-                </div>
-                <div class="col-md-4">
-                    <button type="button" class="btn btn-primary" @onclick="LinkSingerProfileAsync">Link profile</button>
-                </div>
-            </div>
-            @if (!string.IsNullOrEmpty(linkError))
-            {
-                <p class="text-danger mt-2 mb-0">@linkError</p>
-            }
-        </div>
+        <SingerLinkPanel Visible="true" OnLinked="OnSingerLinkedAsync" />
     }
 
     @if (mySingerId is not null)
@@ -194,49 +170,19 @@ else
     private string? summaryError;
     private bool summaryLoading;
     private bool needsSingerLink;
-    private int? linkSingerId;
-    private string linkSingerName = string.Empty;
-    private string? linkError;
 
     protected override async Task OnInitializedAsync()
     {
-        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-        mySingerId = authState.User.GetSingerId();
+        mySingerId = await SingerProfileResolver.ResolveSingerIdAsync(AuthenticationStateProvider, Api);
+        needsSingerLink = mySingerId is null;
         await ReloadLookupsAsync();
-
-        var profile = await Api.GetProfileAsync();
-        if (profile?.SingerId is int profileSingerId)
-        {
-            mySingerId = profileSingerId;
-            needsSingerLink = false;
-        }
-        else
-        {
-            needsSingerLink = true;
-        }
-
         await ReloadPerformancesAsync();
     }
 
-    private async Task LinkSingerProfileAsync()
+    private async Task OnSingerLinkedAsync(int? singerId)
     {
-        linkError = null;
-        var request = new LinkSingerRequest
-        {
-            SingerId = linkSingerId,
-            Name = string.IsNullOrWhiteSpace(linkSingerName) ? null : linkSingerName.Trim()
-        };
-
-        var result = await Api.LinkSingerAsync(request);
-        if (!result.Succeeded || result.Response is null)
-        {
-            linkError = result.ErrorMessage ?? "Could not link singer profile.";
-            return;
-        }
-
-        await AuthProvider.MarkUserAsAuthenticatedAsync(result.Response.Token);
-        mySingerId = result.Response.SingerId;
-        needsSingerLink = false;
+        mySingerId = singerId;
+        needsSingerLink = singerId is null;
         await ReloadPerformancesAsync();
         if (summarySongId is not null)
         {

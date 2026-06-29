@@ -1,0 +1,75 @@
+<div class="history-edit-form">
+    @if (HeaderContent is not null)
+    {
+        @HeaderContent
+    }
+    <label class="form-label small text-muted mb-1">Date</label>
+    <InputDate class="form-control form-control-sm mb-2" @bind-Value="PerformedOn" />
+    <label class="form-label small text-muted mb-1">Venue</label>
+    <SfDropDownList TValue="int?" TItem="VenueDto" DataSource="@Venues" @bind-Value="VenueId"
+                    Placeholder="Select venue" AllowFiltering="true"
+                    FilterType="Syncfusion.Blazor.DropDowns.FilterType.Contains">
+        <DropDownListFieldSettings Value="Id" Text="VenueName" />
+    </SfDropDownList>
+    <label class="form-label small text-muted mb-1 mt-2">Key</label>
+    <SfDropDownList TValue="int?" TItem="PerformanceKeyOption" DataSource="@KeyOptions"
+                    @bind-Value="KeyChangeSemitones">
+        <DropDownListFieldSettings Value="Semitones" Text="Label" />
+    </SfDropDownList>
+    <CoPerformersEditor PrimarySingerId="SingerId" @bind-OtherPerformers="OtherPerformers" />
+    <div class="d-flex gap-2 mt-3">
+        <button type="button" class="btn btn-primary btn-sm flex-fill" disabled="@IsSaving" @onclick="OnSave">
+            Save
+        </button>
+        <button type="button" class="btn btn-outline-secondary btn-sm flex-fill" disabled="@IsSaving" @onclick="OnCancel">
+            Cancel
+        </button>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public int SingerId { get; set; }
+
+    [Parameter]
+    public IReadOnlyList<VenueDto> Venues { get; set; } = [];
+
+    [Parameter]
+    public IReadOnlyList<PerformanceKeyOption> KeyOptions { get; set; } = PerformanceKeyOption.Choices;
+
+    [Parameter]
+    public DateTime PerformedOn { get; set; }
+
+    [Parameter]
+    public EventCallback<DateTime> PerformedOnChanged { get; set; }
+
+    [Parameter]
+    public int? VenueId { get; set; }
+
+    [Parameter]
+    public EventCallback<int?> VenueIdChanged { get; set; }
+
+    [Parameter]
+    public int? KeyChangeSemitones { get; set; }
+
+    [Parameter]
+    public EventCallback<int?> KeyChangeSemitonesChanged { get; set; }
+
+    [Parameter]
+    public List<CoPerformerInputDto> OtherPerformers { get; set; } = [];
+
+    [Parameter]
+    public EventCallback<List<CoPerformerInputDto>> OtherPerformersChanged { get; set; }
+
+    [Parameter]
+    public bool IsSaving { get; set; }
+
+    [Parameter]
+    public EventCallback OnSave { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    [Parameter]
+    public RenderFragment? HeaderContent { get; set; }
+}

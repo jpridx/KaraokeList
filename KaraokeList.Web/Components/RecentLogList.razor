@@ -1,0 +1,65 @@
+@if (Items.Count > 0)
+{
+    @if (!string.IsNullOrEmpty(Heading))
+    {
+        <h2 class="@HeadingClass">@Heading@HeadingSuffix</h2>
+    }
+    <ul class="recent-log-list">
+        @foreach (var entry in DisplayItems)
+        {
+            <li>
+                @if (UseLinks)
+                {
+                    <a class="recent-log-item text-decoration-none" href="@($"log?songId={entry.SongId}")">
+                        <span class="recent-log-title">@FormatTitle(entry)</span>
+                        <span class="recent-log-meta">@FormatMeta(entry)</span>
+                    </a>
+                }
+                else
+                {
+                    <button type="button" class="recent-log-item" @onclick="() => OnItemSelected.InvokeAsync(entry.SongId)">
+                        <span class="recent-log-title">@FormatTitle(entry)</span>
+                        <span class="recent-log-meta">@FormatMeta(entry)</span>
+                    </button>
+                }
+            </li>
+        }
+    </ul>
+}
+
+@code {
+    [Parameter]
+    public IReadOnlyList<RecentLoggedPerformance> Items { get; set; } = [];
+
+    [Parameter]
+    public string? Heading { get; set; }
+
+    [Parameter]
+    public string HeadingSuffix { get; set; } = string.Empty;
+
+    [Parameter]
+    public string HeadingClass { get; set; } = "h6 mb-2";
+
+    [Parameter]
+    public int? MaxItems { get; set; }
+
+    [Parameter]
+    public bool UseLinks { get; set; }
+
+    [Parameter]
+    public bool IncludeKeyInMeta { get; set; }
+
+    [Parameter]
+    public EventCallback<int> OnItemSelected { get; set; }
+
+    private IEnumerable<RecentLoggedPerformance> DisplayItems =>
+        MaxItems is int limit ? Items.Take(limit) : Items;
+
+    private string FormatTitle(RecentLoggedPerformance entry) =>
+        ShowHostMessageFormatting.Format(entry.Title, entry.ArtistName, entry.KeyChangeSemitones);
+
+    private string FormatMeta(RecentLoggedPerformance entry) =>
+        IncludeKeyInMeta
+            ? $"{entry.PerformedOn:d} · {entry.VenueName} · {KeyChangeFormatting.Describe(entry.KeyChangeSemitones)}"
+            : $"{entry.PerformedOn:d} · {entry.VenueName}";
+}

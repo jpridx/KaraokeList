@@ -6,123 +6,120 @@
 <PageTitle>Song history</PageTitle>
 
 <div class="mobile-page">
-    <header class="mobile-page-header">
-        <button type="button" class="btn btn-link btn-sm ps-0" @onclick="GoBack">← My Songs</button>
-        @if (songMeta is not null)
-        {
-            <h1 class="h4 mb-0">@songMeta.Title</h1>
-            <p class="text-muted mb-0">@songMeta.ArtistName</p>
-        }
-    </header>
+    <MobilePageHeader Title="@(songMeta?.Title ?? "Song history")" TitleClass="mb-0">
+        <LeadingContent>
+            <button type="button" class="btn btn-link btn-sm ps-0" @onclick="GoBack">← My Songs</button>
+        </LeadingContent>
+        <Subtitle>@(songMeta?.ArtistName)</Subtitle>
+    </MobilePageHeader>
 
-    @if (isLoading)
-    {
-        <p>Loading...</p>
-    }
-    else if (!string.IsNullOrEmpty(loadError))
-    {
-        <p class="text-danger">@loadError</p>
-        <SingerLinkPanel Visible="needsSingerLink" OnLinked="OnSingerLinkedAsync" />
-    }
-    else if (summary is null || songMeta is null)
-    {
-        <p>Could not load song.</p>
-        <a href="my-songs">Back to My Songs</a>
-    }
-    else
-    {
-        <section class="mobile-panel song-stats-panel">
-            @if (!string.IsNullOrWhiteSpace(songMeta.GenreName))
+    <SingerProfileGate @ref="singerGate" OnResolved="LoadSongDetailAsync">
+        <ChildContent Context="singerId">
+            @if (isLoading)
             {
-                <p class="song-stats-genre small text-muted mb-2">@songMeta.GenreName</p>
+                <p>Loading...</p>
             }
-
-            @if (summary.PerformanceCount > 0)
+            else if (!string.IsNullOrEmpty(loadError))
             {
-                <dl class="song-stats-list mb-0">
-                    <div class="song-stats-row">
-                        <dt>Times sung</dt>
-                        <dd>@summary.PerformanceCount</dd>
-                    </div>
-                    <div class="song-stats-row">
-                        <dt>Last performance</dt>
-                        <dd>
-                            @summary.LastPerformedOn?.ToString("d")
-                            @if (!string.IsNullOrEmpty(summary.LastVenueName))
-                            {
-                                <text> · @summary.LastVenueName</text>
-                            }
-                            · @KeyChangeFormatting.Describe(summary.LastKeyChangeSemitones)
-                        </dd>
-                    </div>
-                </dl>
+                <p class="text-danger">@loadError</p>
+            }
+            else if (summary is null || songMeta is null)
+            {
+                <p>Could not load song.</p>
+                <a href="my-songs">Back to My Songs</a>
             }
             else
             {
-                <p class="song-stats-first-time mb-0">You haven't logged this song yet.</p>
-            }
-        </section>
+                <section class="mobile-panel song-stats-panel">
+                    @if (!string.IsNullOrWhiteSpace(songMeta.GenreName))
+                    {
+                        <p class="song-stats-genre small text-muted mb-2">@songMeta.GenreName</p>
+                    }
 
-        <SongListMembershipPanel SongId="SongId" PerformanceCount="summary.PerformanceCount"
-                                 OnMembershipChanged="LoadAsync" />
+                    @if (summary.PerformanceCount > 0)
+                    {
+                        <dl class="song-stats-list mb-0">
+                            <div class="song-stats-row">
+                                <dt>Times sung</dt>
+                                <dd>@summary.PerformanceCount</dd>
+                            </div>
+                            <div class="song-stats-row">
+                                <dt>Last performance</dt>
+                                <dd>
+                                    @summary.LastPerformedOn?.ToString("d")
+                                    @if (!string.IsNullOrEmpty(summary.LastVenueName))
+                                    {
+                                        <text> · @summary.LastVenueName</text>
+                                    }
+                                    · @KeyChangeFormatting.Describe(summary.LastKeyChangeSemitones)
+                                </dd>
+                            </div>
+                        </dl>
+                    }
+                    else
+                    {
+                        <p class="song-stats-first-time mb-0">You haven't logged this song yet.</p>
+                    }
+                </section>
 
-        <TicklerExclusionPanel SongId="SongId" OnExclusionChanged="LoadAsync" />
+                <SongListMembershipPanel SongId="SongId" PerformanceCount="summary.PerformanceCount"
+                                         OnMembershipChanged="ReloadSongDetailAsync" />
 
-        @if (mySingerId is null)
-        {
-            <SingerLinkPanel Visible="true" OnLinked="OnSingerLinkedAsync" />
-        }
-        else if (summary.PerformanceCount == 0)
-        {
-            <div class="song-detail-empty-state mobile-panel">
-                <p class="mb-0">Log your first performance below — venue, date, and key are saved for next time.</p>
-            </div>
+                <TicklerExclusionPanel SongId="SongId" OnExclusionChanged="ReloadSongDetailAsync" />
 
-            <QuickLogPerformance SongId="SongId" Title="@songMeta.Title" ArtistName="@songMeta.ArtistName"
-                                 SingerId="mySingerId" SaveButtonText="Log performance"
-                                 OnPerformanceSaved="OnPerformanceSavedAsync" />
-        }
-        else
-        {
-            <CoPerformersEditor PrimarySingerId="mySingerId.Value" @bind-OtherPerformers="hostCoPerformers" />
+                @if (summary.PerformanceCount == 0)
+                {
+                    <div class="song-detail-empty-state mobile-panel">
+                        <p class="mb-0">Log your first performance below — venue, date, and key are saved for next time.</p>
+                    </div>
 
-            <HostMessagePanel Title="@songMeta.Title" ArtistName="@songMeta.ArtistName"
-                              KeyChangeSemitones="hostKeyChangeSemitones" ShowKeyPicker="false"
-                              CoPerformerNames="hostCoPerformerNames" />
-
-            <details class="mobile-panel history-details mt-2" open>
-                <summary class="history-details-summary">
-                    Performance history (@summary.PerformanceCount)
-                </summary>
-                <PerformanceHistoryList SongId="SongId" SingerId="mySingerId.Value"
-                                        History="summary.History" OnChanged="OnHistoryChangedAsync" />
-            </details>
-
-            <details class="mobile-panel log-again-details mt-2">
-                <summary class="history-details-summary">Log again</summary>
-                <div class="log-again-form mt-2">
                     <QuickLogPerformance SongId="SongId" Title="@songMeta.Title" ArtistName="@songMeta.ArtistName"
-                                         SingerId="mySingerId" SaveButtonText="Log again"
-                                         OtherPerformers="hostCoPerformers" ShowCoPerformersEditor="false"
-                                         ShowHostMessagePanel="false"
-                                         @bind-KeyChangeSemitones="hostKeyChangeSemitones"
+                                         SingerId="singerId" SaveButtonText="Log performance"
                                          OnPerformanceSaved="OnPerformanceSavedAsync" />
-                </div>
-            </details>
-        }
-    }
+                }
+                else
+                {
+                    <CoPerformersEditor PrimarySingerId="singerId" @bind-OtherPerformers="hostCoPerformers" />
+
+                    <HostMessagePanel Title="@songMeta.Title" ArtistName="@songMeta.ArtistName"
+                                      KeyChangeSemitones="hostKeyChangeSemitones" ShowKeyPicker="false"
+                                      CoPerformerNames="hostCoPerformerNames" />
+
+                    <details class="mobile-panel history-details mt-2" open>
+                        <summary class="history-details-summary">
+                            Performance history (@summary.PerformanceCount)
+                        </summary>
+                        <PerformanceHistoryList SongId="SongId" SingerId="singerId"
+                                                History="summary.History" OnChanged="OnHistoryChangedAsync" />
+                    </details>
+
+                    <details class="mobile-panel log-again-details mt-2">
+                        <summary class="history-details-summary">Log again</summary>
+                        <div class="log-again-form mt-2">
+                            <QuickLogPerformance SongId="SongId" Title="@songMeta.Title" ArtistName="@songMeta.ArtistName"
+                                                 SingerId="singerId" SaveButtonText="Log again"
+                                                 OtherPerformers="hostCoPerformers" ShowCoPerformersEditor="false"
+                                                 ShowHostMessagePanel="false"
+                                                 @bind-KeyChangeSemitones="hostKeyChangeSemitones"
+                                                 OnPerformanceSaved="OnPerformanceSavedAsync" />
+                        </div>
+                    </details>
+                }
+            }
+        </ChildContent>
+    </SingerProfileGate>
 </div>
 
 @code {
     [Parameter]
     public int SongId { get; set; }
 
+    private SingerProfileGate? singerGate;
     private bool isLoading = true;
-    private bool needsSingerLink;
+    private int? loadedForSongId;
     private string? loadError;
     private SongPerformanceSummaryDto? summary;
     private RepertoireSongDto? songMeta;
-    private int? mySingerId;
     private List<SingerDto> singers = [];
     private List<CoPerformerInputDto> hostCoPerformers = [];
     private int? hostKeyChangeSemitones;
@@ -130,29 +127,27 @@
     private IReadOnlyList<string> hostCoPerformerNames =>
         CoPerformerFormatting.GetDisplayNames(hostCoPerformers, singers);
 
-    protected override async Task OnParametersSetAsync() => await LoadAsync();
-
-    private async Task OnSingerLinkedAsync(int? singerId)
+    protected override async Task OnParametersSetAsync()
     {
-        mySingerId = singerId;
-        needsSingerLink = false;
-        await LoadAsync();
+        if (loadedForSongId is int previousSongId && previousSongId != SongId)
+        {
+            await ReloadSongDetailAsync();
+        }
     }
 
-    private async Task OnPerformanceSavedAsync(string? _) => await LoadAsync();
+    private Task LoadSongDetailAsync(int singerId) => ReloadSongDetailAsync();
 
-    private async Task OnHistoryChangedAsync() => await LoadAsync();
+    private async Task OnPerformanceSavedAsync(string? _) => await ReloadSongDetailAsync();
 
-    private async Task LoadAsync()
+    private async Task OnHistoryChangedAsync() => await ReloadSongDetailAsync();
+
+    private async Task ReloadSongDetailAsync()
     {
         isLoading = true;
         loadError = null;
         summary = null;
         hostCoPerformers = [];
         hostKeyChangeSemitones = null;
-
-        var profile = await Api.GetProfileAsync();
-        mySingerId = profile?.SingerId;
 
         try
         {
@@ -173,17 +168,17 @@
         if (result.Succeeded && result.Summary is not null)
         {
             summary = result.Summary;
-            needsSingerLink = false;
         }
         else
         {
             loadError = result.ErrorMessage;
             if (result.ErrorMessage?.Contains("not linked", StringComparison.OrdinalIgnoreCase) == true)
             {
-                needsSingerLink = true;
+                singerGate?.RequireSingerLink();
             }
         }
 
+        loadedForSongId = SongId;
         isLoading = false;
     }
 

@@ -88,17 +88,7 @@
         isLoadingCatalog = true;
         try
         {
-            var songs = await Api.GetSongsAsync();
-            var artists = await Api.GetArtistLookupsAsync();
-            var artistNames = artists.ToDictionary(a => a.Id, a => a.Name);
-            catalogPickerItems = songs
-                .Select(s => new LogSongPickItem(
-                    s.Id,
-                    s.Title,
-                    s.Artist is int artistId && artistNames.TryGetValue(artistId, out var name) ? name : string.Empty,
-                    false))
-                .OrderBy(s => s.Title, StringComparer.OrdinalIgnoreCase)
-                .ToList();
+            catalogPickerItems = await CatalogSongMapper.LoadPickItemsAsync(Api);
         }
         catch (Exception ex)
         {

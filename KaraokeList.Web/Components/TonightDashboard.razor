@@ -22,22 +22,8 @@
 
         @if (recentLogs.Count > 0)
         {
-            <h3 class="h6 mt-3 mb-2">Recently logged</h3>
-            <ul class="recent-log-list">
-                @foreach (var entry in recentLogs.Take(3))
-                {
-                    <li>
-                        <a class="recent-log-item text-decoration-none" href="@($"log?songId={entry.SongId}")">
-                            <span class="recent-log-title">
-                                @ShowHostMessageFormatting.Format(entry.Title, entry.ArtistName, entry.KeyChangeSemitones)
-                            </span>
-                            <span class="recent-log-meta">
-                                @entry.PerformedOn.ToString("d") · @entry.VenueName
-                            </span>
-                        </a>
-                    </li>
-                }
-            </ul>
+            <RecentLogList Items="recentLogs" Heading="Recently logged" HeadingClass="h6 mt-3 mb-2"
+                           MaxItems="3" UseLinks="true" />
         }
         else
         {

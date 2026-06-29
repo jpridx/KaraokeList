@@ -1,0 +1,70 @@
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IKaraokeApiClient Api
+
+@if (isResolving)
+{
+    <p class="text-muted small">Loading…</p>
+}
+else if (needsSingerLink)
+{
+    <SingerLinkPanel Visible="true" OnLinked="HandleLinkedAsync" />
+}
+else if (singerId is int id && ChildContent is not null)
+{
+    <CascadingValue Value="id" Name="SingerId">
+        @ChildContent(id)
+    </CascadingValue>
+}
+
+@code {
+    [Parameter]
+    public RenderFragment<int>? ChildContent { get; set; }
+
+    [Parameter]
+    public EventCallback<int?> OnLinked { get; set; }
+
+    [Parameter]
+    public EventCallback<int> OnResolved { get; set; }
+
+    private bool isResolving = true;
+    private bool needsSingerLink;
+    private int? singerId;
+
+    protected override async Task OnInitializedAsync() => await ResolveAsync();
+
+    public async Task ResolveAsync()
+    {
+        isResolving = true;
+
+        singerId = await SingerProfileResolver.ResolveSingerIdAsync(AuthStateProvider, Api);
+
+        needsSingerLink = singerId is null;
+        isResolving = false;
+
+        if (singerId is int id)
+        {
+            await OnResolved.InvokeAsync(id);
+        }
+    }
+
+    /// <summary>
+    /// Forces the link panel when the API rejects the current profile (e.g. stale JWT claim).
+    /// </summary>
+    public void RequireSingerLink()
+    {
+        singerId = null;
+        needsSingerLink = true;
+    }
+
+    private async Task HandleLinkedAsync(int? linkedSingerId)
+    {
+        singerId = linkedSingerId;
+        needsSingerLink = linkedSingerId is null;
+        await OnLinked.InvokeAsync(linkedSingerId);
+
+        if (linkedSingerId is int id)
+        {
+            await OnResolved.InvokeAsync(id);
+        }
+    }
+}
