@@ -23,7 +23,35 @@ public sealed class PerformanceEditOperationsTests
 
         Assert.False(result.Succeeded);
         Assert.Equal("Pick a venue.", result.ErrorMessage);
-        api.Verify(client => client.UpdatePerformanceAsync(It.IsAny<PerformanceDto>()), Times.Never);
+        api.Verify(client => client.TryUpdatePerformanceAsync(It.IsAny<PerformanceDto>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task SaveAdminAsync_uses_try_create_for_new_rows()
+    {
+        var api = new Mock<IKaraokeApiClient>();
+        api.Setup(client => client.TryCreatePerformanceAsync(It.IsAny<PerformanceDto>()))
+            .ReturnsAsync(new PerformanceCreateResult(true, false, null));
+
+        var dto = new PerformanceDto { Id = 0, Singer = 1, Song = 2, Venue = 3 };
+
+        var result = await PerformanceEditOperations.SaveAdminAsync(api.Object, dto);
+
+        Assert.True(result.Succeeded);
+        api.Verify(client => client.TryCreatePerformanceAsync(It.IsAny<PerformanceDto>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_uses_try_delete()
+    {
+        var api = new Mock<IKaraokeApiClient>();
+        api.Setup(client => client.TryDeletePerformanceAsync(9))
+            .ReturnsAsync(CatalogMutateResult.Ok());
+
+        var result = await PerformanceEditOperations.DeleteAsync(api.Object, 9);
+
+        Assert.True(result.Succeeded);
+        api.Verify(client => client.TryDeletePerformanceAsync(9), Times.Once);
     }
 
     [Fact]

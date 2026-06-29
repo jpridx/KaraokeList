@@ -11,25 +11,40 @@ public interface IKaraokeApiClient
     Task<RegistrationInfoDto?> GetRegistrationInfoAsync();
     Task<List<VenueDto>> GetVenuesAsync();
     Task CreateVenueAsync(VenueDto dto);
+    Task<CatalogMutateResult> TryCreateVenueAsync(VenueDto dto);
     Task UpdateVenueAsync(VenueDto dto);
+    Task<CatalogMutateResult> TryUpdateVenueAsync(VenueDto dto);
     Task DeleteVenueAsync(int id);
+    Task<CatalogMutateResult> TryDeleteVenueAsync(int id);
     Task<List<GenreDto>> GetGenresAsync();
     Task CreateGenreAsync(GenreDto dto);
+    Task<CatalogMutateResult> TryCreateGenreAsync(GenreDto dto);
     Task UpdateGenreAsync(GenreDto dto);
+    Task<CatalogMutateResult> TryUpdateGenreAsync(GenreDto dto);
     Task DeleteGenreAsync(int id);
+    Task<CatalogMutateResult> TryDeleteGenreAsync(int id);
     Task<List<ArtistDto>> GetArtistsAsync();
     Task<List<ArtistLookupDto>> GetArtistLookupsAsync();
     Task CreateArtistAsync(ArtistDto dto);
+    Task<CatalogMutateResult> TryCreateArtistAsync(ArtistDto dto);
     Task UpdateArtistAsync(ArtistDto dto);
+    Task<CatalogMutateResult> TryUpdateArtistAsync(ArtistDto dto);
     Task DeleteArtistAsync(int id);
+    Task<CatalogMutateResult> TryDeleteArtistAsync(int id);
     Task<List<SingerDto>> GetSingersAsync();
     Task CreateSingerAsync(SingerDto dto);
+    Task<CatalogMutateResult> TryCreateSingerAsync(SingerDto dto);
     Task UpdateSingerAsync(SingerDto dto);
+    Task<CatalogMutateResult> TryUpdateSingerAsync(SingerDto dto);
     Task DeleteSingerAsync(int id);
+    Task<CatalogMutateResult> TryDeleteSingerAsync(int id);
     Task<List<SongDto>> GetSongsAsync();
     Task CreateSongAsync(SongDto dto);
+    Task<CatalogMutateResult> TryCreateSongAsync(SongDto dto);
     Task UpdateSongAsync(SongDto dto);
+    Task<CatalogMutateResult> TryUpdateSongAsync(SongDto dto);
     Task DeleteSongAsync(int id);
+    Task<CatalogMutateResult> TryDeleteSongAsync(int id);
     Task<List<PerformanceDto>> GetPerformancesAsync(int? songId = null);
     Task<UserProfileDto?> GetProfileAsync();
     Task<InviteShareDto?> GetInviteShareAsync();
@@ -69,7 +84,9 @@ public interface IKaraokeApiClient
     Task CreatePerformanceAsync(PerformanceDto dto);
     Task<PerformanceCreateResult> TryCreatePerformanceAsync(PerformanceDto dto);
     Task UpdatePerformanceAsync(PerformanceDto dto);
+    Task<CatalogMutateResult> TryUpdatePerformanceAsync(PerformanceDto dto);
     Task DeletePerformanceAsync(int id);
+    Task<CatalogMutateResult> TryDeletePerformanceAsync(int id);
     Task<List<AdminUserDto>> GetAdminUsersAsync();
     Task<AdminUserUpdateResult> UpdateAdminUserAsync(UpdateAdminUserRequest request);
 }
@@ -154,29 +171,44 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
 
     public Task<List<VenueDto>> GetVenuesAsync() => GetListAsync<VenueDto>("api/venues");
     public Task CreateVenueAsync(VenueDto dto) => PostAsync("api/venues", dto);
+    public Task<CatalogMutateResult> TryCreateVenueAsync(VenueDto dto) => TryPostAsync("api/venues", dto);
     public Task UpdateVenueAsync(VenueDto dto) => PutAsync($"api/venues/{dto.Id}", dto);
+    public Task<CatalogMutateResult> TryUpdateVenueAsync(VenueDto dto) => TryPutAsync($"api/venues/{dto.Id}", dto);
     public Task DeleteVenueAsync(int id) => DeleteAsync($"api/venues/{id}");
+    public Task<CatalogMutateResult> TryDeleteVenueAsync(int id) => TryDeleteAsync($"api/venues/{id}");
 
     public Task<List<GenreDto>> GetGenresAsync() => GetListAsync<GenreDto>("api/genres");
     public Task CreateGenreAsync(GenreDto dto) => PostAsync("api/genres", dto);
+    public Task<CatalogMutateResult> TryCreateGenreAsync(GenreDto dto) => TryPostAsync("api/genres", dto);
     public Task UpdateGenreAsync(GenreDto dto) => PutAsync($"api/genres/{dto.Id}", dto);
+    public Task<CatalogMutateResult> TryUpdateGenreAsync(GenreDto dto) => TryPutAsync($"api/genres/{dto.Id}", dto);
     public Task DeleteGenreAsync(int id) => DeleteAsync($"api/genres/{id}");
+    public Task<CatalogMutateResult> TryDeleteGenreAsync(int id) => TryDeleteAsync($"api/genres/{id}");
 
     public Task<List<ArtistDto>> GetArtistsAsync() => GetListAsync<ArtistDto>("api/artists");
     public Task<List<ArtistLookupDto>> GetArtistLookupsAsync() => GetListAsync<ArtistLookupDto>("api/artists/lookup");
     public Task CreateArtistAsync(ArtistDto dto) => PostAsync("api/artists", dto);
+    public Task<CatalogMutateResult> TryCreateArtistAsync(ArtistDto dto) => TryPostAsync("api/artists", dto);
     public Task UpdateArtistAsync(ArtistDto dto) => PutAsync($"api/artists/{dto.Id}", dto);
+    public Task<CatalogMutateResult> TryUpdateArtistAsync(ArtistDto dto) => TryPutAsync($"api/artists/{dto.Id}", dto);
     public Task DeleteArtistAsync(int id) => DeleteAsync($"api/artists/{id}");
+    public Task<CatalogMutateResult> TryDeleteArtistAsync(int id) => TryDeleteAsync($"api/artists/{id}");
 
     public Task<List<SingerDto>> GetSingersAsync() => GetListAsync<SingerDto>("api/singers");
     public Task CreateSingerAsync(SingerDto dto) => PostAsync("api/singers", dto);
+    public Task<CatalogMutateResult> TryCreateSingerAsync(SingerDto dto) => TryPostAsync("api/singers", dto);
     public Task UpdateSingerAsync(SingerDto dto) => PutAsync($"api/singers/{dto.Id}", dto);
+    public Task<CatalogMutateResult> TryUpdateSingerAsync(SingerDto dto) => TryPutAsync($"api/singers/{dto.Id}", dto);
     public Task DeleteSingerAsync(int id) => DeleteAsync($"api/singers/{id}");
+    public Task<CatalogMutateResult> TryDeleteSingerAsync(int id) => TryDeleteAsync($"api/singers/{id}");
 
     public Task<List<SongDto>> GetSongsAsync() => GetListAsync<SongDto>("api/songs");
     public Task CreateSongAsync(SongDto dto) => PostAsync("api/songs", dto);
+    public Task<CatalogMutateResult> TryCreateSongAsync(SongDto dto) => TryPostAsync("api/songs", dto);
     public Task UpdateSongAsync(SongDto dto) => PutAsync($"api/songs/{dto.Id}", dto);
+    public Task<CatalogMutateResult> TryUpdateSongAsync(SongDto dto) => TryPutAsync($"api/songs/{dto.Id}", dto);
     public Task DeleteSongAsync(int id) => DeleteAsync($"api/songs/{id}");
+    public Task<CatalogMutateResult> TryDeleteSongAsync(int id) => TryDeleteAsync($"api/songs/{id}");
 
     public Task<List<PerformanceDto>> GetPerformancesAsync(int? songId = null)
     {
@@ -624,7 +656,14 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
         }
     }
     public Task UpdatePerformanceAsync(PerformanceDto dto) => PutAsync($"api/performances/{dto.Id}", dto);
+
+    public Task<CatalogMutateResult> TryUpdatePerformanceAsync(PerformanceDto dto) =>
+        TryPutAsync($"api/performances/{dto.Id}", dto);
+
     public Task DeletePerformanceAsync(int id) => DeleteAsync($"api/performances/{id}");
+
+    public Task<CatalogMutateResult> TryDeletePerformanceAsync(int id) =>
+        TryDeleteAsync($"api/performances/{id}");
 
     public Task<List<AdminUserDto>> GetAdminUsersAsync() =>
         GetListAsync<AdminUserDto>("api/admin/users");
@@ -670,6 +709,34 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
     {
         var response = await http.DeleteAsync(url);
         response.EnsureSuccessStatusCode();
+    }
+
+    private async Task<CatalogMutateResult> TryPostAsync<T>(string url, T dto) =>
+        await TryMutateAsync(() => http.PostAsJsonAsync(url, dto));
+
+    private async Task<CatalogMutateResult> TryPutAsync<T>(string url, T dto) =>
+        await TryMutateAsync(() => http.PutAsJsonAsync(url, dto));
+
+    private async Task<CatalogMutateResult> TryDeleteAsync(string url) =>
+        await TryMutateAsync(() => http.DeleteAsync(url));
+
+    private async Task<CatalogMutateResult> TryMutateAsync(Func<Task<HttpResponseMessage>> send)
+    {
+        try
+        {
+            var response = await send();
+            if (response.IsSuccessStatusCode)
+            {
+                return CatalogMutateResult.Ok();
+            }
+
+            var message = await ReadApiErrorMessageAsync(response);
+            return CatalogMutateResult.Fail(message ?? "Request failed.");
+        }
+        catch (Exception ex)
+        {
+            return CatalogMutateResult.Fail(ex.Message);
+        }
     }
 
     private static async Task<string?> ReadApiErrorMessageAsync(HttpResponseMessage response)

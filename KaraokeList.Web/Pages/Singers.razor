@@ -6,23 +6,25 @@
 
 <h3>Singers</h3>
 <div class="catalog-container">
-    @if (!isLoading)
-    {
-        <SfGrid DataSource="@singers" AllowPaging="true" AllowSorting="true" AllowFiltering="true"
-                Toolbar="@(new List<string>() { "Add", "Edit", "Delete", "Update", "Cancel", "Search" })">
-            <GridEvents TValue="SingerDto" OnActionBegin="OnActionBegin"></GridEvents>
-            <GridEditSettings AllowAdding="true" AllowEditing="true" AllowDeleting="true" Mode="EditMode.Normal"></GridEditSettings>
-            <GridColumns>
-                <GridColumn Field="@nameof(SingerDto.Id)" IsPrimaryKey="true" Visible="false" />
-                <GridColumn Field="@nameof(SingerDto.Name)" HeaderText="Name" Width="300" />
-            </GridColumns>
-        </SfGrid>
-    }
+    <CatalogCrudGrid TItem="SingerDto"
+                     Items="@singers"
+                     IsLoading="@isLoading"
+                     @bind-ErrorMessage="gridError"
+                     GetId="@(singer => singer.Id)"
+                     OnSaveAsync="SaveSingerAsync"
+                     OnDeleteAsync="DeleteSingerAsync"
+                     OnReload="ReloadAsync">
+        <Columns>
+            <GridColumn Field="@nameof(SingerDto.Id)" IsPrimaryKey="true" Visible="false" />
+            <GridColumn Field="@nameof(SingerDto.Name)" HeaderText="Name" Width="300" />
+        </Columns>
+    </CatalogCrudGrid>
 </div>
 
 @code {
     private List<SingerDto> singers = [];
     private bool isLoading = true;
+    private string? gridError;
 
     protected override async Task OnInitializedAsync() => await ReloadAsync();
 
@@ -33,18 +35,9 @@
         isLoading = false;
     }
 
-    private async Task OnActionBegin(ActionEventArgs<SingerDto> args)
-    {
-        if (args.RequestType == Action.Save && args.Data is not null)
-        {
-            if (args.Data.Id <= 0) await Api.CreateSingerAsync(args.Data);
-            else await Api.UpdateSingerAsync(args.Data);
-            await ReloadAsync();
-        }
-        else if (args.RequestType == Action.Delete && args.Data is not null)
-        {
-            await Api.DeleteSingerAsync(args.Data.Id);
-            await ReloadAsync();
-        }
-    }
+    private Task<CatalogMutateResult> SaveSingerAsync(SingerDto singer, bool isNew) =>
+        isNew ? Api.TryCreateSingerAsync(singer) : Api.TryUpdateSingerAsync(singer);
+
+    private Task<CatalogMutateResult> DeleteSingerAsync(SingerDto singer) =>
+        Api.TryDeleteSingerAsync(singer.Id);
 }
