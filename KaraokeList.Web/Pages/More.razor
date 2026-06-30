@@ -1,5 +1,6 @@
 @page "/more"
 @attribute [Authorize]
+@inject IAppUpdateService UpdateService
 
 <PageTitle>More</PageTitle>
 
@@ -42,4 +43,24 @@
         <a class="more-link" href="account/preferences">Preferences</a>
         <a class="more-link" href="">Home</a>
     </section>
+
+    <section class="more-section">
+        <h2 class="more-section-title">App</h2>
+        <button type="button" class="more-link more-link-button" @onclick="ClearCacheAsync"
+                disabled="@isClearing">
+            @(isClearing ? "Reloading…" : "Reload app")
+        </button>
+        <p class="more-hint">Use this if the app looks outdated after an update.</p>
+    </section>
 </div>
+
+@code {
+    private bool isClearing;
+
+    private async Task ClearCacheAsync()
+    {
+        if (isClearing) return;
+        isClearing = true;
+        await UpdateService.ClearCacheAndReloadAsync();
+    }
+}

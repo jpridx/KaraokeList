@@ -40,5 +40,6 @@ public sealed class AppUpdateNoticeTests : AuthPageTestContext
     private sealed class MockAppUpdateService : IAppUpdateService
     {
         public Task ApplyUpdateAsync() => Task.CompletedTask;
+        public Task ClearCacheAndReloadAsync() => Task.CompletedTask;
     }
 }
