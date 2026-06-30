@@ -1,6 +1,6 @@
 {
-  "name": "KaraokeList",
-  "short_name": "KaraokeList",
+  "name": "My Karaoke",
+  "short_name": "My Karaoke",
   "description": "Log karaoke performances and browse your repertoire.",
   "start_url": "./",
   "display": "standalone",
