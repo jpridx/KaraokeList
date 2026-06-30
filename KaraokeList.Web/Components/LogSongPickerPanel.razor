@@ -7,7 +7,7 @@
     else
     {
         <CatalogSongPicker Items="@Items"
-                           SelectedSongId="SelectedSongId"
+                           SelectedSongId="@SelectedSongId"
                            SelectedSongIdChanged="HandleSelectedSongIdChangedAsync"
                            Enabled="@(!showNewSong)" />
         <p class="small text-muted mt-1 mb-0">@Items.Count songs · ★ = on My repertoire · 🎯 = working up</p>

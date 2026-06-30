@@ -16,7 +16,7 @@
                     @bind-Value="KeyChangeSemitones">
         <DropDownListFieldSettings Value="Semitones" Text="Label" />
     </SfDropDownList>
-    <CoPerformersEditor PrimarySingerId="SingerId" @bind-OtherPerformers="OtherPerformers" />
+    <CoPerformersEditor PrimarySingerId="@SingerId" @bind-OtherPerformers="OtherPerformers" />
     <div class="d-flex gap-2 mt-3">
         <button type="button" class="btn btn-primary btn-sm flex-fill" disabled="@IsSaving" @onclick="OnSave">
             Save
