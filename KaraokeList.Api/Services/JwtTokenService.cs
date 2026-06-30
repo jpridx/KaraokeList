@@ -10,16 +10,18 @@ namespace KaraokeList.Api.Services;
 
 public interface IJwtTokenService
 {
-    (string Token, DateTime ExpiresUtc) CreateToken(ApplicationUser user, IEnumerable<string> roles);
+    (string Token, DateTime ExpiresUtc) CreateToken(ApplicationUser user, IEnumerable<string> roles, bool rememberMe = false);
 }
 
 public sealed class JwtTokenService(IOptions<JwtSettings> options) : IJwtTokenService
 {
     private readonly JwtSettings _settings = options.Value;
 
-    public (string Token, DateTime ExpiresUtc) CreateToken(ApplicationUser user, IEnumerable<string> roles)
+    public (string Token, DateTime ExpiresUtc) CreateToken(ApplicationUser user, IEnumerable<string> roles, bool rememberMe = false)
     {
-        var expires = DateTime.UtcNow.AddHours(_settings.ExpirationHours);
+        var expires = rememberMe
+            ? DateTime.UtcNow.AddDays(_settings.ExtendedExpirationDays)
+            : DateTime.UtcNow.AddHours(_settings.ExpirationHours);
         var claims = new List<Claim>
         {
             new(ClaimTypes.NameIdentifier, user.Id),

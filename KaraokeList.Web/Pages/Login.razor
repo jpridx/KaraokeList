@@ -32,6 +32,11 @@ else
             <label class="form-label">Password</label>
             <InputText type="password" class="form-control" @bind-Value="Input.Password" disabled="@isSubmitting" />
         </div>
+        <div class="mb-3 form-check">
+            <InputCheckbox class="form-check-input" id="rememberMe"
+                           @bind-Value="Input.RememberMe" disabled="@isSubmitting" />
+            <label class="form-check-label" for="rememberMe">Trust this browser for 14 days</label>
+        </div>
         <button class="btn btn-primary" type="submit" disabled="@isSubmitting">
             @(isSubmitting ? "Signing in…" : "Sign in")
         </button>

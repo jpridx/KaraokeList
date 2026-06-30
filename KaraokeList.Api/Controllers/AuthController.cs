@@ -109,7 +109,7 @@ public class AuthController(
             return Unauthorized(new ApiErrorResponse { Message = "Invalid login attempt." });
         }
 
-        var (token, expires) = await CreateAuthTokenAsync(user);
+        var (token, expires) = await CreateAuthTokenAsync(user, request.RememberMe);
         return Ok(new AuthResponse { Token = token, Email = request.Email, SingerId = user.SingerId, ExpiresUtc = expires });
     }
 
@@ -383,9 +383,9 @@ public class AuthController(
         return NoContent();
     }
 
-    private async Task<(string Token, DateTime ExpiresUtc)> CreateAuthTokenAsync(ApplicationUser user)
+    private async Task<(string Token, DateTime ExpiresUtc)> CreateAuthTokenAsync(ApplicationUser user, bool rememberMe = false)
     {
         var roles = await userManager.GetRolesAsync(user);
-        return jwtTokenService.CreateToken(user, roles);
+        return jwtTokenService.CreateToken(user, roles, rememberMe);
     }
 }
