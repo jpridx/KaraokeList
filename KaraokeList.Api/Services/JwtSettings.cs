@@ -8,4 +8,5 @@ public sealed class JwtSettings
     public string Audience { get; set; } = "KaraokeList.Web";
     public string Key { get; set; } = string.Empty;
     public int ExpirationHours { get; set; } = 8;
+    public int ExtendedExpirationDays { get; set; } = 14;
 }
