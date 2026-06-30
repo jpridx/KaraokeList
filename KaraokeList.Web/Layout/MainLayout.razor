@@ -18,6 +18,12 @@
                     <span class="app-user d-none d-lg-inline text-muted small">@context.User.Identity?.Name</span>
                     <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="LogoutAsync">Sign out</button>
                 </div>
+                <nav class="mobile-top-nav d-md-none w-100" aria-label="Primary">
+                    <NavLink class="mobile-top-nav-link" href="log" Match="NavLinkMatch.Prefix">Log</NavLink>
+                    <NavLink class="mobile-top-nav-link" href="my-songs" Match="NavLinkMatch.Prefix">My Songs</NavLink>
+                    <NavLink class="mobile-top-nav-link" href="my-performances" Match="NavLinkMatch.Prefix">Perf.</NavLink>
+                    <NavLink class="mobile-top-nav-link" href="more" Match="NavLinkMatch.Prefix">More</NavLink>
+                </nav>
             </Authorized>
             <NotAuthorized>
                 <div class="app-header-actions ms-auto">
@@ -39,27 +45,6 @@
             </AuthorizeView>
             @Body
         </article>
-
-        <AuthorizeView>
-            <Authorized>
-                <nav class="mobile-bottom-nav d-md-none" aria-label="Primary">
-                    <NavLink class="mobile-bottom-nav-link" href="log" Match="NavLinkMatch.Prefix">
-                        <span>Log</span>
-                    </NavLink>
-                    <NavLink class="mobile-bottom-nav-link" href="my-songs" Match="NavLinkMatch.Prefix">
-                        <span class="mobile-bottom-nav-label mobile-bottom-nav-label--compact">Songs</span>
-                        <span class="mobile-bottom-nav-label mobile-bottom-nav-label--full">My Songs</span>
-                    </NavLink>
-                    <NavLink class="mobile-bottom-nav-link mobile-bottom-nav-link--optional" href="my-performances" Match="NavLinkMatch.Prefix">
-                        <span class="mobile-bottom-nav-label mobile-bottom-nav-label--compact">Performs</span>
-                        <span class="mobile-bottom-nav-label mobile-bottom-nav-label--full">Performances</span>
-                    </NavLink>
-                    <NavLink class="mobile-bottom-nav-link" href="more" Match="NavLinkMatch.Prefix">
-                        <span>More</span>
-                    </NavLink>
-                </nav>
-            </Authorized>
-        </AuthorizeView>
     </main>
 </div>
 

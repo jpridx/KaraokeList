@@ -105,15 +105,22 @@ code {
 .app-header {
     display: flex;
     align-items: center;
-    gap: 1rem;
+    column-gap: 1rem;
+    row-gap: 0;
     flex-wrap: wrap;
     background-color: #f7f7f7;
     border-bottom: 1px solid #d6d5d5;
-    padding: 0.5rem 1rem;
+    padding: 0.5rem 1rem 0;
     min-height: 3.5rem;
     position: sticky;
     top: 0;
     z-index: 200;
+}
+
+@media (min-width: 768px) {
+    .app-header {
+        padding-bottom: 0.5rem;
+    }
 }
 
 .app-brand {
@@ -207,11 +214,11 @@ code {
 .mobile-page {
     max-width: 32rem;
     margin: 0 auto;
-    padding-bottom: 5rem;
+    padding-bottom: 2rem;
 }
 
 .mobile-page-with-nav {
-    padding-bottom: 6rem;
+    padding-bottom: 2rem;
 }
 
 .mobile-page-header {
@@ -636,57 +643,32 @@ code {
     color: #666;
 }
 
-.mobile-bottom-nav {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
+.mobile-top-nav {
     display: flex;
     background: #fff;
-    border-top: 1px solid #d6d5d5;
-    z-index: 100;
-    padding: 0.25rem 0;
-    padding-bottom: env(safe-area-inset-bottom, 0);
+    border-top: 1px solid #e0e0e0;
+    padding: 0;
+    margin: 0 -1rem;
 }
 
-.mobile-bottom-nav-link {
+.mobile-top-nav-link {
     flex: 1;
     display: flex;
     align-items: center;
     justify-content: center;
     text-align: center;
-    padding: 0.65rem 0.35rem;
+    padding: 0.55rem 0.25rem;
     text-decoration: none;
     color: #555;
     font-size: 0.8rem;
     min-width: 0;
+    border-bottom: 2px solid transparent;
 }
 
-.mobile-bottom-nav-label--full {
-    display: none;
-}
-
-.mobile-bottom-nav-link--optional {
-    display: none;
-}
-
-@media (min-width: 400px) {
-    .mobile-bottom-nav-link {
-        font-size: 0.85rem;
-        padding: 0.65rem 0.5rem;
-    }
-
-    .mobile-bottom-nav-link--optional {
-        display: flex;
-    }
-
-    .mobile-bottom-nav-label--compact {
-        display: none;
-    }
-
-    .mobile-bottom-nav-label--full {
-        display: inline;
-    }
+.mobile-top-nav-link.active {
+    color: #1b6ec2;
+    font-weight: 600;
+    border-bottom-color: #1b6ec2;
 }
 
 .admin-user-list {
@@ -702,11 +684,6 @@ code {
 .admin-user-email {
     font-weight: 600;
     margin-bottom: 0.25rem;
-}
-
-.mobile-bottom-nav-link.active {
-    color: #1b6ec2;
-    font-weight: 600;
 }
 
 @media (min-width: 768px) {
