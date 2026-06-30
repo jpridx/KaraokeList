@@ -61,6 +61,15 @@
     {
         if (isClearing) return;
         isClearing = true;
-        await UpdateService.ClearCacheAndReloadAsync();
+        try
+        {
+            await UpdateService.ClearCacheAndReloadAsync();
+        }
+        catch
+        {
+            // The JS interop call is interrupted when the page reloads — swallow that.
+            // If the JS threw before reaching reload(), reset so the user can try again.
+            isClearing = false;
+        }
     }
 }
