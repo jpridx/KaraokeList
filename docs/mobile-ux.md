@@ -17,10 +17,9 @@ Run locally: see [wasm-api-local-dev.md](wasm-api-local-dev.md).
 
 **Phone (< 768px)**
 
-- Top bar: KaraokeList + Sign out
-- Bottom bar: **Log** · **My Songs** · **Performances** (≥400px wide) · **More**
-  - On very narrow phones (&lt;400px), **Performances** hides from the bar — use **More → My performances**
-  - Labels shorten to **Songs** / **Performs** until the screen is wide enough for full text
+- Top bar: KaraokeList + Sign out (row 1) · **Log** · **My Songs** · **Perf.** · **More** (row 2, tab strip)
+  - All four tabs are always visible — no conditional hiding based on screen width
+  - The tab strip is part of the sticky header, so it stays at the top while the page scrolls
 
 **Desktop**
 
@@ -97,7 +96,7 @@ Use **Cancel** to close the add-song panel without losing your place on the Log 
 
 ### Browse all performances
 
-1. Open **My performances** from the bottom bar (when shown) or **More → My performances**
+1. Open **My performances** from the tab bar (Perf.) or **More → My performances**
 2. Search by song, artist, or venue; filter by venue chip; toggle newest/oldest
 3. Tap a row for song detail, **Log** to log again, or **Edit** / **Delete** inline
 4. Use **Load more** for long histories
