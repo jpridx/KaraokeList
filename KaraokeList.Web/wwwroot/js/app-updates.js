@@ -93,6 +93,9 @@ window.karaokeListAppUpdates = {
 
             if (window.karaokeListAppUpdates.registration?.waiting) {
                 window.karaokeListAppUpdates.registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+                // Fallback: if the controllerchange event never fires (iOS PWA timing issue),
+                // force a plain reload after 3 s so the banner never hangs indefinitely.
+                setTimeout(reload, 3000);
             } else {
                 reload();
             }
@@ -100,14 +103,18 @@ window.karaokeListAppUpdates = {
     },
 
     clearCacheAndReload: async function () {
-        if ('serviceWorker' in navigator) {
-            const registrations = await navigator.serviceWorker.getRegistrations();
-            await Promise.all(registrations.map(r => r.unregister()));
-        }
+        try {
+            if ('serviceWorker' in navigator) {
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                await Promise.all(registrations.map(r => r.unregister()));
+            }
 
-        if ('caches' in window) {
-            const keys = await caches.keys();
-            await Promise.all(keys.map(k => caches.delete(k)));
+            if ('caches' in window) {
+                const keys = await caches.keys();
+                await Promise.all(keys.map(k => caches.delete(k)));
+            }
+        } catch (e) {
+            console.warn('KaraokeList: cache clear encountered an error, reloading anyway.', e);
         }
 
         window.location.reload();
