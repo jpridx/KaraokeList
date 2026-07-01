@@ -28,12 +28,15 @@ public sealed class SingerStatsIntegrationTests(KaraokeApiFactory factory)
         var (songIdA, venueId) = await PerformanceTestDataHelper.CreateCatalogAsync(client);
         var (songIdB, _) = await PerformanceTestDataHelper.CreateCatalogAsync(client);
 
-        await PerformanceTestDataHelper.CreatePerformanceAsync(client, songIdA, venueId, DateTime.Today.AddDays(-10));
-        await PerformanceTestDataHelper.CreatePerformanceAsync(client, songIdA, venueId, DateTime.Today);
-        await PerformanceTestDataHelper.CreatePerformanceAsync(client, songIdB, venueId, DateTime.Today.AddMonths(-2));
+        // Use fixed dates with an explicit asOfDate so the test is immune to the calendar.
+        // asOf = Mar 15; two songIdA performances in March (different dates); songIdB in Jan (old).
+        var asOf = new DateTime(2025, 3, 15);
+        await PerformanceTestDataHelper.CreatePerformanceAsync(client, songIdA, venueId, new DateTime(2025, 3, 5));
+        await PerformanceTestDataHelper.CreatePerformanceAsync(client, songIdA, venueId, asOf);
+        await PerformanceTestDataHelper.CreatePerformanceAsync(client, songIdB, venueId, new DateTime(2025, 1, 1));
 
         var stats = await client.GetFromJsonAsync<SingerStatsDto>(
-            "/api/performances/my-stats?topSongs=5&topArtists=5&newRepertoireDays=30&topVenues=3");
+            $"/api/performances/my-stats?topSongs=5&topArtists=5&newRepertoireDays=30&topVenues=3&asOfDate={asOf:yyyy-MM-dd}");
 
         Assert.NotNull(stats);
         Assert.Equal(3, stats.TotalPerformances);
