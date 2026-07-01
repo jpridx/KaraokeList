@@ -28,7 +28,8 @@ public sealed class SingerStatsIntegrationTests(KaraokeApiFactory factory)
         var (songIdA, venueId) = await PerformanceTestDataHelper.CreateCatalogAsync(client);
         var (songIdB, _) = await PerformanceTestDataHelper.CreateCatalogAsync(client);
 
-        await PerformanceTestDataHelper.CreatePerformanceAsync(client, songIdA, venueId, DateTime.Today.AddDays(-10));
+        var firstOfThisMonth = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+        await PerformanceTestDataHelper.CreatePerformanceAsync(client, songIdA, venueId, firstOfThisMonth);
         await PerformanceTestDataHelper.CreatePerformanceAsync(client, songIdA, venueId, DateTime.Today);
         await PerformanceTestDataHelper.CreatePerformanceAsync(client, songIdB, venueId, DateTime.Today.AddMonths(-2));
 
