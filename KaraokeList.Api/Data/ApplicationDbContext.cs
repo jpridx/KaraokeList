@@ -26,6 +26,7 @@ namespace KaraokeList.Data
                 entity.Property(u => u.SingerId).IsRequired(false);
                 entity.Property(u => u.StaleSongAfterDays).HasDefaultValue(TicklerSettingsLimits.DefaultStaleAfterDays);
                 entity.Property(u => u.StaleSongLimit).HasDefaultValue(TicklerSettingsLimits.DefaultSongLimit);
+                entity.Property(u => u.PreferredMusicService).HasDefaultValue(MusicService.None);
                 entity.HasIndex(u => u.SingerId)
                     .IsUnique()
                     .HasFilter("[SingerId] IS NOT NULL");

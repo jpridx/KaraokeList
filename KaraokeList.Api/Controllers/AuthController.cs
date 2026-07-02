@@ -182,6 +182,48 @@ public class AuthController(
     }
 
     [Authorize]
+    [HttpGet("music-service")]
+    public async Task<ActionResult<MusicServicePreferenceDto>> GetMusicServicePreference()
+    {
+        var user = await currentUserSinger.GetUserAsync(User);
+        if (user is null)
+        {
+            return Unauthorized();
+        }
+
+        return Ok(MusicServicePreferenceResolver.ToDto(user));
+    }
+
+    [Authorize]
+    [HttpPut("music-service")]
+    public async Task<IActionResult> UpdateMusicServicePreference([FromBody] UpdateMusicServicePreferenceRequest request)
+    {
+        var user = await currentUserSinger.GetUserAsync(User);
+        if (user is null)
+        {
+            return Unauthorized();
+        }
+
+        var validationError = MusicServicePreferenceResolver.Validate(request.Service);
+        if (validationError is not null)
+        {
+            return BadRequest(new ApiErrorResponse { Message = validationError });
+        }
+
+        user.PreferredMusicService = request.Service;
+        var result = await userManager.UpdateAsync(user);
+        if (!result.Succeeded)
+        {
+            return BadRequest(new ApiErrorResponse
+            {
+                Message = string.Join(" ", result.Errors.Select(e => e.Description))
+            });
+        }
+
+        return NoContent();
+    }
+
+    [Authorize]
     [HttpPost("link-singer")]
     public async Task<ActionResult<AuthResponse>> LinkSinger([FromBody] LinkSingerRequest request)
     {

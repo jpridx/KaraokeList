@@ -10,6 +10,7 @@ namespace KaraokeList.Data
         public Singer? Singer { get; set; }
         public int StaleSongAfterDays { get; set; } = TicklerSettingsLimits.DefaultStaleAfterDays;
         public int StaleSongLimit { get; set; } = TicklerSettingsLimits.DefaultSongLimit;
+        public MusicService PreferredMusicService { get; set; } = MusicService.None;
     }
 
 }

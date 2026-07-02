@@ -1,4 +1,5 @@
 using Blazored.LocalStorage;
+using KaraokeList.Shared;
 using KaraokeList.Web.Services;
 using KaraokeList.Web.Tests.TestDoubles;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -18,6 +19,12 @@ public abstract class AuthPageTestContext : BunitTestContext
 
     protected async Task<string?> GetStoredTokenAsync() =>
         await localStorage.GetItemAsStringAsync(JwtAuthenticationStateProvider.TokenKey);
+    protected AuthPageTestContext()
+    {
+        Api.Setup(client => client.GetMusicServicePreferenceAsync())
+            .ReturnsAsync(MusicServicePreferenceResult.Ok(new MusicServicePreferenceDto()));
+    }
+
     protected override void ConfigureServices(IServiceCollection services)
     {
         services.AddSingleton(Api.Object);

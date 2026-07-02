@@ -36,6 +36,11 @@
 
                 @if (SelectedSong is not null)
                 {
+                    <section class="mobile-panel music-service-panel">
+                        <h2 class="h6 mb-2">Listen</h2>
+                        <MusicServiceListenLink Title="@SelectedSong.Title" ArtistName="@SelectedSong.ArtistName" />
+                    </section>
+
                     <QuickLogPerformance SongId="@SelectedSong.Id" Title="@SelectedSong.Title"
                                          ArtistName="@SelectedSong.ArtistName" SingerId="@singerId"
                                          OnPerformanceSaved="OnPerformanceSavedAsync" />

@@ -75,6 +75,8 @@ public interface IKaraokeApiClient
     Task<StaleSongsResult> GetMyStaleSongsAsync(int? days = null, int? limit = null);
     Task<TicklerSettingsResult> GetTicklerSettingsAsync();
     Task<TicklerSettingsUpdateResult> UpdateTicklerSettingsAsync(UpdateTicklerSettingsRequest request);
+    Task<MusicServicePreferenceResult> GetMusicServicePreferenceAsync();
+    Task<MusicServicePreferenceUpdateResult> UpdateMusicServicePreferenceAsync(UpdateMusicServicePreferenceRequest request);
     Task<SingerStatsResult> GetMySingerStatsAsync(
         int topVenues = 0,
         int topSongs = 0,
@@ -576,6 +578,51 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
         catch (Exception ex)
         {
             return TicklerSettingsUpdateResult.Fail(ex.Message);
+        }
+    }
+
+    public async Task<MusicServicePreferenceResult> GetMusicServicePreferenceAsync()
+    {
+        try
+        {
+            var preference = await http.GetFromJsonAsync<MusicServicePreferenceDto>("api/auth/music-service");
+            return preference is null
+                ? MusicServicePreferenceResult.Fail("Unexpected empty response from the server.")
+                : MusicServicePreferenceResult.Ok(preference);
+        }
+        catch (HttpRequestException ex)
+        {
+            return MusicServicePreferenceResult.Fail(
+                $"Cannot reach the API at {http.BaseAddress}. Start KaraokeList.Api first. ({ex.Message})");
+        }
+        catch (Exception ex)
+        {
+            return MusicServicePreferenceResult.Fail(ex.Message);
+        }
+    }
+
+    public async Task<MusicServicePreferenceUpdateResult> UpdateMusicServicePreferenceAsync(
+        UpdateMusicServicePreferenceRequest request)
+    {
+        try
+        {
+            var response = await http.PutAsJsonAsync("api/auth/music-service", request);
+            if (response.IsSuccessStatusCode)
+            {
+                return MusicServicePreferenceUpdateResult.Ok();
+            }
+
+            var message = await ReadApiErrorMessageAsync(response);
+            return MusicServicePreferenceUpdateResult.Fail(message ?? "Could not save music service preference.");
+        }
+        catch (HttpRequestException ex)
+        {
+            return MusicServicePreferenceUpdateResult.Fail(
+                $"Cannot reach the API at {http.BaseAddress}. Start KaraokeList.Api first. ({ex.Message})");
+        }
+        catch (Exception ex)
+        {
+            return MusicServicePreferenceUpdateResult.Fail(ex.Message);
         }
     }
 

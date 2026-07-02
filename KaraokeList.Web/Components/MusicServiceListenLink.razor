@@ -1,0 +1,69 @@
+@inject IKaraokeApiClient Api
+
+@if (isLoading)
+{
+    <p class="small text-muted mb-0">Loading listen link…</p>
+}
+else if (searchUrl is not null && service is not MusicService.None)
+{
+    <a class="@ButtonClass" href="@searchUrl" target="_blank" rel="noopener noreferrer">
+        @ListenLabel
+    </a>
+}
+else if (showSetupHint)
+{
+    <p class="small text-muted mb-0">
+        Choose a music app in <a href="account/preferences">Preferences</a> for one-tap search.
+    </p>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public string ArtistName { get; set; } = string.Empty;
+
+    [Parameter]
+    public MusicService? PreferredService { get; set; }
+
+    [Parameter]
+    public bool ShowSetupHint { get; set; } = true;
+
+    [Parameter]
+    public string ButtonClass { get; set; } = "btn btn-outline-primary btn-sm w-100";
+
+    private bool isLoading = true;
+    private bool showSetupHint;
+    private MusicService service = MusicService.None;
+    private string? searchUrl;
+
+    private string ListenLabel =>
+        $"Listen in {MusicServiceCatalog.GetDisplayName(service)}";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        isLoading = true;
+        showSetupHint = false;
+        searchUrl = null;
+
+        service = PreferredService ?? MusicService.None;
+        if (PreferredService is null)
+        {
+            var result = await Api.GetMusicServicePreferenceAsync();
+            if (result?.Succeeded == true && result.Preference is not null)
+            {
+                service = result.Preference.Service;
+            }
+        }
+
+        searchUrl = MusicServiceLinks.BuildSearchUrl(service, ArtistName, Title);
+        showSetupHint = ShowSetupHint && service == MusicService.None;
+        isLoading = false;
+    }
+}
