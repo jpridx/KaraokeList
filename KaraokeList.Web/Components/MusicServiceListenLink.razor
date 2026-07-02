@@ -56,7 +56,7 @@ else if (showSetupHint)
         if (PreferredService is null)
         {
             var result = await Api.GetMusicServicePreferenceAsync();
-            if (result.Succeeded && result.Preference is not null)
+            if (result?.Succeeded == true && result.Preference is not null)
             {
                 service = result.Preference.Service;
             }
