@@ -8,7 +8,29 @@
     <AutoCompleteFieldSettings Value="GenreName" Text="GenreName" />
 </SfAutoComplete>
 
-@if (string.IsNullOrWhiteSpace(_name))
+@if (string.IsNullOrWhiteSpace(_name) && CanSuggest)
+{
+    <button type="button" class="btn btn-link btn-sm p-0 mt-2 text-decoration-none"
+            disabled="@(_isBusy || _isSuggesting || Disabled)"
+            @onclick="SuggestGenreAsync">
+        @if (_isSuggesting)
+        {
+            <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+            <span>Suggesting…</span>
+        }
+        else
+        {
+            <span>✨ Suggest genre</span>
+        }
+    </button>
+}
+
+@if (_suggestError is not null)
+{
+    <p class="form-text text-danger mb-0 mt-1">@_suggestError</p>
+}
+
+@if (string.IsNullOrWhiteSpace(_name) && !CanSuggest)
 {
     <p class="form-text mb-0 mt-2">
         Optional. Type a genre, pick from the list, or tap <strong>Add genre</strong> if it's new.
@@ -56,10 +78,23 @@ else if (!string.IsNullOrWhiteSpace(_name) && LogGenrePicker.ResolveGenreId(_nam
     [Parameter]
     public bool Disabled { get; set; }
 
+    /// <summary>Song title — enables the AI suggest button when both Title and Artist are provided.</summary>
+    [Parameter]
+    public string Title { get; set; } = string.Empty;
+
+    /// <summary>Artist name — enables the AI suggest button when both Title and Artist are provided.</summary>
+    [Parameter]
+    public string Artist { get; set; } = string.Empty;
+
     private string _name = string.Empty;
     private bool _isBusy;
+    private bool _isSuggesting;
     private bool _suppressValuePropagation;
     private string? _localError;
+    private string? _suggestError;
+
+    private bool CanSuggest =>
+        !string.IsNullOrWhiteSpace(Title) && !string.IsNullOrWhiteSpace(Artist);
 
     protected override void OnParametersSet()
     {
@@ -94,6 +129,39 @@ else if (!string.IsNullOrWhiteSpace(_name) && LogGenrePicker.ResolveGenreId(_nam
         else if (!string.IsNullOrWhiteSpace(_name) && _name != GenreName)
         {
             await GenreNameChanged.InvokeAsync(_name);
+        }
+    }
+
+    private async Task SuggestGenreAsync()
+    {
+        _suggestError = null;
+        _isSuggesting = true;
+        try
+        {
+            var suggestion = await Api.SuggestGenreAsync(new GenreSuggestionRequest
+            {
+                Title = Title.Trim(),
+                Artist = Artist.Trim()
+            });
+
+            if (suggestion?.GenreName is not null)
+            {
+                _suppressValuePropagation = true;
+                _name = suggestion.GenreName;
+                await GenreNameChanged.InvokeAsync(_name);
+            }
+            else
+            {
+                _suggestError = "No suggestion available — pick a genre manually.";
+            }
+        }
+        catch
+        {
+            _suggestError = "Could not reach the suggestion service — pick a genre manually.";
+        }
+        finally
+        {
+            _isSuggesting = false;
         }
     }
 

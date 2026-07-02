@@ -89,6 +89,7 @@ public interface IKaraokeApiClient
     Task<CatalogMutateResult> TryDeletePerformanceAsync(int id);
     Task<List<AdminUserDto>> GetAdminUsersAsync();
     Task<AdminUserUpdateResult> UpdateAdminUserAsync(UpdateAdminUserRequest request);
+    Task<GenreSuggestionResponse?> SuggestGenreAsync(GenreSuggestionRequest request);
 }
 
 public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
@@ -736,6 +737,24 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
         catch (Exception ex)
         {
             return CatalogMutateResult.Fail(ex.Message);
+        }
+    }
+
+    public async Task<GenreSuggestionResponse?> SuggestGenreAsync(GenreSuggestionRequest request)
+    {
+        try
+        {
+            var response = await http.PostAsJsonAsync("api/ai/suggest-genre", request);
+            if (!response.IsSuccessStatusCode)
+            {
+                return null;
+            }
+
+            return await response.Content.ReadFromJsonAsync<GenreSuggestionResponse>(JsonOptions);
+        }
+        catch
+        {
+            return null;
         }
     }
 
