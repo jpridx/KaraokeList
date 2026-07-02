@@ -36,6 +36,7 @@ builder.Services.AddSingleton<IAuthRateLimiter, AuthRateLimiter>();
 builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IAdminUserService, AdminUserService>();
 builder.Services.AddScoped<ICurrentUserSingerResolver, CurrentUserSingerResolver>();
+builder.Services.AddScoped<IAiGenreService, AiGenreService>();
 
 builder.Services.AddOptions<JwtSettings>()
     .BindConfiguration(JwtSettings.SectionName)

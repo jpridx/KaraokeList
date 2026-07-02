@@ -20,7 +20,8 @@
         <AddGenreField Genres="@genres" @bind-GenreName="genreName"
                        @bind-GenreName:after="SyncGenreFromNameAsync"
                        GenresChanged="OnGenresRefreshed"
-                       OnGenreConfirmed="OnGenreConfirmedAsync" Disabled="@isBusy" />
+                       OnGenreConfirmed="OnGenreConfirmedAsync" Disabled="@isBusy"
+                       Title="@title" Artist="@artistName" />
 
         @if (!string.IsNullOrEmpty(localError))
         {

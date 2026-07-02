@@ -92,6 +92,7 @@ public class NotImplementedApiClient : IKaraokeApiClient
     public virtual Task<CatalogMutateResult> TryDeletePerformanceAsync(int id) => Throw<CatalogMutateResult>();
     public virtual Task<List<AdminUserDto>> GetAdminUsersAsync() => Throw<List<AdminUserDto>>();
     public virtual Task<AdminUserUpdateResult> UpdateAdminUserAsync(UpdateAdminUserRequest request) => Throw<AdminUserUpdateResult>();
+    public virtual Task<GenreSuggestionResponse?> SuggestGenreAsync(GenreSuggestionRequest request) => Throw<GenreSuggestionResponse?>();
 
     private static Task Throw() =>
         throw new NotImplementedException("Override this IKaraokeApiClient member in your test stub.");
