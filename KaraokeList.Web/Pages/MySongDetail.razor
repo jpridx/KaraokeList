@@ -27,6 +27,11 @@
                 }
                 else
                 {
+                    <section class="mobile-panel music-service-panel">
+                        <h2 class="h6 mb-2">Listen</h2>
+                        <MusicServiceListenLink Title="@songMeta.Title" ArtistName="@songMeta.ArtistName" />
+                    </section>
+
                     <SongPerformanceSummaryPanel Summary="@summary" GenreName="@songMeta.GenreName" />
 
                     <SongListMembershipPanel SongId="@SongId" PerformanceCount="@summary.PerformanceCount"

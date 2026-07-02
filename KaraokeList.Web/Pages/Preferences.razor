@@ -7,7 +7,7 @@
 <div class="mobile-page">
     <MobilePageHeader Title="Preferences">
         <Subtitle>
-            Control the <strong>Haven't sung in a while</strong> section on Home.
+            Control Home tickler suggestions and your preferred music app for one-tap search.
         </Subtitle>
     </MobilePageHeader>
 
@@ -21,22 +21,39 @@
             <StatusAlerts SuccessMessage="@successMessage" ErrorMessage="@errorMessage" CssClass="mt-3" />
 
             <section class="mobile-panel mt-3">
-                <EditForm Model="Input" OnValidSubmit="SubmitAsync">
+                <h2 class="h6 mb-3">Haven't sung in a while</h2>
+                <EditForm Model="TicklerInput" OnValidSubmit="SubmitAsync">
                     <DataAnnotationsValidator />
                     <div class="mb-3">
                         <label class="form-label" for="stale-after-days">Days since last performance</label>
-                        <InputNumber id="stale-after-days" class="form-control" @bind-Value="Input.StaleAfterDays" disabled="@isSubmitting" />
+                        <InputNumber id="stale-after-days" class="form-control" @bind-Value="TicklerInput.StaleAfterDays" disabled="@isSubmitting" />
                         <div class="form-text">
                             Show songs you haven't sung in at least this many days (@TicklerSettingsLimits.MinStaleAfterDays–@TicklerSettingsLimits.MaxStaleAfterDays).
                         </div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label" for="song-limit">Maximum songs to show</label>
-                        <InputNumber id="song-limit" class="form-control" @bind-Value="Input.SongLimit" disabled="@isSubmitting" />
+                        <InputNumber id="song-limit" class="form-control" @bind-Value="TicklerInput.SongLimit" disabled="@isSubmitting" />
                         <div class="form-text">
                             How many suggestions appear on Home (@TicklerSettingsLimits.MinSongLimit–@TicklerSettingsLimits.MaxSongLimit).
                         </div>
                     </div>
+
+                    <h2 class="h6 mb-3">Music app</h2>
+                    <div class="mb-3">
+                        <label class="form-label" for="music-service">Open searches in</label>
+                        <InputSelect id="music-service" class="form-select" @bind-Value="MusicServiceInput.Service" disabled="@isSubmitting">
+                            <option value="@MusicService.None">Not set</option>
+                            @foreach (var service in MusicServiceCatalog.SelectableServices)
+                            {
+                                <option value="@service">@MusicServiceCatalog.GetDisplayName(service)</option>
+                            }
+                        </InputSelect>
+                        <div class="form-text">
+                            Adds a one-tap link on song pages to search the artist and title in your music app.
+                        </div>
+                    </div>
+
                     <button class="btn btn-primary w-100" type="submit" disabled="@isSubmitting">
                         @(isSubmitting ? "Saving…" : "Save preferences")
                     </button>
@@ -52,7 +69,8 @@
     [Inject]
     private IKaraokeApiClient Api { get; set; } = default!;
 
-    private UpdateTicklerSettingsRequest Input { get; set; } = new();
+    private UpdateTicklerSettingsRequest TicklerInput { get; set; } = new();
+    private UpdateMusicServicePreferenceRequest MusicServiceInput { get; set; } = new();
     private bool isLoading = true;
     private bool isSubmitting;
     private string? loadError;
@@ -61,18 +79,36 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var result = await Api.GetTicklerSettingsAsync();
-        if (result.Succeeded && result.Settings is not null)
+        var ticklerTask = Api.GetTicklerSettingsAsync();
+        var musicTask = Api.GetMusicServicePreferenceAsync();
+        await Task.WhenAll(ticklerTask, musicTask);
+
+        var ticklerResult = await ticklerTask;
+        var musicResult = await musicTask;
+
+        if (ticklerResult.Succeeded && ticklerResult.Settings is not null)
         {
-            Input = new UpdateTicklerSettingsRequest
+            TicklerInput = new UpdateTicklerSettingsRequest
             {
-                StaleAfterDays = result.Settings.StaleAfterDays,
-                SongLimit = result.Settings.SongLimit
+                StaleAfterDays = ticklerResult.Settings.StaleAfterDays,
+                SongLimit = ticklerResult.Settings.SongLimit
             };
         }
         else
         {
-            loadError = result.ErrorMessage ?? "Could not load preferences.";
+            loadError = ticklerResult.ErrorMessage ?? "Could not load preferences.";
+        }
+
+        if (musicResult.Succeeded && musicResult.Preference is not null)
+        {
+            MusicServiceInput = new UpdateMusicServicePreferenceRequest
+            {
+                Service = musicResult.Preference.Service
+            };
+        }
+        else if (loadError is null)
+        {
+            loadError = musicResult.ErrorMessage ?? "Could not load preferences.";
         }
 
         isLoading = false;
@@ -86,14 +122,23 @@
 
         try
         {
-            var result = await Api.UpdateTicklerSettingsAsync(Input);
-            if (!result.Succeeded)
+            // Save sequentially to avoid Identity concurrency stamp races on AspNetUsers.
+            var ticklerResult = await Api.UpdateTicklerSettingsAsync(TicklerInput);
+
+            if (!ticklerResult.Succeeded)
             {
-                errorMessage = result.ErrorMessage ?? "Could not save preferences.";
+                errorMessage = ticklerResult.ErrorMessage ?? "Could not save tickler settings.";
                 return;
             }
 
-            successMessage = "Preferences saved. Home will use these values on your next visit.";
+            var musicResult = await Api.UpdateMusicServicePreferenceAsync(MusicServiceInput);
+            if (!musicResult.Succeeded)
+            {
+                errorMessage = musicResult.ErrorMessage ?? "Could not save music service preference.";
+                return;
+            }
+
+            successMessage = "Preferences saved.";
         }
         finally
         {

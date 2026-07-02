@@ -52,6 +52,9 @@
     public List<CoPerformerInputDto> OtherPerformers { get; set; } = [];
 
     [Parameter]
+    public EventCallback<List<CoPerformerInputDto>> OtherPerformersChanged { get; set; }
+
+    [Parameter]
     public int? KeyChangeSemitones { get; set; }
 
     [Parameter]
