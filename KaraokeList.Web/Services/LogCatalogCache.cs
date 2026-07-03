@@ -36,6 +36,9 @@ public sealed record LogSongPickItem(int Id, string Title, string ArtistName, bo
     }
 
     public string SearchKey => FlexibleSearch.Normalize($"{Title} {ArtistName}");
+
+    public bool MatchesSearch(string normalizedQuery) =>
+        SearchKey.Contains(normalizedQuery, StringComparison.Ordinal);
 }
 
 public sealed record LogCatalogSnapshot(
