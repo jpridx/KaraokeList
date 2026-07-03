@@ -177,5 +177,5 @@ KaraokeList.Web/Components/CatalogSongPicker.razor — Filtering event + Flexibl
 | Date | Note |
 |------|------|
 | 2026-06-29 | Options documented for review; no code changes yet |
-
-When implemented, update this file (mark chosen options + phase), [mobile-refactor-roadmap.md](mobile-refactor-roadmap.md), and close #92 via PR body `Closes #92`.
+| 2026-07-03 | Phase 1 already implemented: `FlexibleSearch` (public), `RepertoireSearch`, `MyPerformancesSearch` |
+| 2026-07-03 | Phase 2 implemented: `CatalogSongPicker` wired with `Filtering` event + `FlexibleSearch` (#146) |

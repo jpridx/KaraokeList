@@ -1,6 +1,6 @@
 namespace KaraokeList.Shared;
 
-internal static class FlexibleSearch
+public static class FlexibleSearch
 {
     public static string Normalize(string? text)
     {
