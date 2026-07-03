@@ -9,7 +9,17 @@
 
 @if (isLoading)
 {
-    <p>@loadingStep</p>
+    <p class="text-muted mt-3">
+        <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+        @loadingStep
+    </p>
+}
+else if (!string.IsNullOrEmpty(loadError))
+{
+    <div class="alert alert-warning mt-3">
+        <p class="mb-2">@loadError</p>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="RetryAsync">Retry</button>
+    </div>
 }
 else if (singers.Count == 0 || songs.Count == 0 || venues.Count == 0)
 {
@@ -166,6 +176,7 @@ else
     private IReadOnlyList<PerformanceKeyOption> keyOptions = PerformanceKeyOption.Choices;
     private bool isLoading = true;
     private string loadingStep = "Loading...";
+    private string? loadError;
     private int currentSingerId;
     private int? summarySongId;
     private SongPerformanceSummaryDto? songSummary;
@@ -191,20 +202,38 @@ else
     private async Task ReloadLookupsAsync()
     {
         isLoading = true;
+        loadError = null;
 
-        loadingStep = "Loading singers...";
-        singers = await Api.GetSingersAsync();
+        try
+        {
+            loadingStep = "Loading singers...";
+            StateHasChanged();
+            singers = await Api.GetSingersAsync();
 
-        loadingStep = "Loading songs...";
-        StateHasChanged();
-        songs = await Api.GetSongsAsync();
+            loadingStep = "Loading songs...";
+            StateHasChanged();
+            songs = await Api.GetSongsAsync();
 
-        loadingStep = "Loading venues...";
-        StateHasChanged();
-        venues = await Api.GetVenuesAsync();
-
-        isLoading = false;
+            loadingStep = "Loading venues...";
+            StateHasChanged();
+            venues = await Api.GetVenuesAsync();
+        }
+        catch (Exception ex)
+        {
+            loadError = ApiTransientFailure.IsTransient(ex)
+                ? ApiTransientFailure.ColdStartMessage
+                : "Could not load performance data. Check your connection and try again.";
+            singers = [];
+            songs = [];
+            venues = [];
+        }
+        finally
+        {
+            isLoading = false;
+        }
     }
+
+    private Task RetryAsync() => ReloadLookupsAsync();
 
     private async Task ReloadPerformancesAsync()
     {
