@@ -1,9 +1,12 @@
 @using Syncfusion.Blazor.DropDowns
+@using Syncfusion.Blazor.Data
+@using KaraokeList.Shared
 
-<SfComboBox TValue="int?" TItem="LogSongPickItem" DataSource="@Items"
+<SfComboBox @ref="picker" TValue="int?" TItem="LogSongPickItem" DataSource="@Items"
             Value="@SelectedSongId" ValueChanged="OnSelectedAsync"
             Placeholder="@Placeholder" AllowFiltering="true" ShowClearButton="true"
-            FilterType="Syncfusion.Blazor.DropDowns.FilterType.Contains" PopupHeight="280px" Enabled="@Enabled">
+            PopupHeight="280px" Enabled="@Enabled"
+            Filtering="OnFilteringAsync">
     <ComboBoxFieldSettings Value="Id" Text="Display" />
 </SfComboBox>
 
@@ -23,5 +26,19 @@
     [Parameter]
     public bool Enabled { get; set; } = true;
 
+    private SfComboBox<int?, LogSongPickItem> picker = default!;
+
     private Task OnSelectedAsync(int? songId) => SelectedSongIdChanged.InvokeAsync(songId);
+
+    private async Task OnFilteringAsync(Syncfusion.Blazor.DropDowns.FilteringEventArgs args)
+    {
+        args.PreventDefaultAction = true;
+        var normalized = FlexibleSearch.Normalize(args.Text);
+        var filtered = string.IsNullOrEmpty(normalized)
+            ? Items.ToList()
+            : Items.Where(item =>
+                FlexibleSearch.Contains(item.Title, normalized) ||
+                FlexibleSearch.Contains(item.ArtistName, normalized)).ToList();
+        await picker.FilterAsync(filtered, new Query());
+    }
 }
