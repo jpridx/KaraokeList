@@ -167,7 +167,23 @@
         listKind = await MySongsStore.GetListKindAsync();
     }
 
-    private Task LoadListsAsync(int singerId) => ReloadListsAsync();
+    private async Task LoadListsAsync(int singerId)
+    {
+        var cached = await MySongsLoader.TryGetCachedAsync(listKind, sortBy, sortDir, filterGenreId);
+
+        if (cached is not null)
+        {
+            // Fast path: render immediately from cache, then refresh in the background.
+            ApplyLoadResult(cached);
+            isLoading = false;
+            StateHasChanged();
+            _ = RefreshListsInBackgroundAsync();
+            return;
+        }
+
+        // No cache — full foreground load.
+        await ReloadListsAsync();
+    }
 
     private async Task ReloadListsAsync()
     {
@@ -180,6 +196,14 @@
 
         var result = await MySongsLoader.LoadAsync(listKind, sortBy, sortDir, filterGenreId,
             step => { loadingStep = step; StateHasChanged(); });
+
+        ApplyLoadResult(result);
+        loadingStep = null;
+        isLoading = false;
+    }
+
+    private void ApplyLoadResult(MySongsLoadResult result)
+    {
         usingOfflineLists = result.FromCache;
         hasCachedLists = result.HasCache;
         listsCachedAt = result.CachedAtUtc;
@@ -187,17 +211,13 @@
         if (result.NeedsSingerLink)
         {
             loadError = result.ErrorMessage;
-            gatedPage.RequireLinkIfNotLinked(result.ErrorMessage);
-            loadingStep = null;
-            isLoading = false;
+            gatedPage?.RequireLinkIfNotLinked(result.ErrorMessage);
             return;
         }
 
         if (!string.IsNullOrEmpty(result.ErrorMessage))
         {
             loadError = result.ErrorMessage;
-            loadingStep = null;
-            isLoading = false;
             return;
         }
 
@@ -207,8 +227,6 @@
         if (selectedList is null)
         {
             loadError = "Could not load your singer lists.";
-            loadingStep = null;
-            isLoading = false;
             return;
         }
 
@@ -220,9 +238,24 @@
             filterGenres = result.FilterGenres.ToList();
         }
 
+        loadError = null;
         RefreshDisplayList();
-        loadingStep = null;
-        isLoading = false;
+    }
+
+    private async Task RefreshListsInBackgroundAsync()
+    {
+        try
+        {
+            if (!await MySongsLoader.NeedsRefreshAsync()) return;
+
+            var refreshed = await MySongsLoader.LoadAsync(listKind, sortBy, sortDir, filterGenreId);
+            ApplyLoadResult(refreshed);
+            await InvokeAsync(StateHasChanged);
+        }
+        catch
+        {
+            // Background refresh failures are silent.
+        }
     }
 
     private void RefreshDisplayList()

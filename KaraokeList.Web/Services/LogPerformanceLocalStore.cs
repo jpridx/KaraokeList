@@ -49,6 +49,7 @@ public interface ILogPerformanceLocalStore
     Task RemovePendingPerformanceAsync(Guid id);
     Task<CachedLogCatalog?> GetCachedCatalogAsync();
     Task SaveCachedCatalogAsync(CachedLogCatalog catalog);
+    Task ClearCatalogCacheAsync();
 }
 
 public sealed class LogPerformanceLocalStore(ILocalStorageService localStorage) : ILogPerformanceLocalStore
@@ -113,4 +114,7 @@ public sealed class LogPerformanceLocalStore(ILocalStorageService localStorage) 
 
     public Task SaveCachedCatalogAsync(CachedLogCatalog catalog) =>
         localStorage.SetItemAsync(CachedCatalogKey, catalog).AsTask();
+
+    public Task ClearCatalogCacheAsync() =>
+        localStorage.RemoveItemAsync(CachedCatalogKey).AsTask();
 }

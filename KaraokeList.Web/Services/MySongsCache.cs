@@ -7,7 +7,8 @@ public sealed record CachedListSongsEntry(SingerListKind Kind, IReadOnlyList<Rep
 public sealed record CachedMySongsLists(
     IReadOnlyList<SingerListDto> Lists,
     IReadOnlyList<CachedListSongsEntry> ListsSongs,
-    DateTime CachedAtUtc);
+    DateTime CachedAtUtc,
+    string? CacheTag = null);
 
 public sealed record MySongsLoadResult(
     IReadOnlyList<SingerListDto> Lists,

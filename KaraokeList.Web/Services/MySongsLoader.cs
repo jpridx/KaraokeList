@@ -10,10 +10,23 @@ public interface IMySongsLoader
         string sortDir,
         int? genreId,
         Action<string>? onProgress = null);
+
+    Task<MySongsLoadResult?> TryGetCachedAsync(
+        SingerListKind listKind,
+        string sortBy,
+        string sortDir,
+        int? genreId);
+
+    Task<bool> NeedsRefreshAsync();
 }
 
-public sealed class MySongsLoader(IKaraokeApiClient api, IMySongsLocalStore store) : IMySongsLoader
+public sealed class MySongsLoader(
+    IKaraokeApiClient api,
+    IMySongsLocalStore store,
+    ICatalogVersionService versionService) : IMySongsLoader
 {
+    private static readonly TimeSpan RefreshThreshold = TimeSpan.FromHours(2);
+
     public async Task<MySongsLoadResult> LoadAsync(
         SingerListKind listKind,
         string sortBy,
@@ -39,10 +52,12 @@ public sealed class MySongsLoader(IKaraokeApiClient api, IMySongsLocalStore stor
             var songsByKind = await LoadAllListSongsAsync(listsResult.Lists, onProgress);
             onProgress?.Invoke("Saving for offline use...");
             var cachedAt = DateTime.UtcNow;
+            var cacheTag = await versionService.GetCacheTagAsync();
             await store.SaveCachedListsAsync(new CachedMySongsLists(
                 listsResult.Lists,
                 songsByKind.Select(kv => new CachedListSongsEntry(kv.Key, kv.Value)).ToList(),
-                cachedAt));
+                cachedAt,
+                cacheTag));
 
             return BuildResult(
                 listsResult.Lists,
@@ -57,6 +72,60 @@ public sealed class MySongsLoader(IKaraokeApiClient api, IMySongsLocalStore stor
         catch (Exception ex) when (IsOfflineFailure(ex))
         {
             return await LoadOfflineOrFailAsync(listKind, sortBy, sortDir, genreId, null, needsSingerLink: false);
+        }
+    }
+
+    public async Task<MySongsLoadResult?> TryGetCachedAsync(
+        SingerListKind listKind,
+        string sortBy,
+        string sortDir,
+        int? genreId)
+    {
+        var cached = await store.GetCachedListsAsync();
+        if (cached is null || cached.ListsSongs.Count == 0)
+        {
+            return null;
+        }
+
+        var songsByKind = cached.ListsSongs.ToDictionary(
+            entry => entry.Kind,
+            entry => entry.Songs.ToList());
+
+        return BuildResult(cached.Lists, songsByKind, listKind, sortBy, sortDir, genreId, FromCache: true, cached.CachedAtUtc);
+    }
+
+    public async Task<bool> NeedsRefreshAsync()
+    {
+        var cached = await store.GetCachedListsAsync();
+        if (cached is null || cached.ListsSongs.Count == 0)
+        {
+            return true;
+        }
+
+        if (DateTime.UtcNow - cached.CachedAtUtc < RefreshThreshold)
+        {
+            return false;
+        }
+
+        try
+        {
+            var serverTag = await versionService.GetCacheTagAsync();
+            if (serverTag is null)
+            {
+                return false;
+            }
+
+            if (cached.CacheTag == serverTag)
+            {
+                await store.SaveCachedListsAsync(cached with { CachedAtUtc = DateTime.UtcNow });
+                return false;
+            }
+
+            return true;
+        }
+        catch
+        {
+            return false;
         }
     }
 

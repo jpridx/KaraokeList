@@ -45,6 +45,7 @@ public interface IKaraokeApiClient
     Task<CatalogMutateResult> TryUpdateSongAsync(SongDto dto);
     Task DeleteSongAsync(int id);
     Task<CatalogMutateResult> TryDeleteSongAsync(int id);
+    Task<AppVersionDto?> GetAppVersionAsync();
     Task<CatalogImportFileResult> ImportCatalogFileAsync(Stream fileStream, string fileName);
     Task<CatalogImportFileResult> ImportCatalogFromGSheetAsync(GSheetImportRequest request);
     Task<CatalogMutateResult> MergeSongsAsync(int sourceId, int targetId);
@@ -217,6 +218,18 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
     public Task<CatalogMutateResult> TryDeleteSongAsync(int id) => TryDeleteAsync($"api/songs/{id}");
     public Task<CatalogMutateResult> MergeSongsAsync(int sourceId, int targetId) =>
         TryMutateAsync(() => http.PostAsync($"api/songs/{sourceId}/merge-into/{targetId}", null));
+
+    public async Task<AppVersionDto?> GetAppVersionAsync()
+    {
+        try
+        {
+            return await http.GetFromJsonAsync<AppVersionDto>("api/version");
+        }
+        catch
+        {
+            return null;
+        }
+    }
 
     public async Task<CatalogImportFileResult> ImportCatalogFileAsync(Stream fileStream, string fileName)
     {

@@ -39,6 +39,7 @@ builder.Services.AddScoped<IAppUpdateService, AppUpdateService>();
 builder.Services.AddScoped<AuthorizationMessageHandler>();
 builder.Services.AddScoped<SlowApiRequestHandler>();
 builder.Services.AddScoped<IKaraokeApiClient, KaraokeApiClient>();
+builder.Services.AddScoped<ICatalogVersionService, CatalogVersionService>();
 builder.Services.AddScoped<ILogPerformanceLocalStore, LogPerformanceLocalStore>();
 builder.Services.AddScoped<ILogCatalogLoader, LogCatalogLoader>();
 builder.Services.AddScoped<IPendingPerformanceSyncService, PendingPerformanceSyncService>();

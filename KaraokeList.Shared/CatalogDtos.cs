@@ -1,5 +1,10 @@
 namespace KaraokeList.Shared;
 
+public class AppVersionDto
+{
+    public string CacheTag { get; set; } = string.Empty;
+}
+
 public class CatalogImportResultDto
 {
     public int TotalRows { get; set; }
