@@ -4,23 +4,33 @@ namespace KaraokeList.Web.Services;
 
 public interface ILogCatalogLoader
 {
-    Task<LogCatalogSnapshot> LoadAsync();
+    Task<LogCatalogSnapshot> LoadAsync(Action<string>? onProgress = null);
     Task<VenueLoadResult> LoadVenuesAsync();
 }
 
 public sealed class LogCatalogLoader(IKaraokeApiClient api, ILogPerformanceLocalStore store) : ILogCatalogLoader
 {
-    public async Task<LogCatalogSnapshot> LoadAsync()
+    public async Task<LogCatalogSnapshot> LoadAsync(Action<string>? onProgress = null)
     {
         try
         {
+            onProgress?.Invoke("Loading songs...");
             var songs = await api.GetSongsAsync();
+
+            onProgress?.Invoke("Loading artists...");
             var artists = await api.GetArtistLookupsAsync();
+
+            onProgress?.Invoke("Loading venues...");
             var venues = await api.GetVenuesAsync();
+
+            onProgress?.Invoke("Loading your playlists...");
             var lists = await api.GetMyListsAsync();
+
             var repertoireList = lists.Succeeded
                 ? SingerListResolver.FindList(lists.Lists, SingerListKind.MyRepertoire)
                 : null;
+
+            onProgress?.Invoke("Loading My Repertoire songs...");
             var repertoire = repertoireList is not null
                 ? await api.GetListSongsAsync(repertoireList.Id)
                 : RepertoireResult.Fail("Could not load My repertoire list.");
@@ -31,6 +41,8 @@ public sealed class LogCatalogLoader(IKaraokeApiClient api, ILogPerformanceLocal
             var workingUpList = lists.Succeeded
                 ? SingerListResolver.FindList(lists.Lists, SingerListKind.WorkingUp)
                 : null;
+
+            onProgress?.Invoke("Loading Working Up songs...");
             var workingUp = workingUpList is not null
                 ? await api.GetListSongsAsync(workingUpList.Id)
                 : RepertoireResult.Fail("Could not load Working up list.");
@@ -39,8 +51,9 @@ public sealed class LogCatalogLoader(IKaraokeApiClient api, ILogPerformanceLocal
                 : [];
 
             var artistNames = artists.ToDictionary(a => a.Id, a => a.Name);
-        var pickItems = CatalogSongMapper.ToPickItems(songs, artistNames, repertoireIds, workingUpIds);
+            var pickItems = CatalogSongMapper.ToPickItems(songs, artistNames, repertoireIds, workingUpIds);
 
+            onProgress?.Invoke("Saving for offline use...");
             var cachedAt = DateTime.UtcNow;
             await store.SaveCachedCatalogAsync(new CachedLogCatalog(
                 pickItems.Select(s => new CachedSongEntry(s.Id, s.Title, s.ArtistName)).ToList(),

@@ -1,6 +1,12 @@
 @if (IsLoading)
 {
-    <p class="@CssClass">@Message</p>
+    <div class="@CssClass">
+        <span>@Message</span>
+        @if (!string.IsNullOrEmpty(DetailMessage))
+        {
+            <br /><small class="text-muted">@DetailMessage</small>
+        }
+    </div>
 }
 else if (ChildContent is not null)
 {
@@ -13,6 +19,9 @@ else if (ChildContent is not null)
 
     [Parameter]
     public string Message { get; set; } = "Loading...";
+
+    [Parameter]
+    public string? DetailMessage { get; set; }
 
     [Parameter]
     public string CssClass { get; set; } = "mt-3 text-muted small";
