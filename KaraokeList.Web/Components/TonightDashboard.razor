@@ -7,64 +7,62 @@
         <p class="text-muted small mb-0">@DateTime.Today.ToString("dddd, MMMM d")</p>
     </header>
 
-    @if (isLoading)
+    @if (!string.IsNullOrWhiteSpace(defaultVenueName))
     {
-        <p class="text-muted small mt-3 mb-0">Loading…</p>
+        <p class="tonight-default-venue small mb-0 mt-3">
+            Default venue: <strong>@defaultVenueName</strong>
+        </p>
+    }
+
+    @if (recentLogs.Count > 0)
+    {
+        <RecentLogList Items="@recentLogs" Heading="Recently logged" HeadingClass="h6 mt-3 mb-2"
+                       MaxItems="3" UseLinks="true" />
+        <div class="tonight-actions mt-3">
+            <a class="btn btn-primary btn-lg w-100 mb-2" href="log">Log performance</a>
+            <a class="btn btn-outline-primary w-100" href="my-songs">My Songs</a>
+        </div>
     }
     else
     {
-        @if (!string.IsNullOrWhiteSpace(defaultVenueName))
-        {
-            <p class="tonight-default-venue small mb-0 mt-3">
-                Default venue: <strong>@defaultVenueName</strong>
-            </p>
-        }
-
-        @if (recentLogs.Count > 0)
-        {
-            <RecentLogList Items="@recentLogs" Heading="Recently logged" HeadingClass="h6 mt-3 mb-2"
-                           MaxItems="3" UseLinks="true" />
-            <div class="tonight-actions mt-3">
-                <a class="btn btn-primary btn-lg w-100 mb-2" href="log">Log performance</a>
-                <a class="btn btn-outline-primary w-100" href="my-songs">My Songs</a>
-            </div>
-        }
-        else
-        {
-            <NoPerformancesEmptyState ActionText="Log your first song"
-                                      ActionButtonClass="btn btn-primary btn-lg w-100 mb-2"
-                                      CssClass="mt-3"
-                                      MessageClass="text-muted small mb-3" />
-            <div class="tonight-actions">
-                <a class="btn btn-outline-primary w-100" href="my-songs">My Songs</a>
-            </div>
-        }
+        <NoPerformancesEmptyState ActionText="Log your first song"
+                                  ActionButtonClass="btn btn-primary btn-lg w-100 mb-2"
+                                  CssClass="mt-3"
+                                  MessageClass="text-muted small mb-3" />
+        <div class="tonight-actions">
+            <a class="btn btn-outline-primary w-100" href="my-songs">My Songs</a>
+        </div>
     }
 </section>
 
 @code {
-    private bool isLoading = true;
     private string? defaultVenueName;
     private IReadOnlyList<RecentLoggedPerformance> recentLogs = [];
 
     protected override async Task OnInitializedAsync()
     {
+        // Load from localStorage immediately — no API call needed for the core content.
         var defaults = await LogStore.GetFormDefaultsAsync();
         recentLogs = await LogStore.GetRecentLogsAsync();
 
         if (defaults?.VenueId is int venueId)
         {
-            try
-            {
-                var venues = await Api.GetVenuesAsync();
-                defaultVenueName = venues.FirstOrDefault(v => v.Id == venueId)?.VenueName;
-            }
-            catch
-            {
-                // Non-fatal; dashboard still works without venue name.
-            }
+            // Resolve the venue name in the background so the dashboard renders instantly.
+            _ = LoadVenueNameAsync(venueId);
         }
+    }
 
-        isLoading = false;
+    private async Task LoadVenueNameAsync(int venueId)
+    {
+        try
+        {
+            var venues = await Api.GetVenuesAsync();
+            defaultVenueName = venues.FirstOrDefault(v => v.Id == venueId)?.VenueName;
+            await InvokeAsync(StateHasChanged);
+        }
+        catch
+        {
+            // Non-fatal; dashboard works fine without the venue name label.
+        }
     }
 }
