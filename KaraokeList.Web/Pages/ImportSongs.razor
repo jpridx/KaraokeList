@@ -1,0 +1,326 @@
+@page "/admin/import-songs"
+@attribute [Authorize(Roles = KaraokeRoles.Admin)]
+@inject IKaraokeApiClient Api
+@using Microsoft.AspNetCore.Components.Forms
+
+<PageTitle>Import catalog</PageTitle>
+
+<div class="mobile-page">
+    <MobilePageHeader Title="Import catalog" BackHref="/more" BackText="← More" />
+
+    @if (!string.IsNullOrEmpty(pageError))
+    {
+        <StatusAlerts ErrorMessage="@pageError" />
+    }
+
+    @* ── File upload ─────────────────────────────────────────────── *@
+    <section class="more-section">
+        <h2 class="more-section-title">Upload file</h2>
+        <p class="text-muted small mb-2">
+            Accepts <strong>.csv</strong>, <strong>.tsv</strong>, and <strong>.xlsx</strong>.
+            Default column order: <em>Song, Artist, Genre, Year</em> — or include a header row to use any order.
+        </p>
+        <InputFile OnChange="OnFileSelectedAsync" accept=".csv,.tsv,.txt,.xlsx,.xls"
+                   class="form-control form-control-sm mb-2" />
+        <button type="button" class="btn btn-primary btn-sm"
+                @onclick="ImportFileAsync"
+                disabled="@(selectedFile is null || isImporting)">
+            @(isImporting && importMode == ImportMode.File ? "Importing…" : "Import file")
+        </button>
+    </section>
+
+    @* ── Google Sheets ────────────────────────────────────────────── *@
+    <section class="more-section">
+        <h2 class="more-section-title">Google Sheets</h2>
+        <p class="text-muted small mb-2">
+            Paste the sharing URL of a Google Sheet with public view access.
+            The first sheet tab is imported.
+        </p>
+        <input type="url" @bind="sheetUrl" @bind:event="oninput"
+               class="form-control form-control-sm mb-2"
+               placeholder="https://docs.google.com/spreadsheets/d/…" />
+        <button type="button" class="btn btn-primary btn-sm"
+                @onclick="ImportGSheetAsync"
+                disabled="@(string.IsNullOrWhiteSpace(sheetUrl) || isImporting)">
+            @(isImporting && importMode == ImportMode.GSheet ? "Importing…" : "Import from Google Sheets")
+        </button>
+    </section>
+
+    @* ── Results ─────────────────────────────────────────────────── *@
+    @if (importResult is not null)
+    {
+        <section class="more-section">
+            <h2 class="more-section-title">Import results</h2>
+            <dl class="row mb-2 small">
+                <dt class="col-6">Total rows</dt><dd class="col-6">@importResult.TotalRows</dd>
+                <dt class="col-6">Added</dt><dd class="col-6">@importResult.Added</dd>
+                <dt class="col-6">Skipped (already exist)</dt><dd class="col-6">@importResult.Skipped</dd>
+                <dt class="col-6">Errors</dt><dd class="col-6">@importResult.Errors.Count</dd>
+            </dl>
+            @if (importResult.Errors.Count > 0)
+            {
+                <details>
+                    <summary class="small text-muted">Show @importResult.Errors.Count error(s)</summary>
+                    <table class="table table-sm mt-2">
+                        <thead><tr><th>Row</th><th>Error</th></tr></thead>
+                        <tbody>
+                            @foreach (var err in importResult.Errors)
+                            {
+                                <tr><td>@err.Row</td><td>@err.Message</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </details>
+            }
+        </section>
+    }
+
+    @* ── Merge duplicate songs ────────────────────────────────────── *@
+    <section class="more-section">
+        <h2 class="more-section-title">Merge duplicate songs</h2>
+        <p class="text-muted small mb-2">
+            Combines two catalog entries into one.
+            All performances, lists, and exclusions are updated to use the <strong>target</strong> song.
+            The source song is deleted.
+        </p>
+
+        <div class="mb-2">
+            <label class="form-label small fw-semibold">Source song (will be deleted)</label>
+            <input type="text" @bind="mergeSourceSearch" @bind:event="oninput"
+                   class="form-control form-control-sm mb-1"
+                   placeholder="Search title or artist…" />
+            @if (MergeSourceResults.Count > 0 && mergeSource is null)
+            {
+                <div class="list-group list-group-flush border rounded small" style="max-height:160px;overflow-y:auto">
+                    @foreach (var s in MergeSourceResults)
+                    {
+                        <button type="button" class="list-group-item list-group-item-action py-1"
+                                @onclick="() => SelectMergeSource(s)">
+                            @s.Title — @GetArtistName(s.Artist)
+                        </button>
+                    }
+                </div>
+            }
+            @if (mergeSource is not null)
+            {
+                <span class="badge bg-secondary">@mergeSource.Title — @GetArtistName(mergeSource.Artist) <button type="button" class="btn-close btn-close-white ms-1" style="font-size:0.6rem" @onclick="() => mergeSource = null"></button></span>
+            }
+        </div>
+
+        <div class="mb-2">
+            <label class="form-label small fw-semibold">Target song (kept)</label>
+            <input type="text" @bind="mergeTargetSearch" @bind:event="oninput"
+                   class="form-control form-control-sm mb-1"
+                   placeholder="Search title or artist…" />
+            @if (MergeTargetResults.Count > 0 && mergeTarget is null)
+            {
+                <div class="list-group list-group-flush border rounded small" style="max-height:160px;overflow-y:auto">
+                    @foreach (var s in MergeTargetResults)
+                    {
+                        <button type="button" class="list-group-item list-group-item-action py-1"
+                                @onclick="() => SelectMergeTarget(s)">
+                            @s.Title — @GetArtistName(s.Artist)
+                        </button>
+                    }
+                </div>
+            }
+            @if (mergeTarget is not null)
+            {
+                <span class="badge bg-primary">@mergeTarget.Title — @GetArtistName(mergeTarget.Artist) <button type="button" class="btn-close btn-close-white ms-1" style="font-size:0.6rem" @onclick="() => mergeTarget = null"></button></span>
+            }
+        </div>
+
+        <button type="button" class="btn btn-warning btn-sm"
+                @onclick="MergeSongsAsync"
+                disabled="@(mergeSource is null || mergeTarget is null || isMerging)">
+            @(isMerging ? "Merging…" : "Merge songs")
+        </button>
+
+        @if (!string.IsNullOrEmpty(mergeMessage))
+        {
+            <p class="mt-2 small @(mergeSuccess ? "text-success" : "text-danger")">@mergeMessage</p>
+        }
+    </section>
+</div>
+
+@code {
+    private enum ImportMode { None, File, GSheet }
+
+    private IBrowserFile? selectedFile;
+    private string sheetUrl = string.Empty;
+    private bool isImporting;
+    private ImportMode importMode = ImportMode.None;
+    private CatalogImportResultDto? importResult;
+    private string? pageError;
+
+    private List<SongDto> allSongs = [];
+    private List<ArtistLookupDto> allArtists = [];
+    private string mergeSourceSearch = string.Empty;
+    private string mergeTargetSearch = string.Empty;
+    private SongDto? mergeSource;
+    private SongDto? mergeTarget;
+    private bool isMerging;
+    private string? mergeMessage;
+    private bool mergeSuccess;
+
+    private IReadOnlyList<SongDto> MergeSourceResults =>
+        string.IsNullOrWhiteSpace(mergeSourceSearch) || mergeSource is not null
+            ? []
+            : allSongs
+                .Where(s => s.Title.Contains(mergeSourceSearch, StringComparison.OrdinalIgnoreCase)
+                         || GetArtistName(s.Artist).Contains(mergeSourceSearch, StringComparison.OrdinalIgnoreCase))
+                .Take(10)
+                .ToList();
+
+    private IReadOnlyList<SongDto> MergeTargetResults =>
+        string.IsNullOrWhiteSpace(mergeTargetSearch) || mergeTarget is not null
+            ? []
+            : allSongs
+                .Where(s => s.Title.Contains(mergeTargetSearch, StringComparison.OrdinalIgnoreCase)
+                         || GetArtistName(s.Artist).Contains(mergeTargetSearch, StringComparison.OrdinalIgnoreCase))
+                .Take(10)
+                .ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            allSongs = await Api.GetSongsAsync();
+            allArtists = await Api.GetArtistLookupsAsync();
+        }
+        catch
+        {
+            pageError = "Could not load the song catalog. Some features may be unavailable.";
+        }
+    }
+
+    private void OnFileSelectedAsync(InputFileChangeEventArgs e)
+    {
+        selectedFile = e.File;
+        importResult = null;
+        pageError = null;
+    }
+
+    private async Task ImportFileAsync()
+    {
+        if (selectedFile is null || isImporting) return;
+        isImporting = true;
+        importMode = ImportMode.File;
+        importResult = null;
+        pageError = null;
+
+        try
+        {
+            await using var stream = selectedFile.OpenReadStream(maxAllowedSize: 20 * 1024 * 1024);
+            var result = await Api.ImportCatalogFileAsync(stream, selectedFile.Name);
+            if (result.Succeeded)
+            {
+                importResult = result.Response;
+                await RefreshSongsAsync();
+            }
+            else
+            {
+                pageError = result.ErrorMessage;
+            }
+        }
+        catch (Exception ex)
+        {
+            pageError = $"Import failed: {ex.Message}";
+        }
+        finally
+        {
+            isImporting = false;
+            importMode = ImportMode.None;
+        }
+    }
+
+    private async Task ImportGSheetAsync()
+    {
+        if (string.IsNullOrWhiteSpace(sheetUrl) || isImporting) return;
+        isImporting = true;
+        importMode = ImportMode.GSheet;
+        importResult = null;
+        pageError = null;
+
+        try
+        {
+            var result = await Api.ImportCatalogFromGSheetAsync(new GSheetImportRequest { SheetUrl = sheetUrl });
+            if (result.Succeeded)
+            {
+                importResult = result.Response;
+                await RefreshSongsAsync();
+            }
+            else
+            {
+                pageError = result.ErrorMessage;
+            }
+        }
+        catch (Exception ex)
+        {
+            pageError = $"Import failed: {ex.Message}";
+        }
+        finally
+        {
+            isImporting = false;
+            importMode = ImportMode.None;
+        }
+    }
+
+    private async Task MergeSongsAsync()
+    {
+        if (mergeSource is null || mergeTarget is null || isMerging) return;
+        isMerging = true;
+        mergeMessage = null;
+
+        try
+        {
+            var result = await Api.MergeSongsAsync(mergeSource.Id, mergeTarget.Id);
+            if (result.Succeeded)
+            {
+                mergeSuccess = true;
+                mergeMessage = $"Merged \"{mergeSource.Title}\" into \"{mergeTarget.Title}\" successfully.";
+                mergeSource = null;
+                mergeTarget = null;
+                mergeSourceSearch = string.Empty;
+                mergeTargetSearch = string.Empty;
+                await RefreshSongsAsync();
+            }
+            else
+            {
+                mergeSuccess = false;
+                mergeMessage = result.ErrorMessage ?? "Merge failed.";
+            }
+        }
+        catch (Exception ex)
+        {
+            mergeSuccess = false;
+            mergeMessage = $"Merge failed: {ex.Message}";
+        }
+        finally
+        {
+            isMerging = false;
+        }
+    }
+
+    private async Task RefreshSongsAsync()
+    {
+        try { allSongs = await Api.GetSongsAsync(); } catch { }
+    }
+
+    private void SelectMergeSource(SongDto song)
+    {
+        mergeSource = song;
+        mergeSourceSearch = string.Empty;
+    }
+
+    private void SelectMergeTarget(SongDto song)
+    {
+        mergeTarget = song;
+        mergeTargetSearch = string.Empty;
+    }
+
+    private string GetArtistName(int? artistId) =>
+        artistId is int id
+            ? allArtists.FirstOrDefault(a => a.Id == id)?.Name ?? $"#{id}"
+            : string.Empty;
+}

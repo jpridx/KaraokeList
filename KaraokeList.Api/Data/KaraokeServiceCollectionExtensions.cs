@@ -1,3 +1,5 @@
+using KaraokeList.Api.Services;
+
 namespace KaraokeList.Data;
 
 public static class KaraokeServiceCollectionExtensions
@@ -17,6 +19,8 @@ public static class KaraokeServiceCollectionExtensions
             sp.GetRequiredService<CatalogIntegrityService>(),
             connectionString));
         services.AddScoped<TicklerExclusionService>();
+        services.AddScoped<CatalogImportService>();
+        services.AddScoped<CatalogMergeService>();
         return services;
     }
 }
