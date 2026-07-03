@@ -142,4 +142,16 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
+app.MapGet("/api/version", async (ApplicationDbContext db) =>
+{
+    var migrations = await db.Database.GetAppliedMigrationsAsync();
+    var latestMigration = migrations.LastOrDefault() ?? "none";
+    var songCount = await db.Songs.CountAsync();
+    var maxSongId = songCount > 0 ? await db.Songs.MaxAsync(s => s.Id) : 0;
+    return Results.Ok(new KaraokeList.Shared.AppVersionDto
+    {
+        CacheTag = $"{latestMigration}:{songCount}:{maxSongId}"
+    });
+}).RequireCors("WebClient");
+
 app.Run();

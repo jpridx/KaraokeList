@@ -1,0 +1,48 @@
+namespace KaraokeList.Web.Services;
+
+public interface ICatalogVersionService
+{
+    /// <summary>
+    /// Returns the current server-side cache tag, or null if the server is unreachable.
+    /// The result is memoised for the duration of the app session (one fetch per tab lifetime).
+    /// </summary>
+    Task<string?> GetCacheTagAsync();
+
+    /// <summary>
+    /// Discards any memoised tag so the next call fetches from the server again.
+    /// </summary>
+    void Invalidate();
+}
+
+public sealed class CatalogVersionService(IKaraokeApiClient api) : ICatalogVersionService
+{
+    private string? _tag;
+    private bool _fetched;
+
+    public async Task<string?> GetCacheTagAsync()
+    {
+        if (_fetched)
+        {
+            return _tag;
+        }
+
+        try
+        {
+            var version = await api.GetAppVersionAsync();
+            _tag = version?.CacheTag;
+            _fetched = true;
+        }
+        catch
+        {
+            // Offline or API error — return null without caching so the next call retries.
+        }
+
+        return _tag;
+    }
+
+    public void Invalidate()
+    {
+        _tag = null;
+        _fetched = false;
+    }
+}

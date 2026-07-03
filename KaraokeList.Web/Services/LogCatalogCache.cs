@@ -11,7 +11,8 @@ public sealed record CachedLogCatalog(
     IReadOnlyList<int> RepertoireSongIds,
     IReadOnlyList<CachedVenueEntry> Venues,
     DateTime CachedAtUtc,
-    IReadOnlyList<int>? WorkingUpSongIds = null);
+    IReadOnlyList<int>? WorkingUpSongIds = null,
+    string? CacheTag = null);
 
 public sealed record LogSongPickItem(int Id, string Title, string ArtistName, bool InRepertoire, bool InWorkingUp = false)
 {

@@ -1,6 +1,8 @@
 @page "/more"
 @attribute [Authorize]
 @inject IAppUpdateService UpdateService
+@inject ILogPerformanceLocalStore LogStore
+@inject IMySongsLocalStore MySongsStore
 
 <PageTitle>More</PageTitle>
 
@@ -64,6 +66,8 @@
         isClearing = true;
         try
         {
+            await LogStore.ClearCatalogCacheAsync();
+            await MySongsStore.ClearCatalogCacheAsync();
             await UpdateService.ClearCacheAndReloadAsync();
         }
         catch

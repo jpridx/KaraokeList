@@ -112,6 +112,45 @@
 
     private async Task LoadCatalogAsync(int singerId)
     {
+        var cached = await CatalogLoader.TryGetCachedAsync();
+
+        if (cached is not null)
+        {
+            // Fast path: render immediately from cache, then refresh in the background.
+            catalogState.Apply(cached);
+
+            if (!catalogState.UsingOfflineCatalog)
+            {
+                var listsResult = await SingerListResolver.LoadListsAsync(Api);
+                if (listsResult.Succeeded) singerLists = listsResult.Lists;
+            }
+
+            recentLogs = await LogStore.GetRecentLogsAsync();
+            isLoading = false;
+
+            if (SongId is int querySongId)
+            {
+                selectedSongId = querySongId;
+                await OnSongChangedAsync(querySongId);
+            }
+
+            StateHasChanged();
+            _ = RefreshCatalogInBackgroundAsync();
+            return;
+        }
+
+        // No cache — full foreground load.
+        await FullLoadCatalogAsync();
+
+        if (SongId is int querySongId2)
+        {
+            selectedSongId = querySongId2;
+            await OnSongChangedAsync(querySongId2);
+        }
+    }
+
+    private async Task FullLoadCatalogAsync()
+    {
         isLoading = true;
         loadingStep = null;
         saveError = null;
@@ -121,20 +160,40 @@
         if (!catalogState.UsingOfflineCatalog)
         {
             var listsResult = await SingerListResolver.LoadListsAsync(Api);
-            if (listsResult.Succeeded)
-            {
-                singerLists = listsResult.Lists;
-            }
+            if (listsResult.Succeeded) singerLists = listsResult.Lists;
         }
 
         recentLogs = await LogStore.GetRecentLogsAsync();
         loadingStep = null;
         isLoading = false;
+    }
 
-        if (SongId is int querySongId)
+    private async Task RefreshCatalogInBackgroundAsync()
+    {
+        try
         {
-            selectedSongId = querySongId;
-            await OnSongChangedAsync(querySongId);
+            if (!await CatalogLoader.NeedsRefreshAsync()) return;
+
+            var refreshed = await CatalogLoader.LoadAsync();
+
+            // Don't replace the picker if the user has already selected a song.
+            if (selectedSongId is null)
+            {
+                catalogState.Apply(refreshed);
+            }
+
+            if (!refreshed.FromCache)
+            {
+                var listsResult = await SingerListResolver.LoadListsAsync(Api);
+                if (listsResult.Succeeded) singerLists = listsResult.Lists;
+            }
+
+            recentLogs = await LogStore.GetRecentLogsAsync();
+            await InvokeAsync(StateHasChanged);
+        }
+        catch
+        {
+            // Background refresh failures are silent.
         }
     }
 

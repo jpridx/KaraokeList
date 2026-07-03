@@ -1,6 +1,7 @@
 using KaraokeList.Shared;
 using KaraokeList.Web.Services;
 using KaraokeList.Web.Tests.TestDoubles;
+using NullVersion = KaraokeList.Web.Tests.TestDoubles.NullCatalogVersionService;
 
 namespace KaraokeList.Web.Tests.Services;
 
@@ -11,7 +12,7 @@ public sealed class MySongsLoaderTests
     {
         var store = new MySongsLocalStore(new InMemoryLocalStorage());
         var api = new ListsApiStub();
-        var loader = new MySongsLoader(api, store);
+        var loader = new MySongsLoader(api, store, new NullVersion());
 
         var result = await loader.LoadAsync(SingerListKind.WorkingUp, "title", "asc", genreId: null);
 
@@ -36,7 +37,7 @@ public sealed class MySongsLoaderTests
                 [new RepertoireSongDto { SongId = 9, Title = "Bohemian Rhapsody", ArtistName = "Queen" }])],
             DateTime.UtcNow.AddHours(-2)));
 
-        var loader = new MySongsLoader(new ListsApiStub { ThrowOffline = true }, store);
+        var loader = new MySongsLoader(new ListsApiStub { ThrowOffline = true }, store, new NullVersion());
         var result = await loader.LoadAsync(SingerListKind.WorkingUp, "title", "asc", genreId: null);
 
         Assert.True(result.FromCache);
@@ -50,7 +51,8 @@ public sealed class MySongsLoaderTests
     {
         var loader = new MySongsLoader(
             new ListsApiStub { ThrowOffline = true },
-            new MySongsLocalStore(new InMemoryLocalStorage()));
+            new MySongsLocalStore(new InMemoryLocalStorage()),
+            new NullVersion());
 
         var result = await loader.LoadAsync(SingerListKind.MyRepertoire, "title", "asc", genreId: null);
 

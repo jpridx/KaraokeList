@@ -1,6 +1,7 @@
 using KaraokeList.Shared;
 using KaraokeList.Web.Services;
 using KaraokeList.Web.Tests.TestDoubles;
+using NullVersion = KaraokeList.Web.Tests.TestDoubles.NullCatalogVersionService;
 
 namespace KaraokeList.Web.Tests.Services;
 
@@ -26,7 +27,7 @@ public sealed class LogCatalogLoaderTests
             RepertoireSongIds = [1],
             WorkingUpSongIds = [2]
         };
-        var loader = new LogCatalogLoader(api, store);
+        var loader = new LogCatalogLoader(api, store, new NullVersion());
 
         var snapshot = await loader.LoadAsync();
 
@@ -58,7 +59,7 @@ public sealed class LogCatalogLoaderTests
             DateTime.UtcNow.AddHours(-1),
             [5]));
 
-        var loader = new LogCatalogLoader(new CatalogApiStub { ThrowOffline = true }, store);
+        var loader = new LogCatalogLoader(new CatalogApiStub { ThrowOffline = true }, store, new NullVersion());
         var snapshot = await loader.LoadAsync();
 
         Assert.True(snapshot.FromCache);
@@ -78,7 +79,7 @@ public sealed class LogCatalogLoaderTests
             [new CachedVenueEntry(9, "Side Room")],
             DateTime.UtcNow.AddHours(-1)));
 
-        var loader = new LogCatalogLoader(new CatalogApiStub { ThrowOffline = true }, store);
+        var loader = new LogCatalogLoader(new CatalogApiStub { ThrowOffline = true }, store, new NullVersion());
         var snapshot = await loader.LoadAsync();
 
         Assert.True(snapshot.FromCache);
@@ -97,7 +98,7 @@ public sealed class LogCatalogLoaderTests
             [new CachedVenueEntry(9, "Side Room")],
             DateTime.UtcNow));
 
-        var loader = new LogCatalogLoader(new CatalogApiStub { ThrowOffline = true }, store);
+        var loader = new LogCatalogLoader(new CatalogApiStub { ThrowOffline = true }, store, new NullVersion());
         var result = await loader.LoadVenuesAsync();
 
         Assert.True(result.FromCache);

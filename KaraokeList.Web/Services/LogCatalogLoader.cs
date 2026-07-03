@@ -5,11 +5,18 @@ namespace KaraokeList.Web.Services;
 public interface ILogCatalogLoader
 {
     Task<LogCatalogSnapshot> LoadAsync(Action<string>? onProgress = null);
+    Task<LogCatalogSnapshot?> TryGetCachedAsync();
+    Task<bool> NeedsRefreshAsync();
     Task<VenueLoadResult> LoadVenuesAsync();
 }
 
-public sealed class LogCatalogLoader(IKaraokeApiClient api, ILogPerformanceLocalStore store) : ILogCatalogLoader
+public sealed class LogCatalogLoader(
+    IKaraokeApiClient api,
+    ILogPerformanceLocalStore store,
+    ICatalogVersionService versionService) : ILogCatalogLoader
 {
+    private static readonly TimeSpan RefreshThreshold = TimeSpan.FromHours(2);
+
     public async Task<LogCatalogSnapshot> LoadAsync(Action<string>? onProgress = null)
     {
         try
@@ -55,18 +62,67 @@ public sealed class LogCatalogLoader(IKaraokeApiClient api, ILogPerformanceLocal
 
             onProgress?.Invoke("Saving for offline use...");
             var cachedAt = DateTime.UtcNow;
+            var cacheTag = await versionService.GetCacheTagAsync();
             await store.SaveCachedCatalogAsync(new CachedLogCatalog(
                 pickItems.Select(s => new CachedSongEntry(s.Id, s.Title, s.ArtistName)).ToList(),
                 repertoireIds.ToList(),
                 venues.Select(v => new CachedVenueEntry(v.Id, v.VenueName)).ToList(),
                 cachedAt,
-                workingUpIds.ToList()));
+                workingUpIds.ToList(),
+                cacheTag));
 
             return new LogCatalogSnapshot(pickItems, repertoireIds, workingUpIds, FromCache: false, HasCatalog: pickItems.Count > 0, cachedAt);
         }
         catch (Exception ex) when (IsOfflineFailure(ex))
         {
             return await LoadFromCacheAsync();
+        }
+    }
+
+    public async Task<LogCatalogSnapshot?> TryGetCachedAsync()
+    {
+        var cached = await store.GetCachedCatalogAsync();
+        if (cached is null || cached.Songs.Count == 0)
+        {
+            return null;
+        }
+
+        return MapCacheToSnapshot(cached);
+    }
+
+    public async Task<bool> NeedsRefreshAsync()
+    {
+        var cached = await store.GetCachedCatalogAsync();
+        if (cached is null || cached.Songs.Count == 0)
+        {
+            return true;
+        }
+
+        if (DateTime.UtcNow - cached.CachedAtUtc < RefreshThreshold)
+        {
+            return false;
+        }
+
+        try
+        {
+            var serverTag = await versionService.GetCacheTagAsync();
+            if (serverTag is null)
+            {
+                return false;
+            }
+
+            if (cached.CacheTag == serverTag)
+            {
+                // Version unchanged — bump the timestamp to reset the TTL clock.
+                await store.SaveCachedCatalogAsync(cached with { CachedAtUtc = DateTime.UtcNow });
+                return false;
+            }
+
+            return true;
+        }
+        catch
+        {
+            return false;
         }
     }
 
@@ -98,6 +154,11 @@ public sealed class LogCatalogLoader(IKaraokeApiClient api, ILogPerformanceLocal
             return new LogCatalogSnapshot([], [], [], FromCache: true, HasCatalog: false, cached?.CachedAtUtc);
         }
 
+        return MapCacheToSnapshot(cached);
+    }
+
+    private static LogCatalogSnapshot MapCacheToSnapshot(CachedLogCatalog cached)
+    {
         var repertoireIds = cached.RepertoireSongIds.ToHashSet();
         var workingUpIds = (cached.WorkingUpSongIds ?? []).ToHashSet();
         var pickItems = cached.Songs

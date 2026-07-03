@@ -12,6 +12,7 @@ public interface IMySongsLocalStore
     Task SetListKindAsync(SingerListKind kind);
     Task<CachedMySongsLists?> GetCachedListsAsync();
     Task SaveCachedListsAsync(CachedMySongsLists cache);
+    Task ClearCatalogCacheAsync();
 }
 
 public sealed class MySongsLocalStore(ILocalStorageService localStorage) : IMySongsLocalStore
@@ -43,4 +44,7 @@ public sealed class MySongsLocalStore(ILocalStorageService localStorage) : IMySo
 
     public Task SaveCachedListsAsync(CachedMySongsLists cache) =>
         localStorage.SetItemAsync(CachedListsKey, cache).AsTask();
+
+    public Task ClearCatalogCacheAsync() =>
+        localStorage.RemoveItemAsync(CachedListsKey).AsTask();
 }
