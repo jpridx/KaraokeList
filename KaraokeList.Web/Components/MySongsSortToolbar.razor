@@ -39,5 +39,9 @@
     [Parameter, EditorRequired]
     public EventCallback OnToggleGenreFilters { get; set; }
 
-    private Task HandleSortChangedAsync() => OnSortChanged.InvokeAsync();
+    private async Task HandleSortChangedAsync()
+    {
+        await SortByChanged.InvokeAsync(SortBy);
+        await OnSortChanged.InvokeAsync();
+    }
 }
