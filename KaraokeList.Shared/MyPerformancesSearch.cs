@@ -4,7 +4,7 @@ public static class MyPerformancesSearch
 {
     public static IEnumerable<MyPerformanceEntryDto> Filter(IEnumerable<MyPerformanceEntryDto> performances, string? searchText)
     {
-        var query = searchText?.Trim() ?? string.Empty;
+        var query = FlexibleSearch.Normalize(searchText);
         if (string.IsNullOrEmpty(query))
         {
             return performances;
@@ -14,7 +14,7 @@ public static class MyPerformancesSearch
     }
 
     public static bool Matches(MyPerformanceEntryDto performance, string query) =>
-        performance.Title.Contains(query, StringComparison.OrdinalIgnoreCase)
-        || performance.ArtistName.Contains(query, StringComparison.OrdinalIgnoreCase)
-        || performance.VenueName.Contains(query, StringComparison.OrdinalIgnoreCase);
+        FlexibleSearch.Contains(performance.Title, query)
+        || FlexibleSearch.Contains(performance.ArtistName, query)
+        || FlexibleSearch.Contains(performance.VenueName, query);
 }

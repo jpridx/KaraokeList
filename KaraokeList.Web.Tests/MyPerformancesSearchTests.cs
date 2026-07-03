@@ -40,4 +40,15 @@ public sealed class MyPerformancesSearchTests
 
         Assert.Empty(results);
     }
+
+    [Theory]
+    [InlineData("sweetcaroline")]
+    [InlineData("neildiamond")]
+    [InlineData("main-stage")]
+    public void Filter_ignores_punctuation_and_whitespace(string query)
+    {
+        var results = MyPerformancesSearch.Filter([Sample], query).ToList();
+
+        Assert.Single(results);
+    }
 }
