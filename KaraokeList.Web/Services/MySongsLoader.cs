@@ -27,6 +27,10 @@ public sealed class MySongsLoader(
 {
     private static readonly TimeSpan RefreshThreshold = TimeSpan.FromHours(2);
 
+    // Bump this when the shape of cached data changes in a way that requires a fresh load.
+    // Old cached JSON deserializes SchemaVersion to 0, so any value >= 1 triggers invalidation.
+    private const int CurrentCacheSchemaVersion = 1;
+
     public async Task<MySongsLoadResult> LoadAsync(
         SingerListKind listKind,
         string sortBy,
@@ -57,7 +61,8 @@ public sealed class MySongsLoader(
                 listsResult.Lists,
                 songsByKind.Select(kv => new CachedListSongsEntry(kv.Key, kv.Value)).ToList(),
                 cachedAt,
-                cacheTag));
+                cacheTag,
+                CurrentCacheSchemaVersion));
 
             return BuildResult(
                 listsResult.Lists,
@@ -87,6 +92,14 @@ public sealed class MySongsLoader(
             return null;
         }
 
+        // Old cache written before GenreId was reliably stored won't have a SchemaVersion field,
+        // so it deserializes to 0. Treat it as a cache miss to force a fresh foreground load.
+        if (cached.SchemaVersion < CurrentCacheSchemaVersion)
+        {
+            await store.ClearCatalogCacheAsync();
+            return null;
+        }
+
         var songsByKind = cached.ListsSongs.ToDictionary(
             entry => entry.Kind,
             entry => entry.Songs.ToList());
@@ -98,6 +111,11 @@ public sealed class MySongsLoader(
     {
         var cached = await store.GetCachedListsAsync();
         if (cached is null || cached.ListsSongs.Count == 0)
+        {
+            return true;
+        }
+
+        if (cached.SchemaVersion < CurrentCacheSchemaVersion)
         {
             return true;
         }
