@@ -8,7 +8,8 @@ public sealed record CachedMySongsLists(
     IReadOnlyList<SingerListDto> Lists,
     IReadOnlyList<CachedListSongsEntry> ListsSongs,
     DateTime CachedAtUtc,
-    string? CacheTag = null);
+    string? CacheTag = null,
+    int SchemaVersion = 0);
 
 public sealed record MySongsLoadResult(
     IReadOnlyList<SingerListDto> Lists,
