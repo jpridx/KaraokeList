@@ -4,7 +4,7 @@ public static class RepertoireSearch
 {
     public static IEnumerable<RepertoireSongDto> Filter(IEnumerable<RepertoireSongDto> songs, string? searchText)
     {
-        var query = searchText?.Trim() ?? string.Empty;
+        var query = FlexibleSearch.Normalize(searchText);
         if (string.IsNullOrEmpty(query))
         {
             return songs;
@@ -14,7 +14,7 @@ public static class RepertoireSearch
     }
 
     public static bool Matches(RepertoireSongDto song, string query) =>
-        song.Title.Contains(query, StringComparison.OrdinalIgnoreCase)
-        || song.ArtistName.Contains(query, StringComparison.OrdinalIgnoreCase)
-        || song.GenreName.Contains(query, StringComparison.OrdinalIgnoreCase);
+        FlexibleSearch.Contains(song.Title, query)
+        || FlexibleSearch.Contains(song.ArtistName, query)
+        || FlexibleSearch.Contains(song.GenreName, query);
 }

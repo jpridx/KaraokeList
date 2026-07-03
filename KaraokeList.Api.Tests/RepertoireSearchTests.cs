@@ -59,4 +59,15 @@ public class RepertoireSearchTests
     {
         Assert.Empty(RepertoireSearch.Filter(Catalog, "zzzz "));
     }
+
+    [Theory]
+    [InlineData("dont stop believin")]
+    [InlineData("dontstopbelievin")]
+    [InlineData("kennyloggins")]
+    public void Filter_ignores_punctuation_and_whitespace(string searchText)
+    {
+        var results = RepertoireSearch.Filter(Catalog, searchText).ToList();
+
+        Assert.Single(results);
+    }
 }
