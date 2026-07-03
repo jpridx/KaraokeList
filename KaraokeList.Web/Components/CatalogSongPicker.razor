@@ -34,11 +34,9 @@
     {
         args.PreventDefaultAction = true;
         var normalized = FlexibleSearch.Normalize(args.Text);
-        var filtered = string.IsNullOrEmpty(normalized)
-            ? Items.ToList()
-            : Items.Where(item =>
-                FlexibleSearch.Contains(item.Title, normalized) ||
-                FlexibleSearch.Contains(item.ArtistName, normalized)).ToList();
-        await picker.FilterAsync(filtered, new Query());
+        var query = string.IsNullOrEmpty(normalized)
+            ? new Query()
+            : new Query().Where(new WhereFilter() { Field = "SearchKey", Operator = "contains", value = normalized });
+        await picker.FilterAsync(Items.ToList(), query);
     }
 }
