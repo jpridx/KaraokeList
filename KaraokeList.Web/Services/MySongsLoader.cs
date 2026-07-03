@@ -8,7 +8,8 @@ public interface IMySongsLoader
         SingerListKind listKind,
         string sortBy,
         string sortDir,
-        int? genreId);
+        int? genreId,
+        Action<string>? onProgress = null);
 }
 
 public sealed class MySongsLoader(IKaraokeApiClient api, IMySongsLocalStore store) : IMySongsLoader
@@ -17,10 +18,12 @@ public sealed class MySongsLoader(IKaraokeApiClient api, IMySongsLocalStore stor
         SingerListKind listKind,
         string sortBy,
         string sortDir,
-        int? genreId)
+        int? genreId,
+        Action<string>? onProgress = null)
     {
         try
         {
+            onProgress?.Invoke("Loading your playlists...");
             var listsResult = await api.GetMyListsAsync();
             if (!listsResult.Succeeded)
             {
@@ -33,7 +36,8 @@ public sealed class MySongsLoader(IKaraokeApiClient api, IMySongsLocalStore stor
                     listsResult.ErrorMessage?.Contains("not linked", StringComparison.OrdinalIgnoreCase) == true);
             }
 
-            var songsByKind = await LoadAllListSongsAsync(listsResult.Lists);
+            var songsByKind = await LoadAllListSongsAsync(listsResult.Lists, onProgress);
+            onProgress?.Invoke("Saving for offline use...");
             var cachedAt = DateTime.UtcNow;
             await store.SaveCachedListsAsync(new CachedMySongsLists(
                 listsResult.Lists,
@@ -57,11 +61,13 @@ public sealed class MySongsLoader(IKaraokeApiClient api, IMySongsLocalStore stor
     }
 
     private async Task<Dictionary<SingerListKind, List<RepertoireSongDto>>> LoadAllListSongsAsync(
-        IReadOnlyList<SingerListDto> lists)
+        IReadOnlyList<SingerListDto> lists,
+        Action<string>? onProgress = null)
     {
         var songsByKind = new Dictionary<SingerListKind, List<RepertoireSongDto>>();
         foreach (var list in lists)
         {
+            onProgress?.Invoke($"Loading {list.DisplayName} songs...");
             var songsResult = await api.GetListSongsAsync(list.Id);
             if (songsResult.Succeeded)
             {

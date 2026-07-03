@@ -14,7 +14,7 @@
         <StatusAlerts SuccessMessage="@addSongMessage" Small="true" CssClass="mb-0 mt-3" />
     </HeaderContent>
     <ChildContent Context="singerId">
-        <MobileLoadingState IsLoading="@isLoading" CssClass="mt-3">
+        <MobileLoadingState IsLoading="@isLoading" DetailMessage="@loadingStep" CssClass="mt-3">
                 <OfflineCacheNotice UsingOffline="@usingOfflineLists"
                                     HasCachedData="@hasCachedLists"
                                     CachedAt="@listsCachedAt"
@@ -105,6 +105,7 @@
 @code {
     private SingerGatedPage? gatedPage;
     private bool isLoading = true;
+    private string? loadingStep;
     private bool usingOfflineLists;
     private bool hasCachedLists;
     private DateTime? listsCachedAt;
@@ -171,12 +172,14 @@
     private async Task ReloadListsAsync()
     {
         isLoading = true;
+        loadingStep = null;
         loadError = null;
         usingOfflineLists = false;
         hasCachedLists = false;
         listsCachedAt = null;
 
-        var result = await MySongsLoader.LoadAsync(listKind, sortBy, sortDir, filterGenreId);
+        var result = await MySongsLoader.LoadAsync(listKind, sortBy, sortDir, filterGenreId,
+            step => { loadingStep = step; StateHasChanged(); });
         usingOfflineLists = result.FromCache;
         hasCachedLists = result.HasCache;
         listsCachedAt = result.CachedAtUtc;
@@ -185,6 +188,7 @@
         {
             loadError = result.ErrorMessage;
             gatedPage.RequireLinkIfNotLinked(result.ErrorMessage);
+            loadingStep = null;
             isLoading = false;
             return;
         }
@@ -192,6 +196,7 @@
         if (!string.IsNullOrEmpty(result.ErrorMessage))
         {
             loadError = result.ErrorMessage;
+            loadingStep = null;
             isLoading = false;
             return;
         }
@@ -202,6 +207,7 @@
         if (selectedList is null)
         {
             loadError = "Could not load your singer lists.";
+            loadingStep = null;
             isLoading = false;
             return;
         }
@@ -215,6 +221,7 @@
         }
 
         RefreshDisplayList();
+        loadingStep = null;
         isLoading = false;
     }
 

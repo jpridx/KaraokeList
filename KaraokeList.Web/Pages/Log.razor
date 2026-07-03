@@ -10,7 +10,7 @@
                  OnResolved="LoadCatalogAsync">
     <Subtitle>Pick a song, or open one from <a href="my-songs">My Songs</a>.</Subtitle>
     <ChildContent Context="singerId">
-        <MobileLoadingState IsLoading="@isLoading">
+        <MobileLoadingState IsLoading="@isLoading" DetailMessage="@loadingStep">
                 <OfflineCacheNotice UsingOffline="@catalogState.UsingOfflineCatalog"
                                     HasCachedData="@catalogState.HasCachedCatalog"
                                     CachedAt="@catalogState.CatalogCachedAt"
@@ -66,6 +66,7 @@
 
     private readonly LogCatalogState catalogState = new();
     private bool isLoading = true;
+    private string? loadingStep;
     private List<SingerListDto> singerLists = [];
     private int? selectedSongId;
     private string? songHint;
@@ -112,9 +113,10 @@
     private async Task LoadCatalogAsync(int singerId)
     {
         isLoading = true;
+        loadingStep = null;
         saveError = null;
 
-        catalogState.Apply(await CatalogLoader.LoadAsync());
+        catalogState.Apply(await CatalogLoader.LoadAsync(step => { loadingStep = step; StateHasChanged(); }));
 
         if (!catalogState.UsingOfflineCatalog)
         {
@@ -126,6 +128,7 @@
         }
 
         recentLogs = await LogStore.GetRecentLogsAsync();
+        loadingStep = null;
         isLoading = false;
 
         if (SongId is int querySongId)
