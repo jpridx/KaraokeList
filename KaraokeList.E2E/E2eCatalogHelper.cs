@@ -6,7 +6,10 @@ namespace KaraokeList.E2E;
 
 internal static class E2eCatalogHelper
 {
-    public static async Task<(int SongId, string SongTitle)> SeedSongAsync(HttpClient apiClient, string token)
+    public static async Task<(int SongId, string SongTitle)> SeedSongAsync(
+        HttpClient apiClient,
+        string token,
+        string? explicitSongTitle = null)
     {
         apiClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
@@ -21,7 +24,7 @@ internal static class E2eCatalogHelper
             ?? throw new InvalidOperationException("Artist lookup returned null.");
         var artistId = artists.First(a => a.Name == artistName).Id;
 
-        var songTitle = $"E2E Song {Guid.NewGuid():N}";
+        var songTitle = explicitSongTitle ?? $"E2E Song {Guid.NewGuid():N}";
         var createSong = await apiClient.PostAsJsonAsync("/api/songs", new SongDto
         {
             Title = songTitle,
@@ -34,7 +37,7 @@ internal static class E2eCatalogHelper
 
         var songs = await apiClient.GetFromJsonAsync<List<SongDto>>("/api/songs")
             ?? throw new InvalidOperationException("Songs list returned null.");
-        var songId = songs.First(s => s.Title == songTitle).Id;
+        var songId = songs.First(s => s.Title == songTitle && s.Artist == artistId).Id;
         return (songId, songTitle);
     }
 }
