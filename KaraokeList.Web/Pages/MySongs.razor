@@ -174,7 +174,10 @@
         if (cached is not null)
         {
             // Fast path: render immediately from cache, then refresh in the background.
+            // Clear usingOfflineLists so the offline banner doesn't show — cached data
+            // is shown for performance, not because the API is unreachable.
             ApplyLoadResult(cached);
+            usingOfflineLists = false;
             isLoading = false;
             StateHasChanged();
             _ = RefreshListsInBackgroundAsync();
