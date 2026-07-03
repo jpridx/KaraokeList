@@ -45,6 +45,9 @@ public interface IKaraokeApiClient
     Task<CatalogMutateResult> TryUpdateSongAsync(SongDto dto);
     Task DeleteSongAsync(int id);
     Task<CatalogMutateResult> TryDeleteSongAsync(int id);
+    Task<CatalogImportFileResult> ImportCatalogFileAsync(Stream fileStream, string fileName);
+    Task<CatalogImportFileResult> ImportCatalogFromGSheetAsync(GSheetImportRequest request);
+    Task<CatalogMutateResult> MergeSongsAsync(int sourceId, int targetId);
     Task<List<PerformanceDto>> GetPerformancesAsync(int? songId = null);
     Task<UserProfileDto?> GetProfileAsync();
     Task<InviteShareDto?> GetInviteShareAsync();
@@ -212,6 +215,45 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
     public Task<CatalogMutateResult> TryUpdateSongAsync(SongDto dto) => TryPutAsync($"api/songs/{dto.Id}", dto);
     public Task DeleteSongAsync(int id) => DeleteAsync($"api/songs/{id}");
     public Task<CatalogMutateResult> TryDeleteSongAsync(int id) => TryDeleteAsync($"api/songs/{id}");
+    public Task<CatalogMutateResult> MergeSongsAsync(int sourceId, int targetId) =>
+        TryMutateAsync(() => http.PostAsync($"api/songs/{sourceId}/merge-into/{targetId}", null));
+
+    public async Task<CatalogImportFileResult> ImportCatalogFileAsync(Stream fileStream, string fileName)
+    {
+        using var content = new MultipartFormDataContent();
+        content.Add(new StreamContent(fileStream), "file", fileName);
+        try
+        {
+            var response = await http.PostAsync("api/catalog/import/file", content);
+            if (response.IsSuccessStatusCode)
+            {
+                var body = await response.Content.ReadFromJsonAsync<CatalogImportResultDto>(JsonOptions);
+                return body is null
+                    ? CatalogImportFileResult.Fail("Unexpected empty response from the server.")
+                    : CatalogImportFileResult.Ok(body);
+            }
+            var message = await ReadApiErrorMessageAsync(response);
+            return CatalogImportFileResult.Fail(message ?? "Import failed.");
+        }
+        catch (Exception ex)
+        {
+            return CatalogImportFileResult.Fail(ex.Message);
+        }
+    }
+
+    public async Task<CatalogImportFileResult> ImportCatalogFromGSheetAsync(GSheetImportRequest request)
+    {
+        var response = await http.PostAsJsonAsync("api/catalog/import/gsheet", request);
+        if (response.IsSuccessStatusCode)
+        {
+            var body = await response.Content.ReadFromJsonAsync<CatalogImportResultDto>(JsonOptions);
+            return body is null
+                ? CatalogImportFileResult.Fail("Unexpected empty response from the server.")
+                : CatalogImportFileResult.Ok(body);
+        }
+        var message = await ReadApiErrorMessageAsync(response);
+        return CatalogImportFileResult.Fail(message ?? "Import from Google Sheets failed.");
+    }
 
     public Task<List<PerformanceDto>> GetPerformancesAsync(int? songId = null)
     {

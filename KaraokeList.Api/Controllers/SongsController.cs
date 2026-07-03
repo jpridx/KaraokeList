@@ -1,4 +1,5 @@
 using KaraokeList.Api.Mapping;
+using KaraokeList.Api.Services;
 using KaraokeList.Data;
 using KaraokeList.Shared;
 using Microsoft.AspNetCore.Authorization;
@@ -9,7 +10,7 @@ namespace KaraokeList.Api.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class SongsController(SongService songService, CatalogIntegrityService integrity) : ControllerBase
+public class SongsController(SongService songService, CatalogIntegrityService integrity, CatalogMergeService mergeService) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<List<SongDto>>> GetAll()
@@ -59,6 +60,17 @@ public class SongsController(SongService songService, CatalogIntegrityService in
         }
 
         await songService.DeleteSongAsync(id);
+        return NoContent();
+    }
+
+    [HttpPost("{sourceId:int}/merge-into/{targetId:int}")]
+    [Authorize(Roles = KaraokeRoles.Admin)]
+    public async Task<IActionResult> MergeInto(int sourceId, int targetId)
+    {
+        var (succeeded, error) = await mergeService.MergeAsync(sourceId, targetId);
+        if (!succeeded)
+            return BadRequest(new ApiErrorResponse { Message = error ?? "Merge failed." });
+
         return NoContent();
     }
 

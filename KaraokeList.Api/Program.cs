@@ -10,6 +10,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
+// Required by ExcelDataReader for reading legacy .xls files
+System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+
 var builder = WebApplication.CreateBuilder(args);
 
 var aiConnectionString = builder.Configuration["ApplicationInsights:ConnectionString"];
@@ -37,6 +40,12 @@ builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IAdminUserService, AdminUserService>();
 builder.Services.AddScoped<ICurrentUserSingerResolver, CurrentUserSingerResolver>();
 builder.Services.AddScoped<IAiGenreService, AiGenreService>();
+
+builder.Services.AddHttpClient("GoogleSheets", client =>
+{
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("KaraokeList/1.0");
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
 
 builder.Services.AddOptions<JwtSettings>()
     .BindConfiguration(JwtSettings.SectionName)

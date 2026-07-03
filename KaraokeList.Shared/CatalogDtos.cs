@@ -1,5 +1,24 @@
 namespace KaraokeList.Shared;
 
+public class CatalogImportResultDto
+{
+    public int TotalRows { get; set; }
+    public int Added { get; set; }
+    public int Skipped { get; set; }
+    public List<CatalogImportErrorDto> Errors { get; set; } = [];
+}
+
+public class CatalogImportErrorDto
+{
+    public int Row { get; set; }
+    public string Message { get; set; } = string.Empty;
+}
+
+public class GSheetImportRequest
+{
+    public string SheetUrl { get; set; } = string.Empty;
+}
+
 public class VenueDto
 {
     public int Id { get; set; }
