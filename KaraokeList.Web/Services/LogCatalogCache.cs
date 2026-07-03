@@ -34,6 +34,8 @@ public sealed record LogSongPickItem(int Id, string Title, string ArtistName, bo
             return text;
         }
     }
+
+    public string SearchKey => FlexibleSearch.Normalize($"{Title} {ArtistName}");
 }
 
 public sealed record LogCatalogSnapshot(
