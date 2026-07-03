@@ -20,7 +20,7 @@ public sealed class LogPageTests : AuthPageTestContext
         Api.Setup(client => client.GetProfileAsync())
             .ReturnsAsync(new UserProfileDto { SingerId = 1 });
 
-        catalogLoader.Setup(loader => loader.LoadAsync())
+        catalogLoader.Setup(loader => loader.LoadAsync(It.IsAny<Action<string>?>()))
             .ReturnsAsync(new LogCatalogSnapshot(
                 Songs: [new LogSongPickItem(42, "Jeopardy", "The Greg Kihn Band", true, false)],
                 RepertoireSongIds: [42],
