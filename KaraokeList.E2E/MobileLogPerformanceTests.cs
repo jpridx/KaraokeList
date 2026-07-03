@@ -40,4 +40,34 @@ public sealed class MobileLogPerformanceTests(E2eServerFixture servers) : PageTe
         await Expect(Page.GetByText("Performance saved.")).ToBeVisibleAsync(new() { Timeout = 60_000 });
         await Expect(Page.Locator("#blazor-error-ui")).ToBeHiddenAsync();
     }
+
+    [SkippableFact]
+    public async Task Log_song_picker_matches_dont_query_for_apostrophe_title()
+    {
+        Skip.IfNot(servers.IsReady, servers.SkipReason);
+        Skip.If(servers.WarmUpToken is null, "Warm-up user was not created.");
+
+        using var apiClient = new HttpClient { BaseAddress = new Uri(E2eConfiguration.ApiBaseUrl) };
+        await E2eAuthHelper.SignInViaLocalStorageAsync(Page, servers.WarmUpToken!);
+
+        var searchableTitle = $"Don't E2E Song {Guid.NewGuid():N}";
+        var (_, songTitle) = await E2eCatalogHelper.SeedSongAsync(apiClient, servers.WarmUpToken!, searchableTitle);
+
+        await Page.GotoAsync("/log");
+        await Expect(Page.GetByRole(AriaRole.Heading, new() { Name = "Log performance" }))
+            .ToBeVisibleAsync(new() { Timeout = 60_000 });
+
+        var songInput = Page.Locator("input[role='combobox']").First;
+        await songInput.WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = 60_000 });
+        await songInput.ClickAsync();
+        await songInput.FillAsync("dont");
+
+        var matchingItem = Page.Locator(".e-list-item").Filter(new() { HasText = songTitle }).First;
+        await Expect(matchingItem).ToBeVisibleAsync(new() { Timeout = 60_000 });
+        await matchingItem.ClickAsync();
+
+        await Expect(songInput).ToHaveValueAsync(songTitle, new() { Timeout = 60_000 });
+        await Expect(Page.GetByRole(AriaRole.Button, new() { Name = "Save performance" }))
+            .ToBeVisibleAsync(new() { Timeout = 60_000 });
+    }
 }
