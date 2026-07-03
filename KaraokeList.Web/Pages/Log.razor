@@ -117,13 +117,10 @@
         if (cached is not null)
         {
             // Fast path: render immediately from cache, then refresh in the background.
+            // MarkOnline() suppresses the offline banner — cached data is shown for
+            // performance, not because the API is unreachable.
             catalogState.Apply(cached);
-
-            if (!catalogState.UsingOfflineCatalog)
-            {
-                var listsResult = await SingerListResolver.LoadListsAsync(Api);
-                if (listsResult.Succeeded) singerLists = listsResult.Lists;
-            }
+            catalogState.MarkOnline();
 
             recentLogs = await LogStore.GetRecentLogsAsync();
             isLoading = false;
@@ -172,21 +169,21 @@
     {
         try
         {
-            if (!await CatalogLoader.NeedsRefreshAsync()) return;
-
-            var refreshed = await CatalogLoader.LoadAsync();
-
-            // Don't replace the picker if the user has already selected a song.
-            if (selectedSongId is null)
+            if (await CatalogLoader.NeedsRefreshAsync())
             {
-                catalogState.Apply(refreshed);
+                var refreshed = await CatalogLoader.LoadAsync();
+
+                // Don't replace the picker if the user has already selected a song.
+                if (selectedSongId is null)
+                {
+                    catalogState.Apply(refreshed);
+                }
             }
 
-            if (!refreshed.FromCache)
-            {
-                var listsResult = await SingerListResolver.LoadListsAsync(Api);
-                if (listsResult.Succeeded) singerLists = listsResult.Lists;
-            }
+            // Singer lists were skipped in the fast-path initial render.
+            // Always load them here so the add-to-list dropdown populates.
+            var listsResult = await SingerListResolver.LoadListsAsync(Api);
+            if (listsResult.Succeeded) singerLists = listsResult.Lists;
 
             recentLogs = await LogStore.GetRecentLogsAsync();
             await InvokeAsync(StateHasChanged);

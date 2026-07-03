@@ -23,4 +23,11 @@ public sealed class LogCatalogState
         RepertoireSongIds = catalog.RepertoireSongIds;
         WorkingUpSongIds = catalog.WorkingUpSongIds;
     }
+
+    /// <summary>
+    /// Clears the offline flag without replacing catalog data.
+    /// Used in the fast cache path where cached data is shown for performance,
+    /// not because the API is unreachable.
+    /// </summary>
+    public void MarkOnline() => UsingOfflineCatalog = false;
 }
