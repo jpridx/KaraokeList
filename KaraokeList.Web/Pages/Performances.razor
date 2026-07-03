@@ -9,7 +9,7 @@
 
 @if (isLoading)
 {
-    <p>Loading...</p>
+    <p>@loadingStep</p>
 }
 else if (singers.Count == 0 || songs.Count == 0 || venues.Count == 0)
 {
@@ -165,6 +165,7 @@ else
     private List<VenueDto> venues = [];
     private IReadOnlyList<PerformanceKeyOption> keyOptions = PerformanceKeyOption.Choices;
     private bool isLoading = true;
+    private string loadingStep = "Loading...";
     private int currentSingerId;
     private int? summarySongId;
     private SongPerformanceSummaryDto? songSummary;
@@ -190,9 +191,18 @@ else
     private async Task ReloadLookupsAsync()
     {
         isLoading = true;
+
+        loadingStep = "Loading singers...";
         singers = await Api.GetSingersAsync();
+
+        loadingStep = "Loading songs...";
+        StateHasChanged();
         songs = await Api.GetSongsAsync();
+
+        loadingStep = "Loading venues...";
+        StateHasChanged();
         venues = await Api.GetVenuesAsync();
+
         isLoading = false;
     }
 
