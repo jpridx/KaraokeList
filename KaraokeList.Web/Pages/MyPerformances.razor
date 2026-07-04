@@ -9,6 +9,7 @@
                  @ref="gatedPage">
     <Subtitle>Every time you've logged a song — newest first by default.</Subtitle>
     <ChildContent Context="singerId">
+        <SlowApiNotice />
         <MobileLoadingState IsLoading="@isLoading" CssClass="mt-3">
                 <MobileSearchToolbar @bind-SearchText="searchText" @bind-SearchText:after="RefreshDisplayList"
                                      Placeholder="Search song, artist, or venue"
