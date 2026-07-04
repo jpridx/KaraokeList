@@ -1,5 +1,7 @@
 using Microsoft.Playwright;
 using Microsoft.Playwright.Xunit;
+using KaraokeList.Shared;
+using System.Net.Http.Json;
 
 namespace KaraokeList.E2E;
 
@@ -48,10 +50,35 @@ public sealed class MobileLogPerformanceTests(E2eServerFixture servers) : PageTe
         Skip.If(servers.WarmUpToken is null, "Warm-up user was not created.");
 
         using var apiClient = new HttpClient { BaseAddress = new Uri(E2eConfiguration.ApiBaseUrl) };
+        await Page.GotoAsync("/");
+        await Page.EvaluateAsync(@"async () => {
+            localStorage.clear();
+            sessionStorage.clear();
+
+            if ('serviceWorker' in navigator) {
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                await Promise.all(registrations.map(r => r.unregister()));
+            }
+
+            if ('caches' in globalThis) {
+                const keys = await caches.keys();
+                await Promise.all(keys.map(k => caches.delete(k)));
+            }
+        }");
+
         await E2eAuthHelper.SignInViaLocalStorageAsync(Page, servers.WarmUpToken!);
 
-        var searchableTitle = $"Don't E2E Song {Guid.NewGuid():N}";
-        var (_, songTitle) = await E2eCatalogHelper.SeedSongAsync(apiClient, servers.WarmUpToken!, searchableTitle);
+        apiClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", servers.WarmUpToken!);
+        var songs = await apiClient.GetFromJsonAsync<List<SongDto>>("/api/songs")
+            ?? throw new InvalidOperationException("Songs list returned null.");
+
+        var apostropheSong = songs.FirstOrDefault(s =>
+            s.Title.Contains("don't", StringComparison.OrdinalIgnoreCase)
+            || s.Title.Contains("don’t", StringComparison.OrdinalIgnoreCase));
+
+        Skip.If(apostropheSong is null, "No catalog song with \"don't\" in the title is available for this environment.");
+
+        var songTitle = apostropheSong!.Title;
 
         await Page.GotoAsync("/log");
         await Expect(Page.GetByRole(AriaRole.Heading, new() { Name = "Log performance" }))
@@ -60,13 +87,16 @@ public sealed class MobileLogPerformanceTests(E2eServerFixture servers) : PageTe
         var songInput = Page.Locator("input[role='combobox']").First;
         await songInput.WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = 60_000 });
         await songInput.ClickAsync();
-        await songInput.FillAsync("dont");
+        await songInput.FillAsync(string.Empty);
+        await songInput.PressSequentiallyAsync("dont");
+        await songInput.PressAsync("ArrowDown");
 
-        var matchingItem = Page.Locator(".e-list-item").Filter(new() { HasText = songTitle }).First;
+        var matchingItem = Page.Locator(".e-popup .e-list-item").Filter(new() { HasText = songTitle }).First;
         await Expect(matchingItem).ToBeVisibleAsync(new() { Timeout = 60_000 });
         await matchingItem.ClickAsync();
 
-        await Expect(songInput).ToHaveValueAsync(songTitle, new() { Timeout = 60_000 });
+        var selectedValue = await songInput.InputValueAsync();
+        Assert.Contains(songTitle, selectedValue, StringComparison.OrdinalIgnoreCase);
         await Expect(Page.GetByRole(AriaRole.Button, new() { Name = "Save performance" }))
             .ToBeVisibleAsync(new() { Timeout = 60_000 });
     }

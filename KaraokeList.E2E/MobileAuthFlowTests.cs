@@ -49,7 +49,7 @@ public sealed class MobileAuthFlowTests(E2eServerFixture servers) : PageTest
 
         await Expect(Page.GetByText($"Signed in as {servers.WarmUpEmail}")).ToBeVisibleAsync(new() { Timeout = 60_000 });
 
-        await Page.Locator(".mobile-bottom-nav a", new() { HasText = "My Songs" }).ClickAsync();
+        await Page.Locator(".mobile-top-nav a", new() { HasText = "My Songs" }).ClickAsync();
         await Expect(Page.GetByRole(AriaRole.Heading, new() { Name = "My Songs" })).ToBeVisibleAsync(new() { Timeout = 60_000 });
         await Expect(Page.GetByPlaceholder("Search title or artist")).ToBeVisibleAsync(new() { Timeout = 120_000 });
         await Expect(Page.Locator("#blazor-error-ui")).ToBeHiddenAsync();
