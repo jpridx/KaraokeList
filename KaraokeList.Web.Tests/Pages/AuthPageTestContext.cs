@@ -31,5 +31,6 @@ public abstract class AuthPageTestContext : BunitTestContext
         services.AddSingleton<ILocalStorageService>(localStorage);
         services.AddSingleton<JwtAuthenticationStateProvider>();
         services.AddSingleton<AuthenticationStateProvider>(sp => sp.GetRequiredService<JwtAuthenticationStateProvider>());
+        services.AddSingleton<ApiSlowRequestNotifier>();
     }
 }
