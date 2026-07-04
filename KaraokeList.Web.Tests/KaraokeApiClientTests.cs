@@ -335,6 +335,29 @@ public sealed class KaraokeApiClientTests
     }
 
     [Fact]
+    public async Task GetMyListsAsync_WhenNetworkError_ReturnsFriendlyMessage()
+    {
+        var client = CreateClient(new ThrowingHandler());
+
+        var result = await client.GetMyListsAsync();
+
+        Assert.False(result.Succeeded);
+        Assert.NotNull(result.ErrorMessage);
+        Assert.Contains("Cannot reach the API", result.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task GetMyPerformancesAsync_WhenServiceUnavailable_ReturnsColdStartMessage()
+    {
+        var client = CreateClient(new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)));
+
+        var result = await client.GetMyPerformancesAsync();
+
+        Assert.False(result.Succeeded);
+        Assert.Equal(ApiTransientFailure.ColdStartMessage, result.ErrorMessage);
+    }
+
+    [Fact]
     public async Task GetInviteShareAsync_WhenSuccessful_ReturnsInviteCode()
     {
         var client = CreateClient(new StubHandler(request =>
