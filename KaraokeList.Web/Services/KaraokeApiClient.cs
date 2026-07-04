@@ -409,15 +409,32 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
 
     public async Task<SingerListsResult> GetMyListsAsync()
     {
-        var response = await http.GetAsync("api/singers/me/lists");
-        if (response.IsSuccessStatusCode)
+        try
         {
-            var lists = await response.Content.ReadFromJsonAsync<List<SingerListDto>>(JsonOptions);
-            return SingerListsResult.Ok(lists ?? []);
-        }
+            var response = await http.GetAsync("api/singers/me/lists");
+            if (response.IsSuccessStatusCode)
+            {
+                var lists = await response.Content.ReadFromJsonAsync<List<SingerListDto>>(JsonOptions);
+                return SingerListsResult.Ok(lists ?? []);
+            }
 
-        var message = await ReadApiErrorMessageAsync(response);
-        return SingerListsResult.Fail(message ?? "Could not load singer lists.");
+            var message = await ReadApiErrorMessageAsync(response);
+            if (string.IsNullOrWhiteSpace(message) && ApiTransientFailure.IsTransient(response.StatusCode))
+            {
+                message = ApiTransientFailure.ColdStartMessage;
+            }
+
+            return SingerListsResult.Fail(message ?? "Could not load singer lists.");
+        }
+        catch (HttpRequestException ex)
+        {
+            return SingerListsResult.Fail(
+                $"Cannot reach the API at {http.BaseAddress}. Start KaraokeList.Api first. ({ex.Message})");
+        }
+        catch (Exception ex) when (ApiTransientFailure.IsTransient(ex))
+        {
+            return SingerListsResult.Fail(ApiTransientFailure.ColdStartMessage);
+        }
     }
 
     public async Task<RepertoireResult> GetListSongsAsync(
@@ -722,15 +739,32 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
             query += $"&venueId={venue}";
         }
 
-        var response = await http.GetAsync($"api/performances/my-history?{query}");
-        if (response.IsSuccessStatusCode)
+        try
         {
-            var performances = await response.Content.ReadFromJsonAsync<List<MyPerformanceEntryDto>>();
-            return MyPerformancesResult.Ok(performances ?? []);
-        }
+            var response = await http.GetAsync($"api/performances/my-history?{query}");
+            if (response.IsSuccessStatusCode)
+            {
+                var performances = await response.Content.ReadFromJsonAsync<List<MyPerformanceEntryDto>>();
+                return MyPerformancesResult.Ok(performances ?? []);
+            }
 
-        var message = await ReadApiErrorMessageAsync(response);
-        return MyPerformancesResult.Fail(message ?? "Could not load performances.");
+            var message = await ReadApiErrorMessageAsync(response);
+            if (string.IsNullOrWhiteSpace(message) && ApiTransientFailure.IsTransient(response.StatusCode))
+            {
+                message = ApiTransientFailure.ColdStartMessage;
+            }
+
+            return MyPerformancesResult.Fail(message ?? "Could not load performances.");
+        }
+        catch (HttpRequestException ex)
+        {
+            return MyPerformancesResult.Fail(
+                $"Cannot reach the API at {http.BaseAddress}. Start KaraokeList.Api first. ({ex.Message})");
+        }
+        catch (Exception ex) when (ApiTransientFailure.IsTransient(ex))
+        {
+            return MyPerformancesResult.Fail(ApiTransientFailure.ColdStartMessage);
+        }
     }
 
     public Task CreatePerformanceAsync(PerformanceDto dto) => PostAsync("api/performances", dto);

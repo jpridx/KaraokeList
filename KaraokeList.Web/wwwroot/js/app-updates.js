@@ -93,9 +93,9 @@ window.karaokeListAppUpdates = {
 
             if (window.karaokeListAppUpdates.registration?.waiting) {
                 window.karaokeListAppUpdates.registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-                // Fallback: if the controllerchange event never fires (iOS PWA timing issue),
-                // force a plain reload after 3 s so the banner never hangs indefinitely.
-                setTimeout(reload, 3000);
+                // Fallback: if controllerchange never fires (known iOS timing issue),
+                // wait a bit longer before forcing reload so activation has time to finish.
+                setTimeout(reload, 8000);
             } else {
                 reload();
             }
