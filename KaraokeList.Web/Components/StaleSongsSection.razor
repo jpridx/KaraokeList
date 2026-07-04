@@ -1,4 +1,4 @@
-@inject IKaraokeApiClient Api
+@inject IStaleSongsLoader Loader
 
 @if (!loading && songs.Count > 0)
 {
@@ -11,12 +11,15 @@
             </p>
         </header>
 
+        <OfflineCacheNotice UsingOffline="@fromCache" HasCachedData="true" CachedAt="@cachedAt" ResourceName="suggestions" />
         <SongLinkList Items="@linkItems" ListClass="recent-log-list mt-3 mb-0" />
     </section>
 }
 
 @code {
     private bool loading = true;
+    private bool fromCache;
+    private DateTime? cachedAt;
     private int staleAfterDays = TicklerSettingsLimits.DefaultStaleAfterDays;
     private List<StaleSongDto> songs = [];
     private readonly DateTime localToday = DateTime.Today;
@@ -36,11 +39,13 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var result = await Api.GetMyStaleSongsAsync();
+        var result = await Loader.LoadAsync();
         if (result.Succeeded && result.Response is not null)
         {
             staleAfterDays = result.Response.StaleAfterDays;
             songs = result.Response.Songs;
+            fromCache = result.FromCache;
+            cachedAt = result.CachedAtUtc;
         }
 
         loading = false;
