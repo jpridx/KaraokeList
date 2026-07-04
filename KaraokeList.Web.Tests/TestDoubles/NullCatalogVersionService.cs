@@ -7,6 +7,6 @@ namespace KaraokeList.Web.Tests.TestDoubles;
 /// </summary>
 public sealed class NullCatalogVersionService : ICatalogVersionService
 {
-    public Task<string?> GetCacheTagAsync() => Task.FromResult<string?>(null);
+    public Task<string?> GetCacheTagAsync(bool forceRefresh = false) => Task.FromResult<string?>(null);
     public void Invalidate() { }
 }

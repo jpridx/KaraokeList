@@ -116,6 +116,20 @@
 
         if (cached is not null)
         {
+            if (await CatalogLoader.NeedsRefreshAsync())
+            {
+                // If the server catalog changed, prefer correctness over stale fast-path rendering.
+                await FullLoadCatalogAsync();
+
+                if (SongId is int refreshedSongId)
+                {
+                    selectedSongId = refreshedSongId;
+                    await OnSongChangedAsync(refreshedSongId);
+                }
+
+                return;
+            }
+
             // Fast path: render immediately from cache, then refresh in the background.
             // MarkOnline() suppresses the offline banner — cached data is shown for
             // performance, not because the API is unreachable.

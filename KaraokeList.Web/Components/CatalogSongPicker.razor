@@ -5,9 +5,9 @@
 <SfComboBox @ref="picker" TValue="int?" TItem="LogSongPickItem" DataSource="@Items"
             Value="@SelectedSongId" ValueChanged="OnSelectedAsync"
             Placeholder="@Placeholder" AllowFiltering="true" ShowClearButton="true"
-            PopupHeight="280px" Enabled="@Enabled"
-            Filtering="OnFilteringAsync">
+            PopupHeight="280px" Enabled="@Enabled">
     <ComboBoxFieldSettings Value="Id" Text="Display" />
+    <ComboBoxEvents TValue="int?" TItem="LogSongPickItem" Filtering="OnFilteringAsync" />
 </SfComboBox>
 
 @code {
@@ -27,13 +27,46 @@
     public bool Enabled { get; set; } = true;
 
     private SfComboBox<int?, LogSongPickItem> picker = default!;
+    private IReadOnlyList<LogSongPickItem>? previousItems;
+    private string? activeFilterText;
+    private bool pendingRefilter;
 
     private Task OnSelectedAsync(int? songId) => SelectedSongIdChanged.InvokeAsync(songId);
+
+    protected override void OnParametersSet()
+    {
+        if (!ReferenceEquals(previousItems, Items))
+        {
+            previousItems = Items;
+
+            if (!string.IsNullOrWhiteSpace(activeFilterText))
+            {
+                pendingRefilter = true;
+            }
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!pendingRefilter)
+        {
+            return;
+        }
+
+        pendingRefilter = false;
+        await ApplyFilterAsync(activeFilterText);
+    }
 
     private async Task OnFilteringAsync(Syncfusion.Blazor.DropDowns.FilteringEventArgs args)
     {
         args.PreventDefaultAction = true;
-        var normalized = FlexibleSearch.Normalize(args.Text);
+        activeFilterText = args.Text;
+        await ApplyFilterAsync(args.Text);
+    }
+
+    private async Task ApplyFilterAsync(string? filterText)
+    {
+        var normalized = FlexibleSearch.Normalize(filterText);
         var filteredItems = string.IsNullOrEmpty(normalized)
             ? Items.ToList()
             : Items.Where(item => item.MatchesSearch(normalized)).ToList();

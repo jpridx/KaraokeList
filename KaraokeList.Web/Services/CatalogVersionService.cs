@@ -6,7 +6,7 @@ public interface ICatalogVersionService
     /// Returns the current server-side cache tag, or null if the server is unreachable.
     /// The result is memoised for the duration of the app session (one fetch per tab lifetime).
     /// </summary>
-    Task<string?> GetCacheTagAsync();
+    Task<string?> GetCacheTagAsync(bool forceRefresh = false);
 
     /// <summary>
     /// Discards any memoised tag so the next call fetches from the server again.
@@ -19,9 +19,9 @@ public sealed class CatalogVersionService(IKaraokeApiClient api) : ICatalogVersi
     private string? _tag;
     private bool _fetched;
 
-    public async Task<string?> GetCacheTagAsync()
+    public async Task<string?> GetCacheTagAsync(bool forceRefresh = false)
     {
-        if (_fetched)
+        if (!forceRefresh && _fetched)
         {
             return _tag;
         }
@@ -34,7 +34,11 @@ public sealed class CatalogVersionService(IKaraokeApiClient api) : ICatalogVersi
         }
         catch
         {
-            // Offline or API error — return null without caching so the next call retries.
+            // Offline or API error. If we already have a known tag, keep using it.
+            if (_fetched)
+            {
+                return _tag;
+            }
         }
 
         return _tag;

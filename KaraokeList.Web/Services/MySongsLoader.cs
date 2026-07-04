@@ -120,30 +120,31 @@ public sealed class MySongsLoader(
             return true;
         }
 
-        if (DateTime.UtcNow - cached.CachedAtUtc < RefreshThreshold)
-        {
-            return false;
-        }
+        var isStaleByAge = DateTime.UtcNow - cached.CachedAtUtc >= RefreshThreshold;
 
         try
         {
-            var serverTag = await versionService.GetCacheTagAsync();
+            var serverTag = await versionService.GetCacheTagAsync(forceRefresh: true);
             if (serverTag is null)
             {
-                return false;
+                return isStaleByAge;
             }
 
-            if (cached.CacheTag == serverTag)
+            if (!string.Equals(cached.CacheTag, serverTag, StringComparison.Ordinal))
+            {
+                return true;
+            }
+
+            if (isStaleByAge)
             {
                 await store.SaveCachedListsAsync(cached with { CachedAtUtc = DateTime.UtcNow });
-                return false;
             }
 
-            return true;
+            return false;
         }
         catch
         {
-            return false;
+            return isStaleByAge;
         }
     }
 
