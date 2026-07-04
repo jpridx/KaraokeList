@@ -44,7 +44,7 @@ There is no sidebar. Catalog grids live under `/more`.
 | `/account/preferences` | Preferences for **Haven't sung in a while** (days and song limit) |
 | `/forgot-password` | Request password reset email (when recovery is enabled) |
 | `/reset-password` | Set a new password from email reset link |
-| `/` | Home — **Tonight** dashboard on mobile; stats teaser; invite banner; stale songs |
+| `/` | Home — **Tonight** dashboard on mobile; invite banner; stale songs |
 | `/login`, `/register` | Auth (no sign-in required) |
 
 ### Catalog (desktop-oriented grids)
@@ -175,7 +175,6 @@ Implemented in `ShowHostMessageFormatting` (`KaraokeList.Shared`). Shown on Log 
 | `SongDetailFirstLog` | First-performance quick log block on song detail |
 | `SongDetailWithHistory` | Co-performers, host message, history, and log-again on song detail |
 | `StaleSongsSection` | Home list of songs not performed recently (random sample from your stale pool) |
-| `SingerStatsTeaser` | Home summary with link to `/my-stats` |
 | `SingerStatsDisplay` | Shared stats layout (used on `/my-stats`) |
 | `SingerLinkPanel` | Link login to a singer profile when `SingerId` is missing |
 | `MobilePageHeader` | Consistent mobile page title + optional subtitle, back link, or leading content |
