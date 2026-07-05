@@ -2,7 +2,17 @@ namespace KaraokeList.Shared;
 
 public class AppVersionDto
 {
-    public string CacheTag { get; set; } = string.Empty;
+    public string? Application { get; set; }
+    public string? ApiVersion { get; set; }
+    public string? InformationalVersion { get; set; }
+
+    public string? LatestMigration { get; set; }
+    public int SongCount { get; set; }
+    public int MaxSongId { get; set; }
+
+    public string? CacheTag { get; set; }
+    public bool DatabaseAvailable { get; set; }
+    public string? DatabaseError { get; set; }
 }
 
 public class CatalogImportResultDto

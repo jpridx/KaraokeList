@@ -1,0 +1,32 @@
+@page "/about"
+@using System.Reflection
+@using KaraokeList.Shared
+@inject HttpClient Http
+
+<PageTitle>About</PageTitle>
+
+<h3>About KaraokeList</h3>
+
+<p><strong>Web version:</strong> @WebVersion</p>
+<p><strong>API version:</strong> @(ApiVersion ?? "loading...")</p>
+<p><strong>Database migration:</strong> @(LatestMigration ?? "loading...")</p>
+
+@code {
+    private string? ApiVersion;
+    private string? LatestMigration;
+
+    private string WebVersion =>
+        Assembly.GetExecutingAssembly()
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
+            .InformationalVersion
+        ?? Assembly.GetExecutingAssembly().GetName().Version?.ToString()
+        ?? "unknown";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var info = await Http.GetFromJsonAsync<AppVersionDto>("api/version");
+
+        ApiVersion = info?.ApiVersion;
+        LatestMigration = info?.LatestMigration;
+    }
+}
