@@ -1,19 +1,42 @@
 version: 2
 
 updates:
-  # NuGet packages
   - package-ecosystem: "nuget"
     directory: "/"
     schedule:
       interval: "weekly"
       day: "monday"
       time: "08:00"
+
     open-pull-requests-limit: 5
+
     commit-message:
       prefix: "deps"
 
-  # GitHub Actions
+    groups:
+      microsoft-dotnet:
+        patterns:
+          - "Microsoft.*"
+          - "System.*"
+
+      azure:
+        patterns:
+          - "Azure.*"
+
+      other:
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "Microsoft.*"
+          - "System.*"
+          - "Azure.*"
+
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+
+    groups:
+      github-actions:
+        patterns:
+          - "*"
