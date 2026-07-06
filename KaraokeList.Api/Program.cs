@@ -188,4 +188,14 @@ app.MapGet("/api/version", async (
     return Results.Ok(dto);
 }).RequireCors("WebClient");
 
+var startupLogger = app.Services.GetRequiredService<ILogger<Program>>();
+var apiAssembly = typeof(Program).Assembly;
+startupLogger.LogInformation(
+    "KaraokeList.Api starting — version {ApiVersion} ({InformationalVersion})",
+    apiAssembly.GetName().Version?.ToString() ?? "unknown",
+    apiAssembly
+        .GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false)
+        .OfType<System.Reflection.AssemblyInformationalVersionAttribute>()
+        .FirstOrDefault()?.InformationalVersion ?? "unknown");
+
 app.Run();

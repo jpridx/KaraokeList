@@ -26,23 +26,39 @@ flowchart LR
   end
 
   subgraph deploy [Deploy Azure workflow]
-    Gate[Tests must pass]
-    OIDC[Azure login OIDC]
-    ApiPub[Publish + zip API]
-    ApiDep[az webapp deploy]
-    WasmPub[Publish WASM + Syncfusion key]
-    WasmDep[swa deploy]
-    Cors[Sync CORS to public WASM URL]
-    Smoke[Smoke tests 401 + 200]
+    Changes[Detect changed paths]
+    Gate[Tests — always run]
+    ApiDeploy[deploy-api\nAPI changed or manual]
+    WasmDeploy[deploy-wasm\nWASM changed or manual]
   end
 
   PR --> Build
   Push --> Build
-  Push --> Gate
-  Manual --> Gate
   Build --> Tests
-  Gate --> OIDC --> ApiPub --> ApiDep --> WasmPub --> WasmDep --> Cors --> Smoke
+  Push --> Changes
+  Push --> Gate
+  Manual --> Changes
+  Manual --> Gate
+  Changes --> ApiDeploy
+  Gate --> ApiDeploy
+  Changes --> WasmDeploy
+  Gate --> WasmDeploy
 ```
+
+### Selective deployment
+
+The `deploy-azure.yml` workflow detects which project paths changed (using `dorny/paths-filter`) and only deploys the affected artifact:
+
+| What changed | `deploy-api` runs | `deploy-wasm` runs |
+|---|---|---|
+| `KaraokeList.Api/**` only | yes | no |
+| `KaraokeList.Web/**` only | no | yes |
+| `KaraokeList.Shared/**` | yes | yes |
+| `.github/workflows/deploy-azure.yml` | yes | yes |
+| `docs/**`, `infra/**`, scripts | no | no |
+| Manual (`workflow_dispatch`) | yes | yes |
+
+Both jobs always wait for the `test` job to pass first.
 
 ### What the pipeline does *not* touch
 
@@ -54,16 +70,25 @@ flowchart LR
 | SQL password / Bicep | One-time `infra/main.bicep` deploy |
 | Catalog seed | `scripts/seed-catalog.sql` after first API start |
 
-The deploy job sets `Cors__Origins__0` to `WASM_PUBLIC_ORIGIN` in `.github/workflows/deploy-azure.yml` (currently `https://karaoke.johnprideaux.net`) and restarts the API after each deploy.
+`deploy-api` sets `Cors__Origins__0` to `WASM_PUBLIC_ORIGIN` (currently `https://karaoke.johnprideaux.net`) and restarts the API. This only happens when the API is actually redeployed.
 
 ## Workflows
 
 | File | Trigger | Purpose |
 |------|---------|---------|
 | `.github/workflows/ci.yml` | PR + push to `master` | Build + all test projects |
-| `.github/workflows/deploy-azure.yml` | Push to `master`, manual | Test → OIDC login → deploy API + WASM → smoke tests |
+| `.github/workflows/deploy-azure.yml` | Push to `master`, manual | Detect changes → test → deploy only changed artifact(s) → smoke test |
 
 Integration tests use `[SkippableFact]` and **skip** on `ubuntu-latest` when LocalDB is unavailable. Unit tests must pass for deploy to proceed.
+
+### Deploy workflow jobs
+
+| Job | Runs when | What it does |
+|-----|-----------|--------------|
+| `changes` | Always | Detects which paths changed (dorny/paths-filter) |
+| `test` | Always | Full build + unit + integration tests |
+| `deploy-api` | API paths changed or manual | Publish + zip → `az webapp deploy` → CORS sync → smoke test |
+| `deploy-wasm` | WASM paths changed or manual | Patch `ApiBaseUrl` → `dotnet publish` → `swa deploy` → smoke test |
 
 The deploy job uses GitHub environment **`production`**. That affects the OIDC token subject (see setup below).
 
@@ -171,7 +196,7 @@ Edit `AZURE_RESOURCE_GROUP`, `AZURE_BASE_NAME`, or `WASM_PUBLIC_ORIGIN` in `.git
 | WASM publish fails on Syncfusion | Set `SYNCFUSION_KEY` secret |
 | API smoke test not 401 | Cold start: first request can take minutes (SQL + EF migrate). Re-run deploy; check `az webapp log startup show` |
 | Deploy API `Timeout reached while tracking deployment status` | Zip often succeeded; site still starting (EF migrate + cold SQL). Workflow uses `--track-status false` + smoke test. Check migrations in `__EFMigrationsHistory__` or Kudu deployment log |
-| WASM loads, API calls fail | CORS step in workflow; confirm `Cors__Origins__0` matches `WASM_PUBLIC_ORIGIN` in deploy-azure.yml |
+| WASM loads, API calls fail | CORS is only synced by `deploy-api`. If you deployed WASM only, confirm `Cors__Origins__0` on the App Service matches `WASM_PUBLIC_ORIGIN` in `deploy-azure.yml`. If they're out of sync, trigger a manual `workflow_dispatch` to redeploy both. |
 | Login works, empty catalog | Run `scripts/seed-catalog.sql` against Azure SQL |
 
 ## Related docs
