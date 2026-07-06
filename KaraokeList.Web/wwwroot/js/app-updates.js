@@ -46,7 +46,17 @@ window.karaokeListAppUpdates = {
     },
 
     watchRegistration: function (registration) {
-        if (registration.waiting && navigator.serviceWorker.controller) {
+        // After a user-initiated "Refresh now", applyUpdate() sets this flag before
+        // reloading. On the next load the waiting worker may still be present (iOS PWA
+        // often does not complete SW activation across a reload), so we skip the
+        // immediate notification for that same waiting worker. Genuine new updates are
+        // still caught by the updatefound → statechange listener below.
+        var justApplied = sessionStorage.getItem('sw-update-applied');
+        if (justApplied) {
+            sessionStorage.removeItem('sw-update-applied');
+        }
+
+        if (!justApplied && registration.waiting && navigator.serviceWorker.controller) {
             this.notifyUpdate();
         }
 
@@ -85,6 +95,11 @@ window.karaokeListAppUpdates = {
                 }
 
                 reloaded = true;
+                // Signal the next session to skip the immediate waiting-worker check.
+                // iOS PWA often keeps the old SW in 'waiting' across a reload, which
+                // would re-trigger the banner immediately. This flag suppresses that
+                // one re-notification while still allowing genuinely new updates through.
+                try { sessionStorage.setItem('sw-update-applied', '1'); } catch (e) { }
                 window.location.reload();
                 resolve();
             };
