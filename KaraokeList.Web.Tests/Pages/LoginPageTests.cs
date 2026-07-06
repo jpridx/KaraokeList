@@ -15,7 +15,7 @@ public sealed class LoginPageTests : AuthPageTestContext
         Api.Setup(client => client.GetRegistrationInfoAsync())
             .ReturnsAsync(new RegistrationInfoDto());
 
-        var cut = RenderComponent<Login>();
+        var cut = Render<Login>();
 
         cut.WaitForAssertion(() =>
         {
@@ -30,7 +30,7 @@ public sealed class LoginPageTests : AuthPageTestContext
         Api.Setup(client => client.GetRegistrationInfoAsync())
             .ReturnsAsync(new RegistrationInfoDto { IsPasswordRecoveryAllowed = true });
 
-        var cut = RenderComponent<Login>();
+        var cut = Render<Login>();
 
         cut.WaitForAssertion(() =>
         {
@@ -47,7 +47,7 @@ public sealed class LoginPageTests : AuthPageTestContext
         Api.Setup(client => client.LoginAsync(It.IsAny<LoginRequest>()))
             .ReturnsAsync(AuthResult.Fail("Invalid login attempt."));
 
-        var cut = RenderComponent<Login>();
+        var cut = Render<Login>();
         SubmitLogin(cut, "user@example.com", "wrong-password");
 
         cut.WaitForAssertion(() =>
@@ -65,7 +65,7 @@ public sealed class LoginPageTests : AuthPageTestContext
         Api.Setup(client => client.LoginAsync(It.IsAny<LoginRequest>()))
             .ReturnsAsync(AuthResult.Fail(ApiTransientFailure.ColdStartMessage, transient: true));
 
-        var cut = RenderComponent<Login>();
+        var cut = Render<Login>();
         SubmitLogin(cut, "user@example.com", "TestPassw0rd!23");
 
         cut.WaitForAssertion(() =>
@@ -89,7 +89,7 @@ public sealed class LoginPageTests : AuthPageTestContext
                 ExpiresUtc = DateTime.UtcNow.AddHours(1)
             }));
 
-        var cut = RenderComponent<Login>();
+        var cut = Render<Login>();
         SubmitLogin(cut, "user@example.com", "TestPassw0rd!23");
 
         cut.WaitForAssertion(() =>

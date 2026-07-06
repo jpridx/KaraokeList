@@ -8,7 +8,7 @@ public sealed class OfflineCacheNoticeTests : BunitTestContext
     [Fact]
     public void Renders_nothing_when_online()
     {
-        var cut = RenderComponent<OfflineCacheNotice>(parameters => parameters
+        var cut = Render<OfflineCacheNotice>(parameters => parameters
             .Add(p => p.UsingOffline, false)
             .Add(p => p.HasCachedData, true)
             .Add(p => p.CachedAt, DateTime.UtcNow));
@@ -20,7 +20,7 @@ public sealed class OfflineCacheNoticeTests : BunitTestContext
     public void Shows_cached_timestamp_when_offline_with_cache()
     {
         var cachedAt = new DateTime(2026, 6, 1, 14, 30, 0, DateTimeKind.Utc);
-        var cut = RenderComponent<OfflineCacheNotice>(parameters => parameters
+        var cut = Render<OfflineCacheNotice>(parameters => parameters
             .Add(p => p.UsingOffline, true)
             .Add(p => p.HasCachedData, true)
             .Add(p => p.CachedAt, cachedAt)
@@ -33,7 +33,7 @@ public sealed class OfflineCacheNoticeTests : BunitTestContext
     [Fact]
     public void Shows_unavailable_content_when_offline_without_cache()
     {
-        var cut = RenderComponent<OfflineCacheNotice>(parameters => parameters
+        var cut = Render<OfflineCacheNotice>(parameters => parameters
             .Add(p => p.UsingOffline, true)
             .Add(p => p.HasCachedData, false)
             .Add(p => p.UnavailableContent, builder => builder.AddMarkupContent(0, "No cache yet.")));

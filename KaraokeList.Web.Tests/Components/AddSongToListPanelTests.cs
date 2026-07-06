@@ -19,7 +19,7 @@ public sealed class AddSongToListPanelTests : AuthPageTestContext
     [Fact]
     public void Choose_mode_shows_catalog_and_new_song_options()
     {
-        var cut = RenderComponent<AddSongToListPanel>(parameters => parameters
+        var cut = Render<AddSongToListPanel>(parameters => parameters
             .Add(p => p.ListId, 2)
             .Add(p => p.ListDisplayName, "Working up"));
 
@@ -31,7 +31,7 @@ public sealed class AddSongToListPanelTests : AuthPageTestContext
     [Fact]
     public void OpenNewSong_shows_add_song_panel()
     {
-        var cut = RenderComponent<AddSongToListPanel>(parameters => parameters
+        var cut = Render<AddSongToListPanel>(parameters => parameters
             .Add(p => p.ListId, 2)
             .Add(p => p.ListDisplayName, "Want to sing")
             .Add(p => p.OnSongAdded, EventCallback.Factory.Create<SongAddedToListEventArgs>(this, _ => { })));

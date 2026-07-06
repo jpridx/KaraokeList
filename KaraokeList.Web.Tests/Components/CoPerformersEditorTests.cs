@@ -26,7 +26,7 @@ public sealed class CoPerformersEditorTests : BunitTestContext
     [Fact]
     public void Adding_guest_notifies_parent_with_display_name()
     {
-        var cut = RenderComponent<CoPerformerTestHost>(parameters => parameters
+        var cut = Render<CoPerformerTestHost>(parameters => parameters
             .Add(p => p.PrimarySingerId, 1));
 
         cut.Find("input[placeholder='Name not in the app']").Input("Guest Singer");
@@ -43,7 +43,7 @@ public sealed class CoPerformersEditorTests : BunitTestContext
     [Fact]
     public void Adding_guest_updates_host_message_in_parent()
     {
-        var cut = RenderComponent<CoPerformerTestHost>(parameters => parameters
+        var cut = Render<CoPerformerTestHost>(parameters => parameters
             .Add(p => p.PrimarySingerId, 1)
             .Add(p => p.Title, "Islands in the Stream")
             .Add(p => p.ArtistName, "Kenny Rogers")
@@ -59,7 +59,7 @@ public sealed class CoPerformersEditorTests : BunitTestContext
         });
     }
 
-    private static void ClickGuestAddButton(IRenderedFragment cut)
+    private static void ClickGuestAddButton(IRenderedComponent<CoPerformerTestHost> cut)
     {
         var addButton = cut.FindAll("button")
             .Last(button => button.TextContent.Trim() == "Add");

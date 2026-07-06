@@ -96,7 +96,7 @@ public sealed class SongListItemTests : TestContext
         Action<RepertoireSongDto>? onHistory = null,
         Action<RepertoireSongDto>? onLog = null)
     {
-        return RenderComponent<SongListItem>(parameters => parameters
+        return Render<SongListItem>(parameters => parameters
             .Add(p => p.Song, song)
             .Add(p => p.OnHistory, EventCallback.Factory.Create<RepertoireSongDto>(this, onHistory ?? (_ => { })))
             .Add(p => p.OnLog, EventCallback.Factory.Create<RepertoireSongDto>(this, onLog ?? (_ => { }))));

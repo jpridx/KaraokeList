@@ -17,7 +17,7 @@ public sealed class AppUpdateNoticeTests : AuthPageTestContext
     [Fact]
     public void Hidden_when_no_update_available()
     {
-        var cut = RenderComponent<AppUpdateNotice>();
+        var cut = Render<AppUpdateNotice>();
 
         Assert.DoesNotContain("A new version of KaraokeList is ready.", cut.Markup);
     }
@@ -26,7 +26,7 @@ public sealed class AppUpdateNoticeTests : AuthPageTestContext
     public void Shows_banner_when_update_is_available()
     {
         var notifier = Services.GetRequiredService<AppUpdateNotifier>();
-        var cut = RenderComponent<AppUpdateNotice>();
+        var cut = Render<AppUpdateNotice>();
 
         notifier.MarkUpdateAvailable();
         cut.Render();

@@ -27,7 +27,7 @@ public sealed class AdminCatalogPageTests : AuthPageTestContext
     {
         Api.Setup(client => client.GetGenresAsync()).ReturnsAsync([]);
 
-        var cut = RenderComponent<Genres>();
+        var cut = Render<Genres>();
 
         cut.WaitForAssertion(() => Api.Verify(client => client.GetGenresAsync(), Times.Once));
         Assert.Contains("Genres", cut.Markup);
@@ -38,7 +38,7 @@ public sealed class AdminCatalogPageTests : AuthPageTestContext
     {
         Api.Setup(client => client.GetSingersAsync()).ReturnsAsync([]);
 
-        var cut = RenderComponent<Singers>();
+        var cut = Render<Singers>();
 
         cut.WaitForAssertion(() => Api.Verify(client => client.GetSingersAsync(), Times.Once));
         Assert.Contains("Singers", cut.Markup);
@@ -49,7 +49,7 @@ public sealed class AdminCatalogPageTests : AuthPageTestContext
     {
         Api.Setup(client => client.GetVenuesAsync()).ReturnsAsync([]);
 
-        var cut = RenderComponent<Venues>();
+        var cut = Render<Venues>();
 
         cut.WaitForAssertion(() => Api.Verify(client => client.GetVenuesAsync(), Times.Once));
         Assert.Contains("Venues", cut.Markup);
@@ -61,7 +61,7 @@ public sealed class AdminCatalogPageTests : AuthPageTestContext
         Api.Setup(client => client.GetGenresAsync()).ReturnsAsync([]);
         Api.Setup(client => client.GetArtistsAsync()).ReturnsAsync([]);
 
-        var cut = RenderComponent<Artists>();
+        var cut = Render<Artists>();
 
         cut.WaitForAssertion(() =>
         {
@@ -78,7 +78,7 @@ public sealed class AdminCatalogPageTests : AuthPageTestContext
         Api.Setup(client => client.GetGenresAsync()).ReturnsAsync([]);
         Api.Setup(client => client.GetSongsAsync()).ReturnsAsync([]);
 
-        var cut = RenderComponent<Songs>();
+        var cut = Render<Songs>();
 
         cut.WaitForAssertion(() =>
         {
@@ -102,7 +102,7 @@ public sealed class AdminCatalogPageTests : AuthPageTestContext
         Api.Setup(client => client.GetPerformancesAsync(null))
             .ReturnsAsync([]);
 
-        var cut = RenderComponent<Performances>();
+        var cut = Render<Performances>();
 
         cut.WaitForAssertion(() =>
         {

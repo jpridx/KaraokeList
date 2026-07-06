@@ -20,7 +20,7 @@ public sealed class LogSongPickerPanelTests : BunitTestContext
     [Fact]
     public void Renders_song_hint_from_parameter_not_literal()
     {
-        var cut = RenderComponent<LogSongPickerPanel>(parameters => parameters
+        var cut = Render<LogSongPickerPanel>(parameters => parameters
             .Add(p => p.Items, Array.Empty<LogSongPickItem>())
             .Add(p => p.SelectedSongId, 1)
             .Add(p => p.SongHint, "You've sung this 3 times.")
@@ -37,7 +37,7 @@ public sealed class LogSongPickerPanelTests : BunitTestContext
         int? parentSongId = null;
         var afterCalled = false;
 
-        var cut = RenderComponent<LogSongPickerPanel>(parameters => parameters
+        var cut = Render<LogSongPickerPanel>(parameters => parameters
             .Add(p => p.Items,
             [
                 new LogSongPickItem(42, "Jeopardy", "The Greg Kihn Band", true, false)

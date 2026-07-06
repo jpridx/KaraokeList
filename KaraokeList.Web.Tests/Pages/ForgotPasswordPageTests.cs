@@ -15,7 +15,7 @@ public sealed class ForgotPasswordPageTests : AuthPageTestContext
         Api.Setup(client => client.GetRegistrationInfoAsync())
             .ReturnsAsync(new RegistrationInfoDto { IsPasswordRecoveryAllowed = true });
 
-        var cut = RenderComponent<ForgotPassword>();
+        var cut = Render<ForgotPassword>();
 
         cut.WaitForAssertion(() =>
         {
@@ -32,7 +32,7 @@ public sealed class ForgotPasswordPageTests : AuthPageTestContext
         Api.Setup(client => client.ForgotPasswordAsync(It.IsAny<ForgotPasswordRequest>()))
             .ReturnsAsync(PasswordRecoveryResult.Ok());
 
-        var cut = RenderComponent<ForgotPassword>();
+        var cut = Render<ForgotPassword>();
         cut.Find("input.form-control").Change("user@example.com");
         cut.Find("button[type=submit]").Click();
 

@@ -15,7 +15,7 @@ public sealed class HostMessagePanelTests : TestContext
     [Fact]
     public void Renders_formatted_message_without_key_picker()
     {
-        var cut = RenderComponent<HostMessagePanel>(parameters => parameters
+        var cut = Render<HostMessagePanel>(parameters => parameters
             .Add(p => p.Title, "Footloose")
             .Add(p => p.ArtistName, "Kenny Loggins")
             .Add(p => p.KeyChangeSemitones, 2)
@@ -28,7 +28,7 @@ public sealed class HostMessagePanelTests : TestContext
     [Fact]
     public void Disables_copy_button_when_title_is_blank()
     {
-        var cut = RenderComponent<HostMessagePanel>(parameters => parameters
+        var cut = Render<HostMessagePanel>(parameters => parameters
             .Add(p => p.ShowKeyPicker, false));
 
         var button = cut.Find("button");
@@ -40,7 +40,7 @@ public sealed class HostMessagePanelTests : TestContext
     {
         JSInterop.SetupVoid("copyTextToClipboard", "Footloose - Kenny Loggins");
 
-        var cut = RenderComponent<HostMessagePanel>(parameters => parameters
+        var cut = Render<HostMessagePanel>(parameters => parameters
             .Add(p => p.Title, "Footloose")
             .Add(p => p.ArtistName, "Kenny Loggins")
             .Add(p => p.ShowKeyPicker, false));
@@ -53,7 +53,7 @@ public sealed class HostMessagePanelTests : TestContext
     [Fact]
     public void Renders_co_performer_names_in_message()
     {
-        var cut = RenderComponent<HostMessagePanel>(parameters => parameters
+        var cut = Render<HostMessagePanel>(parameters => parameters
             .Add(p => p.Title, "Islands in the Stream")
             .Add(p => p.ArtistName, "Kenny Rogers")
             .Add(p => p.ShowKeyPicker, false)

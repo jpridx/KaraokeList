@@ -42,7 +42,7 @@ public sealed class MyStatsPageTests : AuthPageTestContext
                 NewRepertoireDays = 30
             }));
 
-        var cut = RenderComponent<KaraokeList.Web.Pages.MyStats>();
+        var cut = Render<KaraokeList.Web.Pages.MyStats>();
 
         cut.WaitForAssertion(() =>
         {

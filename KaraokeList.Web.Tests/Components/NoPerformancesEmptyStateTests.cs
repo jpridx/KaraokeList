@@ -8,7 +8,7 @@ public sealed class NoPerformancesEmptyStateTests : BunitTestContext
     [Fact]
     public void Renders_default_log_action()
     {
-        var cut = RenderComponent<NoPerformancesEmptyState>();
+        var cut = Render<NoPerformancesEmptyState>();
 
         Assert.Contains("No performances logged yet.", cut.Markup);
         Assert.Contains("Log a performance", cut.Markup);
@@ -18,7 +18,7 @@ public sealed class NoPerformancesEmptyStateTests : BunitTestContext
     [Fact]
     public void Renders_custom_action_text()
     {
-        var cut = RenderComponent<NoPerformancesEmptyState>(parameters => parameters
+        var cut = Render<NoPerformancesEmptyState>(parameters => parameters
             .Add(p => p.ActionText, "Log your first song"));
 
         Assert.Contains("Log your first song", cut.Markup);

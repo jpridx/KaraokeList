@@ -26,7 +26,7 @@ public sealed class InviteFriendsPageTests : AuthPageTestContext
                 UnavailableReason = "Registration does not require an invite code."
             });
 
-        var cut = RenderComponent<InviteFriends>();
+        var cut = Render<InviteFriends>();
 
         cut.WaitForAssertion(() =>
             Assert.Contains("Registration does not require an invite code.", cut.Markup));
@@ -42,7 +42,7 @@ public sealed class InviteFriendsPageTests : AuthPageTestContext
                 InviteCode = "secret-code"
             });
 
-        var cut = RenderComponent<InviteFriends>();
+        var cut = Render<InviteFriends>();
 
         cut.WaitForAssertion(() =>
         {
@@ -63,7 +63,7 @@ public sealed class InviteFriendsPageTests : AuthPageTestContext
                 InviteCode = "abc"
             });
 
-        var cut = RenderComponent<InviteFriends>();
+        var cut = Render<InviteFriends>();
 
         cut.WaitForAssertion(() => Assert.True(cut.FindAll("button").Count >= 2));
         var expectedMessage = InviteShareFormatting.BuildShareMessage(

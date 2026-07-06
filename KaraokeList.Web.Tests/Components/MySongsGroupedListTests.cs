@@ -19,7 +19,7 @@ public sealed class MySongsGroupedListTests : BunitTestContext
         var paging = new GroupedPagingState();
         var view = paging.BuildVisible(songs);
 
-        var cut = RenderComponent<MySongsGroupedList>(parameters => parameters
+        var cut = Render<MySongsGroupedList>(parameters => parameters
             .Add(p => p.PagingView, view)
             .Add(p => p.TotalCount, songs.Count)
             .Add(p => p.OnLoadMore, EventCallback.Factory.Create(this, () => { }))

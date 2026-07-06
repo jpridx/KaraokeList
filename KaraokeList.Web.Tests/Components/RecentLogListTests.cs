@@ -19,7 +19,7 @@ public sealed class RecentLogListTests : BunitTestContext
     [Fact]
     public void Renders_nothing_when_items_empty()
     {
-        var cut = RenderComponent<RecentLogList>(parameters => parameters
+        var cut = Render<RecentLogList>(parameters => parameters
             .Add(p => p.Items, Array.Empty<RecentLoggedPerformance>())
             .Add(p => p.Heading, "Recently logged"));
 
@@ -29,7 +29,7 @@ public sealed class RecentLogListTests : BunitTestContext
     [Fact]
     public void Link_mode_renders_anchor_with_song_id()
     {
-        var cut = RenderComponent<RecentLogList>(parameters => parameters
+        var cut = Render<RecentLogList>(parameters => parameters
             .Add(p => p.Items, new[] { SampleEntry })
             .Add(p => p.Heading, "Recently logged")
             .Add(p => p.UseLinks, true)
@@ -45,7 +45,7 @@ public sealed class RecentLogListTests : BunitTestContext
     public void Button_mode_invokes_selection_callback()
     {
         var selectedId = 0;
-        var cut = RenderComponent<RecentLogList>(parameters => parameters
+        var cut = Render<RecentLogList>(parameters => parameters
             .Add(p => p.Items, new[] { SampleEntry })
             .Add(p => p.OnItemSelected, EventCallback.Factory.Create<int>(this, id => selectedId = id)));
 
@@ -61,7 +61,7 @@ public sealed class RecentLogListTests : BunitTestContext
             .Select(i => SampleEntry with { SongId = i })
             .ToList();
 
-        var cut = RenderComponent<RecentLogList>(parameters => parameters
+        var cut = Render<RecentLogList>(parameters => parameters
             .Add(p => p.Items, items)
             .Add(p => p.MaxItems, 2));
 

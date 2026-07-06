@@ -14,7 +14,7 @@ public sealed class InviteSharePanelTests : AuthPageTestContext
     [Fact]
     public void Full_layout_renders_copy_actions()
     {
-        var cut = RenderComponent<InviteSharePanel>(parameters => parameters
+        var cut = Render<InviteSharePanel>(parameters => parameters
             .Add(p => p.Layout, InviteSharePanelLayout.Full)
             .Add(p => p.RegisterUrl, "https://example.com/register?invite=abc")
             .Add(p => p.ShareMessage, "Join me at KaraokeList"));
@@ -27,7 +27,7 @@ public sealed class InviteSharePanelTests : AuthPageTestContext
     [Fact]
     public void Banner_layout_renders_link_and_invite_page()
     {
-        var cut = RenderComponent<InviteSharePanel>(parameters => parameters
+        var cut = Render<InviteSharePanel>(parameters => parameters
             .Add(p => p.Layout, InviteSharePanelLayout.Banner)
             .Add(p => p.RegisterUrl, "https://example.com/register?invite=abc")
             .Add(p => p.ShareMessage, "Join me"));

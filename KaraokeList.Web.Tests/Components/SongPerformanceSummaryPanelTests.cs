@@ -9,7 +9,7 @@ public sealed class SongPerformanceSummaryPanelTests : BunitTestContext
     [Fact]
     public void Mobile_layout_shows_times_sung()
     {
-        var cut = RenderComponent<SongPerformanceSummaryPanel>(parameters => parameters
+        var cut = Render<SongPerformanceSummaryPanel>(parameters => parameters
             .Add(p => p.Summary, new SongPerformanceSummaryDto
             {
                 PerformanceCount = 2,
@@ -27,7 +27,7 @@ public sealed class SongPerformanceSummaryPanelTests : BunitTestContext
     [Fact]
     public void Admin_layout_shows_empty_message_when_never_performed()
     {
-        var cut = RenderComponent<SongPerformanceSummaryPanel>(parameters => parameters
+        var cut = Render<SongPerformanceSummaryPanel>(parameters => parameters
             .Add(p => p.Summary, new SongPerformanceSummaryDto { PerformanceCount = 0 })
             .Add(p => p.Layout, SongPerformanceSummaryLayout.Admin)
             .Add(p => p.CssClass, string.Empty));

@@ -8,7 +8,7 @@ public sealed class MobileLoadingStateTests : BunitTestContext
     [Fact]
     public void Shows_loading_message_when_loading()
     {
-        var cut = RenderComponent<MobileLoadingState>(parameters => parameters
+        var cut = Render<MobileLoadingState>(parameters => parameters
             .Add(p => p.IsLoading, true)
             .Add(p => p.Message, "Loading stats…"));
 
@@ -19,7 +19,7 @@ public sealed class MobileLoadingStateTests : BunitTestContext
     [Fact]
     public void Renders_child_content_when_not_loading()
     {
-        var cut = RenderComponent<MobileLoadingState>(parameters => parameters
+        var cut = Render<MobileLoadingState>(parameters => parameters
             .Add(p => p.IsLoading, false)
             .Add(p => p.ChildContent, builder => builder.AddMarkupContent(0, "<p>Ready</p>")));
 
@@ -30,7 +30,7 @@ public sealed class MobileLoadingStateTests : BunitTestContext
     [Fact]
     public void Uses_custom_css_class_for_loading_message()
     {
-        var cut = RenderComponent<MobileLoadingState>(parameters => parameters
+        var cut = Render<MobileLoadingState>(parameters => parameters
             .Add(p => p.IsLoading, true)
             .Add(p => p.CssClass, "custom-loading"));
 

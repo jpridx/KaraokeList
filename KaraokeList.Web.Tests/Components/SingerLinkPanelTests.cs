@@ -18,7 +18,7 @@ public sealed class SingerLinkPanelTests : BunitTestContext
 
     public SingerLinkPanelTests()
     {
-        this.AddTestAuthorization();
+        this.AddAuthorization();
     }
 
     protected override void ConfigureServices(IServiceCollection services)
@@ -31,7 +31,7 @@ public sealed class SingerLinkPanelTests : BunitTestContext
 
     private IRenderedComponent<SingerLinkPanel> RenderPanel(
         Action<ComponentParameterCollectionBuilder<SingerLinkPanel>> configure) =>
-        RenderComponent<SingerLinkPanel>(configure);
+        Render<SingerLinkPanel>(configure);
 
     [Fact]
     public void Renders_nothing_when_not_visible()

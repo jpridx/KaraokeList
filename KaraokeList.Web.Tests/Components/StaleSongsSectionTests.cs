@@ -25,7 +25,7 @@ public sealed class StaleSongsSectionTests : BunitTestContext
                 Songs = []
             }));
 
-        var cut = RenderComponent<StaleSongsSection>();
+        var cut = Render<StaleSongsSection>();
 
         cut.WaitForAssertion(() =>
             Assert.DoesNotContain("Haven't sung in a while", cut.Markup));
@@ -53,7 +53,7 @@ public sealed class StaleSongsSectionTests : BunitTestContext
                 ]
             }));
 
-        var cut = RenderComponent<StaleSongsSection>();
+        var cut = Render<StaleSongsSection>();
 
         var expectedDays = PerformanceRelativeDate.FormatDaysSince(
             PerformanceRelativeDate.DaysSince(lastOn, DateTime.Today) ?? 0);
@@ -89,7 +89,7 @@ public sealed class StaleSongsSectionTests : BunitTestContext
                 ]
             }));
 
-        var cut = RenderComponent<StaleSongsSection>();
+        var cut = Render<StaleSongsSection>();
 
         cut.WaitForAssertion(() =>
         {
@@ -120,7 +120,7 @@ public sealed class StaleSongsSectionTests : BunitTestContext
                 ]
             }, cachedAt));
 
-        var cut = RenderComponent<StaleSongsSection>();
+        var cut = Render<StaleSongsSection>();
 
         cut.WaitForAssertion(() =>
         {
@@ -135,7 +135,7 @@ public sealed class StaleSongsSectionTests : BunitTestContext
         loader.Setup(l => l.LoadAsync())
             .ReturnsAsync(StaleSongsLoadResult.Failed("API unreachable."));
 
-        var cut = RenderComponent<StaleSongsSection>();
+        var cut = Render<StaleSongsSection>();
 
         cut.WaitForAssertion(() =>
             Assert.DoesNotContain("Haven't sung in a while", cut.Markup));
