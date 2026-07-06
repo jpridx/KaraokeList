@@ -8,7 +8,7 @@
 <h3>About KaraokeList</h3>
 
 <p><strong>Web version:</strong> @WebVersion</p>
-<p><strong>API version:</strong> @(ApiInfo?.ApiVersion ?? "loading...")</p>
+<p><strong>API version:</strong> @(FormatVersion(ApiInfo?.InformationalVersion ?? ApiInfo?.ApiVersion) ?? "loading...")</p>
 <p><strong>Database migration:</strong> @(ApiInfo?.LatestMigration ?? "loading...")</p>
 
 @if (ApiInfo is not null)
@@ -28,11 +28,21 @@
     private AppVersionDto? ApiInfo;
 
     private string WebVersion =>
-        Assembly.GetExecutingAssembly()
-            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
-            .InformationalVersion
-        ?? Assembly.GetExecutingAssembly().GetName().Version?.ToString()
+        FormatVersion(
+            Assembly.GetExecutingAssembly()
+                .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
+                .InformationalVersion
+            ?? Assembly.GetExecutingAssembly().GetName().Version?.ToString())
         ?? "unknown";
+
+    /// Shortens "1.1.0+abc1234567890..." to "1.1.0+abc1234" (7-char SHA).
+    private static string? FormatVersion(string? version)
+    {
+        if (version is null) return null;
+        var plus = version.IndexOf('+');
+        if (plus < 0 || plus + 8 > version.Length) return version;
+        return version[..(plus + 8)];
+    }
 
     protected override async Task OnInitializedAsync()
     {

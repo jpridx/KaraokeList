@@ -109,7 +109,11 @@ jobs:
           echo "api_base_url=${API_BASE_URL}" >> "$GITHUB_OUTPUT"
 
       - name: Publish API
-        run: dotnet publish KaraokeList.Api/KaraokeList.Api.csproj -c Release -o ./publish/api
+        run: |
+          dotnet publish KaraokeList.Api/KaraokeList.Api.csproj \
+            -c Release \
+            -o ./publish/api \
+            /p:SourceRevisionId=${{ github.sha }}
 
       - name: Configure API startup
         run: |
@@ -245,7 +249,8 @@ jobs:
           dotnet publish KaraokeList.Web/KaraokeList.Web.csproj \
             -c Release \
             -o ./publish/web \
-            /p:SyncfusionKey="${SYNCFUSION_KEY}"
+            /p:SyncfusionKey="${SYNCFUSION_KEY}" \
+            /p:SourceRevisionId=${{ github.sha }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
