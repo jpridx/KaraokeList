@@ -21,6 +21,32 @@ env:
   WASM_PUBLIC_ORIGIN: https://karaoke.johnprideaux.net
 
 jobs:
+  # ── Detect what changed ──────────────────────────────────────────────────────
+  # deploy-api and deploy-wasm each skip unless their paths are touched.
+  # On workflow_dispatch there is no diff, so both deploy jobs fall back to
+  # their own `github.event_name == 'workflow_dispatch'` guard instead.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      api: ${{ steps.filter.outputs.api }}
+      wasm: ${{ steps.filter.outputs.wasm }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            api:
+              - 'KaraokeList.Api/**'
+              - 'KaraokeList.Shared/**'
+              - '.github/workflows/deploy-azure.yml'
+            wasm:
+              - 'KaraokeList.Web/**'
+              - 'KaraokeList.Shared/**'
+              - '.github/workflows/deploy-azure.yml'
+
+  # ── Build + test gate ────────────────────────────────────────────────────────
+  # Runs unconditionally — never skip tests before a deploy.
   test:
     runs-on: ubuntu-latest
     steps:
@@ -47,8 +73,12 @@ jobs:
       - name: Integration tests (API)
         run: dotnet test KaraokeList.Api.IntegrationTests/KaraokeList.Api.IntegrationTests.csproj -c Release --no-build --verbosity minimal
 
-  deploy:
-    needs: test
+  # ── Deploy API ───────────────────────────────────────────────────────────────
+  # Runs only when KaraokeList.Api/**, KaraokeList.Shared/**, or this workflow
+  # file changed — or when triggered manually.
+  deploy-api:
+    needs: [test, changes]
+    if: needs.changes.outputs.api == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment: production
 
@@ -74,10 +104,8 @@ jobs:
         id: azure
         run: |
           API_APP_NAME="api-${AZURE_BASE_NAME}"
-          STATIC_WEB_APP_NAME="stapp-${AZURE_BASE_NAME}"
           API_BASE_URL="https://${API_APP_NAME}.azurewebsites.net"
           echo "api_app_name=${API_APP_NAME}" >> "$GITHUB_OUTPUT"
-          echo "static_web_app_name=${STATIC_WEB_APP_NAME}" >> "$GITHUB_OUTPUT"
           echo "api_base_url=${API_BASE_URL}" >> "$GITHUB_OUTPUT"
 
       - name: Publish API
@@ -118,6 +146,82 @@ jobs:
             --resource-group "${AZURE_RESOURCE_GROUP}" \
             --name "${{ steps.azure.outputs.api_app_name }}" \
             --query linuxFxVersion -o tsv)"
+
+      - name: Sync API CORS with public WASM origin
+        run: |
+          WASM_ORIGIN="${WASM_PUBLIC_ORIGIN%/}"
+          az webapp config appsettings set \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --name "${{ steps.azure.outputs.api_app_name }}" \
+            --settings "Cors__Origins__0=${WASM_ORIGIN}" \
+            --output none
+          az webapp restart \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --name "${{ steps.azure.outputs.api_app_name }}"
+          echo "CORS set to ${WASM_ORIGIN} (API restarted)"
+
+      - name: Smoke test API
+        run: |
+          API_URL="${{ steps.azure.outputs.api_base_url }}"
+          echo "Waiting for API cold start (EF migrations + Azure SQL wake-up can take several minutes)..."
+          for attempt in $(seq 1 40); do
+            ME_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 180 "${API_URL}/api/auth/me" || echo "000")
+            REG_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 180 "${API_URL}/api/auth/registration" || echo "000")
+            if [ "$ME_STATUS" = "401" ] || [ "$REG_STATUS" = "200" ]; then
+              echo "API smoke test passed on attempt ${attempt} (me=${ME_STATUS}, registration=${REG_STATUS})."
+              exit 0
+            fi
+            ROOT_SNIPPET=$(curl -s --max-time 30 "${API_URL}/" | tr -d '\n' | head -c 120)
+            echo "Attempt ${attempt}/40: me=${ME_STATUS}, registration=${REG_STATUS}"
+            echo "Root snippet: ${ROOT_SNIPPET}"
+            sleep 15
+          done
+          echo "API not healthy after ~10 minutes. Check: az webapp log startup show -n ${{ steps.azure.outputs.api_app_name }} -g ${AZURE_RESOURCE_GROUP}"
+          exit 1
+
+      - name: Deployment summary
+        run: |
+          {
+            echo "## API deployed"
+            echo ""
+            echo "| Resource | URL |"
+            echo "|----------|-----|"
+            echo "| API | ${{ steps.azure.outputs.api_base_url }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ── Deploy WASM ──────────────────────────────────────────────────────────────
+  # Runs only when KaraokeList.Web/**, KaraokeList.Shared/**, or this workflow
+  # file changed — or when triggered manually.
+  deploy-wasm:
+    needs: [test, changes]
+    if: needs.changes.outputs.wasm == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Resolve Azure resource names
+        id: azure
+        run: |
+          API_APP_NAME="api-${AZURE_BASE_NAME}"
+          STATIC_WEB_APP_NAME="stapp-${AZURE_BASE_NAME}"
+          API_BASE_URL="https://${API_APP_NAME}.azurewebsites.net"
+          echo "static_web_app_name=${STATIC_WEB_APP_NAME}" >> "$GITHUB_OUTPUT"
+          echo "api_base_url=${API_BASE_URL}" >> "$GITHUB_OUTPUT"
 
       - name: Patch WASM ApiBaseUrl for publish
         env:
@@ -161,43 +265,9 @@ jobs:
             --deployment-token "${SWA_TOKEN}" \
             --env production
 
-      - name: Sync API CORS with public WASM origin
-        id: cors
-        run: |
-          WASM_ORIGIN="${WASM_PUBLIC_ORIGIN%/}"
-          az webapp config appsettings set \
-            --resource-group "${AZURE_RESOURCE_GROUP}" \
-            --name "${{ steps.azure.outputs.api_app_name }}" \
-            --settings "Cors__Origins__0=${WASM_ORIGIN}" \
-            --output none
-          az webapp restart \
-            --resource-group "${AZURE_RESOURCE_GROUP}" \
-            --name "${{ steps.azure.outputs.api_app_name }}"
-          echo "wasm_origin=${WASM_ORIGIN}" >> "$GITHUB_OUTPUT"
-          echo "CORS set to ${WASM_ORIGIN} (API restarted)"
-
-      - name: Smoke test API
-        run: |
-          API_URL="${{ steps.azure.outputs.api_base_url }}"
-          echo "Waiting for API cold start (EF migrations + Azure SQL wake-up can take several minutes)..."
-          for attempt in $(seq 1 40); do
-            ME_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 180 "${API_URL}/api/auth/me" || echo "000")
-            REG_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 180 "${API_URL}/api/auth/registration" || echo "000")
-            if [ "$ME_STATUS" = "401" ] || [ "$REG_STATUS" = "200" ]; then
-              echo "API smoke test passed on attempt ${attempt} (me=${ME_STATUS}, registration=${REG_STATUS})."
-              exit 0
-            fi
-            ROOT_SNIPPET=$(curl -s --max-time 30 "${API_URL}/" | tr -d '\n' | head -c 120)
-            echo "Attempt ${attempt}/40: me=${ME_STATUS}, registration=${REG_STATUS}"
-            echo "Root snippet: ${ROOT_SNIPPET}"
-            sleep 15
-          done
-          echo "API not healthy after ~10 minutes. Check: az webapp log startup show -n ${{ steps.azure.outputs.api_app_name }} -g ${AZURE_RESOURCE_GROUP}"
-          exit 1
-
       - name: Smoke test WASM
         run: |
-          WASM_URL="${{ steps.cors.outputs.wasm_origin }}"
+          WASM_URL="${WASM_PUBLIC_ORIGIN%/}"
           for attempt in 1 2 3 4 5; do
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${WASM_URL}/")
             if [ "$STATUS" = "200" ]; then
@@ -213,13 +283,12 @@ jobs:
       - name: Deployment summary
         run: |
           {
-            echo "## Deploy Azure — success"
+            echo "## WASM deployed"
             echo ""
             echo "| Resource | URL |"
             echo "|----------|-----|"
-            echo "| WASM | ${{ steps.cors.outputs.wasm_origin }} |"
-            echo "| API | ${{ steps.azure.outputs.api_base_url }} |"
-            echo "| Register | ${{ steps.cors.outputs.wasm_origin }}/register?invite=YOUR_CODE |"
+            echo "| WASM | ${WASM_PUBLIC_ORIGIN%/} |"
+            echo "| Register | ${WASM_PUBLIC_ORIGIN%/}/register?invite=YOUR_CODE |"
             echo ""
             echo "EF migrations run on first API startup. Seed catalog if needed (\`scripts/seed-catalog.sql\`)."
           } >> "$GITHUB_STEP_SUMMARY"
