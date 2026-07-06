@@ -70,7 +70,41 @@ public partial class Log
         loadingStep = null;
         saveError = null;
 
-        catalogState.Apply(await CatalogLoader.LoadAsync(step => { loadingStep = step; StateHasChanged(); }));
+        var loadTask = CatalogLoader.LoadAsync(step => { loadingStep = step; StateHasChanged(); });
+
+        if (await Task.WhenAny(loadTask, Task.Delay(ApiSlowRequestNotifier.PageLoadTimeout)) != loadTask)
+        {
+            // API is slow (DB waking up) — stop blocking the UI.
+            // Show whatever is in the cache (may be empty on a first visit).
+            var cached = await CatalogLoader.TryGetCachedAsync();
+            catalogState.Apply(cached ?? new LogCatalogSnapshot([], [], [], FromCache: true, HasCatalog: false, null));
+            recentLogs = await LogStore.GetRecentLogsAsync();
+            loadingStep = null;
+            isLoading = false;
+            StateHasChanged();
+
+            // Auto-update when the DB eventually wakes and the load completes.
+            _ = loadTask.ContinueWith(async t =>
+            {
+                if (t.IsCompletedSuccessfully)
+                {
+                    catalogState.Apply(t.Result);
+                    catalogState.MarkOnline();
+
+                    if (!catalogState.UsingOfflineCatalog)
+                    {
+                        var listsResult = await SingerListResolver.LoadListsAsync(Api);
+                        if (listsResult.Succeeded) singerLists = listsResult.Lists;
+                    }
+
+                    recentLogs = await LogStore.GetRecentLogsAsync();
+                    await InvokeAsync(StateHasChanged);
+                }
+            });
+            return;
+        }
+
+        catalogState.Apply(await loadTask);
 
         if (!catalogState.UsingOfflineCatalog)
         {
