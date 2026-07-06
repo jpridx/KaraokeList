@@ -33,7 +33,7 @@ public sealed class TonightDashboardTests : AuthPageTestContext
             KeyChangeSemitones: null,
             LoggedAt: new DateTime(2026, 6, 27, 21, 30, 0)));
 
-        var cut = RenderComponent<TonightDashboard>();
+        var cut = Render<TonightDashboard>();
         cut.WaitForAssertion(() => Assert.Contains("Recently logged", cut.Markup));
 
         Assert.Contains(performedOn.ToString("d"), cut.Markup);

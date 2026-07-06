@@ -16,7 +16,7 @@ public sealed class SingerGatedPageTests : BunitTestContext
 
     public SingerGatedPageTests()
     {
-        this.AddTestAuthorization();
+        this.AddAuthorization();
         JSInterop.Mode = JSRuntimeMode.Loose;
     }
 
@@ -36,7 +36,7 @@ public sealed class SingerGatedPageTests : BunitTestContext
         api.Setup(client => client.GetProfileAsync())
             .ReturnsAsync(new UserProfileDto { SingerId = 7 });
 
-        var cut = RenderComponent<SingerGatedPage>(parameters => parameters
+        var cut = Render<SingerGatedPage>(parameters => parameters
             .Add(p => p.DocumentTitle, "My Songs")
             .Add(p => p.Title, "My Songs")
             .Add(p => p.WithBottomNav, true)
@@ -60,7 +60,7 @@ public sealed class SingerGatedPageTests : BunitTestContext
         api.Setup(client => client.GetProfileAsync())
             .ReturnsAsync(new UserProfileDto { SingerId = 1 });
 
-        var cut = RenderComponent<SingerGatedPage>(parameters => parameters
+        var cut = Render<SingerGatedPage>(parameters => parameters
             .Add(p => p.DocumentTitle, "Log")
             .Add(p => p.Title, "Log performance")
             .Add(p => p.OnResolved, EventCallback.Factory.Create<int>(this, _ => { }))
@@ -77,7 +77,7 @@ public sealed class SingerGatedPageTests : BunitTestContext
         api.Setup(client => client.GetProfileAsync())
             .ReturnsAsync(new UserProfileDto { SingerId = 9 });
 
-        var cut = RenderComponent<SingerGatedPage>(parameters => parameters
+        var cut = Render<SingerGatedPage>(parameters => parameters
             .Add(p => p.DocumentTitle, "My Songs")
             .Add(p => p.Title, "My Songs")
             .Add(p => p.OnResolved, EventCallback.Factory.Create<int>(this, _ => { }))

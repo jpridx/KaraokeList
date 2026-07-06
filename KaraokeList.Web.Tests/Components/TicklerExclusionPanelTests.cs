@@ -14,7 +14,7 @@ public sealed class TicklerExclusionPanelTests : AuthPageTestContext
         Api.Setup(client => client.GetSongTicklerExclusionAsync(42))
             .ReturnsAsync(SongTicklerExclusionResult.Ok(new SongTicklerExclusionDto { Excluded = false }));
 
-        var cut = RenderComponent<TicklerExclusionPanel>(parameters => parameters
+        var cut = Render<TicklerExclusionPanel>(parameters => parameters
             .Add(p => p.SongId, 42));
 
         cut.WaitForAssertion(() =>
@@ -34,7 +34,7 @@ public sealed class TicklerExclusionPanelTests : AuthPageTestContext
                 Reason = "too hard"
             }));
 
-        var cut = RenderComponent<TicklerExclusionPanel>(parameters => parameters
+        var cut = Render<TicklerExclusionPanel>(parameters => parameters
             .Add(p => p.SongId, 7));
 
         cut.WaitForAssertion(() =>

@@ -64,7 +64,7 @@ public sealed class LogPageTests : AuthPageTestContext
         var nav = Services.GetRequiredService<NavigationManager>();
         nav.NavigateTo("/log?songId=42");
 
-        var cut = RenderComponent<Log>();
+        var cut = Render<Log>();
 
         cut.WaitForAssertion(() =>
         {

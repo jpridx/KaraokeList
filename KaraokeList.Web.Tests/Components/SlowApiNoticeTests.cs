@@ -16,7 +16,7 @@ public sealed class SlowApiNoticeTests : AuthPageTestContext
     [Fact]
     public void Hidden_when_no_slow_requests()
     {
-        var cut = RenderComponent<SlowApiNotice>();
+        var cut = Render<SlowApiNotice>();
 
         Assert.DoesNotContain(ApiTransientFailure.ColdStartInProgressMessage, cut.Markup);
     }
@@ -26,7 +26,7 @@ public sealed class SlowApiNoticeTests : AuthPageTestContext
     {
         var notifier = Services.GetRequiredService<ApiSlowRequestNotifier>();
         var tracker = notifier.TrackRequest();
-        var cut = RenderComponent<SlowApiNotice>();
+        var cut = Render<SlowApiNotice>();
 
         tracker.MarkSlow();
         cut.Render();

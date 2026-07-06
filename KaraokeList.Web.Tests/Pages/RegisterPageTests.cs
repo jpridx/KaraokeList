@@ -14,7 +14,7 @@ public sealed class RegisterPageTests : AuthPageTestContext
     {
         Api.Setup(client => client.GetRegistrationInfoAsync()).ReturnsAsync((RegistrationInfoDto?)null);
 
-        var cut = RenderComponent<Register>();
+        var cut = Render<Register>();
 
         cut.WaitForAssertion(() =>
             Assert.Contains("Could not load registration settings", cut.Markup));
@@ -26,7 +26,7 @@ public sealed class RegisterPageTests : AuthPageTestContext
         Api.Setup(client => client.GetRegistrationInfoAsync())
             .ReturnsAsync(new RegistrationInfoDto { IsRegistrationOpen = false });
 
-        var cut = RenderComponent<Register>();
+        var cut = Render<Register>();
 
         cut.WaitForAssertion(() =>
             Assert.Contains("Registration closed", cut.Markup));
@@ -42,7 +42,7 @@ public sealed class RegisterPageTests : AuthPageTestContext
                 RequiresInviteCode = true
             });
 
-        var cut = RenderComponent<Register>();
+        var cut = Render<Register>();
 
         cut.WaitForAssertion(() =>
         {
@@ -58,7 +58,7 @@ public sealed class RegisterPageTests : AuthPageTestContext
         Api.Setup(client => client.RegisterAsync(It.IsAny<RegisterRequest>()))
             .ReturnsAsync(AuthResult.Fail("Invalid invite code."));
 
-        var cut = RenderComponent<Register>();
+        var cut = Render<Register>();
         WaitForForm(cut);
         SubmitRegistration(cut, requiresInvite: false);
 
@@ -76,7 +76,7 @@ public sealed class RegisterPageTests : AuthPageTestContext
         Api.Setup(client => client.RegisterAsync(It.IsAny<RegisterRequest>()))
             .ReturnsAsync(AuthResult.Fail(ApiTransientFailure.ColdStartMessage, transient: true));
 
-        var cut = RenderComponent<Register>();
+        var cut = Render<Register>();
         WaitForForm(cut);
         SubmitRegistration(cut, requiresInvite: false);
 
@@ -101,7 +101,7 @@ public sealed class RegisterPageTests : AuthPageTestContext
                 ExpiresUtc = DateTime.UtcNow.AddHours(1)
             }));
 
-        var cut = RenderComponent<Register>();
+        var cut = Render<Register>();
         WaitForForm(cut);
         SubmitRegistration(cut, requiresInvite: false);
 

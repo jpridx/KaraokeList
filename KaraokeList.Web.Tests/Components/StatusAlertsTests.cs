@@ -8,7 +8,7 @@ public sealed class StatusAlertsTests : BunitTestContext
     [Fact]
     public void Renders_success_alert()
     {
-        var cut = RenderComponent<StatusAlerts>(parameters => parameters
+        var cut = Render<StatusAlerts>(parameters => parameters
             .Add(p => p.SuccessMessage, "Saved."));
 
         Assert.Contains("alert-success", cut.Markup);
@@ -19,7 +19,7 @@ public sealed class StatusAlertsTests : BunitTestContext
     [Fact]
     public void Renders_error_alert()
     {
-        var cut = RenderComponent<StatusAlerts>(parameters => parameters
+        var cut = Render<StatusAlerts>(parameters => parameters
             .Add(p => p.ErrorMessage, "Could not load."));
 
         Assert.Contains("alert-danger", cut.Markup);
@@ -30,7 +30,7 @@ public sealed class StatusAlertsTests : BunitTestContext
     [Fact]
     public void Renders_inline_error_when_requested()
     {
-        var cut = RenderComponent<StatusAlerts>(parameters => parameters
+        var cut = Render<StatusAlerts>(parameters => parameters
             .Add(p => p.ErrorMessage, "Network error")
             .Add(p => p.InlineError, true)
             .Add(p => p.Small, true));
@@ -43,7 +43,7 @@ public sealed class StatusAlertsTests : BunitTestContext
     [Fact]
     public void Renders_warning_alert()
     {
-        var cut = RenderComponent<StatusAlerts>(parameters => parameters
+        var cut = Render<StatusAlerts>(parameters => parameters
             .Add(p => p.WarningMessage, "Using cached data."));
 
         Assert.Contains("alert-warning", cut.Markup);
@@ -53,7 +53,7 @@ public sealed class StatusAlertsTests : BunitTestContext
     [Fact]
     public void Renders_info_alert()
     {
-        var cut = RenderComponent<StatusAlerts>(parameters => parameters
+        var cut = Render<StatusAlerts>(parameters => parameters
             .Add(p => p.InfoMessage, "Invite sharing is not available right now."));
 
         Assert.Contains("alert-info", cut.Markup);
@@ -63,7 +63,7 @@ public sealed class StatusAlertsTests : BunitTestContext
     [Fact]
     public void Renders_nothing_when_all_messages_empty()
     {
-        var cut = RenderComponent<StatusAlerts>();
+        var cut = Render<StatusAlerts>();
 
         Assert.Empty(cut.Markup.Trim());
     }

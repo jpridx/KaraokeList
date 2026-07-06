@@ -8,7 +8,7 @@ public sealed class SongLinkListTests : BunitTestContext
     [Fact]
     public void Renders_links_for_each_item()
     {
-        var cut = RenderComponent<SongLinkList>(parameters => parameters
+        var cut = Render<SongLinkList>(parameters => parameters
             .Add(p => p.Items, new[]
             {
                 new SongLinkItem(1, "Jeopardy — The Greg Kihn Band", "Never performed")

@@ -20,7 +20,7 @@ public sealed class SingerProfileGateTests : BunitTestContext
 
     public SingerProfileGateTests()
     {
-        this.AddTestAuthorization();
+        this.AddAuthorization();
     }
 
     protected override void ConfigureServices(IServiceCollection services)
@@ -39,7 +39,7 @@ public sealed class SingerProfileGateTests : BunitTestContext
         api.Setup(client => client.GetProfileAsync())
             .ReturnsAsync((UserProfileDto?)null);
 
-        var cut = RenderComponent<SingerProfileGate>(parameters => parameters
+        var cut = Render<SingerProfileGate>(parameters => parameters
             .Add(p => p.OnResolved, EventCallback.Factory.Create<int>(this, _ => { })));
 
         cut.WaitForAssertion(() =>
@@ -53,7 +53,7 @@ public sealed class SingerProfileGateTests : BunitTestContext
             .ReturnsAsync(new UserProfileDto { SingerId = 9 });
 
         var resolvedId = 0;
-        var cut = RenderComponent<SingerProfileGate>(parameters => parameters
+        var cut = Render<SingerProfileGate>(parameters => parameters
             .Add(p => p.OnResolved, EventCallback.Factory.Create<int>(this, id => resolvedId = id))
             .Add(p => p.ChildContent, (RenderFragment<int>)(singerId => builder =>
                 builder.AddMarkupContent(0, $"<p>Singer {singerId}</p>"))));
@@ -77,7 +77,7 @@ public sealed class SingerProfileGateTests : BunitTestContext
             }));
 
         var resolvedIds = new List<int>();
-        var cut = RenderComponent<SingerProfileGate>(parameters => parameters
+        var cut = Render<SingerProfileGate>(parameters => parameters
             .Add(p => p.OnResolved, EventCallback.Factory.Create<int>(this, id => resolvedIds.Add(id)))
             .Add(p => p.ChildContent, (RenderFragment<int>)(singerId => builder =>
                 builder.AddMarkupContent(0, $"<p>Singer {singerId}</p>"))));
@@ -96,7 +96,7 @@ public sealed class SingerProfileGateTests : BunitTestContext
         api.Setup(client => client.GetProfileAsync())
             .ReturnsAsync(new UserProfileDto { SingerId = 9 });
 
-        var cut = RenderComponent<SingerProfileGate>(parameters => parameters
+        var cut = Render<SingerProfileGate>(parameters => parameters
             .Add(p => p.OnResolved, EventCallback.Factory.Create<int>(this, _ => { }))
             .Add(p => p.ChildContent, (RenderFragment<int>)(singerId => builder =>
                 builder.AddMarkupContent(0, $"<p>Singer {singerId}</p>"))));

@@ -8,7 +8,7 @@ public sealed class MobileBackLinkTests : BunitTestContext
     [Fact]
     public void Renders_default_back_to_more_link()
     {
-        var cut = RenderComponent<MobileBackLink>();
+        var cut = Render<MobileBackLink>();
 
         Assert.Contains("Back to More", cut.Markup);
         Assert.Contains("href=\"more\"", cut.Markup);
@@ -18,7 +18,7 @@ public sealed class MobileBackLinkTests : BunitTestContext
     [Fact]
     public void Renders_custom_href_and_text()
     {
-        var cut = RenderComponent<MobileBackLink>(parameters => parameters
+        var cut = Render<MobileBackLink>(parameters => parameters
             .Add(p => p.Href, "my-songs")
             .Add(p => p.Text, "← My Songs"));
 

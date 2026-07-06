@@ -10,7 +10,7 @@ public sealed class ChangePasswordPageTests : AuthPageTestContext
     [Fact]
     public void Renders_change_password_form()
     {
-        var cut = RenderComponent<ChangePassword>();
+        var cut = Render<ChangePassword>();
 
         Assert.Contains("Change password", cut.Markup);
         cut.Find("button[type=submit]");
@@ -22,7 +22,7 @@ public sealed class ChangePasswordPageTests : AuthPageTestContext
         Api.Setup(client => client.ChangePasswordAsync(It.IsAny<ChangePasswordRequest>()))
             .ReturnsAsync(ChangePasswordResult.Ok());
 
-        var cut = RenderComponent<ChangePassword>();
+        var cut = Render<ChangePassword>();
         SubmitForm(cut, "OldPassw0rd!23", "NewPassw0rd!99", "NewPassw0rd!99");
 
         cut.WaitForAssertion(() =>
@@ -38,7 +38,7 @@ public sealed class ChangePasswordPageTests : AuthPageTestContext
         Api.Setup(client => client.ChangePasswordAsync(It.IsAny<ChangePasswordRequest>()))
             .ReturnsAsync(ChangePasswordResult.Fail("Current password is incorrect."));
 
-        var cut = RenderComponent<ChangePassword>();
+        var cut = Render<ChangePassword>();
         SubmitForm(cut, "wrong", "NewPassw0rd!99", "NewPassw0rd!99");
 
         cut.WaitForAssertion(() =>

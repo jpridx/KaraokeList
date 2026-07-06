@@ -8,7 +8,7 @@ public sealed class MobileEmptyStateTests : BunitTestContext
     [Fact]
     public void Renders_message_and_action_link()
     {
-        var cut = RenderComponent<MobileEmptyState>(parameters => parameters
+        var cut = Render<MobileEmptyState>(parameters => parameters
             .Add(p => p.Message, "No performances logged yet.")
             .Add(p => p.ActionHref, "log")
             .Add(p => p.ActionText, "Log a performance"));
@@ -22,7 +22,7 @@ public sealed class MobileEmptyStateTests : BunitTestContext
     [Fact]
     public void Renders_child_content()
     {
-        var cut = RenderComponent<MobileEmptyState>(parameters => parameters
+        var cut = Render<MobileEmptyState>(parameters => parameters
             .Add(p => p.Message, "No songs yet.")
             .Add(p => p.ChildContent, builder => builder.AddMarkupContent(0, "<button>Add song</button>")));
 
@@ -33,7 +33,7 @@ public sealed class MobileEmptyStateTests : BunitTestContext
     [Fact]
     public void Applies_custom_container_class()
     {
-        var cut = RenderComponent<MobileEmptyState>(parameters => parameters
+        var cut = Render<MobileEmptyState>(parameters => parameters
             .Add(p => p.Message, "Empty")
             .Add(p => p.CssClass, "mobile-panel mt-3"));
 

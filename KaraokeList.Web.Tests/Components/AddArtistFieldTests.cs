@@ -21,7 +21,7 @@ public sealed class AddArtistFieldTests : BunitTestContext
     [Fact]
     public void Shows_hint_when_artist_field_empty()
     {
-        var cut = RenderComponent<AddArtistField>(parameters => parameters
+        var cut = Render<AddArtistField>(parameters => parameters
             .Add(p => p.ArtistLookups, Array.Empty<ArtistLookupDto>())
             .Add(p => p.ArtistName, string.Empty)
             .Add(p => p.ArtistNameChanged, EventCallback.Factory.Create<string>(this, _ => { }))
@@ -46,7 +46,7 @@ public sealed class AddArtistFieldTests : BunitTestContext
         api.Setup(client => client.GetArtistLookupsAsync())
             .ReturnsAsync(refreshedLookups);
 
-        var cut = RenderComponent<AddArtistField>(parameters => parameters
+        var cut = Render<AddArtistField>(parameters => parameters
             .Add(p => p.ArtistLookups, Array.Empty<ArtistLookupDto>())
             .Add(p => p.ArtistName, "New Band")
             .Add(p => p.ArtistNameChanged, EventCallback.Factory.Create<string>(this, _ => { }))

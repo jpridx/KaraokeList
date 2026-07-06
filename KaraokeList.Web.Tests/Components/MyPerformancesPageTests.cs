@@ -31,7 +31,7 @@ public sealed class MyPerformancesPageTests : AuthPageTestContext
                 }
             ]));
 
-        var cut = RenderComponent<MyPerformances>();
+        var cut = Render<MyPerformances>();
 
         cut.WaitForAssertion(() =>
         {
@@ -49,7 +49,7 @@ public sealed class MyPerformancesPageTests : AuthPageTestContext
 
         var notifier = Services.GetRequiredService<ApiSlowRequestNotifier>();
         using var tracker = notifier.TrackRequest();
-        var cut = RenderComponent<MyPerformances>();
+        var cut = Render<MyPerformances>();
 
         tracker.MarkSlow();
         cut.Render();

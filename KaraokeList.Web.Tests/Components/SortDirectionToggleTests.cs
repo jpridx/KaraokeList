@@ -10,7 +10,7 @@ public sealed class SortDirectionToggleTests : BunitTestContext
     public void Renders_label_and_invokes_click()
     {
         var clicked = false;
-        var cut = RenderComponent<SortDirectionToggle>(parameters => parameters
+        var cut = Render<SortDirectionToggle>(parameters => parameters
             .Add(p => p.Label, "↓ Newest first")
             .Add(p => p.OnClick, EventCallback.Factory.Create(this, () => clicked = true)));
 

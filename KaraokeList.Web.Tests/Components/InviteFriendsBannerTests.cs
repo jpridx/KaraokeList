@@ -27,7 +27,7 @@ public sealed class InviteFriendsBannerTests : AuthPageTestContext
         Api.Setup(client => client.GetRegistrationInfoAsync())
             .ReturnsAsync(new RegistrationInfoDto { IsRegistrationOpen = false });
 
-        var cut = RenderComponent<InviteFriendsBanner>();
+        var cut = Render<InviteFriendsBanner>();
 
         cut.WaitForAssertion(() => Assert.DoesNotContain("invite-friends-banner", cut.Markup));
     }
@@ -42,7 +42,7 @@ public sealed class InviteFriendsBannerTests : AuthPageTestContext
                 InviteCode = "secret-code"
             });
 
-        var cut = RenderComponent<InviteFriendsBanner>();
+        var cut = Render<InviteFriendsBanner>();
 
         cut.WaitForAssertion(() =>
         {
@@ -62,7 +62,7 @@ public sealed class InviteFriendsBannerTests : AuthPageTestContext
                 InviteCode = "abc"
             });
 
-        var cut = RenderComponent<InviteFriendsBanner>();
+        var cut = Render<InviteFriendsBanner>();
         var expectedUrl = InviteShareFormatting.BuildRegisterUrl(
             cut.Services.GetRequiredService<Microsoft.AspNetCore.Components.NavigationManager>().BaseUri,
             "abc");
@@ -91,7 +91,7 @@ public sealed class InviteFriendsBannerTests : AuthPageTestContext
                 RequiresInviteCode = false
             });
 
-        var cut = RenderComponent<InviteFriendsBanner>();
+        var cut = Render<InviteFriendsBanner>();
 
         cut.WaitForAssertion(() =>
         {
