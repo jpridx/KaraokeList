@@ -1,19 +1,31 @@
 @page "/about"
 @using System.Reflection
 @using KaraokeList.Shared
-@inject HttpClient Http
+@inject IKaraokeApiClient ApiClient
 
 <PageTitle>About</PageTitle>
 
 <h3>About KaraokeList</h3>
 
 <p><strong>Web version:</strong> @WebVersion</p>
-<p><strong>API version:</strong> @(ApiVersion ?? "loading...")</p>
-<p><strong>Database migration:</strong> @(LatestMigration ?? "loading...")</p>
+<p><strong>API version:</strong> @(ApiInfo?.ApiVersion ?? "loading...")</p>
+<p><strong>Database migration:</strong> @(ApiInfo?.LatestMigration ?? "loading...")</p>
+
+@if (ApiInfo is not null)
+{
+    @if (ApiInfo.DatabaseAvailable)
+    {
+        <p><strong>Songs in catalog:</strong> @ApiInfo.SongCount</p>
+        <p><strong>Cache tag:</strong> <code>@ApiInfo.CacheTag</code></p>
+    }
+    else
+    {
+        <p class="text-danger"><strong>Database:</strong> unavailable@(ApiInfo.DatabaseError is not null ? $" — {ApiInfo.DatabaseError}" : "")</p>
+    }
+}
 
 @code {
-    private string? ApiVersion;
-    private string? LatestMigration;
+    private AppVersionDto? ApiInfo;
 
     private string WebVersion =>
         Assembly.GetExecutingAssembly()
@@ -24,9 +36,6 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var info = await Http.GetFromJsonAsync<AppVersionDto>("api/version");
-
-        ApiVersion = info?.ApiVersion;
-        LatestMigration = info?.LatestMigration;
+        ApiInfo = await ApiClient.GetAppVersionAsync();
     }
 }
