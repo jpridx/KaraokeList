@@ -60,9 +60,45 @@ public partial class MySongs
         hasCachedLists = false;
         listsCachedAt = null;
 
-        var result = await MySongsLoader.LoadAsync(listKind, sortBy, sortDir, filterGenreId,
+        var loadTask = MySongsLoader.LoadAsync(listKind, sortBy, sortDir, filterGenreId,
             step => { loadingStep = step; StateHasChanged(); });
 
+        if (await Task.WhenAny(loadTask, Task.Delay(ApiSlowRequestNotifier.PageLoadTimeout)) != loadTask)
+        {
+            // API is slow (DB waking up) — stop blocking the UI.
+            // Show whatever is in the cache (may be null on a first visit).
+            var cached = await MySongsLoader.TryGetCachedAsync(listKind, sortBy, sortDir, filterGenreId);
+            if (cached is not null)
+            {
+                ApplyLoadResult(cached);
+            }
+            else
+            {
+                loadError = "Still connecting to the server\u2014your songs will appear shortly.";
+            }
+
+            loadingStep = null;
+            isLoading = false;
+            StateHasChanged();
+
+            // Auto-update when the DB eventually wakes and the load completes.
+            _ = loadTask.ContinueWith(async t =>
+            {
+                if (t.IsCompletedSuccessfully)
+                {
+                    await InvokeAsync(() =>
+                    {
+                        ApplyLoadResult(t.Result);
+                        loadingStep = null;
+                        isLoading = false;
+                        StateHasChanged();
+                    });
+                }
+            });
+            return;
+        }
+
+        var result = await loadTask;
         ApplyLoadResult(result);
         loadingStep = null;
         isLoading = false;

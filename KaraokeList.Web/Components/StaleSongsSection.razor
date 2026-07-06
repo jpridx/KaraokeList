@@ -39,7 +39,39 @@
 
     protected override async Task OnInitializedAsync()
     {
+        // Fast path: render cached suggestions immediately, then refresh in the background.
+        var cached = await Loader.TryGetCachedAsync();
+        if (cached is not null)
+        {
+            ApplyResult(cached);
+            loading = false;
+            StateHasChanged();
+            _ = RefreshInBackgroundAsync();
+            return;
+        }
+
+        // No cache — full foreground load (first visit).
         var result = await Loader.LoadAsync();
+        ApplyResult(result);
+        loading = false;
+    }
+
+    private async Task RefreshInBackgroundAsync()
+    {
+        try
+        {
+            var fresh = await Loader.LoadAsync();
+            ApplyResult(fresh);
+            await InvokeAsync(StateHasChanged);
+        }
+        catch
+        {
+            // Background refresh failures are silent.
+        }
+    }
+
+    private void ApplyResult(StaleSongsLoadResult result)
+    {
         if (result.Succeeded && result.Response is not null)
         {
             staleAfterDays = result.Response.StaleAfterDays;
@@ -47,8 +79,6 @@
             fromCache = result.FromCache;
             cachedAt = result.CachedAtUtc;
         }
-
-        loading = false;
     }
 
 }

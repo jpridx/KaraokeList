@@ -4,6 +4,12 @@ public sealed class ApiSlowRequestNotifier
 {
     public static readonly TimeSpan SlowThreshold = TimeSpan.FromSeconds(4);
 
+    /// <summary>
+    /// How long a foreground page load waits for the API before falling back to cached data
+    /// and letting the request complete in the background.
+    /// </summary>
+    public static readonly TimeSpan PageLoadTimeout = TimeSpan.FromSeconds(10);
+
     private int slowRequestCount;
 
     public bool IsSlowLoading => Volatile.Read(ref slowRequestCount) > 0;
