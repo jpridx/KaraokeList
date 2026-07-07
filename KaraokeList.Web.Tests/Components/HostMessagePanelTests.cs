@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Components;
 
 namespace KaraokeList.Web.Tests.Components;
 
-public sealed class HostMessagePanelTests : TestContext
+public sealed class HostMessagePanelTests : BunitTestContext
 {
     public HostMessagePanelTests()
     {
