@@ -61,6 +61,56 @@ public sealed class MySongsLoaderTests
         Assert.NotNull(result.ErrorMessage);
     }
 
+    [Fact]
+    public async Task TryGetCachedAsync_returns_old_schema_cache_instead_of_clearing_it()
+    {
+        // Old cache (SchemaVersion = 0) must be served rather than cleared so that
+        // the fast-path in LoadListsAsync can show content immediately during DB wake-up.
+        // NeedsRefreshAsync() returns true for old schema, so a background refresh will
+        // fetch up-to-date data (with correct GenreId) once the API is reachable.
+        var store = new MySongsLocalStore(new InMemoryLocalStorage());
+        await store.SaveCachedListsAsync(new CachedMySongsLists(
+            [new SingerListDto { Id = 1, Kind = SingerListKind.MyRepertoire, DisplayName = "My repertoire" }],
+            [new CachedListSongsEntry(
+                SingerListKind.MyRepertoire,
+                [new RepertoireSongDto { SongId = 5, Title = "Old Song", ArtistName = "Old Artist" }])],
+            DateTime.UtcNow,
+            CacheTag: null,
+            SchemaVersion: 0));
+
+        var loader = new MySongsLoader(new ListsApiStub(), store, new NullVersion());
+        var result = await loader.TryGetCachedAsync(SingerListKind.MyRepertoire, "title", "asc", genreId: null);
+
+        Assert.NotNull(result);
+        Assert.True(result.FromCache);
+        Assert.Single(result.Songs);
+        Assert.Equal("Old Song", result.Songs[0].Title);
+
+        // Old cache must still be present in the store (not cleared).
+        var rawCache = await store.GetCachedListsAsync();
+        Assert.NotNull(rawCache);
+        Assert.Equal(0, rawCache.SchemaVersion);
+    }
+
+    [Fact]
+    public async Task NeedsRefreshAsync_returns_true_for_old_schema_to_trigger_background_refresh()
+    {
+        var store = new MySongsLocalStore(new InMemoryLocalStorage());
+        await store.SaveCachedListsAsync(new CachedMySongsLists(
+            [new SingerListDto { Id = 1, Kind = SingerListKind.MyRepertoire, DisplayName = "My repertoire" }],
+            [new CachedListSongsEntry(
+                SingerListKind.MyRepertoire,
+                [new RepertoireSongDto { SongId = 5, Title = "Old Song", ArtistName = "Old Artist" }])],
+            DateTime.UtcNow,
+            CacheTag: null,
+            SchemaVersion: 0));
+
+        var loader = new MySongsLoader(new ListsApiStub(), store, new NullVersion());
+        var needsRefresh = await loader.NeedsRefreshAsync();
+
+        Assert.True(needsRefresh);
+    }
+
     private sealed class ListsApiStub : NotImplementedApiClient
     {
         public bool ThrowOffline { get; init; }
