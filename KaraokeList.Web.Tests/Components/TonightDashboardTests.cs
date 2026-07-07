@@ -10,12 +10,16 @@ namespace KaraokeList.Web.Tests.Components;
 public sealed class TonightDashboardTests : AuthPageTestContext
 {
     private readonly Mock<IKaraokeApiClient> api = new();
+    private readonly Mock<ILogCatalogLoader> catalogLoader = new();
     private readonly InMemoryLocalStorage localStorage = new();
 
     protected override void ConfigureServices(IServiceCollection services)
     {
         base.ConfigureServices(services);
+        catalogLoader.Setup(loader => loader.LoadVenuesAsync())
+            .ReturnsAsync(new VenueLoadResult([], false));
         services.AddSingleton<IKaraokeApiClient>(api.Object);
+        services.AddSingleton(catalogLoader.Object);
         services.AddSingleton<ILogPerformanceLocalStore>(new LogPerformanceLocalStore(localStorage));
     }
 

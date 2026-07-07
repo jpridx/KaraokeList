@@ -309,7 +309,8 @@
         try
         {
             await Api.CreateVenueAsync(new VenueDto { VenueName = newVenueName.Trim() });
-            venues = await Api.GetVenuesAsync();
+            var venueResult = await CatalogLoader.LoadVenuesAsync();
+            venues = venueResult.Venues.ToList();
             var created = venues.FirstOrDefault(v =>
                 v.VenueName.Equals(newVenueName.Trim(), StringComparison.OrdinalIgnoreCase));
             if (created is not null)

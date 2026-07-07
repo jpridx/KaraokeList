@@ -11,11 +11,13 @@ namespace KaraokeList.Web.Tests.Components;
 public sealed class AddArtistFieldTests : BunitTestContext
 {
     private readonly Mock<IKaraokeApiClient> api = new();
+    private readonly Mock<ILogCatalogLoader> catalogLoader = new();
 
     public AddArtistFieldTests()
     {
         AddSyncfusionServices(Services);
         Services.AddSingleton(api.Object);
+        Services.AddSingleton(catalogLoader.Object);
     }
 
     [Fact]
@@ -43,8 +45,8 @@ public sealed class AddArtistFieldTests : BunitTestContext
 
         api.Setup(client => client.CreateArtistAsync(It.IsAny<ArtistDto>()))
             .Returns(Task.CompletedTask);
-        api.Setup(client => client.GetArtistLookupsAsync())
-            .ReturnsAsync(refreshedLookups);
+        catalogLoader.Setup(loader => loader.LoadLookupsAsync())
+            .ReturnsAsync(new LookupsLoadResult(refreshedLookups, [], false));
 
         var cut = Render<AddArtistField>(parameters => parameters
             .Add(p => p.ArtistLookups, Array.Empty<ArtistLookupDto>())

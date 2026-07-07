@@ -6,13 +6,19 @@ public sealed record CachedSongEntry(int Id, string Title, string ArtistName);
 
 public sealed record CachedVenueEntry(int Id, string VenueName);
 
+public sealed record CachedArtistEntry(int Id, string Name);
+
+public sealed record CachedGenreEntry(int Id, string GenreName);
+
 public sealed record CachedLogCatalog(
     IReadOnlyList<CachedSongEntry> Songs,
     IReadOnlyList<int> RepertoireSongIds,
     IReadOnlyList<CachedVenueEntry> Venues,
     DateTime CachedAtUtc,
     IReadOnlyList<int>? WorkingUpSongIds = null,
-    string? CacheTag = null);
+    string? CacheTag = null,
+    IReadOnlyList<CachedArtistEntry>? Artists = null,
+    IReadOnlyList<CachedGenreEntry>? Genres = null);
 
 public sealed record LogSongPickItem(int Id, string Title, string ArtistName, bool InRepertoire, bool InWorkingUp = false)
 {
@@ -50,3 +56,8 @@ public sealed record LogCatalogSnapshot(
     DateTime? CachedAtUtc);
 
 public sealed record VenueLoadResult(IReadOnlyList<VenueDto> Venues, bool FromCache);
+
+public sealed record LookupsLoadResult(
+    IReadOnlyList<ArtistLookupDto> Artists,
+    IReadOnlyList<GenreDto> Genres,
+    bool FromCache);

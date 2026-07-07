@@ -1,4 +1,5 @@
 @inject IKaraokeApiClient Api
+@inject ILogCatalogLoader CatalogLoader
 
 <div class="add-song-to-list-panel">
     @if (mode == AddSongMode.Choose)
@@ -88,7 +89,16 @@
         isLoadingCatalog = true;
         try
         {
-            catalogPickerItems = await CatalogSongMapper.LoadPickItemsAsync(Api);
+            var cached = await CatalogLoader.TryGetCachedAsync();
+            if (cached is not null)
+            {
+                catalogPickerItems = cached.Songs.ToList();
+                _ = RefreshCatalogInBackgroundAsync();
+                return;
+            }
+
+            var snapshot = await CatalogLoader.LoadAsync();
+            catalogPickerItems = snapshot.Songs.ToList();
         }
         catch (Exception ex)
         {
@@ -97,6 +107,25 @@
         finally
         {
             isLoadingCatalog = false;
+        }
+    }
+
+    private async Task RefreshCatalogInBackgroundAsync()
+    {
+        try
+        {
+            if (!await CatalogLoader.NeedsRefreshAsync())
+            {
+                return;
+            }
+
+            var refreshed = await CatalogLoader.LoadAsync();
+            catalogPickerItems = refreshed.Songs.ToList();
+            await InvokeAsync(StateHasChanged);
+        }
+        catch
+        {
+            // Background refresh failures are silent.
         }
     }
 

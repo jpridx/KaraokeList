@@ -9,9 +9,19 @@ namespace KaraokeList.Web.Tests.Components;
 
 public sealed class AddSongToListPanelTests : AuthPageTestContext
 {
+    private readonly Mock<ILogCatalogLoader> catalogLoader = new();
+
     public AddSongToListPanelTests()
     {
         AddSyncfusionServices(Services);
+        catalogLoader.Setup(loader => loader.TryGetCachedAsync()).ReturnsAsync((LogCatalogSnapshot?)null);
+        catalogLoader.Setup(loader => loader.LoadAsync(It.IsAny<Action<string>?>()))
+            .ReturnsAsync(new LogCatalogSnapshot([], [], [], false, false, null));
+        catalogLoader.Setup(loader => loader.NeedsRefreshAsync()).ReturnsAsync(false);
+        catalogLoader.Setup(loader => loader.TryGetCachedLookupsAsync()).ReturnsAsync((LookupsLoadResult?)null);
+        catalogLoader.Setup(loader => loader.LoadLookupsAsync())
+            .ReturnsAsync(new LookupsLoadResult([], [], false));
+        Services.AddSingleton(catalogLoader.Object);
         Api.Setup(client => client.GetArtistLookupsAsync()).ReturnsAsync([]);
         Api.Setup(client => client.GetGenresAsync()).ReturnsAsync([]);
     }
