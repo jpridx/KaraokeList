@@ -8,7 +8,7 @@ namespace KaraokeList.Web.Tests;
 /// Base test context for Blazor component tests. Extend and override <see cref="ConfigureServices"/>
 /// when a component needs DI services (e.g. mocked <c>IKaraokeApiClient</c>).
 /// </summary>
-public abstract class BunitTestContext : TestContext
+public abstract class BunitTestContext : BunitContext
 {
     protected BunitTestContext()
     {

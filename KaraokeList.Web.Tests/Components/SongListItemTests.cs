@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Components;
 
 namespace KaraokeList.Web.Tests.Components;
 
-public sealed class SongListItemTests : TestContext
+public sealed class SongListItemTests : BunitTestContext
 {
     [Fact]
     public void Renders_title_and_artist()
