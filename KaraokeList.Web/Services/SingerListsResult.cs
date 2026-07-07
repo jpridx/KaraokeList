@@ -28,6 +28,19 @@ public sealed class SingerListImportResult
         new() { Succeeded = false, ErrorMessage = message };
 }
 
+public sealed class SingerListFileImportResult
+{
+    public bool Succeeded { get; init; }
+    public string? ErrorMessage { get; init; }
+    public ImportSingerListFromFileResponse? Response { get; init; }
+
+    public static SingerListFileImportResult Ok(ImportSingerListFromFileResponse response) =>
+        new() { Succeeded = true, Response = response };
+
+    public static SingerListFileImportResult Fail(string message, ImportSingerListFromFileResponse? response = null) =>
+        new() { Succeeded = false, ErrorMessage = message, Response = response };
+}
+
 public sealed class ListSongActionResult
 {
     public bool Succeeded { get; init; }

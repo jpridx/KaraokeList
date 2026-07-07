@@ -1,5 +1,6 @@
 using KaraokeList.Api.Mapping;
 using KaraokeList.Api.Services;
+using KaraokeList.Api.Services.Import;
 using KaraokeList.Data;
 using KaraokeList.Shared;
 using Microsoft.AspNetCore.Authorization;
@@ -12,9 +13,13 @@ namespace KaraokeList.Api.Controllers;
 [Authorize]
 public class SingerListsController(
     SingerListService singerListService,
+    RepertoireImportService repertoireImportService,
     TicklerExclusionService ticklerExclusionService,
-    ICurrentUserSingerResolver currentUserSinger) : ControllerBase
+    ICurrentUserSingerResolver currentUserSinger,
+    IHttpClientFactory httpClientFactory) : ControllerBase
 {
+    private static readonly HashSet<string> CsvExtensions = [".csv", ".tsv", ".txt"];
+    private static readonly HashSet<string> XlsxExtensions = [".xlsx", ".xls"];
     [HttpGet]
     public async Task<ActionResult<List<SingerListDto>>> GetMyLists()
     {
@@ -153,6 +158,106 @@ public class SingerListsController(
             singerId.Value!.Value, request.ListKind, request.SongIds);
         if (!result.Succeeded)
         {
+            return BadRequest(new ApiErrorResponse { Message = result.Error ?? "Could not import songs." });
+        }
+
+        return Ok(result.Result);
+    }
+
+    [HttpPost("import/file")]
+    [RequestSizeLimit(20 * 1024 * 1024)]
+    public async Task<ActionResult<ImportSingerListFromFileResponse>> ImportSongsFromFile(
+        IFormFile file,
+        [FromForm] SingerListKind listKind = SingerListKind.MyRepertoire)
+    {
+        var singerId = await RequireSingerIdAsync();
+        if (singerId.Result is not null)
+        {
+            return singerId.Result;
+        }
+
+        if (file is null || file.Length == 0)
+        {
+            return BadRequest(new ApiErrorResponse { Message = "No file was provided." });
+        }
+
+        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+        ICatalogRowParser parser;
+        if (CsvExtensions.Contains(ext))
+            parser = new CsvCatalogRowParser();
+        else if (XlsxExtensions.Contains(ext))
+            parser = new XlsxCatalogRowParser();
+        else
+            return BadRequest(new ApiErrorResponse { Message = $"Unsupported file type '{ext}'. Use .csv, .tsv, .xlsx, or .xls." });
+
+        using var stream = file.OpenReadStream();
+        var parsed = parser.Parse(stream);
+        if (parsed.Error is not null)
+            return BadRequest(new ApiErrorResponse { Message = parsed.Error });
+
+        var result = await repertoireImportService.ImportRowsAsync(
+            singerId.Value!.Value, listKind, parsed.Rows);
+        if (!result.Succeeded)
+        {
+            if (result.Result is not null)
+                return BadRequest(result.Result);
+
+            return BadRequest(new ApiErrorResponse { Message = result.Error ?? "Could not import songs." });
+        }
+
+        return Ok(result.Result);
+    }
+
+    [HttpPost("import/gsheet")]
+    public async Task<ActionResult<ImportSingerListFromFileResponse>> ImportSongsFromGSheet(
+        [FromBody] ImportSingerListFromGSheetRequest request)
+    {
+        var singerId = await RequireSingerIdAsync();
+        if (singerId.Result is not null)
+        {
+            return singerId.Result;
+        }
+
+        if (string.IsNullOrWhiteSpace(request.SheetUrl))
+            return BadRequest(new ApiErrorResponse { Message = "SheetUrl is required." });
+
+        var csvUrl = GSheetImportHelper.BuildCsvExportUrl(request.SheetUrl);
+        if (csvUrl is null)
+            return BadRequest(new ApiErrorResponse { Message = "Could not parse a Google Sheets URL from the provided value." });
+
+        var client = httpClientFactory.CreateClient("GoogleSheets");
+        HttpResponseMessage response;
+        try
+        {
+            response = await client.GetAsync(csvUrl);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new ApiErrorResponse { Message = $"Failed to fetch the Google Sheet: {ex.Message}" });
+        }
+
+        if (!response.IsSuccessStatusCode)
+        {
+            return BadRequest(new ApiErrorResponse
+            {
+                Message = response.StatusCode == System.Net.HttpStatusCode.Forbidden
+                    ? "The Google Sheet is not publicly accessible. Share it as 'Anyone with the link can view'."
+                    : $"Google Sheets returned {(int)response.StatusCode}."
+            });
+        }
+
+        await using var stream = await response.Content.ReadAsStreamAsync();
+        var parsed = new CsvCatalogRowParser().Parse(stream);
+        if (parsed.Error is not null)
+            return BadRequest(new ApiErrorResponse { Message = parsed.Error });
+
+        var result = await repertoireImportService.ImportRowsAsync(
+            singerId.Value!.Value, request.ListKind, parsed.Rows);
+        if (!result.Succeeded)
+        {
+            if (result.Result is not null)
+                return BadRequest(result.Result);
+
             return BadRequest(new ApiErrorResponse { Message = result.Error ?? "Could not import songs." });
         }
 

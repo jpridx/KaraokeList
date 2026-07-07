@@ -67,15 +67,22 @@
                     else
                     {
                         <MobileEmptyState Message="@EmptyListMessage">
-                            @if (SupportsCatalogAdd && !usingOfflineLists)
+                            @if (!usingOfflineLists)
                             {
                                 <div class="d-flex flex-wrap gap-2 mt-2">
-                                    <button type="button" class="btn btn-outline-primary btn-sm" @onclick="OpenAddFromCatalogAsync">
-                                        + Add from catalog
-                                    </button>
-                                    <button type="button" class="btn btn-outline-primary btn-sm" @onclick="OpenAddNewSongAsync">
-                                        + New song
-                                    </button>
+                                    @if (listKind == SingerListKind.MyRepertoire)
+                                    {
+                                        <a class="btn btn-outline-primary btn-sm" href="import-repertoire">Import from spreadsheet</a>
+                                    }
+                                    @if (SupportsCatalogAdd)
+                                    {
+                                        <button type="button" class="btn btn-outline-primary btn-sm" @onclick="OpenAddFromCatalogAsync">
+                                            + Add from catalog
+                                        </button>
+                                        <button type="button" class="btn btn-outline-primary btn-sm" @onclick="OpenAddNewSongAsync">
+                                            + New song
+                                        </button>
+                                    }
                                 </div>
                             }
                         </MobileEmptyState>

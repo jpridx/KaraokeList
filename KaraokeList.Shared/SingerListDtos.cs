@@ -43,6 +43,20 @@ public class ImportSingerListSongsResponse
     public int Rejected { get; set; }
 }
 
+public class ImportSingerListFromFileResponse : ImportSingerListSongsResponse
+{
+    public int TotalRows { get; set; }
+    public int Matched { get; set; }
+    public int NotFound { get; set; }
+    public List<CatalogImportErrorDto> Errors { get; set; } = [];
+}
+
+public class ImportSingerListFromGSheetRequest
+{
+    public string SheetUrl { get; set; } = string.Empty;
+    public SingerListKind ListKind { get; set; } = SingerListKind.MyRepertoire;
+}
+
 public class SongListMembershipDto
 {
     public List<SingerListKind> Lists { get; set; } = [];

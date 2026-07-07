@@ -70,6 +70,8 @@ public interface IKaraokeApiClient
         string sortDir = "asc",
         int? genreId = null);
     Task<SingerListImportResult> ImportListSongsAsync(ImportSingerListSongsRequest request);
+    Task<SingerListFileImportResult> ImportListSongsFromFileAsync(Stream fileStream, string fileName, SingerListKind listKind);
+    Task<SingerListFileImportResult> ImportListSongsFromGSheetAsync(ImportSingerListFromGSheetRequest request);
     Task<ListSongActionResult> AddListSongAsync(int listId, int songId);
     Task<ListSongActionResult> RemoveListSongAsync(int listId, int songId);
     Task<SongListMembershipResult> GetSongListMembershipAsync(int songId);
@@ -473,6 +475,68 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
 
         var message = await ReadApiErrorMessageAsync(response);
         return SingerListImportResult.Fail(message ?? "Could not import songs.");
+    }
+
+    public async Task<SingerListFileImportResult> ImportListSongsFromFileAsync(
+        Stream fileStream, string fileName, SingerListKind listKind)
+    {
+        using var content = new MultipartFormDataContent();
+        content.Add(new StreamContent(fileStream), "file", fileName);
+        content.Add(new StringContent(listKind.ToString()), "listKind");
+        try
+        {
+            var response = await http.PostAsync("api/singers/me/lists/import/file", content);
+            if (response.IsSuccessStatusCode)
+            {
+                var body = await response.Content.ReadFromJsonAsync<ImportSingerListFromFileResponse>(JsonOptions);
+                return body is null
+                    ? SingerListFileImportResult.Fail("Unexpected empty response from the server.")
+                    : SingerListFileImportResult.Ok(body);
+            }
+
+            var partial = await TryReadImportFromFileResponseAsync(response);
+            if (partial is not null)
+                return SingerListFileImportResult.Fail(await ReadApiErrorMessageAsync(response) ?? "Import failed.", partial);
+
+            var message = await ReadApiErrorMessageAsync(response);
+            return SingerListFileImportResult.Fail(message ?? "Import failed.");
+        }
+        catch (Exception ex)
+        {
+            return SingerListFileImportResult.Fail(ex.Message);
+        }
+    }
+
+    public async Task<SingerListFileImportResult> ImportListSongsFromGSheetAsync(
+        ImportSingerListFromGSheetRequest request)
+    {
+        var response = await http.PostAsJsonAsync("api/singers/me/lists/import/gsheet", request);
+        if (response.IsSuccessStatusCode)
+        {
+            var body = await response.Content.ReadFromJsonAsync<ImportSingerListFromFileResponse>(JsonOptions);
+            return body is null
+                ? SingerListFileImportResult.Fail("Unexpected empty response from the server.")
+                : SingerListFileImportResult.Ok(body);
+        }
+
+        var partial = await TryReadImportFromFileResponseAsync(response);
+        if (partial is not null)
+            return SingerListFileImportResult.Fail(await ReadApiErrorMessageAsync(response) ?? "Import failed.", partial);
+
+        var message = await ReadApiErrorMessageAsync(response);
+        return SingerListFileImportResult.Fail(message ?? "Import from Google Sheets failed.");
+    }
+
+    private static async Task<ImportSingerListFromFileResponse?> TryReadImportFromFileResponseAsync(HttpResponseMessage response)
+    {
+        try
+        {
+            return await response.Content.ReadFromJsonAsync<ImportSingerListFromFileResponse>(JsonOptions);
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     public async Task<ListSongActionResult> AddListSongAsync(int listId, int songId)
