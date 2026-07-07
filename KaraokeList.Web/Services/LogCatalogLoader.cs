@@ -8,6 +8,9 @@ public interface ILogCatalogLoader
     Task<LogCatalogSnapshot?> TryGetCachedAsync();
     Task<bool> NeedsRefreshAsync();
     Task<VenueLoadResult> LoadVenuesAsync();
+    Task<LookupsLoadResult> LoadLookupsAsync();
+    Task<LookupsLoadResult?> TryGetCachedLookupsAsync();
+    Task SaveLookupsAsync(IReadOnlyList<ArtistLookupDto> artists, IReadOnlyList<GenreDto> genres);
 }
 
 public sealed class LogCatalogLoader(
@@ -26,6 +29,9 @@ public sealed class LogCatalogLoader(
 
             onProgress?.Invoke("Loading artists...");
             var artists = await api.GetArtistLookupsAsync();
+
+            onProgress?.Invoke("Loading genres...");
+            var genres = await api.GetGenresAsync();
 
             onProgress?.Invoke("Loading venues...");
             var venues = await api.GetVenuesAsync();
@@ -69,7 +75,9 @@ public sealed class LogCatalogLoader(
                 venues.Select(v => new CachedVenueEntry(v.Id, v.VenueName)).ToList(),
                 cachedAt,
                 workingUpIds.ToList(),
-                cacheTag));
+                cacheTag,
+                MapArtistEntries(artists),
+                MapGenreEntries(genres)));
 
             return new LogCatalogSnapshot(pickItems, repertoireIds, workingUpIds, FromCache: false, HasCatalog: pickItems.Count > 0, cachedAt);
         }
@@ -147,6 +155,69 @@ public sealed class LogCatalogLoader(
         }
     }
 
+    public async Task<LookupsLoadResult> LoadLookupsAsync()
+    {
+        try
+        {
+            var artists = await api.GetArtistLookupsAsync();
+            var genres = await api.GetGenresAsync();
+            await SaveLookupsAsync(artists, genres);
+            return new LookupsLoadResult(artists, genres, FromCache: false);
+        }
+        catch (Exception ex) when (IsOfflineFailure(ex))
+        {
+            return await LoadLookupsFromCacheAsync();
+        }
+    }
+
+    public async Task<LookupsLoadResult?> TryGetCachedLookupsAsync()
+    {
+        var cached = await store.GetCachedCatalogAsync();
+        if (cached?.Artists is not { Count: > 0 } artists || cached.Genres is not { Count: > 0 } genres)
+        {
+            return null;
+        }
+
+        return new LookupsLoadResult(MapArtists(artists), MapGenres(genres), FromCache: true);
+    }
+
+    public async Task SaveLookupsAsync(IReadOnlyList<ArtistLookupDto> artists, IReadOnlyList<GenreDto> genres)
+    {
+        var artistEntries = MapArtistEntries(artists);
+        var genreEntries = MapGenreEntries(genres);
+        var cached = await store.GetCachedCatalogAsync();
+        if (cached is null)
+        {
+            await store.SaveCachedCatalogAsync(new CachedLogCatalog(
+                [],
+                [],
+                [],
+                DateTime.UtcNow,
+                [],
+                Artists: artistEntries,
+                Genres: genreEntries));
+            return;
+        }
+
+        await store.SaveCachedCatalogAsync(cached with
+        {
+            Artists = artistEntries,
+            Genres = genreEntries,
+            CachedAtUtc = DateTime.UtcNow
+        });
+    }
+
+    private async Task<LookupsLoadResult> LoadLookupsFromCacheAsync()
+    {
+        var cached = await store.GetCachedCatalogAsync();
+        if (cached?.Artists is { Count: > 0 } artists && cached.Genres is { Count: > 0 } genres)
+        {
+            return new LookupsLoadResult(MapArtists(artists), MapGenres(genres), FromCache: true);
+        }
+
+        return new LookupsLoadResult([], [], FromCache: true);
+    }
+
     private async Task<LogCatalogSnapshot> LoadFromCacheAsync()
     {
         var cached = await store.GetCachedCatalogAsync();
@@ -196,6 +267,18 @@ public sealed class LogCatalogLoader(
 
     private static List<VenueDto> MapVenues(IReadOnlyList<CachedVenueEntry> venues) =>
         venues.Select(v => new VenueDto { Id = v.Id, VenueName = v.VenueName }).ToList();
+
+    private static List<ArtistLookupDto> MapArtists(IReadOnlyList<CachedArtistEntry> artists) =>
+        artists.Select(a => new ArtistLookupDto { Id = a.Id, Name = a.Name }).ToList();
+
+    private static List<GenreDto> MapGenres(IReadOnlyList<CachedGenreEntry> genres) =>
+        genres.Select(g => new GenreDto { Id = g.Id, GenreName = g.GenreName }).ToList();
+
+    private static List<CachedArtistEntry> MapArtistEntries(IReadOnlyList<ArtistLookupDto> artists) =>
+        artists.Select(a => new CachedArtistEntry(a.Id, a.Name)).ToList();
+
+    private static List<CachedGenreEntry> MapGenreEntries(IReadOnlyList<GenreDto> genres) =>
+        genres.Select(g => new CachedGenreEntry(g.Id, g.GenreName)).ToList();
 
     private static bool IsOfflineFailure(Exception ex) =>
         ApiTransientFailure.IsTransient(ex) || ex is HttpRequestException;

@@ -1,4 +1,5 @@
 @inject IKaraokeApiClient Api
+@inject ILogCatalogLoader CatalogLoader
 
 <SfAutoComplete TValue="string" TItem="ArtistLookupDto" DataSource="@ArtistLookups"
                 @bind-Value="_name" @bind-Value:after="PropagateValueAsync"
@@ -112,16 +113,16 @@ else if (!string.IsNullOrWhiteSpace(_name) && LogArtistPicker.ResolveArtistId(_n
         try
         {
             await Api.CreateArtistAsync(new ArtistDto { Name = trimmedName });
-            var refreshed = await Api.GetArtistLookupsAsync();
+            var refreshed = await CatalogLoader.LoadLookupsAsync();
             _suppressValuePropagation = true;
             _name = trimmedName;
             // Propagate the confirmed name first so that when the lookup change
             // triggers a parent re-render, ArtistName is already correct and
             // OnParametersSet does not reset _name back to the old value.
             await ArtistNameChanged.InvokeAsync(trimmedName);
-            await ArtistLookupsChanged.InvokeAsync(refreshed);
+            await ArtistLookupsChanged.InvokeAsync(refreshed.Artists);
 
-            if (LogArtistPicker.ResolveArtistId(trimmedName, refreshed) is int artistId)
+            if (LogArtistPicker.ResolveArtistId(trimmedName, refreshed.Artists) is int artistId)
             {
                 await OnArtistConfirmed.InvokeAsync(new ArtistConfirmedEventArgs(trimmedName, artistId));
             }

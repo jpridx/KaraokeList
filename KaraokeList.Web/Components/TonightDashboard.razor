@@ -1,5 +1,5 @@
 @inject ILogPerformanceLocalStore LogStore
-@inject IKaraokeApiClient Api
+@inject ILogCatalogLoader CatalogLoader
 
 <section class="tonight-dashboard mobile-panel">
     <header class="tonight-dashboard-header">
@@ -56,8 +56,8 @@
     {
         try
         {
-            var venues = await Api.GetVenuesAsync();
-            defaultVenueName = venues.FirstOrDefault(v => v.Id == venueId)?.VenueName;
+            var venueResult = await CatalogLoader.LoadVenuesAsync();
+            defaultVenueName = venueResult.Venues.FirstOrDefault(v => v.Id == venueId)?.VenueName;
             await InvokeAsync(StateHasChanged);
         }
         catch

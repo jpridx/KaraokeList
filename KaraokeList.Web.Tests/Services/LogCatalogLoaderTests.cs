@@ -23,6 +23,11 @@ public sealed class LogCatalogLoaderTests
                 new ArtistLookupDto { Id = 10, Name = "The Greg Kihn Band" },
                 new ArtistLookupDto { Id = 11, Name = "Neil Diamond" }
             ],
+            Genres =
+            [
+                new GenreDto { Id = 1, GenreName = "Rock" },
+                new GenreDto { Id = 2, GenreName = "Pop" }
+            ],
             Venues = [new VenueDto { Id = 3, VenueName = "Main Stage" }],
             RepertoireSongIds = [1],
             WorkingUpSongIds = [2]
@@ -43,6 +48,74 @@ public sealed class LogCatalogLoaderTests
         Assert.Equal(2, cached.Songs.Count);
         Assert.Single(cached.Venues);
         Assert.Single(cached.WorkingUpSongIds ?? []);
+        Assert.Equal(2, cached.Artists?.Count);
+        Assert.Equal(2, cached.Genres?.Count);
+    }
+
+    [Fact]
+    public async Task LoadLookupsAsync_when_online_saves_and_returns_fresh_lookups()
+    {
+        var store = new LogPerformanceLocalStore(new InMemoryLocalStorage());
+        var api = new CatalogApiStub
+        {
+            Artists = [new ArtistLookupDto { Id = 10, Name = "Queen" }],
+            Genres = [new GenreDto { Id = 5, GenreName = "Rock" }]
+        };
+        var loader = new LogCatalogLoader(api, store, new NullVersion());
+
+        var result = await loader.LoadLookupsAsync();
+
+        Assert.False(result.FromCache);
+        Assert.Single(result.Artists);
+        Assert.Single(result.Genres);
+
+        var cached = await store.GetCachedCatalogAsync();
+        Assert.NotNull(cached);
+        Assert.Single(cached!.Artists!);
+        Assert.Single(cached.Genres!);
+    }
+
+    [Fact]
+    public async Task TryGetCachedLookupsAsync_returns_cached_artists_and_genres()
+    {
+        var store = new LogPerformanceLocalStore(new InMemoryLocalStorage());
+        await store.SaveCachedCatalogAsync(new CachedLogCatalog(
+            [],
+            [],
+            [],
+            DateTime.UtcNow,
+            [],
+            Artists: [new CachedArtistEntry(10, "Queen")],
+            Genres: [new CachedGenreEntry(5, "Rock")]));
+
+        var loader = new LogCatalogLoader(new CatalogApiStub { ThrowOffline = true }, store, new NullVersion());
+        var result = await loader.TryGetCachedLookupsAsync();
+
+        Assert.NotNull(result);
+        Assert.True(result!.FromCache);
+        Assert.Equal("Queen", result.Artists[0].Name);
+        Assert.Equal("Rock", result.Genres[0].GenreName);
+    }
+
+    [Fact]
+    public async Task LoadLookupsAsync_when_offline_returns_cached_lookups()
+    {
+        var store = new LogPerformanceLocalStore(new InMemoryLocalStorage());
+        await store.SaveCachedCatalogAsync(new CachedLogCatalog(
+            [],
+            [],
+            [],
+            DateTime.UtcNow,
+            [],
+            Artists: [new CachedArtistEntry(10, "Queen")],
+            Genres: [new CachedGenreEntry(5, "Rock")]));
+
+        var loader = new LogCatalogLoader(new CatalogApiStub { ThrowOffline = true }, store, new NullVersion());
+        var result = await loader.LoadLookupsAsync();
+
+        Assert.True(result.FromCache);
+        Assert.Equal("Queen", result.Artists[0].Name);
+        Assert.Equal("Rock", result.Genres[0].GenreName);
     }
 
     [Fact]
@@ -111,6 +184,7 @@ public sealed class LogCatalogLoaderTests
         public bool ThrowOffline { get; init; }
         public List<SongDto> Songs { get; init; } = [];
         public List<ArtistLookupDto> Artists { get; init; } = [];
+        public List<GenreDto> Genres { get; init; } = [];
         public List<VenueDto> Venues { get; init; } = [];
         public HashSet<int> RepertoireSongIds { get; init; } = [];
         public HashSet<int> WorkingUpSongIds { get; init; } = [];
@@ -133,6 +207,12 @@ public sealed class LogCatalogLoaderTests
         {
             ThrowIfOffline();
             return Task.FromResult(Artists);
+        }
+
+        public override Task<List<GenreDto>> GetGenresAsync()
+        {
+            ThrowIfOffline();
+            return Task.FromResult(Genres);
         }
 
         public override Task<List<VenueDto>> GetVenuesAsync()
