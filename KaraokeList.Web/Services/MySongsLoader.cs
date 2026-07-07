@@ -92,13 +92,11 @@ public sealed class MySongsLoader(
             return null;
         }
 
-        // Old cache written before GenreId was reliably stored won't have a SchemaVersion field,
-        // so it deserializes to 0. Treat it as a cache miss to force a fresh foreground load.
-        if (cached.SchemaVersion < CurrentCacheSchemaVersion)
-        {
-            await store.ClearCatalogCacheAsync();
-            return null;
-        }
+        // Old cache (SchemaVersion < CurrentCacheSchemaVersion) may have missing or incorrect
+        // GenreId values, but the song and list data itself is still usable. Serve it so the
+        // fast path can show content immediately rather than blocking on a cold DB.
+        // NeedsRefreshAsync() returns true for old schema, so a background refresh will fetch
+        // fresh data (with correct GenreId) once the API is reachable.
 
         var songsByKind = cached.ListsSongs.ToDictionary(
             entry => entry.Kind,

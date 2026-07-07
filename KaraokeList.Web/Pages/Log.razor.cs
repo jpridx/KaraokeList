@@ -75,9 +75,10 @@ public partial class Log
         if (await Task.WhenAny(loadTask, Task.Delay(ApiSlowRequestNotifier.PageLoadTimeout)) != loadTask)
         {
             // API is slow (DB waking up) — stop blocking the UI.
-            // Show whatever is in the cache (may be empty on a first visit).
-            var cached = await CatalogLoader.TryGetCachedAsync();
-            catalogState.Apply(cached ?? new LogCatalogSnapshot([], [], [], FromCache: true, HasCatalog: false, null));
+            // FullLoadCatalogAsync is only reached when LoadCatalogAsync already confirmed there
+            // is no cache, so there is nothing to fall back to here. Show an empty state and
+            // let the background task auto-update the UI when the DB eventually wakes.
+            catalogState.Apply(new LogCatalogSnapshot([], [], [], FromCache: true, HasCatalog: false, null));
             recentLogs = await LogStore.GetRecentLogsAsync();
             loadingStep = null;
             isLoading = false;
