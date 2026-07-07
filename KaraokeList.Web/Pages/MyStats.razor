@@ -8,7 +8,7 @@
                  @ref="gatedPage">
     <Subtitle>Your karaoke performance history at a glance.</Subtitle>
     <ChildContent Context="_">
-        <MobileLoadingState IsLoading="@loading" Message="Loading stats…" CssClass="text-muted small mt-3">
+        <MobileLoadingState IsLoading="@loading" Message="@ApiTransientFailure.DatabaseWakingUpMessage" CssClass="text-muted small mt-3">
             <StatusAlerts ErrorMessage="@errorMessage" InlineError="true" Small="true" CssClass="mt-3" />
 
             @if (string.IsNullOrWhiteSpace(errorMessage))

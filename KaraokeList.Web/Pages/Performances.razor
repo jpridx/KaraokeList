@@ -175,7 +175,7 @@ else
     private List<VenueDto> venues = [];
     private IReadOnlyList<PerformanceKeyOption> keyOptions = PerformanceKeyOption.Choices;
     private bool isLoading = true;
-    private string loadingStep = "Loading...";
+    private string loadingStep = ApiTransientFailure.DatabaseWakingUpMessage;
     private string? loadError;
     private int currentSingerId;
     private int? summarySongId;

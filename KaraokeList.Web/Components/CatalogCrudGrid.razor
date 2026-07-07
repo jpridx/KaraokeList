@@ -1,10 +1,14 @@
 @typeparam TItem where TItem : class
+@using KaraokeList.Web.Services
 
-@if (IsLoading && ShowLoadingMessage)
+@if (IsLoading)
 {
-    <p>Loading...</p>
+    <p class="text-muted mt-3" role="status" aria-live="polite">
+        <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+        @LoadingMessage
+    </p>
 }
-else if (!IsLoading)
+else
 {
     @if (!string.IsNullOrEmpty(ErrorMessage))
     {
@@ -39,7 +43,7 @@ else if (!IsLoading)
     public bool IsLoading { get; set; }
 
     [Parameter]
-    public bool ShowLoadingMessage { get; set; }
+    public string LoadingMessage { get; set; } = ApiTransientFailure.DatabaseWakingUpMessage;
 
     [Parameter]
     public string? ErrorMessage { get; set; }

@@ -10,6 +10,9 @@ public static class ApiTransientFailure
     public const string ColdStartInProgressMessage =
         "Still loading… the database may be waking up after idle. This can take up to a minute.";
 
+    public const string DatabaseWakingUpMessage =
+        "Please wait while the database wakes up.";
+
     public static bool IsTransient(Exception ex) =>
         ex is TaskCanceledException or HttpRequestException or OperationCanceledException;
 

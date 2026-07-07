@@ -14,6 +14,33 @@ public sealed class MyStatsPageTests : AuthPageTestContext
     }
 
     [Fact]
+    public void Shows_database_wakeup_message_while_stats_load()
+    {
+        var statsLoaded = new TaskCompletionSource<SingerStatsResult>();
+        Api.Setup(client => client.GetMySingerStatsAsync(5, 10, 10, 30))
+            .Returns(statsLoaded.Task);
+
+        var cut = Render<KaraokeList.Web.Pages.MyStats>();
+
+        cut.WaitForAssertion(() =>
+            Assert.Contains(ApiTransientFailure.DatabaseWakingUpMessage, cut.Markup));
+
+        statsLoaded.SetResult(SingerStatsResult.Ok(new SingerStatsDto
+        {
+            TotalPerformances = 1,
+            UniqueSongs = 1,
+            PerformancesThisMonth = 1,
+            PerformancesThisYear = 1
+        }));
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.DoesNotContain(ApiTransientFailure.DatabaseWakingUpMessage, cut.Markup);
+            Assert.Contains("Performances", cut.Markup);
+        });
+    }
+
+    [Fact]
     public void Shows_extended_sections_when_stats_available()
     {
         Api.Setup(client => client.GetMySingerStatsAsync(5, 10, 10, 30))
