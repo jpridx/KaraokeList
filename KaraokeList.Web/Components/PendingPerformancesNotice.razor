@@ -30,13 +30,13 @@
     {
         NavigationManager.LocationChanged += OnLocationChanged;
         await RefreshPendingCountAsync();
-        await SyncIfNeededAsync();
+        _ = SyncIfNeededAsync();
     }
 
     private async void OnLocationChanged(object? sender, LocationChangedEventArgs e)
     {
         await RefreshPendingCountAsync();
-        await SyncIfNeededAsync();
+        _ = SyncIfNeededAsync();
         await InvokeAsync(StateHasChanged);
     }
 

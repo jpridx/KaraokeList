@@ -1,5 +1,4 @@
-@inject AuthenticationStateProvider AuthStateProvider
-@inject IKaraokeApiClient Api
+@inject ISingerProfileResolver ProfileResolver
 
 @if (isResolving)
 {
@@ -36,14 +35,21 @@ else if (singerId is int id && ChildContent is not null)
     {
         isResolving = true;
 
-        singerId = await SingerProfileResolver.ResolveSingerIdAsync(AuthStateProvider, Api);
-
+        var result = await ProfileResolver.ResolveAsync();
+        singerId = result.SingerId;
         needsSingerLink = singerId is null;
         isResolving = false;
 
         if (singerId is int id)
         {
-            await OnResolved.InvokeAsync(id);
+            // Do not await page data loads here — cached catalog/lists should render
+            // immediately while API calls continue in the child page.
+            _ = InvokeOnResolvedAsync(id);
+
+            if (result.UsedCachedSingerId)
+            {
+                _ = RefreshProfileInBackgroundAsync();
+            }
         }
     }
 
@@ -64,7 +70,31 @@ else if (singerId is int id && ChildContent is not null)
 
         if (linkedSingerId is int id)
         {
+            _ = InvokeOnResolvedAsync(id);
+        }
+    }
+
+    private async Task InvokeOnResolvedAsync(int id)
+    {
+        try
+        {
             await OnResolved.InvokeAsync(id);
+        }
+        catch
+        {
+            // Page load failures are surfaced by the child page.
+        }
+    }
+
+    private async Task RefreshProfileInBackgroundAsync()
+    {
+        try
+        {
+            await ProfileResolver.RefreshFromApiAsync();
+        }
+        catch
+        {
+            // Background refresh failures are silent.
         }
     }
 }

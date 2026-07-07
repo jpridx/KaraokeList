@@ -41,6 +41,8 @@ builder.Services.AddScoped<SlowApiRequestHandler>();
 builder.Services.AddScoped<IKaraokeApiClient, KaraokeApiClient>();
 builder.Services.AddScoped<ICatalogVersionService, CatalogVersionService>();
 builder.Services.AddScoped<ILogPerformanceLocalStore, LogPerformanceLocalStore>();
+builder.Services.AddScoped<ISingerProfileLocalStore, SingerProfileLocalStore>();
+builder.Services.AddScoped<ISingerProfileResolver, SingerProfileResolver>();
 builder.Services.AddScoped<ILogCatalogLoader, LogCatalogLoader>();
 builder.Services.AddScoped<IPendingPerformanceSyncService, PendingPerformanceSyncService>();
 builder.Services.AddScoped<IMySongsLocalStore, MySongsLocalStore>();

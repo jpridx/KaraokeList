@@ -13,6 +13,7 @@ namespace KaraokeList.Web.Tests.Components;
 public sealed class SingerGatedPageTests : BunitTestContext
 {
     private readonly Mock<IKaraokeApiClient> api = new();
+    private readonly InMemoryLocalStorage localStorage = new();
 
     public SingerGatedPageTests()
     {
@@ -24,7 +25,9 @@ public sealed class SingerGatedPageTests : BunitTestContext
     {
         AddSyncfusionServices(services);
         services.AddSingleton<IKaraokeApiClient>(api.Object);
-        services.AddSingleton<Blazored.LocalStorage.ILocalStorageService>(new InMemoryLocalStorage());
+        services.AddSingleton<Blazored.LocalStorage.ILocalStorageService>(localStorage);
+        services.AddSingleton<ISingerProfileLocalStore>(new SingerProfileLocalStore(localStorage));
+        services.AddSingleton<ISingerProfileResolver, SingerProfileResolver>();
         services.AddSingleton<JwtAuthenticationStateProvider>();
         services.AddSingleton<Microsoft.AspNetCore.Components.Authorization.AuthenticationStateProvider>(sp =>
             sp.GetRequiredService<JwtAuthenticationStateProvider>());
