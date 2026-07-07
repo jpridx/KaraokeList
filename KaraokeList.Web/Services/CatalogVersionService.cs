@@ -28,7 +28,14 @@ public sealed class CatalogVersionService(IKaraokeApiClient api) : ICatalogVersi
 
         try
         {
-            var version = await api.GetAppVersionAsync();
+            var versionTask = api.GetAppVersionAsync();
+            if (await Task.WhenAny(versionTask, Task.Delay(ApiSlowRequestNotifier.PageLoadTimeout))
+                != versionTask)
+            {
+                return _fetched ? _tag : null;
+            }
+
+            var version = await versionTask;
             _tag = version?.CacheTag;
             _fetched = true;
         }

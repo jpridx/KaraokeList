@@ -3,23 +3,66 @@ using Microsoft.AspNetCore.Components.Authorization;
 
 namespace KaraokeList.Web.Services;
 
-public static class SingerProfileResolver
+public sealed record SingerProfileResolveResult(int? SingerId, bool UsedCachedSingerId);
+
+public interface ISingerProfileResolver
 {
-    public static async Task<int?> ResolveSingerIdAsync(
-        AuthenticationStateProvider authStateProvider,
-        IKaraokeApiClient api)
+    Task<SingerProfileResolveResult> ResolveAsync();
+    Task RefreshFromApiAsync();
+}
+
+public sealed class SingerProfileResolver(
+    AuthenticationStateProvider authStateProvider,
+    IKaraokeApiClient api,
+    ISingerProfileLocalStore store) : ISingerProfileResolver
+{
+    public async Task<SingerProfileResolveResult> ResolveAsync()
     {
         var authState = await authStateProvider.GetAuthenticationStateAsync();
-        var singerId = authState.User.GetSingerId();
-        if (singerId is not null)
+        var claimSingerId = authState.User.GetSingerId();
+        if (claimSingerId is int fromClaim)
         {
-            return singerId;
+            await store.SaveCachedSingerIdAsync(fromClaim);
+            return new SingerProfileResolveResult(fromClaim, false);
         }
 
+        var cachedSingerId = await store.GetCachedSingerIdAsync();
+        if (cachedSingerId is int cachedId)
+        {
+            return new SingerProfileResolveResult(cachedId, true);
+        }
+
+        var profileSingerId = await TryFetchSingerIdFromApiAsync();
+        if (profileSingerId is int profileId)
+        {
+            await store.SaveCachedSingerIdAsync(profileId);
+            return new SingerProfileResolveResult(profileId, false);
+        }
+
+        return new SingerProfileResolveResult(null, false);
+    }
+
+    public async Task RefreshFromApiAsync()
+    {
+        var profileSingerId = await TryFetchSingerIdFromApiAsync();
+        if (profileSingerId is int profileId)
+        {
+            await store.SaveCachedSingerIdAsync(profileId);
+        }
+    }
+
+    private async Task<int?> TryFetchSingerIdFromApiAsync()
+    {
         try
         {
-            var profile = await api.GetProfileAsync();
-            return profile?.SingerId;
+            var profileTask = api.GetProfileAsync();
+            if (await Task.WhenAny(profileTask, Task.Delay(ApiSlowRequestNotifier.PageLoadTimeout))
+                != profileTask)
+            {
+                return null;
+            }
+
+            return (await profileTask)?.SingerId;
         }
         catch (Exception ex) when (ApiTransientFailure.IsTransient(ex) || ex is HttpRequestException)
         {

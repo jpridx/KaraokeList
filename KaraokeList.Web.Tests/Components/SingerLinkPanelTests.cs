@@ -26,6 +26,7 @@ public sealed class SingerLinkPanelTests : BunitTestContext
         AddSyncfusionServices(services);
         services.AddSingleton<IKaraokeApiClient>(api.Object);
         services.AddSingleton<ILocalStorageService>(localStorage);
+        services.AddSingleton<ISingerProfileLocalStore>(new SingerProfileLocalStore(localStorage));
         services.AddSingleton<JwtAuthenticationStateProvider>();
     }
 

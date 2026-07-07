@@ -1,5 +1,3 @@
-using System.Security.Claims;
-using Blazored.LocalStorage;
 using Bunit;
 using Bunit.TestDoubles;
 using KaraokeList.Shared;
@@ -16,6 +14,7 @@ namespace KaraokeList.Web.Tests.Components;
 public sealed class SingerProfileGateTests : BunitTestContext
 {
     private readonly Mock<IKaraokeApiClient> api = new();
+    private readonly Mock<ISingerProfileResolver> profileResolver = new();
     private readonly InMemoryLocalStorage localStorage = new();
 
     public SingerProfileGateTests()
@@ -27,7 +26,9 @@ public sealed class SingerProfileGateTests : BunitTestContext
     {
         AddSyncfusionServices(services);
         services.AddSingleton<IKaraokeApiClient>(api.Object);
-        services.AddSingleton<ILocalStorageService>(localStorage);
+        services.AddSingleton<ISingerProfileResolver>(profileResolver.Object);
+        services.AddSingleton<Blazored.LocalStorage.ILocalStorageService>(localStorage);
+        services.AddSingleton<ISingerProfileLocalStore>(new SingerProfileLocalStore(localStorage));
         services.AddSingleton<JwtAuthenticationStateProvider>();
         services.AddSingleton<AuthenticationStateProvider>(sp =>
             sp.GetRequiredService<JwtAuthenticationStateProvider>());
@@ -36,8 +37,8 @@ public sealed class SingerProfileGateTests : BunitTestContext
     [Fact]
     public async Task Shows_link_panel_when_singer_id_missing()
     {
-        api.Setup(client => client.GetProfileAsync())
-            .ReturnsAsync((UserProfileDto?)null);
+        profileResolver.Setup(resolver => resolver.ResolveAsync())
+            .ReturnsAsync(new SingerProfileResolveResult(null, false));
 
         var cut = Render<SingerProfileGate>(parameters => parameters
             .Add(p => p.OnResolved, EventCallback.Factory.Create<int>(this, _ => { })));
@@ -49,8 +50,8 @@ public sealed class SingerProfileGateTests : BunitTestContext
     [Fact]
     public async Task Renders_child_content_and_invokes_OnResolved_when_singer_known()
     {
-        api.Setup(client => client.GetProfileAsync())
-            .ReturnsAsync(new UserProfileDto { SingerId = 9 });
+        profileResolver.Setup(resolver => resolver.ResolveAsync())
+            .ReturnsAsync(new SingerProfileResolveResult(9, false));
 
         var resolvedId = 0;
         var cut = Render<SingerProfileGate>(parameters => parameters
@@ -63,10 +64,27 @@ public sealed class SingerProfileGateTests : BunitTestContext
     }
 
     [Fact]
+    public async Task Renders_child_before_slow_OnResolved_completes()
+    {
+        var resolvedGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        profileResolver.Setup(resolver => resolver.ResolveAsync())
+            .ReturnsAsync(new SingerProfileResolveResult(9, true));
+
+        var cut = Render<SingerProfileGate>(parameters => parameters
+            .Add(p => p.OnResolved, EventCallback.Factory.Create<int>(this, async _ => await resolvedGate.Task))
+            .Add(p => p.ChildContent, (RenderFragment<int>)(singerId => builder =>
+                builder.AddMarkupContent(0, $"<p>Singer {singerId}</p>"))));
+
+        cut.WaitForAssertion(() => Assert.Contains("Singer 9", cut.Markup));
+        Assert.False(resolvedGate.Task.IsCompleted);
+        resolvedGate.SetResult();
+    }
+
+    [Fact]
     public async Task Invokes_OnResolved_after_successful_link()
     {
-        api.Setup(client => client.GetProfileAsync())
-            .ReturnsAsync((UserProfileDto?)null);
+        profileResolver.Setup(resolver => resolver.ResolveAsync())
+            .ReturnsAsync(new SingerProfileResolveResult(null, false));
         api.Setup(client => client.LinkSingerAsync(It.IsAny<LinkSingerRequest>()))
             .ReturnsAsync(AuthResult.Ok(new AuthResponse
             {
@@ -93,8 +111,8 @@ public sealed class SingerProfileGateTests : BunitTestContext
     [Fact]
     public async Task RequireSingerLink_shows_link_panel_after_child_was_rendered()
     {
-        api.Setup(client => client.GetProfileAsync())
-            .ReturnsAsync(new UserProfileDto { SingerId = 9 });
+        profileResolver.Setup(resolver => resolver.ResolveAsync())
+            .ReturnsAsync(new SingerProfileResolveResult(9, false));
 
         var cut = Render<SingerProfileGate>(parameters => parameters
             .Add(p => p.OnResolved, EventCallback.Factory.Create<int>(this, _ => { }))

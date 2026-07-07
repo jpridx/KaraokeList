@@ -1,4 +1,5 @@
 @inject IStaleSongsLoader Loader
+@using KaraokeList.Web.Services
 
 @if (!loading && songs.Count > 0)
 {
@@ -50,9 +51,27 @@
             return;
         }
 
-        // No cache — full foreground load (first visit).
-        var result = await Loader.LoadAsync();
-        ApplyResult(result);
+        // No cache — don't block Home while the DB wakes; show nothing until data arrives.
+        var loadTask = Loader.LoadAsync();
+        if (await Task.WhenAny(loadTask, Task.Delay(ApiSlowRequestNotifier.PageLoadTimeout)) != loadTask)
+        {
+            loading = false;
+            _ = loadTask.ContinueWith(async t =>
+            {
+                if (t.IsCompletedSuccessfully)
+                {
+                    ApplyResult(t.Result);
+                    await InvokeAsync(() =>
+                    {
+                        loading = false;
+                        StateHasChanged();
+                    });
+                }
+            });
+            return;
+        }
+
+        ApplyResult(await loadTask);
         loading = false;
     }
 

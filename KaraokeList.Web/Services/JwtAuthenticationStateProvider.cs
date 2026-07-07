@@ -1,11 +1,14 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Blazored.LocalStorage;
+using KaraokeList.Shared;
 using Microsoft.AspNetCore.Components.Authorization;
 
 namespace KaraokeList.Web.Services;
 
-public sealed class JwtAuthenticationStateProvider(ILocalStorageService localStorage) : AuthenticationStateProvider
+public sealed class JwtAuthenticationStateProvider(
+    ILocalStorageService localStorage,
+    ISingerProfileLocalStore singerProfileStore) : AuthenticationStateProvider
 {
     public const string TokenKey = "authToken";
 
@@ -28,7 +31,13 @@ public sealed class JwtAuthenticationStateProvider(ILocalStorageService localSto
             }
 
             var identity = new ClaimsIdentity(jwt.Claims, authenticationType: "jwt");
-            return new AuthenticationState(new ClaimsPrincipal(identity));
+            var principal = new ClaimsPrincipal(identity);
+            if (principal.GetSingerId() is int singerId)
+            {
+                await singerProfileStore.SaveCachedSingerIdAsync(singerId);
+            }
+
+            return new AuthenticationState(principal);
         }
         catch
         {
@@ -40,12 +49,31 @@ public sealed class JwtAuthenticationStateProvider(ILocalStorageService localSto
     public async Task MarkUserAsAuthenticatedAsync(string token)
     {
         await localStorage.SetItemAsStringAsync(TokenKey, token);
+        await CacheSingerIdFromTokenAsync(token);
         NotifyAuthenticationStateChanged(GetAuthenticationStateAsync());
     }
 
     public async Task MarkUserAsLoggedOutAsync()
     {
         await localStorage.RemoveItemAsync(TokenKey);
+        await singerProfileStore.ClearCachedSingerIdAsync();
         NotifyAuthenticationStateChanged(GetAuthenticationStateAsync());
+    }
+
+    private async Task CacheSingerIdFromTokenAsync(string token)
+    {
+        try
+        {
+            var jwt = new JwtSecurityTokenHandler().ReadJwtToken(token.Trim('"'));
+            var singerIdValue = jwt.Claims.FirstOrDefault(c => c.Type == KaraokeClaimTypes.SingerId)?.Value;
+            if (int.TryParse(singerIdValue, out var singerId))
+            {
+                await singerProfileStore.SaveCachedSingerIdAsync(singerId);
+            }
+        }
+        catch
+        {
+            // Non-fatal; profile resolver can refresh later.
+        }
     }
 }
