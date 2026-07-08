@@ -25,7 +25,7 @@ internal sealed class CsvCatalogRowParser : ICatalogRowParser
             while (csv.Read())
             {
                 var cells = new List<string>();
-                for (int i = 0; csv.TryGetField<string>(i, out var val); i++)
+                for (int i = 0; i < 32 && csv.TryGetField<string>(i, out var val); i++)
                     cells.Add(val ?? string.Empty);
                 rawRows.Add(cells);
             }

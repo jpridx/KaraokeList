@@ -89,6 +89,10 @@ Playwright slows actions slightly when headed so you can follow along.
 | `Authenticated_user_can_add_new_song_and_log_it` | Log **+ New song** → add artist → add song → save performance |
 | `Authenticated_user_can_edit_a_performance_on_my_performances` | **My performances** → **Edit** opens form (date/venue/key) → **Cancel** closes it |
 | `Authenticated_user_can_delete_a_performance_on_my_performances` | **My performances** → **Delete** → confirm → row removed |
+| `Log_page_copy_for_host_copies_formatted_message` | Log **Copy for host** → clipboard has `Title - Artist` message |
+| `Offline_save_queues_performance_and_sync_now_persists_it` | Block API save → device queue → navigation sync → performance on server |
+| `Authenticated_user_can_import_csv_into_my_repertoire` | `/import-repertoire` CSV upload → **My repertoire** → song on **My Songs** |
+| `App_update_banner_appears_when_update_is_available` | Simulated SW update → **Refresh now** banner on home |
 
 Other tests seed auth through the API (fast setup) then exercise WASM UI flows. Login form coverage uses the real Sign in button and JWT storage path the app uses after a normal login.
 
@@ -112,3 +116,36 @@ E2E is **not** in GitHub Actions yet (needs SQL + two long-running processes + P
 3. Wait for Blazor: `await Page.WaitForSelectorAsync("...")` with a generous timeout (WASM cold start).
 
 See [mobile-ux.md](mobile-ux.md) for routes and flows worth automating next (Log performance, invite link register).
+
+## E2E coverage roadmap
+
+Playwright coverage is grouped in **tiers** (singer mobile flows first). Refactor tiers in [mobile-refactor-roadmap.md](mobile-refactor-roadmap.md) are unrelated — this table is **browser test** scope only.
+
+### Completed
+
+| Tier | Theme | Tests |
+|------|--------|-------|
+| **1** | Core singer mobile | Auth, log performance, My Songs nav, song detail + log again, list chips, Tonight shortcuts, add-new-song-at-log, My Performances edit (open/cancel) + delete — PR [#186](https://github.com/jpridx/KaraokeList/pull/186) |
+| **2** | Venue-night extras | Copy for host, offline performance queue + sync, CSV import to list, PWA update banner — this PR |
+
+### Remaining tiers (not scheduled)
+
+| Tier | Candidate flows | Notes |
+|------|-----------------|-------|
+| **3** | Account & stats | `/account/preferences`, `/account/change-password`, `/my-stats`, password reset |
+| **4** | Offline read paths | My Songs browse from cache when API blocked; stale-songs tickler on home |
+| **5** | Admin catalog | Desktop Syncfusion grids under **More → Catalog**; needs admin role in E2E DB |
+| **6** | CI | GitHub Actions job (SQL + Api + Web + Playwright browsers) |
+
+### Deferred / better suited elsewhere
+
+| Item | Why deferred |
+|------|----------------|
+| **Performance edit save** (change date/venue/key) | Syncfusion dropdowns and `InputDate` do not bind reliably under Playwright; Tier 1 uses edit open/cancel smoke only. Persistence belongs in integration or bUnit tests. |
+| **Admin catalog grids** | Requires seeded admin user; bUnit `AdminCatalogPageTests` already smoke each grid page. |
+| **Google Sheets import** | External network + public sheet fixture; API/integration layer is a better fit. |
+| **Flexible search** ([#92](https://github.com/jpridx/KaraokeList/issues/92)) | Not implemented yet — see [flexible-search-options.md](flexible-search-options.md). |
+| **PWA “Refresh now” click** | Tier 2 asserts banner only; full reload would disrupt the test run. |
+| **Catalog admin CSV import** | `/admin/import-songs` — admin-only; defer with Tier 5. |
+
+When a tier ships, add rows to **Current tests** above and mark the tier done in this table.

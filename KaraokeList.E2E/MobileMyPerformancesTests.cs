@@ -20,7 +20,7 @@ public sealed class MobileMyPerformancesTests(E2eServerFixture servers) : PageTe
 
         using var apiClient = new HttpClient { BaseAddress = new Uri(E2eConfiguration.ApiBaseUrl) };
         var songTitle = $"E2E Edit Perf {Guid.NewGuid():N}";
-        var (songId, _) = await E2eCatalogHelper.SeedSongAsync(apiClient, servers.WarmUpToken!, songTitle);
+        var (songId, _, _) = await E2eCatalogHelper.SeedSongAsync(apiClient, servers.WarmUpToken!, songTitle);
         await E2eCatalogHelper.SeedPerformanceAsync(apiClient, servers.WarmUpToken!, songId, performedOn: DateTime.Today);
 
         await E2eAuthHelper.SignInViaLocalStorageAsync(Page, servers.WarmUpToken!);
@@ -52,7 +52,7 @@ public sealed class MobileMyPerformancesTests(E2eServerFixture servers) : PageTe
 
         using var apiClient = new HttpClient { BaseAddress = new Uri(E2eConfiguration.ApiBaseUrl) };
         var songTitle = $"E2E Delete Perf {Guid.NewGuid():N}";
-        var (songId, _) = await E2eCatalogHelper.SeedSongAsync(apiClient, servers.WarmUpToken!, songTitle);
+        var (songId, _, _) = await E2eCatalogHelper.SeedSongAsync(apiClient, servers.WarmUpToken!, songTitle);
         await E2eCatalogHelper.SeedPerformanceAsync(apiClient, servers.WarmUpToken!, songId);
 
         await E2eAuthHelper.SignInViaLocalStorageAsync(Page, servers.WarmUpToken!);

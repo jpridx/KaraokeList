@@ -22,7 +22,7 @@ public sealed class MobileMySongsFlowTests(E2eServerFixture servers) : PageTest
 
         using var apiClient = new HttpClient { BaseAddress = new Uri(E2eConfiguration.ApiBaseUrl) };
         var songTitle = $"E2E Detail Song {Guid.NewGuid():N}";
-        var (songId, _) = await E2eCatalogHelper.SeedSongAsync(apiClient, servers.WarmUpToken!, songTitle);
+        var (songId, _, _) = await E2eCatalogHelper.SeedSongAsync(apiClient, servers.WarmUpToken!, songTitle);
         await E2eCatalogHelper.SeedPerformanceAsync(apiClient, servers.WarmUpToken!, songId);
 
         await E2eAuthHelper.SignInViaLocalStorageAsync(Page, servers.WarmUpToken!);
@@ -65,11 +65,11 @@ public sealed class MobileMySongsFlowTests(E2eServerFixture servers) : PageTest
         var wantTitle = $"E2E Want {Guid.NewGuid():N}";
         var workingTitle = $"E2E Working {Guid.NewGuid():N}";
 
-        var (repertoireSongId, _) = await E2eCatalogHelper.SeedSongAsync(apiClient, servers.WarmUpToken!, repertoireTitle);
+        var (repertoireSongId, _, _) = await E2eCatalogHelper.SeedSongAsync(apiClient, servers.WarmUpToken!, repertoireTitle);
         await E2eCatalogHelper.SeedPerformanceAsync(apiClient, servers.WarmUpToken!, repertoireSongId);
 
-        var (wantSongId, _) = await E2eCatalogHelper.SeedSongAsync(apiClient, servers.WarmUpToken!, wantTitle);
-        var (workingSongId, _) = await E2eCatalogHelper.SeedSongAsync(apiClient, servers.WarmUpToken!, workingTitle);
+        var (wantSongId, _, _) = await E2eCatalogHelper.SeedSongAsync(apiClient, servers.WarmUpToken!, wantTitle);
+        var (workingSongId, _, _) = await E2eCatalogHelper.SeedSongAsync(apiClient, servers.WarmUpToken!, workingTitle);
         await E2eCatalogHelper.AddSongsToListAsync(apiClient, servers.WarmUpToken!, SingerListKind.WantToSing, [wantSongId]);
         await E2eCatalogHelper.AddSongsToListAsync(apiClient, servers.WarmUpToken!, SingerListKind.WorkingUp, [workingSongId]);
 
