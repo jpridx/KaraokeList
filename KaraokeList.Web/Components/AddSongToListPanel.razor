@@ -84,17 +84,20 @@
         mode = AddSongMode.NewSong;
     }
 
-    private async Task LoadCatalogAsync()
+    private async Task LoadCatalogAsync(bool forceRefresh = false)
     {
         isLoadingCatalog = true;
         try
         {
-            var cached = await CatalogLoader.TryGetCachedAsync();
-            if (cached is not null)
+            if (!forceRefresh)
             {
-                catalogPickerItems = cached.Songs.ToList();
-                _ = RefreshCatalogInBackgroundAsync();
-                return;
+                var cached = await CatalogLoader.TryGetCachedAsync();
+                if (cached is not null)
+                {
+                    catalogPickerItems = cached.Songs.ToList();
+                    _ = RefreshCatalogInBackgroundAsync();
+                    return;
+                }
             }
 
             var snapshot = await CatalogLoader.LoadAsync();
@@ -162,7 +165,7 @@
         isBusy = true;
         try
         {
-            await LoadCatalogAsync();
+            await LoadCatalogAsync(forceRefresh: true);
 
             var newSong = CatalogSongMapper.FindCreatedPickItem(
                 catalogPickerItems,

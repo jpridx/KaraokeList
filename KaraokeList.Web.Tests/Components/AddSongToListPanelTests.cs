@@ -1,3 +1,4 @@
+using KaraokeList.Shared;
 using KaraokeList.Web.Components;
 using KaraokeList.Web.Services;
 using KaraokeList.Web.Tests.Pages;
@@ -51,5 +52,42 @@ public sealed class AddSongToListPanelTests : AuthPageTestContext
         newSongButton.Click();
 
         cut.WaitForAssertion(() => Assert.Contains("Title", cut.Markup));
+    }
+
+    [Fact]
+    public async Task OnNewSongAddedAsync_bypasses_stale_cache_and_adds_to_list()
+    {
+        var staleSong = new LogSongPickItem(1, "Old Song", "Old Artist", false, false);
+        var newSong = new LogSongPickItem(99, "Brand New", "New Artist", false, false);
+        var staleSnapshot = new LogCatalogSnapshot([staleSong], [], [], true, true, DateTime.UtcNow);
+        var freshSnapshot = new LogCatalogSnapshot([staleSong, newSong], [], [], false, true, DateTime.UtcNow);
+
+        catalogLoader.Setup(loader => loader.TryGetCachedAsync()).ReturnsAsync(staleSnapshot);
+        catalogLoader.Setup(loader => loader.LoadAsync(It.IsAny<Action<string>?>()))
+            .ReturnsAsync(freshSnapshot);
+        Api.Setup(client => client.AddListSongAsync(2, 99))
+            .ReturnsAsync(ListSongActionResult.Ok());
+
+        SongAddedToListEventArgs? added = null;
+        var cut = Render<AddSongToListPanel>(parameters => parameters
+            .Add(p => p.ListId, 2)
+            .Add(p => p.ListDisplayName, "Working up")
+            .Add(p => p.OnSongAdded, EventCallback.Factory.Create<SongAddedToListEventArgs>(this, args => added = args)));
+
+        cut.Instance.OpenNewSong();
+        cut.Render();
+
+        var addSongPanel = cut.FindComponent<AddSongPanel>();
+        await addSongPanel.InvokeAsync(() =>
+            addSongPanel.Instance.OnSongAdded.InvokeAsync(new SongAddedEventArgs("Brand New", "New Artist")));
+
+        cut.WaitForAssertion(() =>
+        {
+            catalogLoader.Verify(loader => loader.LoadAsync(It.IsAny<Action<string>?>()), Times.Once);
+            Api.Verify(client => client.AddListSongAsync(2, 99), Times.Once);
+            Assert.NotNull(added);
+            Assert.Contains("Brand New", added!.Message);
+            Assert.Contains("Working up", added.Message);
+        });
     }
 }
