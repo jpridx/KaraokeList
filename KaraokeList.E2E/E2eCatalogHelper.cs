@@ -1,12 +1,13 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text;
 using KaraokeList.Shared;
 
 namespace KaraokeList.E2E;
 
 internal static class E2eCatalogHelper
 {
-    public static async Task<(int SongId, string SongTitle)> SeedSongAsync(
+    public static async Task<(int SongId, string SongTitle, string ArtistName)> SeedSongAsync(
         HttpClient apiClient,
         string token,
         string? explicitSongTitle = null)
@@ -38,7 +39,44 @@ internal static class E2eCatalogHelper
         var songs = await apiClient.GetFromJsonAsync<List<SongDto>>("/api/songs")
             ?? throw new InvalidOperationException("Songs list returned null.");
         var songId = songs.First(s => s.Title == songTitle && s.Artist == artistId).Id;
-        return (songId, songTitle);
+        return (songId, songTitle, artistName);
+    }
+
+    public static async Task<ImportSingerListFromFileResponse> ImportCsvFileAsync(
+        HttpClient apiClient,
+        string token,
+        string csvContent,
+        SingerListKind listKind,
+        string fileName = "e2e-import.csv")
+    {
+        apiClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        using var content = new MultipartFormDataContent();
+        content.Add(new ByteArrayContent(Encoding.UTF8.GetBytes(csvContent)), "file", fileName);
+        content.Add(new StringContent(listKind.ToString()), "listKind");
+
+        var response = await apiClient.PostAsync("/api/singers/me/lists/import-file", content);
+        var body = await response.Content.ReadAsStringAsync();
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException($"CSV import failed ({(int)response.StatusCode}): {body}");
+        }
+
+        return System.Text.Json.JsonSerializer.Deserialize<ImportSingerListFromFileResponse>(
+            body,
+            new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+            ?? throw new InvalidOperationException("Import response was null.");
+    }
+
+    public static async Task<bool> PerformanceExistsForSongAsync(
+        HttpClient apiClient,
+        string token,
+        string songTitle)
+    {
+        apiClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        var history = await apiClient.GetFromJsonAsync<List<MyPerformanceEntryDto>>("/api/performances/my-history")
+            ?? throw new InvalidOperationException("Performance history returned null.");
+        return history.Any(h => h.Title == songTitle);
     }
 
     public static async Task<(int VenueId, string VenueName)> SeedVenueAsync(

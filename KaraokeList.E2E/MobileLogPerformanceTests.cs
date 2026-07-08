@@ -22,7 +22,7 @@ public sealed class MobileLogPerformanceTests(E2eServerFixture servers) : PageTe
 
         using var apiClient = new HttpClient { BaseAddress = new Uri(E2eConfiguration.ApiBaseUrl) };
         await E2eAuthHelper.SignInViaLocalStorageAsync(Page, servers.WarmUpToken!);
-        var (songId, _) = await E2eCatalogHelper.SeedSongAsync(apiClient, servers.WarmUpToken!);
+        var (songId, _, _) = await E2eCatalogHelper.SeedSongAsync(apiClient, servers.WarmUpToken!);
 
         await Expect(Page.GetByText($"Signed in as {servers.WarmUpEmail}")).ToBeVisibleAsync(new() { Timeout = 60_000 });
 
