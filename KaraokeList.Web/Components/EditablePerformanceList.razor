@@ -53,8 +53,11 @@
                     </button>
                     <div class="performance-browse-actions">
                         <a class="btn btn-link btn-sm p-0" href="@($"log?songId={entry.SongId}")">Log</a>
-                        <button type="button" class="btn btn-link btn-sm p-0" @onclick="() => BeginEdit(entry)">Edit</button>
-                        <button type="button" class="btn btn-link btn-sm p-0 text-danger" @onclick="() => BeginDelete(entry.Id)">Delete</button>
+                        @if (AllowMutations)
+                        {
+                            <button type="button" class="btn btn-link btn-sm p-0" @onclick="() => BeginEdit(entry)">Edit</button>
+                            <button type="button" class="btn btn-link btn-sm p-0 text-danger" @onclick="() => BeginDelete(entry.Id)">Delete</button>
+                        }
                     </div>
                 </div>
             }
@@ -73,8 +76,11 @@
                         }
                     </div>
                     <div class="history-row-actions">
-                        <button type="button" class="btn btn-link btn-sm p-0" @onclick="() => BeginEdit(entry)">Edit</button>
-                        <button type="button" class="btn btn-link btn-sm p-0 text-danger" @onclick="() => BeginDelete(entry.Id)">Delete</button>
+                        @if (AllowMutations)
+                        {
+                            <button type="button" class="btn btn-link btn-sm p-0" @onclick="() => BeginEdit(entry)">Edit</button>
+                            <button type="button" class="btn btn-link btn-sm p-0 text-danger" @onclick="() => BeginDelete(entry.Id)">Delete</button>
+                        }
                     </div>
                 </div>
             }
@@ -94,6 +100,9 @@
 
     [Parameter]
     public EventCallback OnChanged { get; set; }
+
+    [Parameter]
+    public bool AllowMutations { get; set; } = true;
 
     private List<VenueDto> venues = [];
     private List<SingerDto> singers = [];

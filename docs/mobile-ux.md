@@ -106,7 +106,7 @@ Use **Cancel** to close the add-song panel without losing your place on the Log 
 
 When the API is slow or unreachable (spotty venue Wi‑Fi, database cold start), **Log performance** still works:
 
-1. **Cache first:** Open **Log** once while online. The app caches the song catalog, your repertoire markers (★), working-up markers (🎯), and venues on this device. Open **My Songs** once while online to cache your lists for read-only browse offline.
+1. **Cache first:** Open **Log** once while online. The app caches the song catalog, your repertoire markers (★), working-up markers (🎯), and venues on this device. Open **My Songs** once while online to cache your lists for read-only browse offline. Open **My Performances** once while online to cache your performance history for read-only browse offline.
 2. **Pick a song offline:**
    - Search the cached catalog in the song combobox, or
    - Tap a row under **Recently logged**, or
@@ -117,7 +117,7 @@ When the API is slow or unreachable (spotty venue Wi‑Fi, database cold start),
 
 If you go offline before ever opening Log online, use **Recently logged** to pick songs until the catalog is cached.
 
-**Not available offline:** adding songs/artists/venues, editing list membership, or performance history edits. **My Songs** works read-only from cache (browse, search, open song detail links may fail without API).
+**Not available offline:** adding songs/artists/venues, editing list membership, or performance history edits. **My Songs** and **My Performances** work read-only from cache (browse, search; song detail links may fail without API).
 
 ## Tonight dashboard (mobile home)
 
