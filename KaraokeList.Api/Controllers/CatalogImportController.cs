@@ -48,7 +48,7 @@ public class CatalogImportController(
         if (string.IsNullOrWhiteSpace(request.SheetUrl))
             return BadRequest(new ApiErrorResponse { Message = "SheetUrl is required." });
 
-        var csvUrl = BuildGSheetCsvUrl(request.SheetUrl);
+        var csvUrl = GSheetImportHelper.BuildCsvExportUrl(request.SheetUrl);
         if (csvUrl is null)
             return BadRequest(new ApiErrorResponse { Message = "Could not parse a Google Sheets URL from the provided value." });
 
@@ -80,43 +80,5 @@ public class CatalogImportController(
 
         var result = await importService.ImportAsync(parsed.Rows);
         return Ok(result);
-    }
-
-    /// <summary>
-    /// Converts a Google Sheets sharing URL to a CSV export URL.
-    /// Handles /edit, /pub, and plain spreadsheet URLs, preserving the gid (tab id) when present.
-    /// </summary>
-    private static string? BuildGSheetCsvUrl(string rawUrl)
-    {
-        if (!Uri.TryCreate(rawUrl.Trim(), UriKind.Absolute, out var uri))
-            return null;
-
-        if (!uri.Host.Equals("docs.google.com", StringComparison.OrdinalIgnoreCase))
-            return null;
-
-        // Extract sheet id from path: /spreadsheets/d/{id}/...
-        var segments = uri.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
-        var dIdx = Array.IndexOf(segments, "d");
-        if (dIdx < 0 || dIdx + 1 >= segments.Length)
-            return null;
-
-        var sheetId = segments[dIdx + 1];
-
-        // Try to preserve gid from fragment (#gid=123) or query (?gid=123)
-        var gid = ExtractGid(uri.Fragment) ?? ExtractGid(uri.Query);
-        var gidParam = gid is not null ? $"&gid={gid}" : string.Empty;
-
-        return $"https://docs.google.com/spreadsheets/d/{sheetId}/export?format=csv{gidParam}";
-    }
-
-    private static string? ExtractGid(string haystack)
-    {
-        if (string.IsNullOrEmpty(haystack)) return null;
-        var prefix = "gid=";
-        var idx = haystack.IndexOf(prefix, StringComparison.OrdinalIgnoreCase);
-        if (idx < 0) return null;
-        var start = idx + prefix.Length;
-        var end = haystack.IndexOf('&', start);
-        return end < 0 ? haystack[start..] : haystack[start..end];
     }
 }

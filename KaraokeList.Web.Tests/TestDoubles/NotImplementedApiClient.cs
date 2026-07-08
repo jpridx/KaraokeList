@@ -73,6 +73,8 @@ public class NotImplementedApiClient : IKaraokeApiClient
         string sortDir = "asc",
         int? genreId = null) => Throw<RepertoireResult>();
     public virtual Task<SingerListImportResult> ImportListSongsAsync(ImportSingerListSongsRequest request) => Throw<SingerListImportResult>();
+    public virtual Task<SingerListFileImportResult> ImportListSongsFromFileAsync(Stream fileStream, string fileName, SingerListKind listKind) => Throw<SingerListFileImportResult>();
+    public virtual Task<SingerListFileImportResult> ImportListSongsFromGSheetAsync(ImportSingerListFromGSheetRequest request) => Throw<SingerListFileImportResult>();
     public virtual Task<ListSongActionResult> AddListSongAsync(int listId, int songId) => Throw<ListSongActionResult>();
     public virtual Task<ListSongActionResult> RemoveListSongAsync(int listId, int songId) => Throw<ListSongActionResult>();
     public virtual Task<SongListMembershipResult> GetSongListMembershipAsync(int songId) => Throw<SongListMembershipResult>();

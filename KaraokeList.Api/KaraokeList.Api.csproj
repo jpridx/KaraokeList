@@ -33,4 +33,8 @@
     <ProjectReference Include="..\KaraokeList.Shared\KaraokeList.Shared.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="KaraokeList.Api.IntegrationTests" />
+  </ItemGroup>
+
 </Project>

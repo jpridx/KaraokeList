@@ -21,6 +21,7 @@ public static class KaraokeServiceCollectionExtensions
         services.AddScoped<TicklerExclusionService>();
         services.AddScoped<CatalogImportService>();
         services.AddScoped<CatalogMergeService>();
+        services.AddScoped<RepertoireImportService>();
         return services;
     }
 }

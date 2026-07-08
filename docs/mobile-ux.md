@@ -35,6 +35,7 @@ There is no sidebar. Catalog grids live under `/more`.
 | `/log` | Pick a song (catalog ComboBox), log venue/date/key, copy for host, save |
 | `/log?songId={id}` | Same, with song pre-selected (from My Songs **Log** button) |
 | `/my-songs` | Browse **My repertoire**, **Want to sing**, or **Working up** lists; search, sort, genre; virtualized scroll (flat list) or load-more when grouped |
+| `/import-repertoire` | Bulk-import songs into a list from CSV, TSV, XLSX, or Google Sheets (matches catalog by title + artist) |
 | `/my-songs/{id}` | Stats, copy for host, log again (collapsible), performance history |
 | `/my-performances` | Chronological performance list; search, venue filter, edit/delete |
 | `/my-stats` | Full stats: totals, top venues/songs/artists, new repertoire |
