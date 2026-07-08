@@ -162,6 +162,39 @@ public sealed class LogCatalogLoaderTests
     }
 
     [Fact]
+    public async Task PatchCachedSongAsync_appends_song_and_updates_cache_tag()
+    {
+        var store = new LogPerformanceLocalStore(new InMemoryLocalStorage());
+        await store.SaveCachedCatalogAsync(new CachedLogCatalog(
+            [new CachedSongEntry(1, "Old Song", "Old Artist")],
+            [1],
+            [new CachedVenueEntry(3, "Main Stage")],
+            DateTime.UtcNow.AddHours(-1),
+            [],
+            "old-tag"));
+
+        var versionService = new FixedCatalogVersionService("new-tag");
+        var loader = new LogCatalogLoader(new CatalogApiStub(), store, versionService);
+
+        var snapshot = await loader.PatchCachedSongAsync(99, "Brand New", "New Artist");
+
+        Assert.True(snapshot.FromCache);
+        Assert.True(snapshot.HasCatalog);
+        Assert.Contains(snapshot.Songs, s => s.Id == 99 && s.Title == "Brand New");
+
+        var cached = await store.GetCachedCatalogAsync();
+        Assert.NotNull(cached);
+        Assert.Equal(2, cached!.Songs.Count);
+        Assert.Equal("new-tag", cached.CacheTag);
+    }
+
+    private sealed class FixedCatalogVersionService(string tag) : ICatalogVersionService
+    {
+        public Task<string?> GetCacheTagAsync(bool forceRefresh = false) => Task.FromResult<string?>(tag);
+        public void Invalidate() { }
+    }
+
+    [Fact]
     public async Task LoadVenuesAsync_when_offline_returns_cached_venues()
     {
         var store = new LogPerformanceLocalStore(new InMemoryLocalStorage());

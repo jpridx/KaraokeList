@@ -250,19 +250,12 @@ public partial class Log
     private async Task OnNewSongAddedAsync(SongAddedEventArgs args)
     {
         saveError = null;
-        await ApplyCatalogSnapshotAsync();
+        var snapshot = await CatalogLoader.PatchCachedSongAsync(args.SongId, args.Title, args.ArtistName);
+        catalogState.Apply(snapshot);
+        catalogState.MarkOnline();
 
-        var created = CatalogSongMapper.FindCreatedPickItem(
-            catalogState.SongPickerItems,
-            args.Title,
-            args.ArtistName);
-
-        if (created is not null)
-        {
-            selectedSongId = created.Id;
-            await OnSongChangedAsync(created.Id);
-        }
-
+        selectedSongId = args.SongId;
+        await OnSongChangedAsync(args.SongId);
         saveMessage = "Song added.";
     }
 

@@ -11,6 +11,7 @@ public interface ILogCatalogLoader
     Task<LookupsLoadResult> LoadLookupsAsync();
     Task<LookupsLoadResult?> TryGetCachedLookupsAsync();
     Task SaveLookupsAsync(IReadOnlyList<ArtistLookupDto> artists, IReadOnlyList<GenreDto> genres);
+    Task<LogCatalogSnapshot> PatchCachedSongAsync(int songId, string title, string artistName);
 }
 
 public sealed class LogCatalogLoader(
@@ -205,6 +206,41 @@ public sealed class LogCatalogLoader(
             Genres = genreEntries,
             CachedAtUtc = DateTime.UtcNow
         });
+    }
+
+    public async Task<LogCatalogSnapshot> PatchCachedSongAsync(int songId, string title, string artistName)
+    {
+        versionService.Invalidate();
+        var cacheTag = await versionService.GetCacheTagAsync(forceRefresh: true);
+        var cachedAt = DateTime.UtcNow;
+        var cached = await store.GetCachedCatalogAsync();
+        var entry = new CachedSongEntry(songId, title.Trim(), artistName.Trim());
+
+        if (cached is null)
+        {
+            cached = new CachedLogCatalog(
+                [entry],
+                [],
+                [],
+                cachedAt,
+                [],
+                cacheTag);
+            await store.SaveCachedCatalogAsync(cached);
+            return MapCacheToSnapshot(cached);
+        }
+
+        var songs = cached.Songs.Any(s => s.Id == songId)
+            ? cached.Songs
+            : cached.Songs.Append(entry).ToList();
+
+        cached = cached with
+        {
+            Songs = songs,
+            CachedAtUtc = cachedAt,
+            CacheTag = cacheTag
+        };
+        await store.SaveCachedCatalogAsync(cached);
+        return MapCacheToSnapshot(cached);
     }
 
     private async Task<LookupsLoadResult> LoadLookupsFromCacheAsync()

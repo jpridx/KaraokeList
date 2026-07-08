@@ -248,11 +248,10 @@ internal static class PerformanceTestDataHelper
             Artist = artistId,
             Genre = genreId
         });
-        Assert.Equal(HttpStatusCode.NoContent, createSong.StatusCode);
-
-        var songs = await client.GetFromJsonAsync<List<SongDto>>("/api/songs");
-        Assert.NotNull(songs);
-        var songId = Assert.Single(songs, s => s.Title == songTitle).Id;
+        Assert.Equal(HttpStatusCode.Created, createSong.StatusCode);
+        var createdSong = await createSong.Content.ReadFromJsonAsync<SongDto>();
+        Assert.NotNull(createdSong);
+        var songId = createdSong!.Id;
 
         var venueName = $"Venue {Guid.NewGuid():N}";
         var createVenue = await client.PostAsJsonAsync("/api/venues", new VenueDto { VenueName = venueName });

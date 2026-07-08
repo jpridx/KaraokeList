@@ -20,7 +20,7 @@ public class SongsController(SongService songService, CatalogIntegrityService in
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] SongDto dto)
+    public async Task<ActionResult<SongDto>> Create([FromBody] SongDto dto)
     {
         var validation = await ValidateArtistReferencesAsync(dto);
         if (validation is not null)
@@ -28,8 +28,9 @@ public class SongsController(SongService songService, CatalogIntegrityService in
             return validation;
         }
 
-        await songService.AddSongAsync(dto.ToEntity());
-        return NoContent();
+        var created = await songService.AddSongAsync(dto.ToEntity());
+        var result = created.ToDto();
+        return CreatedAtAction(nameof(GetAll), new { id = result.Id }, result);
     }
 
     [HttpPut("{id:int}")]

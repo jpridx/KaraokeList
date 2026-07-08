@@ -55,16 +55,14 @@ public sealed class AddSongToListPanelTests : AuthPageTestContext
     }
 
     [Fact]
-    public async Task OnNewSongAddedAsync_bypasses_stale_cache_and_adds_to_list()
+    public async Task OnNewSongAddedAsync_patches_cache_and_adds_to_list()
     {
         var staleSong = new LogSongPickItem(1, "Old Song", "Old Artist", false, false);
         var newSong = new LogSongPickItem(99, "Brand New", "New Artist", false, false);
-        var staleSnapshot = new LogCatalogSnapshot([staleSong], [], [], true, true, DateTime.UtcNow);
-        var freshSnapshot = new LogCatalogSnapshot([staleSong, newSong], [], [], false, true, DateTime.UtcNow);
+        var patchedSnapshot = new LogCatalogSnapshot([staleSong, newSong], [], [], false, true, DateTime.UtcNow);
 
-        catalogLoader.Setup(loader => loader.TryGetCachedAsync()).ReturnsAsync(staleSnapshot);
-        catalogLoader.Setup(loader => loader.LoadAsync(It.IsAny<Action<string>?>()))
-            .ReturnsAsync(freshSnapshot);
+        catalogLoader.Setup(loader => loader.PatchCachedSongAsync(99, "Brand New", "New Artist"))
+            .ReturnsAsync(patchedSnapshot);
         Api.Setup(client => client.AddListSongAsync(2, 99))
             .ReturnsAsync(ListSongActionResult.Ok());
 
@@ -79,11 +77,12 @@ public sealed class AddSongToListPanelTests : AuthPageTestContext
 
         var addSongPanel = cut.FindComponent<AddSongPanel>();
         await addSongPanel.InvokeAsync(() =>
-            addSongPanel.Instance.OnSongAdded.InvokeAsync(new SongAddedEventArgs("Brand New", "New Artist")));
+            addSongPanel.Instance.OnSongAdded.InvokeAsync(new SongAddedEventArgs(99, "Brand New", "New Artist")));
 
         cut.WaitForAssertion(() =>
         {
-            catalogLoader.Verify(loader => loader.LoadAsync(It.IsAny<Action<string>?>()), Times.Once);
+            catalogLoader.Verify(loader => loader.PatchCachedSongAsync(99, "Brand New", "New Artist"), Times.Once);
+            catalogLoader.Verify(loader => loader.LoadAsync(It.IsAny<Action<string>?>()), Times.Never);
             Api.Verify(client => client.AddListSongAsync(2, 99), Times.Once);
             Assert.NotNull(added);
             Assert.Contains("Brand New", added!.Message);

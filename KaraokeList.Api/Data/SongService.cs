@@ -45,18 +45,32 @@ namespace KaraokeList.Data
             return songs;
         }
 
-        public async Task AddSongAsync(Song song)
+        public async Task<Song> AddSongAsync(Song song)
         {
             using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
             var command = connection.CreateCommand();
-            command.CommandText = @"INSERT INTO Songs (Title, Artist, Genre, Year, SecondaryArtist) VALUES (@Title, @Artist, @Genre, @Year, @SecondaryArtist);";
+            command.CommandText = """
+                INSERT INTO Songs (Title, Artist, Genre, Year, SecondaryArtist)
+                OUTPUT INSERTED.Id, INSERTED.Title, INSERTED.Artist, INSERTED.Genre, INSERTED.Year, INSERTED.SecondaryArtist
+                VALUES (@Title, @Artist, @Genre, @Year, @SecondaryArtist);
+                """;
             command.Parameters.AddWithValue("@Title", song.Title);
             command.Parameters.AddWithValue("@Artist", (object?)song.Artist ?? DBNull.Value);
             command.Parameters.AddWithValue("@Genre", (object?)song.Genre ?? DBNull.Value);
             command.Parameters.AddWithValue("@Year", (object?)song.Year ?? DBNull.Value);
             command.Parameters.AddWithValue("@SecondaryArtist", (object?)song.SecondaryArtist ?? DBNull.Value);
-            await command.ExecuteNonQueryAsync();
+            using var reader = await command.ExecuteReaderAsync();
+            await reader.ReadAsync();
+            return new Song
+            {
+                Id = reader.GetInt32(0),
+                Title = reader.GetString(1),
+                Artist = reader.IsDBNull(2) ? null : reader.GetInt32(2),
+                Genre = reader.IsDBNull(3) ? null : reader.GetInt32(3),
+                Year = reader.IsDBNull(4) ? null : reader.GetInt32(4),
+                SecondaryArtist = reader.IsDBNull(5) ? null : reader.GetInt32(5)
+            };
         }
 
         public async Task UpdateSongAsync(Song song)

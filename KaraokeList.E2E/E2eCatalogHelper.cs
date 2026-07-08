@@ -36,10 +36,9 @@ internal static class E2eCatalogHelper
             throw new InvalidOperationException($"Create song failed ({(int)createSong.StatusCode}).");
         }
 
-        var songs = await apiClient.GetFromJsonAsync<List<SongDto>>("/api/songs")
-            ?? throw new InvalidOperationException("Songs list returned null.");
-        var songId = songs.First(s => s.Title == songTitle && s.Artist == artistId).Id;
-        return (songId, songTitle, artistName);
+        var created = await createSong.Content.ReadFromJsonAsync<SongDto>()
+            ?? throw new InvalidOperationException("Create song returned null.");
+        return (created.Id, songTitle, artistName);
     }
 
     public static async Task<ImportSingerListFromFileResponse> ImportCsvFileAsync(
