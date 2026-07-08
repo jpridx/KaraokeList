@@ -81,7 +81,14 @@ Playwright slows actions slightly when headed so you can follow along.
 | `User_can_sign_in_through_login_form` | Register via API → clear storage → type email/password on `/login` → home |
 | `Authenticated_user_can_open_my_songs` | Register via API → store JWT → home → **My Songs** (mobile viewport) |
 | `Authenticated_user_can_log_a_performance` | Seed song via API → `/log?songId=` → add venue → **Save performance** |
+| `Log_song_picker_matches_dont_query_for_apostrophe_title` | Log combobox finds apostrophe titles when searching without the apostrophe |
 | `Invite_link_allows_a_friend_to_register` | Signed-in user opens **Invite friends** → friend registers via invite URL in a fresh browser context |
+| `Authenticated_user_can_open_song_detail_and_log_again` | My Songs row → song detail → **Log again** → second performance saved |
+| `My_songs_switches_between_repertoire_want_to_sing_and_working_up` | List chips filter **My repertoire**, **Want to sing**, and **Working up** |
+| `Tonight_dashboard_shows_recent_log_and_links_to_log_page` | Save via Log → home **Tonight** shows recent log → tap opens `/log?songId=` |
+| `Authenticated_user_can_add_new_song_and_log_it` | Log **+ New song** → add artist → add song → save performance |
+| `Authenticated_user_can_edit_a_performance_on_my_performances` | **My performances** → **Edit** opens form (date/venue/key) → **Cancel** closes it |
+| `Authenticated_user_can_delete_a_performance_on_my_performances` | **My performances** → **Delete** → confirm → row removed |
 
 Other tests seed auth through the API (fast setup) then exercise WASM UI flows. Login form coverage uses the real Sign in button and JWT storage path the app uses after a normal login.
 
