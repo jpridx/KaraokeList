@@ -250,8 +250,7 @@ public partial class Log
     private async Task OnNewSongAddedAsync(SongAddedEventArgs args)
     {
         saveError = null;
-        var snapshot = await CatalogLoader.PatchCachedSongAsync(args.SongId, args.Title, args.ArtistName);
-        catalogState.Apply(snapshot);
+        catalogState.Apply(args.CatalogSnapshot);
         catalogState.MarkOnline();
 
         selectedSongId = args.SongId;

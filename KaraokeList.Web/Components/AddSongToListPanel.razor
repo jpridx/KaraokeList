@@ -162,8 +162,7 @@
         isBusy = true;
         try
         {
-            var snapshot = await CatalogLoader.PatchCachedSongAsync(args.SongId, args.Title, args.ArtistName);
-            catalogPickerItems = snapshot.Songs.ToList();
+            catalogPickerItems = args.CatalogSnapshot.Songs.ToList();
 
             var result = await Api.AddListSongAsync(ListId, args.SongId);
             if (!result.Succeeded)

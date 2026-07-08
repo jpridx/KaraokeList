@@ -235,7 +235,8 @@
                 Genre = resolvedGenreId
             });
 
-            await OnSongAdded.InvokeAsync(new SongAddedEventArgs(created.Id, trimmedTitle, trimmedArtist));
+            var snapshot = await CatalogLoader.PatchCachedSongAsync(created.Id, trimmedTitle, trimmedArtist);
+            await OnSongAdded.InvokeAsync(new SongAddedEventArgs(created.Id, trimmedTitle, trimmedArtist, snapshot));
         }
         catch (Exception ex)
         {
