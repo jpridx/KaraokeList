@@ -485,7 +485,7 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
         content.Add(new StringContent(listKind.ToString()), "listKind");
         try
         {
-            var response = await http.PostAsync("api/singers/me/lists/import/file", content);
+            var response = await http.PostAsync("api/singers/me/lists/import-file", content);
             if (response.IsSuccessStatusCode)
             {
                 var body = await response.Content.ReadFromJsonAsync<ImportSingerListFromFileResponse>(JsonOptions);

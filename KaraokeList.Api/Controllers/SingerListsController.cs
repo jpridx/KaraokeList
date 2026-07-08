@@ -164,12 +164,11 @@ public class SingerListsController(
         return Ok(result.Result);
     }
 
-    [HttpPost("import/file")]
+    [HttpPost("import-file")]
     [RequestSizeLimit(20 * 1024 * 1024)]
     [Consumes("multipart/form-data")]
     public async Task<ActionResult<ImportSingerListFromFileResponse>> ImportSongsFromFile(
-        IFormFile file,
-        [FromForm] SingerListKind listKind = SingerListKind.MyRepertoire)
+        [FromForm] SingerListKind? listKind = null)
     {
         var singerId = await RequireSingerIdAsync();
         if (singerId.Result is not null)
@@ -177,10 +176,21 @@ public class SingerListsController(
             return singerId.Result;
         }
 
+        if (!Request.HasFormContentType)
+        {
+            return BadRequest(new ApiErrorResponse { Message = "Expected multipart/form-data." });
+        }
+
+        var file = Request.Form.Files.GetFile("file") ?? Request.Form.Files.FirstOrDefault();
         if (file is null || file.Length == 0)
         {
             return BadRequest(new ApiErrorResponse { Message = "No file was provided." });
         }
+
+        var targetListKind = listKind
+            ?? (Enum.TryParse<SingerListKind>(Request.Form["listKind"], out var parsedKind)
+                ? parsedKind
+                : SingerListKind.MyRepertoire);
 
         var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
         ICatalogRowParser parser;
@@ -197,7 +207,7 @@ public class SingerListsController(
             return BadRequest(new ApiErrorResponse { Message = parsed.Error });
 
         var result = await repertoireImportService.ImportRowsAsync(
-            singerId.Value!.Value, listKind, parsed.Rows);
+            singerId.Value!.Value, targetListKind, parsed.Rows);
         if (!result.Succeeded)
         {
             if (result.Result is not null)

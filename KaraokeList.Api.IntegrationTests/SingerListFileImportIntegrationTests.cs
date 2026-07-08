@@ -1,5 +1,4 @@
 using System.Net;
-using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
 using KaraokeList.Shared;
@@ -40,7 +39,7 @@ public sealed class SingerListFileImportIntegrationTests(KaraokeApiFactory facto
             .ToString();
 
         using var content = BuildImportForm(csv, SingerListKind.MyRepertoire);
-        var response = await client.PostAsync("/api/singers/me/lists/import/file", content);
+        var response = await client.PostAsync("/api/singers/me/lists/import-file", content);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
         var body = await response.Content.ReadFromJsonAsync<ImportSingerListFromFileResponse>();
@@ -68,7 +67,7 @@ public sealed class SingerListFileImportIntegrationTests(KaraokeApiFactory facto
         var csv = "Song,Artist\nNobody Knows This,Unknown Artist\n";
 
         using var content = BuildImportForm(csv, SingerListKind.MyRepertoire);
-        var response = await client.PostAsync("/api/singers/me/lists/import/file", content);
+        var response = await client.PostAsync("/api/singers/me/lists/import-file", content);
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
 
         var body = await response.Content.ReadFromJsonAsync<ImportSingerListFromFileResponse>();
@@ -81,8 +80,7 @@ public sealed class SingerListFileImportIntegrationTests(KaraokeApiFactory facto
     private static MultipartFormDataContent BuildImportForm(string csv, SingerListKind listKind)
     {
         var content = new MultipartFormDataContent();
-        var fileContent = new ByteArrayContent(Encoding.UTF8.GetBytes(csv));
-        fileContent.Headers.ContentType = new MediaTypeHeaderValue("text/csv");
+        var fileContent = new StreamContent(new MemoryStream(Encoding.UTF8.GetBytes(csv)));
         content.Add(fileContent, "file", "repertoire.csv");
         content.Add(new StringContent(listKind.ToString()), "listKind");
         return content;
