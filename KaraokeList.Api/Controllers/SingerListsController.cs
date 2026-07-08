@@ -166,6 +166,7 @@ public class SingerListsController(
 
     [HttpPost("import/file")]
     [RequestSizeLimit(20 * 1024 * 1024)]
+    [Consumes("multipart/form-data")]
     public async Task<ActionResult<ImportSingerListFromFileResponse>> ImportSongsFromFile(
         IFormFile file,
         [FromForm] SingerListKind listKind = SingerListKind.MyRepertoire)

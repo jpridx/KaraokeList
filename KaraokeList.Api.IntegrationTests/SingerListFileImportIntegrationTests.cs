@@ -18,43 +18,28 @@ public sealed class SingerListFileImportIntegrationTests(KaraokeApiFactory facto
         var lists = await GetListsAsync(client);
         var repertoireListId = lists.Single(l => l.Kind == SingerListKind.MyRepertoire).Id;
 
-        var artistName = $"Import Artist {Guid.NewGuid():N}";
-        var createArtist = await client.PostAsJsonAsync("/api/artists", new ArtistDto { Name = artistName });
-        Assert.Equal(HttpStatusCode.NoContent, createArtist.StatusCode);
-
-        var artists = await client.GetFromJsonAsync<List<ArtistDto>>("/api/artists");
-        Assert.NotNull(artists);
-        var artistId = Assert.Single(artists, a => a.Name == artistName).Id;
-
-        var titleA = $"Import Song A {Guid.NewGuid():N}";
-        var titleB = $"Import Song B {Guid.NewGuid():N}";
-        foreach (var title in new[] { titleA, titleB })
-        {
-            var createSong = await client.PostAsJsonAsync("/api/songs", new SongDto
-            {
-                Title = title,
-                Artist = artistId
-            });
-            Assert.Equal(HttpStatusCode.NoContent, createSong.StatusCode);
-        }
+        var (songIdA, _) = await PerformanceTestDataHelper.CreateCatalogAsync(client);
+        var (songIdB, _) = await PerformanceTestDataHelper.CreateCatalogAsync(client);
 
         var songs = await client.GetFromJsonAsync<List<SongDto>>("/api/songs");
+        var artists = await client.GetFromJsonAsync<List<ArtistDto>>("/api/artists");
         Assert.NotNull(songs);
-        var songIdA = Assert.Single(songs, s => s.Title == titleA).Id;
-        var songIdB = Assert.Single(songs, s => s.Title == titleB).Id;
+        Assert.NotNull(artists);
+
+        var songA = songs.Single(s => s.Id == songIdA);
+        var songB = songs.Single(s => s.Id == songIdB);
+        var artistA = artists.Single(a => a.Id == songA.Artist);
+        var artistB = artists.Single(a => a.Id == songB.Artist);
 
         var csv = new StringBuilder()
             .AppendLine("Song,Artist")
-            .AppendLine($"{titleA},{artistName}")
-            .AppendLine($"{titleB},{artistName}")
-            .AppendLine($"{titleA},{artistName}")
-            .AppendLine($"Missing Song {Guid.NewGuid():N},{artistName}")
+            .AppendLine($"{songA.Title},{artistA.Name}")
+            .AppendLine($"{songB.Title},{artistB.Name}")
+            .AppendLine($"{songA.Title},{artistA.Name}")
+            .AppendLine($"Missing Song {Guid.NewGuid():N},{artistA.Name}")
             .ToString();
 
-        using var content = new MultipartFormDataContent();
-        content.Add(new StringContent(csv, Encoding.UTF8, "text/csv"), "file", "repertoire.csv");
-        content.Add(new StringContent(nameof(SingerListKind.MyRepertoire)), "listKind");
-
+        using var content = BuildImportForm(csv, SingerListKind.MyRepertoire);
         var response = await client.PostAsync("/api/singers/me/lists/import/file", content);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
@@ -82,10 +67,7 @@ public sealed class SingerListFileImportIntegrationTests(KaraokeApiFactory facto
         var client = await CreateAuthedClientAsync();
         var csv = "Song,Artist\nNobody Knows This,Unknown Artist\n";
 
-        using var content = new MultipartFormDataContent();
-        content.Add(new StringContent(csv, Encoding.UTF8, "text/csv"), "file", "empty.csv");
-        content.Add(new StringContent(nameof(SingerListKind.MyRepertoire)), "listKind");
-
+        using var content = BuildImportForm(csv, SingerListKind.MyRepertoire);
         var response = await client.PostAsync("/api/singers/me/lists/import/file", content);
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
 
@@ -94,6 +76,16 @@ public sealed class SingerListFileImportIntegrationTests(KaraokeApiFactory facto
         Assert.Equal(1, body.TotalRows);
         Assert.Equal(0, body.Matched);
         Assert.Equal(1, body.NotFound);
+    }
+
+    private static MultipartFormDataContent BuildImportForm(string csv, SingerListKind listKind)
+    {
+        var content = new MultipartFormDataContent();
+        var fileContent = new ByteArrayContent(Encoding.UTF8.GetBytes(csv));
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue("text/csv");
+        content.Add(fileContent, "file", "repertoire.csv");
+        content.Add(new StringContent(listKind.ToString()), "listKind");
+        return content;
     }
 
     private static async Task<List<SingerListDto>> GetListsAsync(HttpClient client)
