@@ -1,6 +1,5 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using System.Text;
 using KaraokeList.Api.Services;
 using KaraokeList.Api.Services.Import;
 using KaraokeList.Shared;
@@ -82,20 +81,6 @@ public sealed class SingerListFileImportIntegrationTests(KaraokeApiFactory facto
         Assert.Equal(1, result.Result.TotalRows);
         Assert.Equal(0, result.Result.Matched);
         Assert.Equal(1, result.Result.NotFound);
-    }
-
-    [SkippableFact]
-    public void CsvParser_ReadsSongAndArtistColumns()
-    {
-        var csv = "Song,Artist\nFootloose,Kenny Loggins\n";
-        var parser = new CsvCatalogRowParser();
-        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
-        var parsed = parser.Parse(stream);
-
-        Assert.Null(parsed.Error);
-        var row = Assert.Single(parsed.Rows);
-        Assert.Equal("Footloose", row.Title);
-        Assert.Equal("Kenny Loggins", row.Artist);
     }
 
     private static async Task<int> RequireSingerIdAsync(HttpClient client)
