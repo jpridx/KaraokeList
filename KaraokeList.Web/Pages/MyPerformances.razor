@@ -1,6 +1,5 @@
 @page "/my-performances"
 @attribute [Authorize]
-@inject IKaraokeApiClient Api
 
 <SingerGatedPage DocumentTitle="My performances"
                  Title="My performances"
@@ -11,6 +10,16 @@
     <ChildContent Context="singerId">
         <SlowApiNotice />
         <MobileLoadingState IsLoading="@isLoading" CssClass="mt-3">
+                <OfflineCacheNotice UsingOffline="@usingOfflinePerformances"
+                                    HasCachedData="@hasCachedPerformances"
+                                    CachedAt="@performancesCachedAt"
+                                    ResourceName="performances"
+                                    RefreshHint="Connect to refresh or edit performances.">
+                    <UnavailableContent>
+                        Performances aren't available offline yet. Open My Performances once while online to cache them.
+                    </UnavailableContent>
+                </OfflineCacheNotice>
+
                 <MobileSearchToolbar @bind-SearchText="searchText" @bind-SearchText:after="RefreshDisplayList"
                                      Placeholder="Search song, artist, or venue"
                                      Count="@displayPerformances.Count" CountNoun="performance" />
@@ -42,6 +51,7 @@
                         <EditablePerformanceList SingerId="@singerId"
                                                  Variant="EditablePerformanceListVariant.Browse"
                                                  Entries="@browseEntries"
+                                                 AllowMutations="@(!usingOfflinePerformances)"
                                                  OnChanged="ReloadPerformancesAsync" />
                         @if (HasMorePerformances)
                         {
@@ -55,90 +65,3 @@
         </MobileLoadingState>
     </ChildContent>
 </SingerGatedPage>
-
-@code {
-    private SingerGatedPage? gatedPage;
-    private bool isLoading = true;
-    private string? loadError;
-    private List<MyPerformanceEntryDto> performances = [];
-    private List<MyPerformanceEntryDto> displayPerformances = [];
-    private List<VenueFilterOption> venueFilters = [];
-    private string searchText = string.Empty;
-    private string sortDir = "desc";
-    private int? filterVenueId;
-    private int visibleLimit = PageSize;
-
-    private const int PageSize = 40;
-
-    private IReadOnlyList<MyPerformanceEntryDto> VisiblePerformances =>
-        displayPerformances.Take(visibleLimit).ToList();
-
-    private bool HasMorePerformances => visibleLimit < displayPerformances.Count;
-
-    private IReadOnlyList<EditablePerformanceEntry> browseEntries =>
-        VisiblePerformances.Select(EditablePerformanceEntry.FromBrowse).ToList();
-
-    private IReadOnlyList<ChipFilterItem> venueChipItems =>
-        ChipFilterBuilder.CreateAllPlusItems(
-            filterVenueId,
-            venueFilters,
-            venue => venue.Id,
-            venue => venue.Name,
-            EventCallback.Factory,
-            this,
-            SetVenueFilterAsync);
-
-    private Task LoadPerformancesAsync(int singerId) => ReloadPerformancesAsync();
-
-    private async Task ReloadPerformancesAsync()
-    {
-        isLoading = true;
-        loadError = null;
-
-        var result = await Api.GetMyPerformancesAsync(filterVenueId, sortDir);
-        if (!result.Succeeded)
-        {
-            loadError = result.ErrorMessage;
-            gatedPage.RequireLinkIfNotLinked(result.ErrorMessage);
-
-            isLoading = false;
-            return;
-        }
-
-        performances = result.Performances;
-        if (filterVenueId is null)
-        {
-            venueFilters = performances
-                .Where(p => p.VenueId is not null && !string.IsNullOrWhiteSpace(p.VenueName))
-                .GroupBy(p => p.VenueId!.Value)
-                .Select(g => new VenueFilterOption(g.Key, g.First().VenueName))
-                .OrderBy(v => v.Name, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-        }
-
-        RefreshDisplayList();
-        isLoading = false;
-    }
-
-    private void RefreshDisplayList()
-    {
-        displayPerformances = MyPerformancesSearch.Filter(performances, searchText).ToList();
-        visibleLimit = PageSize;
-    }
-
-    private void LoadMore() => visibleLimit += PageSize;
-
-    private async Task ToggleSortDirAsync()
-    {
-        sortDir = sortDir == "desc" ? "asc" : "desc";
-        await ReloadPerformancesAsync();
-    }
-
-    private async Task SetVenueFilterAsync(int? venueId)
-    {
-        filterVenueId = venueId;
-        await ReloadPerformancesAsync();
-    }
-
-    private sealed record VenueFilterOption(int Id, string Name);
-}
