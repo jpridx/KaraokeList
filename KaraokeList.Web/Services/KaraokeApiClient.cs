@@ -39,7 +39,7 @@ public interface IKaraokeApiClient
     Task DeleteSingerAsync(int id);
     Task<CatalogMutateResult> TryDeleteSingerAsync(int id);
     Task<List<SongDto>> GetSongsAsync();
-    Task CreateSongAsync(SongDto dto);
+    Task<SongDto> CreateSongAsync(SongDto dto);
     Task<CatalogMutateResult> TryCreateSongAsync(SongDto dto);
     Task UpdateSongAsync(SongDto dto);
     Task<CatalogMutateResult> TryUpdateSongAsync(SongDto dto);
@@ -212,7 +212,13 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
     public Task<CatalogMutateResult> TryDeleteSingerAsync(int id) => TryDeleteAsync($"api/singers/{id}");
 
     public Task<List<SongDto>> GetSongsAsync() => GetListAsync<SongDto>("api/songs");
-    public Task CreateSongAsync(SongDto dto) => PostAsync("api/songs", dto);
+    public async Task<SongDto> CreateSongAsync(SongDto dto)
+    {
+        var response = await http.PostAsJsonAsync("api/songs", dto);
+        response.EnsureSuccessStatusCode();
+        var created = await response.Content.ReadFromJsonAsync<SongDto>(JsonOptions);
+        return created ?? throw new InvalidOperationException("Unexpected empty response from the server.");
+    }
     public Task<CatalogMutateResult> TryCreateSongAsync(SongDto dto) => TryPostAsync("api/songs", dto);
     public Task UpdateSongAsync(SongDto dto) => PutAsync($"api/songs/{dto.Id}", dto);
     public Task<CatalogMutateResult> TryUpdateSongAsync(SongDto dto) => TryPutAsync($"api/songs/{dto.Id}", dto);

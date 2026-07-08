@@ -84,20 +84,17 @@
         mode = AddSongMode.NewSong;
     }
 
-    private async Task LoadCatalogAsync(bool forceRefresh = false)
+    private async Task LoadCatalogAsync()
     {
         isLoadingCatalog = true;
         try
         {
-            if (!forceRefresh)
+            var cached = await CatalogLoader.TryGetCachedAsync();
+            if (cached is not null)
             {
-                var cached = await CatalogLoader.TryGetCachedAsync();
-                if (cached is not null)
-                {
-                    catalogPickerItems = cached.Songs.ToList();
-                    _ = RefreshCatalogInBackgroundAsync();
-                    return;
-                }
+                catalogPickerItems = cached.Songs.ToList();
+                _ = RefreshCatalogInBackgroundAsync();
+                return;
             }
 
             var snapshot = await CatalogLoader.LoadAsync();
@@ -165,21 +162,9 @@
         isBusy = true;
         try
         {
-            await LoadCatalogAsync(forceRefresh: true);
+            catalogPickerItems = args.CatalogSnapshot.Songs.ToList();
 
-            var newSong = CatalogSongMapper.FindCreatedPickItem(
-                catalogPickerItems,
-                args.Title,
-                args.ArtistName);
-
-            if (newSong is null)
-            {
-                localError = "Song was created but could not be found in the catalog. Try adding from catalog.";
-                mode = AddSongMode.Catalog;
-                return;
-            }
-
-            var result = await Api.AddListSongAsync(ListId, newSong.Id);
+            var result = await Api.AddListSongAsync(ListId, args.SongId);
             if (!result.Succeeded)
             {
                 localError = result.ErrorMessage;

@@ -228,14 +228,15 @@
         isBusy = true;
         try
         {
-            await Api.CreateSongAsync(new SongDto
+            var created = await Api.CreateSongAsync(new SongDto
             {
                 Title = trimmedTitle,
                 Artist = artistId,
                 Genre = resolvedGenreId
             });
 
-            await OnSongAdded.InvokeAsync(new SongAddedEventArgs(trimmedTitle, trimmedArtist));
+            var snapshot = await CatalogLoader.PatchCachedSongAsync(created.Id, trimmedTitle, trimmedArtist);
+            await OnSongAdded.InvokeAsync(new SongAddedEventArgs(created.Id, trimmedTitle, trimmedArtist, snapshot));
         }
         catch (Exception ex)
         {

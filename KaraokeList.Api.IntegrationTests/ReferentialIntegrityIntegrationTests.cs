@@ -94,6 +94,35 @@ public sealed class ReferentialIntegrityIntegrationTests(KaraokeApiFactory facto
     }
 
     [SkippableFact]
+    public async Task CreateSong_WithValidArtist_ReturnsCreatedWithId()
+    {
+        Skip.IfNot(factory.IsDatabaseAvailable, IntegrationTestConnection.SkipReason);
+
+        var client = await CreateAuthedClientAsync();
+        var artistName = $"Artist {Guid.NewGuid():N}";
+        var createArtist = await client.PostAsJsonAsync("/api/artists", new ArtistDto { Name = artistName });
+        Assert.Equal(HttpStatusCode.NoContent, createArtist.StatusCode);
+
+        var artists = await client.GetFromJsonAsync<List<ArtistLookupDto>>("/api/artists/lookup");
+        Assert.NotNull(artists);
+        var artistId = Assert.Single(artists, a => a.Name == artistName).Id;
+
+        var songTitle = $"Song {Guid.NewGuid():N}";
+        var response = await client.PostAsJsonAsync("/api/songs", new SongDto
+        {
+            Title = songTitle,
+            Artist = artistId
+        });
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var created = await response.Content.ReadFromJsonAsync<SongDto>();
+        Assert.NotNull(created);
+        Assert.True(created!.Id > 0);
+        Assert.Equal(songTitle, created.Title);
+        Assert.Equal(artistId, created.Artist);
+    }
+
+    [SkippableFact]
     public async Task CreateSong_WithUnknownArtist_ReturnsBadRequest()
     {
         Skip.IfNot(factory.IsDatabaseAvailable, IntegrationTestConnection.SkipReason);

@@ -42,7 +42,7 @@ public class NotImplementedApiClient : IKaraokeApiClient
     public virtual Task DeleteSingerAsync(int id) => Throw();
     public virtual Task<CatalogMutateResult> TryDeleteSingerAsync(int id) => Throw<CatalogMutateResult>();
     public virtual Task<List<SongDto>> GetSongsAsync() => Throw<List<SongDto>>();
-    public virtual Task CreateSongAsync(SongDto dto) => Throw();
+    public virtual Task<SongDto> CreateSongAsync(SongDto dto) => Throw<SongDto>();
     public virtual Task<CatalogMutateResult> TryCreateSongAsync(SongDto dto) => Throw<CatalogMutateResult>();
     public virtual Task UpdateSongAsync(SongDto dto) => Throw();
     public virtual Task<CatalogMutateResult> TryUpdateSongAsync(SongDto dto) => Throw<CatalogMutateResult>();
