@@ -224,6 +224,48 @@ public class AuthController(
     }
 
     [Authorize]
+    [HttpGet("theme")]
+    public async Task<ActionResult<ThemePreferenceDto>> GetThemePreference()
+    {
+        var user = await currentUserSinger.GetUserAsync(User);
+        if (user is null)
+        {
+            return Unauthorized();
+        }
+
+        return Ok(ThemePreferenceResolver.ToDto(user));
+    }
+
+    [Authorize]
+    [HttpPut("theme")]
+    public async Task<IActionResult> UpdateThemePreference([FromBody] UpdateThemePreferenceRequest request)
+    {
+        var user = await currentUserSinger.GetUserAsync(User);
+        if (user is null)
+        {
+            return Unauthorized();
+        }
+
+        var validationError = ThemePreferenceResolver.Validate(request.Preference);
+        if (validationError is not null)
+        {
+            return BadRequest(new ApiErrorResponse { Message = validationError });
+        }
+
+        user.ThemePreference = request.Preference;
+        var result = await userManager.UpdateAsync(user);
+        if (!result.Succeeded)
+        {
+            return BadRequest(new ApiErrorResponse
+            {
+                Message = string.Join(" ", result.Errors.Select(e => e.Description))
+            });
+        }
+
+        return NoContent();
+    }
+
+    [Authorize]
     [HttpPost("link-singer")]
     public async Task<ActionResult<AuthResponse>> LinkSinger([FromBody] LinkSingerRequest request)
     {

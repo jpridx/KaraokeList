@@ -1,0 +1,19 @@
+@inject IThemeService ThemeService
+@implements IAsyncDisposable
+
+@code {
+    private bool initialized;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || initialized)
+        {
+            return;
+        }
+
+        initialized = true;
+        await ThemeService.InitializeAsync();
+    }
+
+    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+}

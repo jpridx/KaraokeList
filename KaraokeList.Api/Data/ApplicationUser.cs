@@ -11,6 +11,7 @@ namespace KaraokeList.Data
         public int StaleSongAfterDays { get; set; } = TicklerSettingsLimits.DefaultStaleAfterDays;
         public int StaleSongLimit { get; set; } = TicklerSettingsLimits.DefaultSongLimit;
         public MusicService PreferredMusicService { get; set; } = MusicService.None;
+        public ThemePreference ThemePreference { get; set; } = ThemePreference.System;
     }
 
 }

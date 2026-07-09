@@ -7,7 +7,7 @@
 <div class="mobile-page">
     <MobilePageHeader Title="Preferences">
         <Subtitle>
-            Control Home tickler suggestions and your preferred music app for one-tap search.
+            Control Home tickler suggestions, appearance, and your preferred music app for one-tap search.
         </Subtitle>
     </MobilePageHeader>
 
@@ -19,6 +19,22 @@
         else
         {
             <StatusAlerts SuccessMessage="@successMessage" ErrorMessage="@errorMessage" CssClass="mt-3" />
+
+            <section class="mobile-panel mt-3">
+                <h2 class="h6 mb-3">Appearance</h2>
+                <div class="mb-3">
+                    <label class="form-label" for="theme-preference">Theme</label>
+                    <InputSelect id="theme-preference" class="form-select" @bind-Value="ThemeInput.Preference" @bind-Value:after="OnThemeChangedAsync" disabled="@isSubmitting">
+                        @foreach (var theme in ThemePreferenceCatalog.SelectablePreferences)
+                        {
+                            <option value="@theme">@ThemePreferenceCatalog.GetDisplayName(theme)</option>
+                        }
+                    </InputSelect>
+                    <div class="form-text">
+                        Choose light or dark, or match your device setting with System.
+                    </div>
+                </div>
+            </section>
 
             <section class="mobile-panel mt-3">
                 <h2 class="h6 mb-3">Haven't sung in a while</h2>
@@ -69,8 +85,12 @@
     [Inject]
     private IKaraokeApiClient Api { get; set; } = default!;
 
+    [Inject]
+    private IThemeService ThemeService { get; set; } = default!;
+
     private UpdateTicklerSettingsRequest TicklerInput { get; set; } = new();
     private UpdateMusicServicePreferenceRequest MusicServiceInput { get; set; } = new();
+    private UpdateThemePreferenceRequest ThemeInput { get; set; } = new();
     private bool isLoading = true;
     private bool isSubmitting;
     private string? loadError;
@@ -81,10 +101,12 @@
     {
         var ticklerTask = Api.GetTicklerSettingsAsync();
         var musicTask = Api.GetMusicServicePreferenceAsync();
-        await Task.WhenAll(ticklerTask, musicTask);
+        var themeTask = Api.GetThemePreferenceAsync();
+        await Task.WhenAll(ticklerTask, musicTask, themeTask);
 
         var ticklerResult = await ticklerTask;
         var musicResult = await musicTask;
+        var themeResult = await themeTask;
 
         if (ticklerResult.Succeeded && ticklerResult.Settings is not null)
         {
@@ -111,7 +133,24 @@
             loadError = musicResult.ErrorMessage ?? "Could not load preferences.";
         }
 
+        if (themeResult.Succeeded && themeResult.Preference is not null)
+        {
+            ThemeInput = new UpdateThemePreferenceRequest
+            {
+                Preference = themeResult.Preference.Preference
+            };
+        }
+        else if (loadError is null)
+        {
+            loadError = themeResult.ErrorMessage ?? "Could not load preferences.";
+        }
+
         isLoading = false;
+    }
+
+    private async Task OnThemeChangedAsync()
+    {
+        await ThemeService.ApplyPreferenceAsync(ThemeInput.Preference);
     }
 
     private async Task SubmitAsync()
@@ -135,6 +174,13 @@
             if (!musicResult.Succeeded)
             {
                 errorMessage = musicResult.ErrorMessage ?? "Could not save music service preference.";
+                return;
+            }
+
+            var themeResult = await Api.UpdateThemePreferenceAsync(ThemeInput);
+            if (!themeResult.Succeeded)
+            {
+                errorMessage = themeResult.ErrorMessage ?? "Could not save theme preference.";
                 return;
             }
 
