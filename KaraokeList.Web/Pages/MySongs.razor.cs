@@ -28,6 +28,8 @@ public partial class MySongs
     {
         showGenreFilters = await MySongsStore.GetShowGenreFiltersAsync();
         listKind = await MySongsStore.GetListKindAsync();
+        sortBy = await MySongsStore.GetSortByAsync();
+        sortDir = await MySongsStore.GetSortDirAsync();
     }
 
     private async Task LoadListsAsync(int singerId)
@@ -190,8 +192,18 @@ public partial class MySongs
     private async Task ToggleSortDirAsync()
     {
         sortDir = sortDir == "desc" ? "asc" : "desc";
+        await PersistSortPreferenceAsync();
         await ReloadListsAsync();
     }
+
+    private async Task OnSortFieldChangedAsync()
+    {
+        await PersistSortPreferenceAsync();
+        await ReloadListsAsync();
+    }
+
+    private Task PersistSortPreferenceAsync() =>
+        MySongsStore.SetSortPreferenceAsync(sortBy, sortDir);
 
     private async Task SetGenreFilterAsync(int? genreId)
     {

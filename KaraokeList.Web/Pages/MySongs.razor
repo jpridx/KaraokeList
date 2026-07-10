@@ -38,7 +38,7 @@
                                      Count="@displaySongs.Count" CountNoun="song" />
 
                 <MySongsSortToolbar @bind-SortBy="sortBy" SortDir="@sortDir"
-                                    OnSortChanged="ReloadListsAsync"
+                                    OnSortChanged="OnSortFieldChangedAsync"
                                     OnToggleSortDir="ToggleSortDirAsync"
                                     ShowGenreFilters="@showGenreFilters"
                                     OnToggleGenreFilters="ToggleGenreFiltersAsync" />
