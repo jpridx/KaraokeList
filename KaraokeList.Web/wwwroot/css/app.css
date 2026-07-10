@@ -1,3 +1,68 @@
+:root {
+    --kl-primary: #1b6ec2;
+    --kl-bg-page: #f7f7f7;
+    --kl-bg-surface: #fff;
+    --kl-bg-elevated: #f7f7f7;
+    --kl-border: #e8e8e8;
+    --kl-border-subtle: #eee;
+    --kl-border-strong: #d6d5d5;
+    --kl-text-muted: #666;
+    --kl-text-secondary: #555;
+    --kl-text-tertiary: #888;
+    --kl-text-body: #333;
+    --kl-text-nav: #444;
+    --kl-header-link-active-bg: #e8f2fc;
+    --kl-more-link-hover: #f5f9ff;
+    --kl-host-panel-bg: #f8fbff;
+    --kl-host-panel-border: #c5daf5;
+    --kl-genre-chip-border: #ccc;
+    --kl-song-active: #f5f5f5;
+    --kl-genre-tag-bg: #eef4fc;
+    --kl-success-panel-bg: #f6fff8;
+    --kl-success-panel-border: #c8e6cf;
+    --kl-recent-log-border: #e0ebe2;
+    --kl-recent-log-active: #f0f7f1;
+    --kl-catalog-shadow: rgba(0, 0, 0, 0.04);
+    --kl-mobile-nav-border: #e0e0e0;
+    --kl-loading-track: #e0e0e0;
+    --kl-code: #c02d76;
+}
+
+[data-bs-theme="dark"] {
+    --kl-primary: #4da3ff;
+    --kl-bg-page: #121212;
+    --kl-bg-surface: #1e1e1e;
+    --kl-bg-elevated: #2a2a2a;
+    --kl-border: #3d3d3d;
+    --kl-border-subtle: #333;
+    --kl-border-strong: #444;
+    --kl-text-muted: #aaa;
+    --kl-text-secondary: #bbb;
+    --kl-text-tertiary: #999;
+    --kl-text-body: #e0e0e0;
+    --kl-text-nav: #ccc;
+    --kl-header-link-active-bg: #1a3a5c;
+    --kl-more-link-hover: #252d38;
+    --kl-host-panel-bg: #1a2a3a;
+    --kl-host-panel-border: #2a4a6a;
+    --kl-genre-chip-border: #555;
+    --kl-song-active: #333;
+    --kl-genre-tag-bg: #1a2a3a;
+    --kl-success-panel-bg: #1a2e1f;
+    --kl-success-panel-border: #2a5a3a;
+    --kl-recent-log-border: #2a4a32;
+    --kl-recent-log-active: #1f3525;
+    --kl-catalog-shadow: rgba(0, 0, 0, 0.3);
+    --kl-mobile-nav-border: #3d3d3d;
+    --kl-loading-track: #444;
+    --kl-code: #f48fb1;
+}
+
+body {
+    background-color: var(--kl-bg-page);
+    color: var(--kl-text-body);
+}
+
 .valid.modified:not([type=checkbox]) {
     outline: 1px solid #26b050;
 }
@@ -11,7 +76,6 @@
 }
 
 #blazor-error-ui {
-    color-scheme: light only;
     background: lightyellow;
     bottom: 0;
     box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.2);
@@ -52,14 +116,14 @@
 
     .loading-progress circle {
         fill: none;
-        stroke: #e0e0e0;
+        stroke: var(--kl-loading-track);
         stroke-width: 0.6rem;
         transform-origin: 50% 50%;
         transform: rotate(-90deg);
     }
 
         .loading-progress circle:last-child {
-            stroke: #1b6ec2;
+            stroke: var(--kl-primary);
             stroke-dasharray: calc(3.141 * var(--blazor-load-percentage, 0%) * 0.8), 500%;
             transition: stroke-dasharray 0.05s ease-in-out;
         }
@@ -76,7 +140,7 @@
     }
 
 code {
-    color: #c02d76;
+    color: var(--kl-code);
 }
 
 .registration-honeypot {
@@ -91,8 +155,8 @@ code {
     max-width: 1200px;
     margin: 32px auto;
     padding: 24px;
-    background: #fff;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    background: var(--kl-bg-surface);
+    box-shadow: 0 2px 8px var(--kl-catalog-shadow);
     border-radius: 8px;
 }
 
@@ -108,8 +172,8 @@ code {
     column-gap: 1rem;
     row-gap: 0;
     flex-wrap: wrap;
-    background-color: #f7f7f7;
-    border-bottom: 1px solid #d6d5d5;
+    background-color: var(--kl-bg-elevated);
+    border-bottom: 1px solid var(--kl-border-strong);
     padding: 0.5rem 1rem 0;
     min-height: 3.5rem;
     position: sticky;
@@ -125,7 +189,7 @@ code {
 
 .app-brand {
     font-weight: 600;
-    color: #1b6ec2;
+    color: var(--kl-primary);
     text-decoration: none;
     font-size: 1.1rem;
 }
@@ -140,13 +204,13 @@ code {
     padding: 0.4rem 0.75rem;
     border-radius: 6px;
     text-decoration: none;
-    color: #444;
+    color: var(--kl-text-nav);
     font-size: 0.95rem;
 }
 
 .app-header-link.active {
-    background: #e8f2fc;
-    color: #1b6ec2;
+    background: var(--kl-header-link-active-bg);
+    color: var(--kl-primary);
     font-weight: 600;
 }
 
@@ -182,7 +246,7 @@ code {
     font-size: 0.8rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    color: #666;
+    color: var(--kl-text-muted);
     margin-bottom: 0.5rem;
 }
 
@@ -190,23 +254,23 @@ code {
     display: block;
     padding: 0.85rem 1rem;
     margin-bottom: 0.35rem;
-    background: #fff;
-    border: 1px solid #e8e8e8;
+    background: var(--kl-bg-surface);
+    border: 1px solid var(--kl-border);
     border-radius: 10px;
     text-decoration: none;
-    color: #1b6ec2;
+    color: var(--kl-primary);
     font-weight: 500;
 }
 
 .more-link:hover {
-    background: #f5f9ff;
+    background: var(--kl-more-link-hover);
 }
 
 .more-link-button {
     width: 100%;
     text-align: left;
     cursor: pointer;
-    border-color: #e8e8e8;
+    border-color: var(--kl-border);
 }
 
 .more-link-button:disabled {
@@ -216,7 +280,7 @@ code {
 
 .more-hint {
     font-size: 0.8rem;
-    color: #888;
+    color: var(--kl-text-tertiary);
     margin: 0.1rem 0 0;
     padding: 0 0.25rem;
 }
@@ -245,8 +309,8 @@ code {
 }
 
 .mobile-panel {
-    background: #fff;
-    border: 1px solid #e8e8e8;
+    background: var(--kl-bg-surface);
+    border: 1px solid var(--kl-border);
     border-radius: 10px;
     padding: 1rem;
     margin-bottom: 1rem;
@@ -261,8 +325,8 @@ code {
 }
 
 .host-message-panel {
-    background: #f8fbff;
-    border-color: #c5daf5;
+    background: var(--kl-host-panel-bg);
+    border-color: var(--kl-host-panel-border);
 }
 
 .host-message-text {
@@ -277,7 +341,7 @@ code {
     white-space: pre-wrap;
     word-break: break-word;
     margin: 0;
-    color: #333;
+    color: var(--kl-text-body);
 }
 
 .genre-chips {
@@ -287,16 +351,16 @@ code {
 }
 
 .genre-chip {
-    border: 1px solid #ccc;
-    background: #fff;
+    border: 1px solid var(--kl-genre-chip-border);
+    background: var(--kl-bg-surface);
     border-radius: 999px;
     padding: 0.35rem 0.75rem;
     font-size: 0.85rem;
 }
 
 .genre-chip.active {
-    background: #1b6ec2;
-    border-color: #1b6ec2;
+    background: var(--kl-primary);
+    border-color: var(--kl-primary);
     color: #fff;
 }
 
@@ -310,14 +374,14 @@ code {
 .song-list-item-body {
     flex: 1;
     text-align: left;
-    background: #fff;
-    border: 1px solid #e8e8e8;
+    background: var(--kl-bg-surface);
+    border: 1px solid var(--kl-border);
     border-radius: 10px;
     padding: 0.85rem 1rem;
 }
 
 .song-list-item-body:active {
-    background: #f5f5f5;
+    background: var(--kl-song-active);
 }
 
 .song-list-item-log {
@@ -331,7 +395,7 @@ code {
 }
 
 .song-list-item-artist {
-    color: #555;
+    color: var(--kl-text-secondary);
     font-size: 0.9rem;
 }
 
@@ -341,23 +405,23 @@ code {
     gap: 0.5rem;
     margin-top: 0.35rem;
     font-size: 0.8rem;
-    color: #666;
+    color: var(--kl-text-muted);
 }
 
 .song-list-item-genre {
-    background: #eef4fc;
+    background: var(--kl-genre-tag-bg);
     padding: 0.1rem 0.45rem;
     border-radius: 4px;
 }
 
 .song-list-item-unlogged .song-list-item-unlogged-label {
-    color: #888;
+    color: var(--kl-text-tertiary);
     font-style: italic;
 }
 
 .repertoire-group-heading {
     font-size: 0.95rem;
-    color: #444;
+    color: var(--kl-text-nav);
     margin: 1rem 0 0.5rem;
     text-transform: uppercase;
     letter-spacing: 0.03em;
@@ -393,7 +457,7 @@ code {
 
 .song-stats-row dt {
     font-size: 0.8rem;
-    color: #666;
+    color: var(--kl-text-muted);
     margin: 0;
     font-weight: 500;
 }
@@ -404,7 +468,7 @@ code {
 }
 
 .song-stats-first-time {
-    color: #555;
+    color: var(--kl-text-secondary);
 }
 
 .singer-stats-grid {
@@ -415,7 +479,7 @@ code {
 
 .singer-stats-item dt {
     font-size: 0.8rem;
-    color: #666;
+    color: var(--kl-text-muted);
     margin: 0;
     font-weight: 500;
 }
@@ -440,7 +504,7 @@ code {
     align-items: baseline;
     gap: 0.75rem;
     padding: 0.35rem 0;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid var(--kl-border-subtle);
 }
 
 .singer-stats-rank-list li:last-child,
@@ -450,7 +514,7 @@ code {
 
 .singer-stats-rank-count,
 .singer-stats-venue-count {
-    color: #666;
+    color: var(--kl-text-muted);
     font-variant-numeric: tabular-nums;
     flex-shrink: 0;
 }
@@ -466,7 +530,7 @@ code {
 }
 
 .singer-stats-rank-meta {
-    color: #666;
+    color: var(--kl-text-muted);
     font-size: 0.85rem;
     flex-shrink: 0;
 }
@@ -476,8 +540,8 @@ code {
 }
 
 .song-detail-empty-state {
-    background: #f6fff8;
-    border-color: #c8e6cf;
+    background: var(--kl-success-panel-bg);
+    border-color: var(--kl-success-panel-border);
     margin-top: 0.5rem;
 }
 
@@ -497,7 +561,7 @@ code {
 
 .performance-browse-item {
     padding: 0.75rem 0;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid var(--kl-border-subtle);
 }
 
 .performance-browse-item:last-child {
@@ -534,7 +598,7 @@ code {
     display: block;
     margin-top: 0.25rem;
     font-size: 0.85rem;
-    color: #666;
+    color: var(--kl-text-muted);
 }
 
 .performance-browse-actions {
@@ -553,7 +617,7 @@ code {
 
 .history-list-item {
     padding: 0.75rem 0;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid var(--kl-border-subtle);
 }
 
 .history-list-item:last-child {
@@ -587,12 +651,12 @@ code {
 }
 
 .tonight-dashboard-header {
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid var(--kl-border-subtle);
     padding-bottom: 0.75rem;
 }
 
 .tonight-default-venue {
-    color: #555;
+    color: var(--kl-text-secondary);
 }
 
 .tonight-actions .btn-lg {
@@ -605,17 +669,17 @@ code {
 }
 
 .history-venue {
-    color: #333;
+    color: var(--kl-text-body);
 }
 
 .history-key {
     font-size: 0.85rem;
-    color: #666;
+    color: var(--kl-text-muted);
 }
 
 .recent-logs-panel {
-    background: #f6fff8;
-    border-color: #c8e6cf;
+    background: var(--kl-success-panel-bg);
+    border-color: var(--kl-success-panel-border);
 }
 
 .recent-log-list {
@@ -628,8 +692,8 @@ code {
     display: block;
     width: 100%;
     text-align: left;
-    background: #fff;
-    border: 1px solid #e0ebe2;
+    background: var(--kl-bg-surface);
+    border: 1px solid var(--kl-recent-log-border);
     border-radius: 8px;
     padding: 0.75rem;
     margin-bottom: 0.5rem;
@@ -640,7 +704,7 @@ code {
 }
 
 .recent-log-item:active {
-    background: #f0f7f1;
+    background: var(--kl-recent-log-active);
 }
 
 .recent-log-title {
@@ -653,21 +717,21 @@ code {
     display: block;
     margin-top: 0.25rem;
     font-size: 0.85rem;
-    color: #666;
+    color: var(--kl-text-muted);
 }
 
 .empty-state {
     text-align: center;
     padding: 2rem 1rem;
-    color: #666;
+    color: var(--kl-text-muted);
 }
 
 .mobile-top-nav {
     display: flex;
     align-items: center;
     gap: 0.25rem;
-    background: #f7f7f7;
-    border-top: 1px solid #e0e0e0;
+    background: var(--kl-bg-elevated);
+    border-top: 1px solid var(--kl-mobile-nav-border);
     padding: 0.3rem 0.5rem 0.4rem;
     margin: 0 -1rem;
 }
@@ -680,7 +744,7 @@ code {
     text-align: center;
     padding: 0.4rem 0.25rem;
     text-decoration: none;
-    color: #555;
+    color: var(--kl-text-secondary);
     font-size: 0.82rem;
     font-weight: 500;
     min-width: 0;
@@ -688,7 +752,7 @@ code {
 }
 
 .mobile-top-nav-link.active {
-    background: #1b6ec2;
+    background: var(--kl-primary);
     color: #fff;
     font-weight: 600;
 }

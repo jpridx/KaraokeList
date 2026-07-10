@@ -86,6 +86,8 @@ public class NotImplementedApiClient : IKaraokeApiClient
     public virtual Task<TicklerSettingsUpdateResult> UpdateTicklerSettingsAsync(UpdateTicklerSettingsRequest request) => Throw<TicklerSettingsUpdateResult>();
     public virtual Task<MusicServicePreferenceResult> GetMusicServicePreferenceAsync() => Throw<MusicServicePreferenceResult>();
     public virtual Task<MusicServicePreferenceUpdateResult> UpdateMusicServicePreferenceAsync(UpdateMusicServicePreferenceRequest request) => Throw<MusicServicePreferenceUpdateResult>();
+    public virtual Task<ThemePreferenceResult> GetThemePreferenceAsync() => Throw<ThemePreferenceResult>();
+    public virtual Task<ThemePreferenceUpdateResult> UpdateThemePreferenceAsync(UpdateThemePreferenceRequest request) => Throw<ThemePreferenceUpdateResult>();
     public virtual Task<SingerStatsResult> GetMySingerStatsAsync(
         int topVenues = 0,
         int topSongs = 0,

@@ -83,6 +83,8 @@ public interface IKaraokeApiClient
     Task<TicklerSettingsUpdateResult> UpdateTicklerSettingsAsync(UpdateTicklerSettingsRequest request);
     Task<MusicServicePreferenceResult> GetMusicServicePreferenceAsync();
     Task<MusicServicePreferenceUpdateResult> UpdateMusicServicePreferenceAsync(UpdateMusicServicePreferenceRequest request);
+    Task<ThemePreferenceResult> GetThemePreferenceAsync();
+    Task<ThemePreferenceUpdateResult> UpdateThemePreferenceAsync(UpdateThemePreferenceRequest request);
     Task<SingerStatsResult> GetMySingerStatsAsync(
         int topVenues = 0,
         int topSongs = 0,
@@ -765,6 +767,50 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
         catch (Exception ex)
         {
             return MusicServicePreferenceUpdateResult.Fail(ex.Message);
+        }
+    }
+
+    public async Task<ThemePreferenceResult> GetThemePreferenceAsync()
+    {
+        try
+        {
+            var preference = await http.GetFromJsonAsync<ThemePreferenceDto>("api/auth/theme");
+            return preference is null
+                ? ThemePreferenceResult.Fail("Unexpected empty response from the server.")
+                : ThemePreferenceResult.Ok(preference);
+        }
+        catch (HttpRequestException ex)
+        {
+            return ThemePreferenceResult.Fail(
+                $"Cannot reach the API at {http.BaseAddress}. Start KaraokeList.Api first. ({ex.Message})");
+        }
+        catch (Exception ex)
+        {
+            return ThemePreferenceResult.Fail(ex.Message);
+        }
+    }
+
+    public async Task<ThemePreferenceUpdateResult> UpdateThemePreferenceAsync(UpdateThemePreferenceRequest request)
+    {
+        try
+        {
+            var response = await http.PutAsJsonAsync("api/auth/theme", request);
+            if (response.IsSuccessStatusCode)
+            {
+                return ThemePreferenceUpdateResult.Ok();
+            }
+
+            var message = await ReadApiErrorMessageAsync(response);
+            return ThemePreferenceUpdateResult.Fail(message ?? "Could not save theme preference.");
+        }
+        catch (HttpRequestException ex)
+        {
+            return ThemePreferenceUpdateResult.Fail(
+                $"Cannot reach the API at {http.BaseAddress}. Start KaraokeList.Api first. ({ex.Message})");
+        }
+        catch (Exception ex)
+        {
+            return ThemePreferenceUpdateResult.Fail(ex.Message);
         }
     }
 

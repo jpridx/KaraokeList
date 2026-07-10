@@ -23,6 +23,8 @@ public abstract class AuthPageTestContext : BunitTestContext
     {
         Api.Setup(client => client.GetMusicServicePreferenceAsync())
             .ReturnsAsync(MusicServicePreferenceResult.Ok(new MusicServicePreferenceDto()));
+        Api.Setup(client => client.GetThemePreferenceAsync())
+            .ReturnsAsync(ThemePreferenceResult.Ok(new ThemePreferenceDto()));
     }
 
     protected override void ConfigureServices(IServiceCollection services)
