@@ -238,6 +238,7 @@ public partial class MySongs
     private AddSongToListPanel? addSongPanel;
     private string? addSongMessage;
     private bool scrollRestoreChecked;
+    private int? deferredScrollSongId;
 
     private GroupedPagingView groupedPagingView => groupedPaging.BuildVisible(displaySongs);
 
@@ -278,11 +279,7 @@ public partial class MySongs
 
     private void GoToHistoryAsync(RepertoireSongDto song)
     {
-        if (!groupByGenre)
-        {
-            ScrollRestoreState.SetPending(song.SongId);
-        }
-
+        ScrollRestoreState.SetPending(song.SongId, groupByGenre);
         Navigation.NavigateTo($"my-songs/{song.SongId}");
     }
 
@@ -302,7 +299,19 @@ public partial class MySongs
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (scrollRestoreChecked || isLoading || groupByGenre || displaySongs.Count == 0 || !string.IsNullOrEmpty(loadError))
+        if (!string.IsNullOrEmpty(loadError) || isLoading || displaySongs.Count == 0)
+        {
+            return;
+        }
+
+        if (deferredScrollSongId is int deferredSongId)
+        {
+            deferredScrollSongId = null;
+            await ScrollRestoreJs.ScrollToSongWithRetryAsync(deferredSongId, ListSelector, -1, -1);
+            return;
+        }
+
+        if (scrollRestoreChecked)
         {
             return;
         }
@@ -316,12 +325,22 @@ public partial class MySongs
             return;
         }
 
-        var index = displaySongs.FindIndex(s => s.SongId == pending.SongId);
-        if (index < 0)
+        if (displaySongs.All(s => s.SongId != pending.SongId))
         {
             return;
         }
 
+        if (pending.GroupByGenre)
+        {
+            groupByGenre = true;
+            showGenreFilters = true;
+            groupedPaging.EnsureSongVisible(pending.SongId, displaySongs);
+            deferredScrollSongId = pending.SongId;
+            StateHasChanged();
+            return;
+        }
+
+        var index = displaySongs.FindIndex(s => s.SongId == pending.SongId);
         await ScrollRestoreJs.ScrollToSongWithRetryAsync(
             pending.SongId,
             ListSelector,

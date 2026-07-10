@@ -90,11 +90,13 @@
                 }
                 else if (string.IsNullOrEmpty(loadError) && groupByGenre)
                 {
-                    <MySongsGroupedList PagingView="@groupedPagingView"
-                                        TotalCount="@displaySongs.Count"
-                                        OnLoadMore="LoadMoreGroupedSongs"
-                                        OnHistory="GoToHistoryAsync"
-                                        OnLog="GoToLogAsync" />
+                    <div id="my-songs-list">
+                        <MySongsGroupedList PagingView="@groupedPagingView"
+                                            TotalCount="@displaySongs.Count"
+                                            OnLoadMore="LoadMoreGroupedSongs"
+                                            OnHistory="GoToHistoryAsync"
+                                            OnLog="GoToLogAsync" />
+                    </div>
                 }
                 else if (string.IsNullOrEmpty(loadError))
                 {
