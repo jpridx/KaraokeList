@@ -8,19 +8,32 @@ public sealed class MySongsScrollRestoreStateTests
     public void TryConsume_returns_restore_when_arriving_via_back_navigation()
     {
         var state = new MySongsScrollRestoreState();
-        state.SetPending(42);
+        state.SetPending(42, groupByGenre: false);
 
         var result = state.TryConsume(arrivedViaBackNavigation: true);
 
         Assert.NotNull(result);
         Assert.Equal(42, result!.SongId);
+        Assert.False(result.GroupByGenre);
+    }
+
+    [Fact]
+    public void TryConsume_preserves_group_by_genre_flag()
+    {
+        var state = new MySongsScrollRestoreState();
+        state.SetPending(42, groupByGenre: true);
+
+        var result = state.TryConsume(arrivedViaBackNavigation: true);
+
+        Assert.NotNull(result);
+        Assert.True(result!.GroupByGenre);
     }
 
     [Fact]
     public void TryConsume_discards_pending_on_forward_navigation()
     {
         var state = new MySongsScrollRestoreState();
-        state.SetPending(42);
+        state.SetPending(42, groupByGenre: true);
 
         var result = state.TryConsume(arrivedViaBackNavigation: false);
 

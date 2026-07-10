@@ -66,6 +66,46 @@ public sealed class GroupedPagingStateTests
         Assert.True(view.HasMore);
     }
 
+    [Fact]
+    public void EnsureSongVisible_expands_limit_to_include_target_song()
+    {
+        var songs = CreateSongs(
+            ("A1", "Rock"),
+            ("A2", "Rock"),
+            ("B1", "Pop"),
+            ("B2", "Pop"),
+            ("C1", "Soul"));
+
+        var paging = new GroupedPagingState();
+        paging.Reset(pageSize: 2);
+
+        paging.EnsureSongVisible(songId: 5, songs, pageSize: 2);
+        var view = paging.BuildVisible(songs);
+
+        Assert.Equal(5, view.VisibleCount);
+        Assert.False(view.HasMore);
+        Assert.Contains(view.Sections.SelectMany(section => section.Songs), song => song.SongId == 5);
+    }
+
+    [Fact]
+    public void EnsureSongVisible_does_not_shrink_existing_limit()
+    {
+        var songs = CreateSongs(
+            ("A1", "Rock"),
+            ("A2", "Rock"),
+            ("B1", "Pop"),
+            ("B2", "Pop"));
+
+        var paging = new GroupedPagingState();
+        paging.Reset(pageSize: 2);
+        paging.LoadMore(pageSize: 2);
+
+        paging.EnsureSongVisible(songId: 1, songs, pageSize: 2);
+        var view = paging.BuildVisible(songs);
+
+        Assert.Equal(4, view.VisibleCount);
+    }
+
     private static List<RepertoireSongDto> CreateSongs(params (string Title, string Genre)[] entries) =>
         entries.Select((entry, index) => new RepertoireSongDto
         {
