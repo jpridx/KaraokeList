@@ -1,7 +1,7 @@
 @page "/my-songs/{SongId:int}"
 @attribute [Authorize]
 @inject IKaraokeApiClient Api
-@inject NavigationManager Navigation
+@inject IScrollRestoreJs ScrollRestoreJs
 
 <SingerGatedPage DocumentTitle="Song history"
                  Title="@(songMeta?.Title ?? "Song history")"
@@ -9,7 +9,7 @@
                  OnResolved="LoadSongDetailAsync"
                  @ref="gatedPage">
     <LeadingContent>
-        <button type="button" class="btn btn-link btn-sm ps-0" @onclick="GoBack">← My Songs</button>
+        <button type="button" class="btn btn-link btn-sm ps-0" @onclick="GoBackAsync">← My Songs</button>
     </LeadingContent>
     <Subtitle>@(songMeta?.ArtistName)</Subtitle>
     <ChildContent Context="singerId">
@@ -136,5 +136,5 @@
         isLoading = false;
     }
 
-    private void GoBack() => Navigation.NavigateTo("my-songs");
+    private Task GoBackAsync() => ScrollRestoreJs.NavigateBackAsync();
 }

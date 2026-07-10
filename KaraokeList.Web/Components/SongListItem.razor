@@ -1,4 +1,4 @@
-<div class="song-list-item @(Song.PerformanceCount == 0 ? "song-list-item-unlogged" : "")">
+<div class="song-list-item @(Song.PerformanceCount == 0 ? "song-list-item-unlogged" : "")" data-song-id="@Song.SongId">
     <button type="button" class="song-list-item-body" @onclick="() => OnHistory.InvokeAsync(Song)">
         <div class="song-list-item-main">
             <div class="song-list-item-title">@Song.Title</div>

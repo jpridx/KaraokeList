@@ -98,9 +98,11 @@
                 }
                 else if (string.IsNullOrEmpty(loadError))
                 {
-                    <Virtualize TItem="RepertoireSongDto" Items="@displaySongs" ItemSize="88" OverscanCount="6">
-                        <SongListItem Song="@context" OnHistory="GoToHistoryAsync" OnLog="GoToLogAsync" />
-                    </Virtualize>
+                    <div id="my-songs-list">
+                        <Virtualize TItem="RepertoireSongDto" Items="@displaySongs" ItemSize="88" OverscanCount="6">
+                            <SongListItem Song="@context" OnHistory="GoToHistoryAsync" OnLog="GoToLogAsync" />
+                        </Virtualize>
+                    </div>
                 }
         </MobileLoadingState>
     </ChildContent>

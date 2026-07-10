@@ -47,6 +47,8 @@ builder.Services.AddScoped<ILogCatalogLoader, LogCatalogLoader>();
 builder.Services.AddScoped<IPendingPerformanceSyncService, PendingPerformanceSyncService>();
 builder.Services.AddScoped<IMySongsLocalStore, MySongsLocalStore>();
 builder.Services.AddScoped<IMySongsLoader, MySongsLoader>();
+builder.Services.AddScoped<MySongsScrollRestoreState>();
+builder.Services.AddScoped<IScrollRestoreJs, ScrollRestoreJs>();
 builder.Services.AddScoped<IMyPerformancesLocalStore, MyPerformancesLocalStore>();
 builder.Services.AddScoped<IMyPerformancesLoader, MyPerformancesLoader>();
 builder.Services.AddScoped<IStaleSongsLocalStore, StaleSongsLocalStore>();

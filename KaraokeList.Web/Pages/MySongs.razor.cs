@@ -7,9 +7,14 @@ namespace KaraokeList.Web.Pages;
 
 public partial class MySongs
 {
+    private const string ListSelector = "#my-songs-list";
+    private const double VirtualizedItemSize = 88;
+
     [Inject] private IMySongsLocalStore MySongsStore { get; set; } = default!;
     [Inject] private IMySongsLoader MySongsLoader { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;
+    [Inject] private MySongsScrollRestoreState ScrollRestoreState { get; set; } = default!;
+    [Inject] private IScrollRestoreJs ScrollRestoreJs { get; set; } = default!;
 
     #region Data loader / orchestration
 
@@ -232,6 +237,7 @@ public partial class MySongs
     private readonly GroupedPagingState groupedPaging = new();
     private AddSongToListPanel? addSongPanel;
     private string? addSongMessage;
+    private bool scrollRestoreChecked;
 
     private GroupedPagingView groupedPagingView => groupedPaging.BuildVisible(displaySongs);
 
@@ -270,8 +276,15 @@ public partial class MySongs
 
     private void ResetGroupedPaging() => groupedPaging.Reset();
 
-    private void GoToHistoryAsync(RepertoireSongDto song) =>
+    private void GoToHistoryAsync(RepertoireSongDto song)
+    {
+        if (!groupByGenre)
+        {
+            ScrollRestoreState.SetPending(song.SongId);
+        }
+
         Navigation.NavigateTo($"my-songs/{song.SongId}");
+    }
 
     private void GoToLogAsync(RepertoireSongDto song) =>
         Navigation.NavigateTo($"log?songId={song.SongId}");
@@ -285,6 +298,35 @@ public partial class MySongs
     {
         addSongMessage = args.Message;
         await ReloadListsAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (scrollRestoreChecked || isLoading || groupByGenre || displaySongs.Count == 0 || !string.IsNullOrEmpty(loadError))
+        {
+            return;
+        }
+
+        scrollRestoreChecked = true;
+
+        var arrivedViaBack = await ScrollRestoreJs.ConsumeBackNavigationAsync();
+        var pending = ScrollRestoreState.TryConsume(arrivedViaBack);
+        if (pending is null)
+        {
+            return;
+        }
+
+        var index = displaySongs.FindIndex(s => s.SongId == pending.SongId);
+        if (index < 0)
+        {
+            return;
+        }
+
+        await ScrollRestoreJs.ScrollToSongWithRetryAsync(
+            pending.SongId,
+            ListSelector,
+            VirtualizedItemSize,
+            index);
     }
 
     #endregion
