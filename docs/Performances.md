@@ -36,6 +36,7 @@ CREATE TABLE Performances (
 | `GET api/performances/my-repertoire/genres` | Distinct genres in your repertoire (for filter chips). |
 | `GET api/performances/my-history?venueId=&sortDir=` | Enriched performance rows for mobile browse (song, artist, venue names). |
 | `GET api/performances/my-song-summary?songId=` | Count, last key/venue/date, full history for one song. |
+| `PUT api/singers/me/songs/{songId}/genre` | Update a song's catalog genre (member; linked singer required). |
 | `POST api/performances` | Log a performance; `Singer` defaults from the logged-in user when omitted. |
 
 On **Log** (`QuickLogPerformance`), the key picker defaults to `LastKeyChangeSemitones` from `my-song-summary` when you've performed that song before; otherwise it defaults to original key (`NULL` / 0). It does **not** reuse the key from your previous log entry for a different song. Venue defaults from your last log on this device; the date defaults to **today** (change it for backfill — **Use today** resets the picker).
@@ -49,7 +50,7 @@ Full walkthrough: [mobile-ux.md](mobile-ux.md).
 | `/log` | Pick song (ComboBox), `QuickLogPerformance` form, + new song/venue |
 | `/log?songId=` | Log with song pre-selected |
 | `/my-songs` | Repertoire browse: search, sort, genre group filter (optional detailed genres), group-by-genre, per-row **Log** |
-| `/my-songs/{id}` | Stats + copy for host + collapsible log/history |
+| `/my-songs/{id}` | Stats + copy for host + change genre + collapsible log/history |
 | `/my-performances` | All your performances: search, venue filter, edit/delete |
 | `/more` | Catalog admin hub |
 

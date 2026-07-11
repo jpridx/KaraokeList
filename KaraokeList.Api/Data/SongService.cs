@@ -88,6 +88,18 @@ namespace KaraokeList.Data
             await command.ExecuteNonQueryAsync();
         }
 
+        public async Task<bool> UpdateSongGenreAsync(int songId, int? genreId)
+        {
+            using var connection = new SqlConnection(_connectionString);
+            await connection.OpenAsync();
+            var command = connection.CreateCommand();
+            command.CommandText = "UPDATE Songs SET Genre = @Genre WHERE Id = @Id;";
+            command.Parameters.AddWithValue("@Id", songId);
+            command.Parameters.AddWithValue("@Genre", (object?)genreId ?? DBNull.Value);
+            var rows = await command.ExecuteNonQueryAsync();
+            return rows > 0;
+        }
+
         public async Task DeleteSongAsync(int id)
         {
             using var connection = new SqlConnection(_connectionString);

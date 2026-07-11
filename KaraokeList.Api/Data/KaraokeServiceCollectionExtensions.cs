@@ -20,6 +20,7 @@ public static class KaraokeServiceCollectionExtensions
             connectionString));
         services.AddScoped<GenreGroupService>();
         services.AddScoped<TicklerExclusionService>();
+        services.AddScoped<SongGenreService>();
         services.AddScoped<CatalogImportService>();
         services.AddScoped<CatalogMergeService>();
         services.AddScoped<RepertoireImportService>();

@@ -15,6 +15,7 @@ public class SingerListsController(
     SingerListService singerListService,
     RepertoireImportService repertoireImportService,
     TicklerExclusionService ticklerExclusionService,
+    SongGenreService songGenreService,
     ICurrentUserSingerResolver currentUserSinger,
     IHttpClientFactory httpClientFactory) : ControllerBase
 {
@@ -137,6 +138,26 @@ public class SingerListsController(
 
         var removed = await ticklerExclusionService.RemoveExclusionAsync(singerId.Value!.Value, songId);
         return removed ? NoContent() : NotFound();
+    }
+
+    [HttpPut("~/api/singers/me/songs/{songId:int}/genre")]
+    public async Task<IActionResult> SetSongGenre(int songId, [FromBody] UpdateSongGenreRequest request)
+    {
+        var singerId = await RequireSingerIdAsync();
+        if (singerId.Result is not null)
+        {
+            return singerId.Result;
+        }
+
+        var result = await songGenreService.UpdateGenreAsync(songId, request.GenreId);
+        if (!result.Succeeded)
+        {
+            return result.Error == "Song was not found."
+                ? NotFound()
+                : BadRequest(new ApiErrorResponse { Message = result.Error ?? "Could not update song genre." });
+        }
+
+        return NoContent();
     }
 
     [HttpPost("import")]

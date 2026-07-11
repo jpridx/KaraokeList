@@ -32,7 +32,14 @@
                         <MusicServiceListenLink Title="@songMeta.Title" ArtistName="@songMeta.ArtistName" />
                     </section>
 
-                    <SongPerformanceSummaryPanel Summary="@summary" GenreName="@songMeta.GenreName" />
+                    <SongPerformanceSummaryPanel Summary="@summary" />
+
+                    <SongGenrePanel SongId="@SongId"
+                                    Title="@songMeta.Title"
+                                    ArtistName="@songMeta.ArtistName"
+                                    GenreId="@songMeta.GenreId"
+                                    GenreName="@songMeta.GenreName"
+                                    OnGenreChanged="OnGenreChangedAsync" />
 
                     <SongListMembershipPanel SongId="@SongId" PerformanceCount="@summary.PerformanceCount"
                                              OnMembershipChanged="ReloadSongDetailAsync" />
@@ -97,6 +104,17 @@
     private async Task OnPerformanceSavedAsync(string? _) => await ReloadSongDetailAsync();
 
     private async Task OnHistoryChangedAsync() => await ReloadSongDetailAsync();
+
+    private Task OnGenreChangedAsync(SongGenreChangedEventArgs args)
+    {
+        if (songMeta is not null)
+        {
+            songMeta.GenreId = args.GenreId;
+            songMeta.GenreName = args.GenreName;
+        }
+
+        return Task.CompletedTask;
+    }
 
     private async Task ReloadSongDetailAsync()
     {

@@ -80,6 +80,7 @@ public interface IKaraokeApiClient
     Task<SongTicklerExclusionResult> GetSongTicklerExclusionAsync(int songId);
     Task<TicklerExclusionActionResult> SetSongTicklerExclusionAsync(int songId, UpdateSongTicklerExclusionRequest request);
     Task<TicklerExclusionActionResult> RemoveSongTicklerExclusionAsync(int songId);
+    Task<SongGenreUpdateResult> UpdateSongGenreAsync(int songId, UpdateSongGenreRequest request);
     Task<StaleSongsResult> GetMyStaleSongsAsync(int? days = null, int? limit = null);
     Task<TicklerSettingsResult> GetTicklerSettingsAsync();
     Task<TicklerSettingsUpdateResult> UpdateTicklerSettingsAsync(UpdateTicklerSettingsRequest request);
@@ -646,6 +647,18 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
 
         var message = await ReadApiErrorMessageAsync(response);
         return TicklerExclusionActionResult.Fail(message ?? "Could not include song in tickler again.");
+    }
+
+    public async Task<SongGenreUpdateResult> UpdateSongGenreAsync(int songId, UpdateSongGenreRequest request)
+    {
+        var response = await http.PutAsJsonAsync($"api/singers/me/songs/{songId}/genre", request);
+        if (response.IsSuccessStatusCode)
+        {
+            return SongGenreUpdateResult.Ok();
+        }
+
+        var message = await ReadApiErrorMessageAsync(response);
+        return SongGenreUpdateResult.Fail(message ?? "Could not update song genre.");
     }
 
     public async Task<StaleSongsResult> GetMyStaleSongsAsync(int? days = null, int? limit = null)
