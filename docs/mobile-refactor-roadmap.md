@@ -97,7 +97,6 @@ Mark individual 6.x items done in this table when shipped; no tier-wide exit cri
 | Issue | Topic |
 |-------|--------|
 | [#92](https://github.com/jpridx/KaraokeList/issues/92) | More flexible search — see [flexible-search-options.md](flexible-search-options.md) |
-| [#62](https://github.com/jpridx/KaraokeList/issues/62) | Genre groups |
 | [#57](https://github.com/jpridx/KaraokeList/issues/57) | Excel catalog upload |
 
 ---

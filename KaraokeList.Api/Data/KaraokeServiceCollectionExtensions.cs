@@ -18,6 +18,7 @@ public static class KaraokeServiceCollectionExtensions
             sp.GetRequiredService<ApplicationDbContext>(),
             sp.GetRequiredService<CatalogIntegrityService>(),
             connectionString));
+        services.AddScoped<GenreGroupService>();
         services.AddScoped<TicklerExclusionService>();
         services.AddScoped<CatalogImportService>();
         services.AddScoped<CatalogMergeService>();

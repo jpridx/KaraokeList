@@ -93,6 +93,7 @@
                     <div id="my-songs-list">
                         <MySongsGroupedList PagingView="@groupedPagingView"
                                             TotalCount="@displaySongs.Count"
+                                            UseNestedHeadings="@UseNestedGenreHeadings"
                                             OnLoadMore="LoadMoreGroupedSongs"
                                             OnHistory="GoToHistoryAsync"
                                             OnLog="GoToLogAsync" />

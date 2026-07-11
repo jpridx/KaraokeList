@@ -2,13 +2,20 @@ using KaraokeList.Shared;
 
 namespace KaraokeList.Web.Services;
 
-public sealed record GroupedSongSection(string Key, IReadOnlyList<RepertoireSongDto> Songs);
+public sealed record GroupedSongSubSection(string Key, IReadOnlyList<RepertoireSongDto> Songs);
+
+public sealed record GroupedSongSection(
+    string Key,
+    IReadOnlyList<GroupedSongSubSection> SubSections);
 
 public sealed class GroupedPagingState
 {
     public const int DefaultPageSize = 40;
 
     private int visibleLimit = DefaultPageSize;
+    private GenreGroupResolver? resolver;
+
+    public void SetResolver(GenreGroupResolver? genreGroupResolver) => resolver = genreGroupResolver;
 
     public void Reset(int pageSize = DefaultPageSize) => visibleLimit = pageSize;
 
@@ -44,41 +51,87 @@ public sealed class GroupedPagingState
                 break;
             }
 
-            var groupSongs = group.Take(remaining).ToList();
-            if (groupSongs.Count == 0)
+            var subSections = new List<GroupedSongSubSection>();
+            foreach (var subGroup in group)
             {
-                continue;
+                if (remaining <= 0)
+                {
+                    break;
+                }
+
+                var subGroupSongs = subGroup.Take(remaining).ToList();
+                if (subGroupSongs.Count == 0)
+                {
+                    continue;
+                }
+
+                subSections.Add(new GroupedSongSubSection(subGroup.Key, subGroupSongs));
+                remaining -= subGroupSongs.Count;
             }
 
-            sections.Add(new GroupedSongSection(group.Key, groupSongs));
-            remaining -= groupSongs.Count;
+            if (subSections.Count > 0)
+            {
+                sections.Add(new GroupedSongSection(group.Key, subSections));
+            }
         }
 
-        var visibleCount = sections.Sum(section => section.Songs.Count);
+        var visibleCount = sections.Sum(section => section.SubSections.Sum(sub => sub.Songs.Count));
         return new GroupedPagingView(sections, visibleCount, visibleCount < totalCount);
     }
 
-    private static IEnumerable<IGrouping<string, RepertoireSongDto>> GroupSongs(IEnumerable<RepertoireSongDto> songs) =>
-        songs.GroupBy(s => string.IsNullOrWhiteSpace(s.GenreName) ? "(No genre)" : s.GenreName)
-            .OrderBy(g => g.Key);
+    private IEnumerable<IGrouping<string, IGrouping<string, RepertoireSongDto>>> GroupSongs(
+        IEnumerable<RepertoireSongDto> songs)
+    {
+        if (resolver is null)
+        {
+            return songs
+                .GroupBy(s => string.IsNullOrWhiteSpace(s.GenreName) ? GenreGroupResolver.NoGenreLabel : s.GenreName)
+                .OrderBy(g => g.Key)
+                .Select(g => new GroupingAdapter<string, IGrouping<string, RepertoireSongDto>>(g.Key, [g]));
+        }
 
-    private static int GetGroupedSongIndex(int songId, IReadOnlyList<RepertoireSongDto> songs)
+        return songs
+            .GroupBy(resolver.ResolvePrimaryGroupName)
+            .OrderBy(g => resolver.GetGroupSortOrder(g.Key))
+            .ThenBy(g => g.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(group => new GroupingAdapter<string, IGrouping<string, RepertoireSongDto>>(
+                group.Key,
+                group
+                    .GroupBy(resolver.ResolveGenreLabel)
+                    .OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase)));
+    }
+
+    private int GetGroupedSongIndex(int songId, IReadOnlyList<RepertoireSongDto> songs)
     {
         var index = 0;
         foreach (var group in GroupSongs(songs))
         {
-            foreach (var song in group)
+            foreach (var subGroup in group)
             {
-                if (song.SongId == songId)
+                foreach (var song in subGroup)
                 {
-                    return index;
-                }
+                    if (song.SongId == songId)
+                    {
+                        return index;
+                    }
 
-                index++;
+                    index++;
+                }
             }
         }
 
         return -1;
+    }
+
+    private sealed class GroupingAdapter<TKey, TElement>(
+        TKey key,
+        IEnumerable<TElement> elements) : IGrouping<TKey, TElement>
+    {
+        public TKey Key { get; } = key;
+
+        public IEnumerator<TElement> GetEnumerator() => elements.GetEnumerator();
+
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
     }
 }
 

@@ -29,7 +29,7 @@ public sealed class MySongsLoader(
 
     // Bump this when the shape of cached data changes in a way that requires a fresh load.
     // Old cached JSON deserializes SchemaVersion to 0, so any value >= 1 triggers invalidation.
-    private const int CurrentCacheSchemaVersion = 1;
+    private const int CurrentCacheSchemaVersion = 2;
 
     public async Task<MySongsLoadResult> LoadAsync(
         SingerListKind listKind,
@@ -54,6 +54,8 @@ public sealed class MySongsLoader(
             }
 
             var songsByKind = await LoadAllListSongsAsync(listsResult.Lists, onProgress);
+            onProgress?.Invoke("Loading genre groups...");
+            var genreGroups = await api.GetGenreGroupsAsync();
             onProgress?.Invoke("Saving for offline use...");
             var cachedAt = DateTime.UtcNow;
             var cacheTag = await versionService.GetCacheTagAsync();
@@ -62,7 +64,8 @@ public sealed class MySongsLoader(
                 songsByKind.Select(kv => new CachedListSongsEntry(kv.Key, kv.Value)).ToList(),
                 cachedAt,
                 cacheTag,
-                CurrentCacheSchemaVersion));
+                CurrentCacheSchemaVersion,
+                genreGroups));
 
             return BuildResult(
                 listsResult.Lists,
@@ -71,6 +74,7 @@ public sealed class MySongsLoader(
                 sortBy,
                 sortDir,
                 genreId,
+                genreGroups,
                 FromCache: false,
                 cachedAt);
         }
@@ -102,7 +106,7 @@ public sealed class MySongsLoader(
             entry => entry.Kind,
             entry => entry.Songs.ToList());
 
-        return BuildResult(cached.Lists, songsByKind, listKind, sortBy, sortDir, genreId, FromCache: true, cached.CachedAtUtc);
+        return BuildResult(cached.Lists, songsByKind, listKind, sortBy, sortDir, genreId, cached.GenreGroups ?? [], FromCache: true, cached.CachedAtUtc);
     }
 
     public async Task<bool> NeedsRefreshAsync()
@@ -181,6 +185,7 @@ public sealed class MySongsLoader(
                     [],
                     [],
                     [],
+                    [],
                     FromCache: false,
                     HasCache: false,
                     null,
@@ -189,6 +194,7 @@ public sealed class MySongsLoader(
             }
 
             return new MySongsLoadResult(
+                [],
                 [],
                 [],
                 [],
@@ -210,6 +216,7 @@ public sealed class MySongsLoader(
             sortBy,
             sortDir,
             genreId,
+            cached.GenreGroups ?? [],
             FromCache: true,
             cached.CachedAtUtc);
     }
@@ -221,6 +228,7 @@ public sealed class MySongsLoader(
         string sortBy,
         string sortDir,
         int? genreId,
+        IReadOnlyList<GenreGroupDto> genreGroups,
         bool FromCache,
         DateTime? cachedAt)
     {
@@ -237,6 +245,7 @@ public sealed class MySongsLoader(
             lists,
             sorted,
             filterGenres,
+            genreGroups,
             FromCache,
             HasCache: songsByKind.Count > 0,
             cachedAt,

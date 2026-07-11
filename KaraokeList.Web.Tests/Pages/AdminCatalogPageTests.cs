@@ -34,6 +34,22 @@ public sealed class AdminCatalogPageTests : AuthPageTestContext
     }
 
     [Fact]
+    public void GenreGroups_page_loads_from_api()
+    {
+        Api.Setup(client => client.GetGenreGroupsAsync()).ReturnsAsync([]);
+        Api.Setup(client => client.GetGenresAsync()).ReturnsAsync([]);
+
+        var cut = Render<GenreGroups>();
+
+        cut.WaitForAssertion(() =>
+        {
+            Api.Verify(client => client.GetGenreGroupsAsync(), Times.Once);
+            Api.Verify(client => client.GetGenresAsync(), Times.Once);
+        });
+        Assert.Contains("Genre Groups", cut.Markup);
+    }
+
+    [Fact]
     public void Singers_page_loads_from_api()
     {
         Api.Setup(client => client.GetSingersAsync()).ReturnsAsync([]);

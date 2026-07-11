@@ -427,6 +427,12 @@ code {
     letter-spacing: 0.03em;
 }
 
+.repertoire-subgroup-heading {
+    font-size: 0.9rem;
+    color: var(--kl-text-secondary);
+    margin: 0.75rem 0 0.35rem 0.5rem;
+}
+
 .history-details-summary {
     font-weight: 600;
     cursor: pointer;

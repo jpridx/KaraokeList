@@ -12,6 +12,7 @@ Migrations live in `KaraokeList.Api/Data/Migrations/`:
 | `20260608031358_AddDbSetsAndRelations` | `AspNetUsers.SingerId` → `Singers` foreign key |
 | `20260616033911_UniqueArtistName` | Unique index on `Artists.Name` |
 | `20260623235540_AddCatalogForeignKeys` | Performance/song/singer/venue FKs; song→artist FKs; `Performances.Song`/`Singer` NOT NULL |
+| `20260711012300_AddGenreGroups` | `GenreGroups`, `GenreGroupGenres`; seeds six fixed groups + genre mappings |
 
 ### Apply schema
 
@@ -69,6 +70,16 @@ Or with a full connection string:
 $env:KARAOKE_SQL_CONNECTION = "Server=tcp:....database.windows.net,1433;Database=KaraokeList-Dev;Authentication=Active Directory Default;Encrypt=True;"
 .\scripts\Invoke-SeedCatalog.ps1
 ```
+
+### Genre group classification
+
+After catalog genres exist, classify them into broad karaoke groups (Rock, Pop, Country, etc.):
+
+```bash
+sqlcmd -S "(localdb)\MSSQLLocalDB" -d KaraokeList -i scripts/seed-genre-groups.sql
+```
+
+Fresh installs that run `dotnet ef database update` get groups and mappings from migration `AddGenreGroups`. Re-run the script after adding new leaf genres. See [Genres.md](Genres.md).
 
 ### Option 3 — EF seed migration (future)
 

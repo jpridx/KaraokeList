@@ -19,8 +19,62 @@ public sealed class GroupedPagingStateTests
         Assert.Equal(3, view.VisibleCount);
         Assert.False(view.HasMore);
         Assert.Equal(["Pop", "Rock"], view.Sections.Select(section => section.Key));
-        Assert.Equal(["Gamma"], view.Sections[0].Songs.Select(song => song.Title));
-        Assert.Equal(["Alpha", "Beta"], view.Sections[1].Songs.Select(song => song.Title));
+        Assert.Equal(["Gamma"], SectionSongs(view.Sections[0]));
+        Assert.Equal(["Alpha", "Beta"], SectionSongs(view.Sections[1]));
+    }
+
+    [Fact]
+    public void BuildVisible_uses_two_level_grouping_when_resolver_set()
+    {
+        var songs = CreateSongs(
+            ("Alpha", "Classic Rock", 1),
+            ("Beta", "Pop", 2));
+
+        var groups = new List<GenreGroupDto>
+        {
+            new()
+            {
+                Id = 1,
+                GroupName = "Rock",
+                SortOrder = 1,
+                Genres = [new GenreGroupMemberDto { GenreId = 1, GenreName = "Classic Rock", IsPrimary = true }]
+            },
+            new()
+            {
+                Id = 2,
+                GroupName = "Pop",
+                SortOrder = 2,
+                Genres = [new GenreGroupMemberDto { GenreId = 2, GenreName = "Pop", IsPrimary = true }]
+            }
+        };
+
+        var paging = new GroupedPagingState();
+        paging.SetResolver(new GenreGroupResolver(groups));
+        var view = paging.BuildVisible(songs);
+
+        Assert.Equal(2, view.Sections.Count);
+        Assert.Equal("Rock", view.Sections[0].Key);
+        Assert.Equal("Classic Rock", view.Sections[0].SubSections[0].Key);
+        Assert.Equal(["Alpha"], view.Sections[0].SubSections[0].Songs.Select(song => song.Title));
+        Assert.Equal("Pop", view.Sections[1].Key);
+        Assert.Equal(["Beta"], view.Sections[1].SubSections[0].Songs.Select(song => song.Title));
+    }
+
+    [Fact]
+    public void BuildVisible_puts_unmapped_genres_in_other_section()
+    {
+        var songs = CreateSongs(("Novelty", "Comedy", 99));
+        var groups = new List<GenreGroupDto>
+        {
+            new() { Id = 1, GroupName = "Rock", SortOrder = 1, Genres = [] }
+        };
+
+        var paging = new GroupedPagingState();
+        paging.SetResolver(new GenreGroupResolver(groups));
+        var view = paging.BuildVisible(songs);
+
+        Assert.Equal(GenreGroupResolver.OtherGroupName, view.Sections[0].Key);
+        Assert.Equal("Comedy", view.Sections[0].SubSections[0].Key);
     }
 
     [Fact]
@@ -84,7 +138,7 @@ public sealed class GroupedPagingStateTests
 
         Assert.Equal(5, view.VisibleCount);
         Assert.False(view.HasMore);
-        Assert.Contains(view.Sections.SelectMany(section => section.Songs), song => song.SongId == 5);
+        Assert.Contains(AllSongs(view), song => song.SongId == 5);
     }
 
     [Fact]
@@ -106,12 +160,28 @@ public sealed class GroupedPagingStateTests
         Assert.Equal(4, view.VisibleCount);
     }
 
+    private static IEnumerable<string> SectionSongs(GroupedSongSection section) =>
+        section.SubSections.SelectMany(sub => sub.Songs).Select(song => song.Title);
+
+    private static IEnumerable<RepertoireSongDto> AllSongs(GroupedPagingView view) =>
+        view.Sections.SelectMany(section => section.SubSections.SelectMany(sub => sub.Songs));
+
     private static List<RepertoireSongDto> CreateSongs(params (string Title, string Genre)[] entries) =>
         entries.Select((entry, index) => new RepertoireSongDto
         {
             SongId = index + 1,
             Title = entry.Title,
             ArtistName = "Artist",
+            GenreName = entry.Genre
+        }).ToList();
+
+    private static List<RepertoireSongDto> CreateSongs(params (string Title, string Genre, int GenreId)[] entries) =>
+        entries.Select((entry, index) => new RepertoireSongDto
+        {
+            SongId = index + 1,
+            Title = entry.Title,
+            ArtistName = "Artist",
+            GenreId = entry.GenreId,
             GenreName = entry.Genre
         }).ToList();
 }
