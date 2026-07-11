@@ -23,6 +23,8 @@ public interface IKaraokeApiClient
     Task<CatalogMutateResult> TryUpdateGenreAsync(GenreDto dto);
     Task DeleteGenreAsync(int id);
     Task<CatalogMutateResult> TryDeleteGenreAsync(int id);
+    Task<List<GenreGroupDto>> GetGenreGroupsAsync();
+    Task<CatalogMutateResult> TryUpdateGenreGroupGenresAsync(int groupId, UpdateGenreGroupGenresRequest request);
     Task<List<ArtistDto>> GetArtistsAsync();
     Task<List<ArtistLookupDto>> GetArtistLookupsAsync();
     Task CreateArtistAsync(ArtistDto dto);
@@ -195,6 +197,13 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
     public Task<CatalogMutateResult> TryUpdateGenreAsync(GenreDto dto) => TryPutAsync($"api/genres/{dto.Id}", dto);
     public Task DeleteGenreAsync(int id) => DeleteAsync($"api/genres/{id}");
     public Task<CatalogMutateResult> TryDeleteGenreAsync(int id) => TryDeleteAsync($"api/genres/{id}");
+
+    public Task<List<GenreGroupDto>> GetGenreGroupsAsync() => GetListAsync<GenreGroupDto>("api/genre-groups");
+
+    public Task<CatalogMutateResult> TryUpdateGenreGroupGenresAsync(
+        int groupId,
+        UpdateGenreGroupGenresRequest request) =>
+        TryPutAsync($"api/genre-groups/{groupId}/genres", request);
 
     public Task<List<ArtistDto>> GetArtistsAsync() => GetListAsync<ArtistDto>("api/artists");
     public Task<List<ArtistLookupDto>> GetArtistLookupsAsync() => GetListAsync<ArtistLookupDto>("api/artists/lookup");

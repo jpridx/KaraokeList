@@ -141,6 +141,7 @@ public partial class MySongs
 
         listKind = selectedList.Kind;
         songs = result.Songs.ToList();
+        genreGroups = result.GenreGroups.ToList();
 
         if (filterGenreId is null)
         {
@@ -176,6 +177,7 @@ public partial class MySongs
     private string sortDir = "desc";
     private int? filterGenreId;
     private List<GenreDto> filterGenres = [];
+    private List<GenreGroupDto> genreGroups = [];
     private bool groupByGenre;
     private bool showGenreFilters;
 
@@ -185,6 +187,7 @@ public partial class MySongs
     private void RefreshDisplayList()
     {
         displaySongs = FilteredSongs.ToList();
+        groupedPaging.SetResolver(genreGroups.Count > 0 ? new GenreGroupResolver(genreGroups) : null);
         groupedPaging.Reset();
     }
 
@@ -241,6 +244,8 @@ public partial class MySongs
     private int? deferredScrollSongId;
 
     private GroupedPagingView groupedPagingView => groupedPaging.BuildVisible(displaySongs);
+
+    private bool UseNestedGenreHeadings => genreGroups.Count > 0;
 
     private bool SupportsCatalogAdd =>
         listKind is SingerListKind.WantToSing or SingerListKind.WorkingUp;

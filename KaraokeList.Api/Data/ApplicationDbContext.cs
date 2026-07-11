@@ -16,6 +16,8 @@ namespace KaraokeList.Data
         public DbSet<SingerList> SingerLists { get; set; } = null!;
         public DbSet<SingerListSong> SingerListSongs { get; set; } = null!;
         public DbSet<SingerSongTicklerExclusion> SingerSongTicklerExclusions { get; set; } = null!;
+        public DbSet<GenreGroup> GenreGroups { get; set; } = null!;
+        public DbSet<GenreGroupGenre> GenreGroupGenres { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -131,6 +133,27 @@ namespace KaraokeList.Data
                 entity.HasOne(e => e.Song)
                     .WithMany()
                     .HasForeignKey(e => e.SongId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            builder.Entity<GenreGroup>(entity =>
+            {
+                entity.Property(g => g.GroupName).HasMaxLength(128).IsRequired();
+                entity.HasIndex(g => g.GroupName).IsUnique();
+            });
+
+            builder.Entity<GenreGroupGenre>(entity =>
+            {
+                entity.HasKey(m => new { m.GenreGroupId, m.GenreId });
+
+                entity.HasOne(m => m.GenreGroup)
+                    .WithMany(g => g.GenreMemberships)
+                    .HasForeignKey(m => m.GenreGroupId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(m => m.Genre)
+                    .WithMany()
+                    .HasForeignKey(m => m.GenreId)
                     .OnDelete(DeleteBehavior.Cascade);
             });
         }

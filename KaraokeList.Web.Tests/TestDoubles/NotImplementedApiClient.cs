@@ -26,6 +26,9 @@ public class NotImplementedApiClient : IKaraokeApiClient
     public virtual Task<CatalogMutateResult> TryUpdateGenreAsync(GenreDto dto) => Throw<CatalogMutateResult>();
     public virtual Task DeleteGenreAsync(int id) => Throw();
     public virtual Task<CatalogMutateResult> TryDeleteGenreAsync(int id) => Throw<CatalogMutateResult>();
+    public virtual Task<List<GenreGroupDto>> GetGenreGroupsAsync() => Throw<List<GenreGroupDto>>();
+    public virtual Task<CatalogMutateResult> TryUpdateGenreGroupGenresAsync(int groupId, UpdateGenreGroupGenresRequest request) =>
+        Throw<CatalogMutateResult>();
     public virtual Task<List<ArtistDto>> GetArtistsAsync() => Throw<List<ArtistDto>>();
     public virtual Task<List<ArtistLookupDto>> GetArtistLookupsAsync() => Throw<List<ArtistLookupDto>>();
     public virtual Task CreateArtistAsync(ArtistDto dto) => Throw();

@@ -1,0 +1,218 @@
+@page "/genre-groups"
+@attribute [Authorize(Roles = KaraokeRoles.Admin)]
+@inject IKaraokeApiClient Api
+
+<PageTitle>Genre Groups</PageTitle>
+
+<div class="mobile-page">
+    <MobilePageHeader Title="Genre Groups">
+        <Subtitle>Assign catalog genres to broad karaoke groups. Each genre has one primary group when it appears in multiple.</Subtitle>
+    </MobilePageHeader>
+
+    <StatusAlerts ErrorMessage="@errorMessage" SuccessMessage="@successMessage" />
+
+    <MobileLoadingState IsLoading="@isLoading">
+        @foreach (var group in groups)
+        {
+            <section class="more-section">
+                <h2 class="more-section-title">@group.GroupName</h2>
+                <div class="genre-group-checklist">
+                    @foreach (var genre in allGenres)
+                    {
+                        var genreId = genre.Id;
+                        var isChecked = IsGenreSelected(group.Id, genreId);
+                        <div class="form-check">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   id="@($"group-{group.Id}-genre-{genreId}")"
+                                   checked="@isChecked"
+                                   @onchange="e => ToggleGenreAsync(group.Id, genreId, e)" />
+                            <label class="form-check-label" for="@($"group-{group.Id}-genre-{genreId}")">
+                                @genre.GenreName
+                            </label>
+                        </div>
+                    }
+                </div>
+                <button type="button"
+                        class="btn btn-primary btn-sm mt-2"
+                        disabled="@isSaving"
+                        @onclick="() => SaveGroupAsync(group.Id)">
+                    Save @group.GroupName
+                </button>
+            </section>
+        }
+
+        @if (multiGroupGenres.Count > 0)
+        {
+            <section class="more-section">
+                <h2 class="more-section-title">Primary group</h2>
+                <p class="text-muted small">These genres belong to more than one group. Pick where they appear in My Songs grouped view.</p>
+                @foreach (var genre in multiGroupGenres)
+                {
+                    <div class="mb-3">
+                        <div class="fw-semibold">@genre.GenreName</div>
+                        @foreach (var group in GetSelectedGroupsForGenre(genre.Id))
+                        {
+                            <div class="form-check">
+                                <input class="form-check-input"
+                                       type="radio"
+                                       name="@($"primary-{genre.Id}")"
+                                       id="@($"primary-{genre.Id}-{group.Id}")"
+                                       checked="@(GetPrimaryGroupId(genre.Id) == group.Id)"
+                                       @onchange="() => SetPrimaryGroup(genre.Id, group.Id)" />
+                                <label class="form-check-label" for="@($"primary-{genre.Id}-{group.Id}")">
+                                    @group.GroupName
+                                </label>
+                            </div>
+                        }
+                    </div>
+                }
+            </section>
+        }
+    </MobileLoadingState>
+</div>
+
+@code {
+    private List<GenreGroupDto> groups = [];
+    private List<GenreDto> allGenres = [];
+    private readonly Dictionary<int, HashSet<int>> selectedByGroupId = new();
+    private readonly Dictionary<int, int> primaryGroupByGenreId = new();
+    private bool isLoading = true;
+    private bool isSaving;
+    private string? errorMessage;
+    private string? successMessage;
+
+    protected override async Task OnInitializedAsync() => await ReloadAsync();
+
+    private async Task ReloadAsync()
+    {
+        isLoading = true;
+        errorMessage = null;
+        successMessage = null;
+
+        groups = await Api.GetGenreGroupsAsync();
+        allGenres = await Api.GetGenresAsync();
+
+        selectedByGroupId.Clear();
+        primaryGroupByGenreId.Clear();
+
+        foreach (var group in groups)
+        {
+            selectedByGroupId[group.Id] = group.Genres.Select(g => g.GenreId).ToHashSet();
+            foreach (var member in group.Genres.Where(g => g.IsPrimary))
+            {
+                primaryGroupByGenreId[member.GenreId] = group.Id;
+            }
+        }
+
+        EnsurePrimaryDefaults();
+        isLoading = false;
+    }
+
+    private bool IsGenreSelected(int groupId, int genreId) =>
+        selectedByGroupId.TryGetValue(groupId, out var selected) && selected.Contains(genreId);
+
+    private Task ToggleGenreAsync(int groupId, int genreId, ChangeEventArgs args)
+    {
+        var isChecked = args.Value is bool value && value;
+        if (!selectedByGroupId.TryGetValue(groupId, out var selected))
+        {
+            selected = [];
+            selectedByGroupId[groupId] = selected;
+        }
+
+        if (isChecked)
+        {
+            selected.Add(genreId);
+        }
+        else
+        {
+            selected.Remove(genreId);
+            if (primaryGroupByGenreId.TryGetValue(genreId, out var primaryGroupId) && primaryGroupId == groupId)
+            {
+                primaryGroupByGenreId.Remove(genreId);
+            }
+        }
+
+        EnsurePrimaryDefaults();
+        return Task.CompletedTask;
+    }
+
+    private void SetPrimaryGroup(int genreId, int groupId) => primaryGroupByGenreId[genreId] = groupId;
+
+    private int? GetPrimaryGroupId(int genreId) =>
+        primaryGroupByGenreId.TryGetValue(genreId, out var groupId) ? groupId : null;
+
+    private IEnumerable<GenreGroupDto> GetSelectedGroupsForGenre(int genreId) =>
+        groups.Where(group => IsGenreSelected(group.Id, genreId));
+
+    private IReadOnlyList<GenreDto> multiGroupGenres =>
+        allGenres
+            .Where(genre => GetSelectedGroupsForGenre(genre.Id).Count() > 1)
+            .OrderBy(genre => genre.GenreName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+    private void EnsurePrimaryDefaults()
+    {
+        foreach (var genre in allGenres)
+        {
+            var selectedGroups = GetSelectedGroupsForGenre(genre.Id).ToList();
+            if (selectedGroups.Count == 0)
+            {
+                primaryGroupByGenreId.Remove(genre.Id);
+                continue;
+            }
+
+            if (selectedGroups.Count == 1)
+            {
+                primaryGroupByGenreId[genre.Id] = selectedGroups[0].Id;
+                continue;
+            }
+
+            if (!primaryGroupByGenreId.TryGetValue(genre.Id, out var primaryGroupId)
+                || selectedGroups.All(group => group.Id != primaryGroupId))
+            {
+                primaryGroupByGenreId[genre.Id] = selectedGroups
+                    .OrderBy(group => group.SortOrder)
+                    .First()
+                    .Id;
+            }
+        }
+    }
+
+    private async Task SaveGroupAsync(int groupId)
+    {
+        isSaving = true;
+        errorMessage = null;
+        successMessage = null;
+
+        if (!selectedByGroupId.TryGetValue(groupId, out var selected))
+        {
+            selected = [];
+        }
+
+        var request = new UpdateGenreGroupGenresRequest
+        {
+            Genres = selected
+                .Select(genreId => new GenreGroupGenreAssignmentDto
+                {
+                    GenreId = genreId,
+                    IsPrimary = primaryGroupByGenreId.TryGetValue(genreId, out var primaryGroupId)
+                               && primaryGroupId == groupId
+                })
+                .ToList()
+        };
+
+        var result = await Api.TryUpdateGenreGroupGenresAsync(groupId, request);
+        isSaving = false;
+
+        if (!result.Succeeded)
+        {
+            errorMessage = result.ErrorMessage ?? "Could not save genre group.";
+            return;
+        }
+
+        successMessage = "Genre group saved.";
+        await ReloadAsync();
+    }
+}

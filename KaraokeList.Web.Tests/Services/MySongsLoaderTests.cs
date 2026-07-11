@@ -157,5 +157,11 @@ public sealed class MySongsLoaderTests
 
             return Task.FromResult(RepertoireResult.Ok(songs));
         }
+
+        public override Task<List<GenreGroupDto>> GetGenreGroupsAsync()
+        {
+            ThrowIfOffline();
+            return Task.FromResult(new List<GenreGroupDto>());
+        }
     }
 }

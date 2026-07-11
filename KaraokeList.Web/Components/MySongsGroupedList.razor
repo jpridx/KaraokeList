@@ -1,9 +1,16 @@
 @foreach (var group in PagingView.Sections)
 {
     <h2 class="repertoire-group-heading">@group.Key</h2>
-    @foreach (var song in group.Songs)
+    @foreach (var subGroup in group.SubSections)
     {
-        <SongListItem Song="@song" OnHistory="@OnHistory" OnLog="@OnLog" />
+        @if (UseNestedHeadings)
+        {
+            <h3 class="repertoire-subgroup-heading">@subGroup.Key</h3>
+        }
+        @foreach (var song in subGroup.Songs)
+        {
+            <SongListItem Song="@song" OnHistory="@OnHistory" OnLog="@OnLog" />
+        }
     }
 }
 @if (PagingView.HasMore)
@@ -11,7 +18,7 @@
     <LoadMoreButton Visible="@PagingView.HasMore"
                     VisibleCount="@PagingView.VisibleCount"
                     TotalCount="@TotalCount"
-                    OnClick="@OnLoadMore" />
+                    OnClick="@OnClick" />
 }
 
 @code {
@@ -21,6 +28,9 @@
     [Parameter, EditorRequired]
     public int TotalCount { get; set; }
 
+    [Parameter]
+    public bool UseNestedHeadings { get; set; }
+
     [Parameter, EditorRequired]
     public EventCallback OnLoadMore { get; set; }
 
@@ -29,4 +39,6 @@
 
     [Parameter, EditorRequired]
     public EventCallback<RepertoireSongDto> OnLog { get; set; }
+
+    private EventCallback OnClick => OnLoadMore;
 }
