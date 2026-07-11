@@ -1,5 +1,6 @@
 @inject ILogPerformanceLocalStore LogStore
 @inject ILogCatalogLoader CatalogLoader
+@inject IKaraokeApiClient Api
 
 <section class="tonight-dashboard mobile-panel">
     <header class="tonight-dashboard-header">
@@ -49,6 +50,36 @@
         {
             // Resolve the venue name in the background so the dashboard renders instantly.
             _ = LoadVenueNameAsync(venueId);
+        }
+
+        _ = RefreshRecentLogsFromApiAsync();
+    }
+
+    private async Task RefreshRecentLogsFromApiAsync()
+    {
+        try
+        {
+            var localLogs = await LogStore.GetRecentLogsAsync();
+            var pending = await LogStore.GetPendingPerformancesAsync();
+            var result = await Api.GetMyPerformancesAsync(sortDir: "desc");
+            if (!result.Succeeded || result.Performances.Count == 0)
+            {
+                return;
+            }
+
+            var merged = RecentLogsHydrator.Merge(result.Performances, localLogs, pending);
+            if (merged.Count == 0)
+            {
+                return;
+            }
+
+            await LogStore.ReplaceRecentLogsAsync(merged);
+            recentLogs = merged;
+            await InvokeAsync(StateHasChanged);
+        }
+        catch
+        {
+            // Non-fatal; stale local recent logs remain until the next successful refresh.
         }
     }
 
