@@ -111,6 +111,89 @@ public sealed class MySongsLoaderTests
         Assert.True(needsRefresh);
     }
 
+    [Fact]
+    public async Task TryGetCachedAsync_filters_by_group_name()
+    {
+        var store = new MySongsLocalStore(new InMemoryLocalStorage());
+        var genreGroups = CreateSampleGenreGroups();
+        await store.SaveCachedListsAsync(new CachedMySongsLists(
+            [new SingerListDto { Id = 1, Kind = SingerListKind.MyRepertoire, DisplayName = "My repertoire" }],
+            [new CachedListSongsEntry(
+                SingerListKind.MyRepertoire,
+                [
+                    new RepertoireSongDto { SongId = 1, Title = "Rock Song", ArtistName = "A", GenreId = 10, GenreName = "Classic Rock" },
+                    new RepertoireSongDto { SongId = 2, Title = "Pop Song", ArtistName = "B", GenreId = 20, GenreName = "Pop Rock" }
+                ])],
+            DateTime.UtcNow,
+            CacheTag: "tag",
+            SchemaVersion: 2,
+            genreGroups));
+
+        var loader = new MySongsLoader(new ListsApiStub(), store, new NullVersion());
+        var result = await loader.TryGetCachedAsync(
+            SingerListKind.MyRepertoire,
+            "title",
+            "asc",
+            genreId: null,
+            groupName: "Rock");
+
+        Assert.NotNull(result);
+        Assert.Single(result.Songs);
+        Assert.Equal("Rock Song", result.Songs[0].Title);
+        Assert.Equal(["Rock", "Pop"], result.FilterGroups);
+    }
+
+    [Fact]
+    public async Task TryGetCachedAsync_genre_filter_takes_precedence_over_group()
+    {
+        var store = new MySongsLocalStore(new InMemoryLocalStorage());
+        var genreGroups = CreateSampleGenreGroups();
+        await store.SaveCachedListsAsync(new CachedMySongsLists(
+            [new SingerListDto { Id = 1, Kind = SingerListKind.MyRepertoire, DisplayName = "My repertoire" }],
+            [new CachedListSongsEntry(
+                SingerListKind.MyRepertoire,
+                [
+                    new RepertoireSongDto { SongId = 1, Title = "Rock Song", ArtistName = "A", GenreId = 10, GenreName = "Classic Rock" },
+                    new RepertoireSongDto { SongId = 2, Title = "Metal Song", ArtistName = "B", GenreId = 11, GenreName = "Hair Metal" }
+                ])],
+            DateTime.UtcNow,
+            CacheTag: "tag",
+            SchemaVersion: 2,
+            genreGroups));
+
+        var loader = new MySongsLoader(new ListsApiStub(), store, new NullVersion());
+        var result = await loader.TryGetCachedAsync(
+            SingerListKind.MyRepertoire,
+            "title",
+            "asc",
+            genreId: 11,
+            groupName: "Rock");
+
+        Assert.NotNull(result);
+        Assert.Single(result.Songs);
+        Assert.Equal("Metal Song", result.Songs[0].Title);
+    }
+
+    private static IReadOnlyList<GenreGroupDto> CreateSampleGenreGroups() =>
+    [
+        new()
+        {
+            GroupName = "Rock",
+            SortOrder = 1,
+            Genres =
+            [
+                new GenreGroupMemberDto { GenreId = 10, GenreName = "Classic Rock", IsPrimary = true },
+                new GenreGroupMemberDto { GenreId = 11, GenreName = "Hair Metal", IsPrimary = true }
+            ]
+        },
+        new()
+        {
+            GroupName = "Pop",
+            SortOrder = 2,
+            Genres = [new GenreGroupMemberDto { GenreId = 20, GenreName = "Pop Rock", IsPrimary = true }]
+        }
+    ];
+
     private sealed class ListsApiStub : NotImplementedApiClient
     {
         public bool ThrowOffline { get; init; }
