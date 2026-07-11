@@ -36,6 +36,14 @@ public partial class MySongs
         listKind = await MySongsStore.GetListKindAsync();
         sortBy = await MySongsStore.GetSortByAsync();
         sortDir = await MySongsStore.GetSortDirAsync();
+        searchText = await MySongsStore.GetSearchTextAsync();
+        filterGenreId = await MySongsStore.GetFilterGenreIdAsync();
+        filterGroupName = await MySongsStore.GetFilterGroupNameAsync();
+        groupByGenre = await MySongsStore.GetGroupByGenreAsync();
+        if (groupByGenre)
+        {
+            showGenreFilters = true;
+        }
     }
 
     private async Task LoadListsAsync(int singerId)
@@ -151,7 +159,38 @@ public partial class MySongs
         }
 
         loadError = null;
+
+        if (ClearStaleFiltersIfNeeded(result))
+        {
+            _ = InvokeAsync(async () =>
+            {
+                await PersistFilterStateAsync();
+                await ReloadListsAsync();
+            });
+            return;
+        }
+
         RefreshDisplayList();
+    }
+
+    private bool ClearStaleFiltersIfNeeded(MySongsLoadResult result)
+    {
+        var cleared = false;
+
+        if (filterGenreId is int genreId && !result.FilterGenres.Any(g => g.Id == genreId))
+        {
+            filterGenreId = null;
+            cleared = true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(filterGroupName) &&
+            !result.FilterGroups.Any(g => string.Equals(g, filterGroupName, StringComparison.OrdinalIgnoreCase)))
+        {
+            filterGroupName = null;
+            cleared = true;
+        }
+
+        return cleared;
     }
 
     private async Task RefreshListsInBackgroundAsync()
@@ -194,6 +233,7 @@ public partial class MySongs
         displaySongs = FilteredSongs.ToList();
         groupedPaging.SetResolver(genreGroups.Count > 0 ? new GenreGroupResolver(genreGroups) : null);
         groupedPaging.Reset();
+        _ = PersistFilterStateAsync();
     }
 
     private async Task ToggleGenreFiltersAsync()
@@ -219,7 +259,12 @@ public partial class MySongs
             }
 
             filterGenreId = null;
+            await PersistFilterStateAsync();
             await ReloadListsAsync();
+        }
+        else
+        {
+            await PersistFilterStateAsync();
         }
     }
 
@@ -239,9 +284,13 @@ public partial class MySongs
     private Task PersistSortPreferenceAsync() =>
         MySongsStore.SetSortPreferenceAsync(sortBy, sortDir);
 
+    private Task PersistFilterStateAsync() =>
+        MySongsStore.SetFilterStateAsync(searchText, filterGenreId, filterGroupName, groupByGenre);
+
     private async Task SetGenreFilterAsync(int? genreId)
     {
         filterGenreId = genreId;
+        await PersistFilterStateAsync();
         await ReloadListsAsync();
     }
 
@@ -249,6 +298,7 @@ public partial class MySongs
     {
         filterGroupName = groupName;
         filterGenreId = null;
+        await PersistFilterStateAsync();
         await ReloadListsAsync();
     }
 
@@ -325,11 +375,18 @@ public partial class MySongs
 
     private void LoadMoreGroupedSongs() => groupedPaging.LoadMore();
 
-    private void ResetGroupedPaging() => groupedPaging.Reset();
+    private async Task OnGroupByGenreChangedAsync()
+    {
+        groupedPaging.Reset();
+        await PersistFilterStateAsync();
+    }
 
     private void GoToHistoryAsync(RepertoireSongDto song)
     {
-        ScrollRestoreState.SetPending(song.SongId, groupByGenre);
+        ScrollRestoreState.SetPending(
+            song.SongId,
+            groupByGenre,
+            groupByGenre ? groupedPaging.VisibleLimit : null);
         Navigation.NavigateTo($"my-songs/{song.SongId}");
     }
 
@@ -384,8 +441,10 @@ public partial class MySongs
         {
             groupByGenre = true;
             showGenreFilters = true;
+            groupedPaging.RestoreVisibleLimit(pending.GroupedVisibleLimit ?? GroupedPagingState.DefaultPageSize);
             groupedPaging.EnsureSongVisible(pending.SongId, displaySongs);
             deferredScrollSongId = pending.SongId;
+            _ = PersistFilterStateAsync();
             StateHasChanged();
             return;
         }

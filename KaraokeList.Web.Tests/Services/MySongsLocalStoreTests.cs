@@ -83,4 +83,62 @@ public sealed class MySongsLocalStoreTests
 
         Assert.True(await store.GetShowDetailedGenreFiltersAsync());
     }
+
+    [Fact]
+    public async Task GetSearchTextAsync_returns_empty_when_not_stored()
+    {
+        var store = CreateStore();
+
+        Assert.Equal(string.Empty, await store.GetSearchTextAsync());
+    }
+
+    [Fact]
+    public async Task GetFilterGenreIdAsync_returns_null_when_not_stored()
+    {
+        var store = CreateStore();
+
+        Assert.Null(await store.GetFilterGenreIdAsync());
+    }
+
+    [Fact]
+    public async Task GetFilterGroupNameAsync_returns_null_when_not_stored()
+    {
+        var store = CreateStore();
+
+        Assert.Null(await store.GetFilterGroupNameAsync());
+    }
+
+    [Fact]
+    public async Task GetGroupByGenreAsync_returns_false_when_not_stored()
+    {
+        var store = CreateStore();
+
+        Assert.False(await store.GetGroupByGenreAsync());
+    }
+
+    [Fact]
+    public async Task SetFilterStateAsync_persists_search_genre_filter_and_group_by()
+    {
+        var store = CreateStore();
+
+        await store.SetFilterStateAsync("beatles", 42, null, groupByGenre: true);
+
+        Assert.Equal("beatles", await store.GetSearchTextAsync());
+        Assert.Equal(42, await store.GetFilterGenreIdAsync());
+        Assert.Null(await store.GetFilterGroupNameAsync());
+        Assert.True(await store.GetGroupByGenreAsync());
+    }
+
+    [Fact]
+    public async Task SetFilterStateAsync_persists_group_name_filter()
+    {
+        var store = CreateStore();
+
+        await store.SetFilterStateAsync(string.Empty, null, "Rock", groupByGenre: false);
+
+        Assert.Equal(string.Empty, await store.GetSearchTextAsync());
+        Assert.Null(await store.GetFilterGenreIdAsync());
+        Assert.Equal("Rock", await store.GetFilterGroupNameAsync());
+        Assert.False(await store.GetGroupByGenreAsync());
+    }
 }
