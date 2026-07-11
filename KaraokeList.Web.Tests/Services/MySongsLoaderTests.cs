@@ -174,6 +174,40 @@ public sealed class MySongsLoaderTests
         Assert.Equal("Metal Song", result.Songs[0].Title);
     }
 
+    [Fact]
+    public async Task PatchCachedSongGenreAsync_updates_genre_across_all_cached_lists()
+    {
+        var store = new MySongsLocalStore(new InMemoryLocalStorage());
+        await store.SaveCachedListsAsync(new CachedMySongsLists(
+            [
+                new SingerListDto { Id = 1, Kind = SingerListKind.MyRepertoire, DisplayName = "My repertoire" },
+                new SingerListDto { Id = 3, Kind = SingerListKind.WorkingUp, DisplayName = "Working up" }
+            ],
+            [
+                new CachedListSongsEntry(
+                    SingerListKind.MyRepertoire,
+                    [new RepertoireSongDto { SongId = 5, Title = "Old Song", ArtistName = "Old Artist", GenreId = 1, GenreName = "Pop" }]),
+                new CachedListSongsEntry(
+                    SingerListKind.WorkingUp,
+                    [new RepertoireSongDto { SongId = 5, Title = "Old Song", ArtistName = "Old Artist", GenreId = 1, GenreName = "Pop" }])
+            ],
+            DateTime.UtcNow,
+            CacheTag: "tag",
+            SchemaVersion: 2));
+
+        var loader = new MySongsLoader(new ListsApiStub(), store, new NullVersion());
+        await loader.PatchCachedSongGenreAsync(5, 10, "Classic Rock");
+
+        var cached = await store.GetCachedListsAsync();
+        Assert.NotNull(cached);
+        Assert.All(cached.ListsSongs, entry =>
+        {
+            var song = Assert.Single(entry.Songs);
+            Assert.Equal(10, song.GenreId);
+            Assert.Equal("Classic Rock", song.GenreName);
+        });
+    }
+
     private static IReadOnlyList<GenreGroupDto> CreateSampleGenreGroups() =>
     [
         new()

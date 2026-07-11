@@ -1,0 +1,228 @@
+@inject IKaraokeApiClient Api
+@inject ILogCatalogLoader CatalogLoader
+@inject IMySongsLoader MySongsLoader
+
+<section class="mobile-panel song-genre-panel">
+    <h2 class="h6 mb-2">Genre</h2>
+
+    @if (!string.IsNullOrEmpty(statusMessage))
+    {
+        <p class="small text-success mb-2">@statusMessage</p>
+    }
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <p class="small text-danger mb-2">@errorMessage</p>
+    }
+
+    @if (isLoadingLookups)
+    {
+        <p class="small text-muted mb-0">Loading genres...</p>
+    }
+    else if (!isEditing)
+    {
+        <p class="small text-muted mb-2">
+            @(string.IsNullOrWhiteSpace(DisplayGenreName) ? "Not set" : DisplayGenreName)
+        </p>
+        <button type="button" class="btn btn-outline-secondary btn-sm" disabled="@isBusy"
+                @onclick="BeginEditAsync">
+            Change genre
+        </button>
+    }
+    else
+    {
+        <AddGenreField Genres="@genres" @bind-GenreName="editGenreName"
+                       @bind-GenreName:after="SyncGenreFromNameAsync"
+                       GenresChanged="OnGenresRefreshed"
+                       OnGenreConfirmed="OnGenreConfirmedAsync"
+                       Disabled="@isBusy"
+                       Title="@Title" Artist="@ArtistName" />
+
+        @if (!string.IsNullOrEmpty(localError))
+        {
+            <p class="small text-danger mb-2">@localError</p>
+        }
+
+        <div class="d-flex flex-wrap gap-2 mt-2">
+            <button type="button" class="btn btn-outline-primary btn-sm" disabled="@(!CanSave || isBusy)"
+                    @onclick="SaveAsync">
+                Save genre
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" disabled="@isBusy"
+                    @onclick="CancelEdit">
+                Cancel
+            </button>
+        </div>
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired]
+    public int SongId { get; set; }
+
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public string ArtistName { get; set; } = string.Empty;
+
+    [Parameter]
+    public int? GenreId { get; set; }
+
+    [Parameter]
+    public string GenreName { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public EventCallback<SongGenreChangedEventArgs> OnGenreChanged { get; set; }
+
+    private IReadOnlyList<GenreDto> genres = [];
+    private bool isLoadingLookups = true;
+    private bool isEditing;
+    private bool isBusy;
+    private string? statusMessage;
+    private string? errorMessage;
+    private string? localError;
+    private string editGenreName = string.Empty;
+    private int? confirmedGenreId;
+
+    private string DisplayGenreName => GenreName;
+
+    private int? ResolvedEditGenreId =>
+        confirmedGenreId ?? LogGenrePicker.ResolveGenreId(editGenreName, genres);
+
+    private bool CanSave => ResolvedEditGenreId != GenreId;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!isEditing)
+        {
+            editGenreName = GenreName;
+            confirmedGenreId = GenreId;
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var cached = await CatalogLoader.TryGetCachedLookupsAsync();
+        if (cached is not null)
+        {
+            genres = cached.Genres;
+            isLoadingLookups = false;
+            _ = RefreshLookupsInBackgroundAsync();
+            return;
+        }
+
+        await LoadLookupsAsync();
+    }
+
+    private async Task RefreshLookupsInBackgroundAsync()
+    {
+        try
+        {
+            if (!await CatalogLoader.NeedsRefreshAsync())
+            {
+                return;
+            }
+
+            var refreshed = await CatalogLoader.LoadLookupsAsync();
+            genres = refreshed.Genres;
+            await InvokeAsync(StateHasChanged);
+        }
+        catch
+        {
+            // Background refresh failures are silent.
+        }
+    }
+
+    private async Task LoadLookupsAsync()
+    {
+        isLoadingLookups = true;
+        try
+        {
+            var result = await CatalogLoader.LoadLookupsAsync();
+            genres = result.Genres;
+        }
+        finally
+        {
+            isLoadingLookups = false;
+        }
+    }
+
+    private Task BeginEditAsync()
+    {
+        isEditing = true;
+        statusMessage = null;
+        errorMessage = null;
+        localError = null;
+        editGenreName = GenreName;
+        confirmedGenreId = GenreId;
+        return Task.CompletedTask;
+    }
+
+    private void CancelEdit()
+    {
+        isEditing = false;
+        localError = null;
+        editGenreName = GenreName;
+        confirmedGenreId = GenreId;
+    }
+
+    private void OnGenresRefreshed(IReadOnlyList<GenreDto> refreshed)
+    {
+        genres = refreshed;
+        confirmedGenreId ??= LogGenrePicker.ResolveGenreId(editGenreName, refreshed);
+    }
+
+    private Task SyncGenreFromNameAsync()
+    {
+        confirmedGenreId = LogGenrePicker.ResolveGenreId(editGenreName, genres);
+        return Task.CompletedTask;
+    }
+
+    private Task OnGenreConfirmedAsync(GenreConfirmedEventArgs args)
+    {
+        editGenreName = args.Name;
+        confirmedGenreId = args.Id;
+        return Task.CompletedTask;
+    }
+
+    private async Task SaveAsync()
+    {
+        localError = null;
+        statusMessage = null;
+        errorMessage = null;
+
+        if (!string.IsNullOrWhiteSpace(editGenreName)
+            && LogGenrePicker.NeedsNewGenre(editGenreName, genres))
+        {
+            localError = $"Add genre \"{editGenreName.Trim()}\" first, then save.";
+            return;
+        }
+
+        var resolvedGenreId = ResolvedEditGenreId;
+        var savedGenreName = string.IsNullOrWhiteSpace(editGenreName)
+            ? string.Empty
+            : editGenreName.Trim();
+
+        isBusy = true;
+        try
+        {
+            var result = await Api.UpdateSongGenreAsync(
+                SongId,
+                new UpdateSongGenreRequest { GenreId = resolvedGenreId });
+            if (!result.Succeeded)
+            {
+                errorMessage = result.ErrorMessage;
+                return;
+            }
+
+            await MySongsLoader.PatchCachedSongGenreAsync(SongId, resolvedGenreId, savedGenreName);
+            statusMessage = "Genre updated.";
+            isEditing = false;
+            await OnGenreChanged.InvokeAsync(new SongGenreChangedEventArgs(resolvedGenreId, savedGenreName));
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+}

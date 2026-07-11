@@ -9,6 +9,7 @@ Every registered user is a member. Members can:
 - Log performances (own singer only)
 - Browse **My Songs** / **My Performances**
 - Add songs, artists, and venues inline while logging
+- Reclassify a song's genre from **My Songs** song detail (catalog-wide; does not require the admin grid)
 - Invite friends (when registration is open)
 - Link their login to a **new** singer profile (stage name)
 

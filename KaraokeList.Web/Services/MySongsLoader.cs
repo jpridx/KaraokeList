@@ -20,6 +20,7 @@ public interface IMySongsLoader
         string? groupName = null);
 
     Task<bool> NeedsRefreshAsync();
+    Task PatchCachedSongGenreAsync(int songId, int? genreId, string genreName);
 }
 
 public sealed class MySongsLoader(
@@ -292,4 +293,35 @@ public sealed class MySongsLoader(
 
     private static bool IsOfflineFailure(Exception ex) =>
         ApiTransientFailure.IsTransient(ex) || ex is HttpRequestException;
+
+    public async Task PatchCachedSongGenreAsync(int songId, int? genreId, string genreName)
+    {
+        versionService.Invalidate();
+
+        var cached = await store.GetCachedListsAsync();
+        if (cached is null || cached.ListsSongs.Count == 0)
+        {
+            return;
+        }
+
+        var updatedListsSongs = cached.ListsSongs
+            .Select(entry => new CachedListSongsEntry(
+                entry.Kind,
+                entry.Songs
+                    .Select(song =>
+                    {
+                        if (song.SongId != songId)
+                        {
+                            return song;
+                        }
+
+                        song.GenreId = genreId;
+                        song.GenreName = genreName;
+                        return song;
+                    })
+                    .ToList()))
+            .ToList();
+
+        await store.SaveCachedListsAsync(cached with { ListsSongs = updatedListsSongs });
+    }
 }

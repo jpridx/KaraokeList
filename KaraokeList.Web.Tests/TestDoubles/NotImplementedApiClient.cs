@@ -84,6 +84,7 @@ public class NotImplementedApiClient : IKaraokeApiClient
     public virtual Task<SongTicklerExclusionResult> GetSongTicklerExclusionAsync(int songId) => Throw<SongTicklerExclusionResult>();
     public virtual Task<TicklerExclusionActionResult> SetSongTicklerExclusionAsync(int songId, UpdateSongTicklerExclusionRequest request) => Throw<TicklerExclusionActionResult>();
     public virtual Task<TicklerExclusionActionResult> RemoveSongTicklerExclusionAsync(int songId) => Throw<TicklerExclusionActionResult>();
+    public virtual Task<SongGenreUpdateResult> UpdateSongGenreAsync(int songId, UpdateSongGenreRequest request) => Throw<SongGenreUpdateResult>();
     public virtual Task<StaleSongsResult> GetMyStaleSongsAsync(int? days = null, int? limit = null) => Throw<StaleSongsResult>();
     public virtual Task<TicklerSettingsResult> GetTicklerSettingsAsync() => Throw<TicklerSettingsResult>();
     public virtual Task<TicklerSettingsUpdateResult> UpdateTicklerSettingsAsync(UpdateTicklerSettingsRequest request) => Throw<TicklerSettingsUpdateResult>();

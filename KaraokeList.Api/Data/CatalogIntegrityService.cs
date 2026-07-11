@@ -16,6 +16,9 @@ public class CatalogIntegrityService(string connectionString)
     public Task<bool> ArtistExistsAsync(int id) =>
         ExistsAsync("SELECT 1 FROM Artists WHERE Id = @Id", id);
 
+    public Task<bool> GenreExistsAsync(int id) =>
+        ExistsAsync("SELECT 1 FROM Genres WHERE Id = @Id", id);
+
     public Task<bool> HasPerformancesForSongAsync(int songId) =>
         ExistsAsync("SELECT 1 FROM Performances WHERE Song = @Id", songId);
 
