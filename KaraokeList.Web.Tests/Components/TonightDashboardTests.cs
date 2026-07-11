@@ -1,3 +1,4 @@
+using KaraokeList.Shared;
 using KaraokeList.Web.Components;
 using KaraokeList.Web.Services;
 using KaraokeList.Web.Tests.Pages;
@@ -18,6 +19,8 @@ public sealed class TonightDashboardTests : AuthPageTestContext
         base.ConfigureServices(services);
         catalogLoader.Setup(loader => loader.LoadVenuesAsync())
             .ReturnsAsync(new VenueLoadResult([], false));
+        api.Setup(client => client.GetMyPerformancesAsync(null, "desc"))
+            .ReturnsAsync(MyPerformancesResult.Ok([]));
         services.AddSingleton<IKaraokeApiClient>(api.Object);
         services.AddSingleton(catalogLoader.Object);
         services.AddSingleton<ILogPerformanceLocalStore>(new LogPerformanceLocalStore(localStorage));
@@ -43,5 +46,38 @@ public sealed class TonightDashboardTests : AuthPageTestContext
         Assert.Contains(performedOn.ToString("d"), cut.Markup);
         Assert.DoesNotContain(performedOn.ToString("t"), cut.Markup);
         Assert.Contains("Main Stage", cut.Markup);
+    }
+
+    [Fact]
+    public async Task Recently_logged_refreshes_from_api_when_local_storage_is_stale()
+    {
+        var store = (LogPerformanceLocalStore)Services.GetRequiredService<ILogPerformanceLocalStore>();
+        await store.AddRecentLogAsync(new RecentLoggedPerformance(
+            SongId: 99,
+            Title: "Stale June Song",
+            ArtistName: "Artist",
+            VenueName: "Old Venue",
+            PerformedOn: new DateTime(2026, 6, 11),
+            KeyChangeSemitones: null,
+            LoggedAt: new DateTime(2026, 6, 11)));
+
+        api.Setup(client => client.GetMyPerformancesAsync(null, "desc"))
+            .ReturnsAsync(MyPerformancesResult.Ok(
+            [
+                new MyPerformanceEntryDto
+                {
+                    SongId = 1,
+                    Title = "Fresh July Song",
+                    ArtistName = "Artist",
+                    VenueName = "Main Stage",
+                    PerformedOn = new DateTime(2026, 7, 9)
+                }
+            ]));
+
+        var cut = Render<TonightDashboard>();
+        cut.WaitForAssertion(() => Assert.Contains("Fresh July Song", cut.Markup));
+
+        Assert.DoesNotContain("Stale June Song", cut.Markup);
+        Assert.Contains(new DateTime(2026, 7, 9).ToString("d"), cut.Markup);
     }
 }

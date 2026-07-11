@@ -44,6 +44,7 @@ public interface ILogPerformanceLocalStore
     Task SaveFormDefaultsAsync(LogFormDefaults defaults);
     Task<IReadOnlyList<RecentLoggedPerformance>> GetRecentLogsAsync();
     Task AddRecentLogAsync(RecentLoggedPerformance entry);
+    Task ReplaceRecentLogsAsync(IReadOnlyList<RecentLoggedPerformance> entries);
     Task<IReadOnlyList<PendingPerformanceEntry>> GetPendingPerformancesAsync();
     Task EnqueuePendingPerformanceAsync(PendingPerformanceEntry entry);
     Task RemovePendingPerformanceAsync(Guid id);
@@ -58,7 +59,7 @@ public sealed class LogPerformanceLocalStore(ILocalStorageService localStorage) 
     private const string RecentLogsKey = "karaoke.log.recentLogs";
     private const string PendingPerformancesKey = "karaoke.log.pendingPerformances";
     private const string CachedCatalogKey = "karaoke.log.cachedCatalog";
-    private const int MaxRecentLogs = 5;
+    public const int MaxRecentLogs = 5;
 
     public Task<LogFormDefaults?> GetFormDefaultsAsync() =>
         localStorage.GetItemAsync<LogFormDefaults?>(FormDefaultsKey).AsTask();
@@ -81,6 +82,12 @@ public sealed class LogPerformanceLocalStore(ILocalStorageService localStorage) 
             logs = logs.Take(MaxRecentLogs).ToList();
         }
 
+        await localStorage.SetItemAsync(RecentLogsKey, logs);
+    }
+
+    public async Task ReplaceRecentLogsAsync(IReadOnlyList<RecentLoggedPerformance> entries)
+    {
+        var logs = entries.Take(MaxRecentLogs).ToList();
         await localStorage.SetItemAsync(RecentLogsKey, logs);
     }
 
