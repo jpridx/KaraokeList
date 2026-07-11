@@ -27,6 +27,20 @@ public sealed class MySongsScrollRestoreStateTests
 
         Assert.NotNull(result);
         Assert.True(result!.GroupByGenre);
+        Assert.Null(result.GroupedVisibleLimit);
+    }
+
+    [Fact]
+    public void TryConsume_preserves_grouped_visible_limit()
+    {
+        var state = new MySongsScrollRestoreState();
+        state.SetPending(42, groupByGenre: true, groupedVisibleLimit: 80);
+
+        var result = state.TryConsume(arrivedViaBackNavigation: true);
+
+        Assert.NotNull(result);
+        Assert.True(result!.GroupByGenre);
+        Assert.Equal(80, result.GroupedVisibleLimit);
     }
 
     [Fact]

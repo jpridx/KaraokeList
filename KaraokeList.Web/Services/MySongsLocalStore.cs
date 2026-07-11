@@ -15,6 +15,11 @@ public interface IMySongsLocalStore
     Task<string> GetSortByAsync();
     Task<string> GetSortDirAsync();
     Task SetSortPreferenceAsync(string sortBy, string sortDir);
+    Task<string> GetSearchTextAsync();
+    Task<int?> GetFilterGenreIdAsync();
+    Task<string?> GetFilterGroupNameAsync();
+    Task<bool> GetGroupByGenreAsync();
+    Task SetFilterStateAsync(string searchText, int? filterGenreId, string? filterGroupName, bool groupByGenre);
     Task<CachedMySongsLists?> GetCachedListsAsync();
     Task SaveCachedListsAsync(CachedMySongsLists cache);
     Task ClearCatalogCacheAsync();
@@ -27,6 +32,10 @@ public sealed class MySongsLocalStore(ILocalStorageService localStorage) : IMySo
     private const string ListKindKey = "karaoke.mySongs.listKind";
     private const string SortByKey = "karaoke.mySongs.sortBy";
     private const string SortDirKey = "karaoke.mySongs.sortDir";
+    private const string SearchTextKey = "karaoke.mySongs.searchText";
+    private const string FilterGenreIdKey = "karaoke.mySongs.filterGenreId";
+    private const string FilterGroupNameKey = "karaoke.mySongs.filterGroupName";
+    private const string GroupByGenreKey = "karaoke.mySongs.groupByGenre";
     private const string CachedListsKey = "karaoke.mySongs.cachedLists";
 
     private static readonly HashSet<string> AllowedSortBy =
@@ -78,6 +87,36 @@ public sealed class MySongsLocalStore(ILocalStorageService localStorage) : IMySo
     {
         await localStorage.SetItemAsync(SortByKey, IsAllowedSortBy(sortBy) ? sortBy : "lastPerformed");
         await localStorage.SetItemAsync(SortDirKey, IsAllowedSortDir(sortDir) ? sortDir : "desc");
+    }
+
+    public async Task<string> GetSearchTextAsync()
+    {
+        var value = await localStorage.GetItemAsync<string?>(SearchTextKey);
+        return value ?? string.Empty;
+    }
+
+    public Task<int?> GetFilterGenreIdAsync() =>
+        localStorage.GetItemAsync<int?>(FilterGenreIdKey).AsTask();
+
+    public Task<string?> GetFilterGroupNameAsync() =>
+        localStorage.GetItemAsync<string?>(FilterGroupNameKey).AsTask();
+
+    public async Task<bool> GetGroupByGenreAsync()
+    {
+        var value = await localStorage.GetItemAsync<bool?>(GroupByGenreKey);
+        return value ?? false;
+    }
+
+    public async Task SetFilterStateAsync(
+        string searchText,
+        int? filterGenreId,
+        string? filterGroupName,
+        bool groupByGenre)
+    {
+        await localStorage.SetItemAsync(SearchTextKey, searchText);
+        await localStorage.SetItemAsync(FilterGenreIdKey, filterGenreId);
+        await localStorage.SetItemAsync(FilterGroupNameKey, filterGroupName);
+        await localStorage.SetItemAsync(GroupByGenreKey, groupByGenre);
     }
 
     public Task<CachedMySongsLists?> GetCachedListsAsync() =>

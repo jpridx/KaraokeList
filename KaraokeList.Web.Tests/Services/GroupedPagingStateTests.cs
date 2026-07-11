@@ -160,6 +160,73 @@ public sealed class GroupedPagingStateTests
         Assert.Equal(4, view.VisibleCount);
     }
 
+    [Fact]
+    public void RestoreVisibleLimit_sets_limit_without_shrinking_below_default()
+    {
+        var paging = new GroupedPagingState();
+        paging.LoadMore(pageSize: 40);
+
+        paging.RestoreVisibleLimit(80);
+
+        Assert.Equal(80, paging.VisibleLimit);
+    }
+
+    [Fact]
+    public void RestoreVisibleLimit_never_sets_below_default_page_size()
+    {
+        var paging = new GroupedPagingState();
+
+        paging.RestoreVisibleLimit(10);
+
+        Assert.Equal(GroupedPagingState.DefaultPageSize, paging.VisibleLimit);
+    }
+
+    [Fact]
+    public void EnsureSongVisible_expands_limit_for_nested_genre_groups()
+    {
+        var songs = CreateSongs(
+            ("A1", "Classic Rock", 1),
+            ("A2", "Classic Rock", 1),
+            ("B1", "Pop", 2),
+            ("B2", "Pop", 2),
+            ("C1", "Soul", 3));
+
+        var groups = new List<GenreGroupDto>
+        {
+            new()
+            {
+                Id = 1,
+                GroupName = "Rock",
+                SortOrder = 1,
+                Genres = [new GenreGroupMemberDto { GenreId = 1, GenreName = "Classic Rock", IsPrimary = true }]
+            },
+            new()
+            {
+                Id = 2,
+                GroupName = "Pop",
+                SortOrder = 2,
+                Genres = [new GenreGroupMemberDto { GenreId = 2, GenreName = "Pop", IsPrimary = true }]
+            },
+            new()
+            {
+                Id = 3,
+                GroupName = "Soul",
+                SortOrder = 3,
+                Genres = [new GenreGroupMemberDto { GenreId = 3, GenreName = "Soul", IsPrimary = true }]
+            }
+        };
+
+        var paging = new GroupedPagingState();
+        paging.SetResolver(new GenreGroupResolver(groups));
+        paging.Reset(pageSize: 2);
+
+        paging.EnsureSongVisible(songId: 5, songs, pageSize: 2);
+        var view = paging.BuildVisible(songs);
+
+        Assert.Equal(5, view.VisibleCount);
+        Assert.Contains(AllSongs(view), song => song.SongId == 5);
+    }
+
     private static IEnumerable<string> SectionSongs(GroupedSongSection section) =>
         section.SubSections.SelectMany(sub => sub.Songs).Select(song => song.Title);
 

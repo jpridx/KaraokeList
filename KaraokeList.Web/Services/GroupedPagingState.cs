@@ -15,11 +15,16 @@ public sealed class GroupedPagingState
     private int visibleLimit = DefaultPageSize;
     private GenreGroupResolver? resolver;
 
+    public int VisibleLimit => visibleLimit;
+
     public void SetResolver(GenreGroupResolver? genreGroupResolver) => resolver = genreGroupResolver;
 
     public void Reset(int pageSize = DefaultPageSize) => visibleLimit = pageSize;
 
     public void LoadMore(int pageSize = DefaultPageSize) => visibleLimit += pageSize;
+
+    public void RestoreVisibleLimit(int limit) =>
+        visibleLimit = Math.Max(limit, DefaultPageSize);
 
     public void EnsureSongVisible(int songId, IReadOnlyList<RepertoireSongDto> songs, int pageSize = DefaultPageSize)
     {
