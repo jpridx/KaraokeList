@@ -45,8 +45,15 @@
 
                 @if (showGenreFilters)
                 {
-                    <ChipFilterBar Label="Genre" Items="@genreChipItems">
+                    <ChipFilterBar Label="@GenreChipBarLabel" Items="@genreChipItems">
                         <FooterContent>
+                            @if (filterGroups.Count > 0)
+                            {
+                                <button type="button" class="btn btn-link btn-sm p-0 mt-2"
+                                        @onclick="ToggleDetailedGenreFiltersAsync">
+                                    @(showDetailedGenreFilters ? "Fewer genres" : "More genres…")
+                                </button>
+                            }
                             <div class="form-check mt-2">
                                 <input class="form-check-input" type="checkbox" id="groupByGenre"
                                        @bind="groupByGenre" @bind:after="ResetGroupedPaging" />

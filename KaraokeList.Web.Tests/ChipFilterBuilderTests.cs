@@ -30,4 +30,30 @@ public sealed class ChipFilterBuilderTests
         Assert.Equal("Rock", chips[1].Label);
         Assert.True(chips[1].IsActive);
     }
+
+    [Fact]
+    public void CreateAllPlusItemsByString_includes_all_chip_and_marks_active_selection()
+    {
+        string? selectedKey = null;
+        var chips = ChipFilterBuilder.CreateAllPlusItemsByString(
+            activeKey: "Pop",
+            items: new[] { "Rock", "Pop" },
+            getKey: group => group,
+            getLabel: group => group,
+            EventCallback.Factory,
+            receiver: new object(),
+            onSelectAsync: key =>
+            {
+                selectedKey = key;
+                return Task.CompletedTask;
+            });
+
+        Assert.Equal(3, chips.Count);
+        Assert.Equal("All", chips[0].Label);
+        Assert.False(chips[0].IsActive);
+        Assert.Equal("Rock", chips[1].Label);
+        Assert.False(chips[1].IsActive);
+        Assert.Equal("Pop", chips[2].Label);
+        Assert.True(chips[2].IsActive);
+    }
 }

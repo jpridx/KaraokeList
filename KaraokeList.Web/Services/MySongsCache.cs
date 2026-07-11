@@ -16,6 +16,7 @@ public sealed record MySongsLoadResult(
     IReadOnlyList<SingerListDto> Lists,
     IReadOnlyList<RepertoireSongDto> Songs,
     IReadOnlyList<GenreDto> FilterGenres,
+    IReadOnlyList<string> FilterGroups,
     IReadOnlyList<GenreGroupDto> GenreGroups,
     bool FromCache,
     bool HasCache,

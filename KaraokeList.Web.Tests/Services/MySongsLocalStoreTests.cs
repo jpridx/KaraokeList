@@ -65,4 +65,22 @@ public sealed class MySongsLocalStoreTests
         Assert.Equal("lastPerformed", await store.GetSortByAsync());
         Assert.Equal("desc", await store.GetSortDirAsync());
     }
+
+    [Fact]
+    public async Task GetShowDetailedGenreFiltersAsync_returns_default_when_not_stored()
+    {
+        var store = CreateStore();
+
+        Assert.False(await store.GetShowDetailedGenreFiltersAsync());
+    }
+
+    [Fact]
+    public async Task SetShowDetailedGenreFiltersAsync_persists_preference()
+    {
+        var store = CreateStore();
+
+        await store.SetShowDetailedGenreFiltersAsync(true);
+
+        Assert.True(await store.GetShowDetailedGenreFiltersAsync());
+    }
 }

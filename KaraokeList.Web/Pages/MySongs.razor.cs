@@ -32,6 +32,7 @@ public partial class MySongs
     protected override async Task OnInitializedAsync()
     {
         showGenreFilters = await MySongsStore.GetShowGenreFiltersAsync();
+        showDetailedGenreFilters = await MySongsStore.GetShowDetailedGenreFiltersAsync();
         listKind = await MySongsStore.GetListKindAsync();
         sortBy = await MySongsStore.GetSortByAsync();
         sortDir = await MySongsStore.GetSortDirAsync();
@@ -39,7 +40,7 @@ public partial class MySongs
 
     private async Task LoadListsAsync(int singerId)
     {
-        var cached = await MySongsLoader.TryGetCachedAsync(listKind, sortBy, sortDir, filterGenreId);
+        var cached = await MySongsLoader.TryGetCachedAsync(listKind, sortBy, sortDir, filterGenreId, filterGroupName);
 
         if (cached is not null)
         {
@@ -67,14 +68,14 @@ public partial class MySongs
         hasCachedLists = false;
         listsCachedAt = null;
 
-        var loadTask = MySongsLoader.LoadAsync(listKind, sortBy, sortDir, filterGenreId,
+        var loadTask = MySongsLoader.LoadAsync(listKind, sortBy, sortDir, filterGenreId, filterGroupName,
             step => { loadingStep = step; StateHasChanged(); });
 
         if (await Task.WhenAny(loadTask, Task.Delay(ApiSlowRequestNotifier.PageLoadTimeout)) != loadTask)
         {
             // API is slow (DB waking up) — stop blocking the UI.
             // Show whatever is in the cache (may be null on a first visit).
-            var cached = await MySongsLoader.TryGetCachedAsync(listKind, sortBy, sortDir, filterGenreId);
+            var cached = await MySongsLoader.TryGetCachedAsync(listKind, sortBy, sortDir, filterGenreId, filterGroupName);
             if (cached is not null)
             {
                 ApplyLoadResult(cached);
@@ -143,9 +144,10 @@ public partial class MySongs
         songs = result.Songs.ToList();
         genreGroups = result.GenreGroups.ToList();
 
-        if (filterGenreId is null)
+        if (filterGenreId is null && filterGroupName is null)
         {
             filterGenres = result.FilterGenres.ToList();
+            filterGroups = result.FilterGroups.ToList();
         }
 
         loadError = null;
@@ -158,7 +160,7 @@ public partial class MySongs
         {
             if (!await MySongsLoader.NeedsRefreshAsync()) return;
 
-            var refreshed = await MySongsLoader.LoadAsync(listKind, sortBy, sortDir, filterGenreId);
+            var refreshed = await MySongsLoader.LoadAsync(listKind, sortBy, sortDir, filterGenreId, filterGroupName);
             ApplyLoadResult(refreshed);
             await InvokeAsync(StateHasChanged);
         }
@@ -176,10 +178,13 @@ public partial class MySongs
     private string sortBy = "lastPerformed";
     private string sortDir = "desc";
     private int? filterGenreId;
+    private string? filterGroupName;
     private List<GenreDto> filterGenres = [];
+    private List<string> filterGroups = [];
     private List<GenreGroupDto> genreGroups = [];
     private bool groupByGenre;
     private bool showGenreFilters;
+    private bool showDetailedGenreFilters;
 
     private IEnumerable<RepertoireSongDto> FilteredSongs =>
         RepertoireSearch.Filter(songs, searchText);
@@ -195,6 +200,27 @@ public partial class MySongs
     {
         showGenreFilters = !showGenreFilters;
         await MySongsStore.SetShowGenreFiltersAsync(showGenreFilters);
+    }
+
+    private async Task ToggleDetailedGenreFiltersAsync()
+    {
+        showDetailedGenreFilters = !showDetailedGenreFilters;
+        await MySongsStore.SetShowDetailedGenreFiltersAsync(showDetailedGenreFilters);
+
+        if (!showDetailedGenreFilters)
+        {
+            if (filterGenreId is int genreId && genreGroups.Count > 0)
+            {
+                var resolver = new GenreGroupResolver(genreGroups);
+                var song = songs.FirstOrDefault(s => s.GenreId == genreId);
+                filterGroupName = song is not null
+                    ? resolver.ResolvePrimaryGroupName(song)
+                    : null;
+            }
+
+            filterGenreId = null;
+            await ReloadListsAsync();
+        }
     }
 
     private async Task ToggleSortDirAsync()
@@ -216,6 +242,13 @@ public partial class MySongs
     private async Task SetGenreFilterAsync(int? genreId)
     {
         filterGenreId = genreId;
+        await ReloadListsAsync();
+    }
+
+    private async Task SetGroupFilterAsync(string? groupName)
+    {
+        filterGroupName = groupName;
+        filterGenreId = null;
         await ReloadListsAsync();
     }
 
@@ -269,14 +302,26 @@ public partial class MySongs
         }).ToList();
 
     private IReadOnlyList<ChipFilterItem> genreChipItems =>
-        ChipFilterBuilder.CreateAllPlusItems(
-            filterGenreId,
-            filterGenres,
-            genre => genre.Id,
-            genre => genre.GenreName,
-            EventCallback.Factory,
-            this,
-            SetGenreFilterAsync);
+        showDetailedGenreFilters || filterGroups.Count == 0
+            ? ChipFilterBuilder.CreateAllPlusItems(
+                filterGenreId,
+                filterGenres,
+                genre => genre.Id,
+                genre => genre.GenreName,
+                EventCallback.Factory,
+                this,
+                SetGenreFilterAsync)
+            : ChipFilterBuilder.CreateAllPlusItemsByString(
+                filterGroupName,
+                filterGroups,
+                group => group,
+                group => group,
+                EventCallback.Factory,
+                this,
+                SetGroupFilterAsync);
+
+    private string GenreChipBarLabel =>
+        showDetailedGenreFilters || filterGroups.Count == 0 ? "Genre" : "Genre group";
 
     private void LoadMoreGroupedSongs() => groupedPaging.LoadMore();
 

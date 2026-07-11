@@ -9,13 +9,15 @@ public interface IMySongsLoader
         string sortBy,
         string sortDir,
         int? genreId,
+        string? groupName = null,
         Action<string>? onProgress = null);
 
     Task<MySongsLoadResult?> TryGetCachedAsync(
         SingerListKind listKind,
         string sortBy,
         string sortDir,
-        int? genreId);
+        int? genreId,
+        string? groupName = null);
 
     Task<bool> NeedsRefreshAsync();
 }
@@ -36,6 +38,7 @@ public sealed class MySongsLoader(
         string sortBy,
         string sortDir,
         int? genreId,
+        string? groupName = null,
         Action<string>? onProgress = null)
     {
         try
@@ -49,6 +52,7 @@ public sealed class MySongsLoader(
                     sortBy,
                     sortDir,
                     genreId,
+                    groupName,
                     listsResult.ErrorMessage,
                     listsResult.ErrorMessage?.Contains("not linked", StringComparison.OrdinalIgnoreCase) == true);
             }
@@ -74,13 +78,14 @@ public sealed class MySongsLoader(
                 sortBy,
                 sortDir,
                 genreId,
+                groupName,
                 genreGroups,
                 FromCache: false,
                 cachedAt);
         }
         catch (Exception ex) when (IsOfflineFailure(ex))
         {
-            return await LoadOfflineOrFailAsync(listKind, sortBy, sortDir, genreId, null, needsSingerLink: false);
+            return await LoadOfflineOrFailAsync(listKind, sortBy, sortDir, genreId, groupName, null, needsSingerLink: false);
         }
     }
 
@@ -88,7 +93,8 @@ public sealed class MySongsLoader(
         SingerListKind listKind,
         string sortBy,
         string sortDir,
-        int? genreId)
+        int? genreId,
+        string? groupName = null)
     {
         var cached = await store.GetCachedListsAsync();
         if (cached is null || cached.ListsSongs.Count == 0)
@@ -106,7 +112,17 @@ public sealed class MySongsLoader(
             entry => entry.Kind,
             entry => entry.Songs.ToList());
 
-        return BuildResult(cached.Lists, songsByKind, listKind, sortBy, sortDir, genreId, cached.GenreGroups ?? [], FromCache: true, cached.CachedAtUtc);
+        return BuildResult(
+            cached.Lists,
+            songsByKind,
+            listKind,
+            sortBy,
+            sortDir,
+            genreId,
+            groupName,
+            cached.GenreGroups ?? [],
+            FromCache: true,
+            cached.CachedAtUtc);
     }
 
     public async Task<bool> NeedsRefreshAsync()
@@ -173,6 +189,7 @@ public sealed class MySongsLoader(
         string sortBy,
         string sortDir,
         int? genreId,
+        string? groupName,
         string? errorMessage,
         bool needsSingerLink)
     {
@@ -186,6 +203,7 @@ public sealed class MySongsLoader(
                     [],
                     [],
                     [],
+                    [],
                     FromCache: false,
                     HasCache: false,
                     null,
@@ -194,6 +212,7 @@ public sealed class MySongsLoader(
             }
 
             return new MySongsLoadResult(
+                [],
                 [],
                 [],
                 [],
@@ -216,6 +235,7 @@ public sealed class MySongsLoader(
             sortBy,
             sortDir,
             genreId,
+            groupName,
             cached.GenreGroups ?? [],
             FromCache: true,
             cached.CachedAtUtc);
@@ -228,6 +248,7 @@ public sealed class MySongsLoader(
         string sortBy,
         string sortDir,
         int? genreId,
+        string? groupName,
         IReadOnlyList<GenreGroupDto> genreGroups,
         bool FromCache,
         DateTime? cachedAt)
@@ -237,14 +258,16 @@ public sealed class MySongsLoader(
             allSongs = [];
         }
 
-        var filtered = ApplyGenreFilter(allSongs, genreId);
+        var filtered = ApplyFilters(allSongs, genreId, groupName, genreGroups);
         var sorted = RepertoireSongSort.Apply(filtered, sortBy, sortDir);
-        var filterGenres = BuildFilterGenres(allSongs);
+        var filterGroups = MySongsGenreFilter.BuildFilterGroups(allSongs, genreGroups);
+        var filterGenres = MySongsGenreFilter.BuildFilterGenres(allSongs, genreGroups, groupName);
 
         return new MySongsLoadResult(
             lists,
             sorted,
             filterGenres,
+            filterGroups,
             genreGroups,
             FromCache,
             HasCache: songsByKind.Count > 0,
@@ -253,20 +276,19 @@ public sealed class MySongsLoader(
             false);
     }
 
-    private static List<RepertoireSongDto> ApplyGenreFilter(
+    private static List<RepertoireSongDto> ApplyFilters(
         IReadOnlyList<RepertoireSongDto> songs,
-        int? genreId) =>
-        genreId is int id
-            ? songs.Where(s => s.GenreId == id).ToList()
-            : songs.ToList();
+        int? genreId,
+        string? groupName,
+        IReadOnlyList<GenreGroupDto> genreGroups)
+    {
+        if (genreId is int id)
+        {
+            return songs.Where(s => s.GenreId == id).ToList();
+        }
 
-    private static List<GenreDto> BuildFilterGenres(IReadOnlyList<RepertoireSongDto> songs) =>
-        songs
-            .Where(s => s.GenreId is int)
-            .GroupBy(s => s.GenreId!.Value)
-            .Select(g => new GenreDto { Id = g.Key, GenreName = g.First().GenreName })
-            .OrderBy(g => g.GenreName, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        return MySongsGenreFilter.ApplyGroupFilter(songs, groupName, genreGroups);
+    }
 
     private static bool IsOfflineFailure(Exception ex) =>
         ApiTransientFailure.IsTransient(ex) || ex is HttpRequestException;

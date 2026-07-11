@@ -48,7 +48,7 @@ Full walkthrough: [mobile-ux.md](mobile-ux.md).
 |-------|---------|
 | `/log` | Pick song (ComboBox), `QuickLogPerformance` form, + new song/venue |
 | `/log?songId=` | Log with song pre-selected |
-| `/my-songs` | Repertoire browse: search, sort, genre filter, group-by-genre, per-row **Log** |
+| `/my-songs` | Repertoire browse: search, sort, genre group filter (optional detailed genres), group-by-genre, per-row **Log** |
 | `/my-songs/{id}` | Stats + copy for host + collapsible log/history |
 | `/my-performances` | All your performances: search, venue filter, edit/delete |
 | `/more` | Catalog admin hub |

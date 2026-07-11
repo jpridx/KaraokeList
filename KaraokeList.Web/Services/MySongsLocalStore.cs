@@ -8,6 +8,8 @@ public interface IMySongsLocalStore
 {
     Task<bool> GetShowGenreFiltersAsync();
     Task SetShowGenreFiltersAsync(bool show);
+    Task<bool> GetShowDetailedGenreFiltersAsync();
+    Task SetShowDetailedGenreFiltersAsync(bool show);
     Task<SingerListKind> GetListKindAsync();
     Task SetListKindAsync(SingerListKind kind);
     Task<string> GetSortByAsync();
@@ -21,6 +23,7 @@ public interface IMySongsLocalStore
 public sealed class MySongsLocalStore(ILocalStorageService localStorage) : IMySongsLocalStore
 {
     private const string ShowGenreFiltersKey = "karaoke.mySongs.showGenreFilters";
+    private const string ShowDetailedGenreFiltersKey = "karaoke.mySongs.showDetailedGenreFilters";
     private const string ListKindKey = "karaoke.mySongs.listKind";
     private const string SortByKey = "karaoke.mySongs.sortBy";
     private const string SortDirKey = "karaoke.mySongs.sortDir";
@@ -40,6 +43,15 @@ public sealed class MySongsLocalStore(ILocalStorageService localStorage) : IMySo
 
     public Task SetShowGenreFiltersAsync(bool show) =>
         localStorage.SetItemAsync(ShowGenreFiltersKey, show).AsTask();
+
+    public async Task<bool> GetShowDetailedGenreFiltersAsync()
+    {
+        var value = await localStorage.GetItemAsync<bool?>(ShowDetailedGenreFiltersKey);
+        return value ?? false;
+    }
+
+    public Task SetShowDetailedGenreFiltersAsync(bool show) =>
+        localStorage.SetItemAsync(ShowDetailedGenreFiltersKey, show).AsTask();
 
     public async Task<SingerListKind> GetListKindAsync()
     {
