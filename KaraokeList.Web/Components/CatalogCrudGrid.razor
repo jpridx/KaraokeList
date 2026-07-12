@@ -15,9 +15,10 @@ else
         <div class="alert alert-danger">@ErrorMessage</div>
     }
 
-    <SfGrid DataSource="@Items" AllowPaging="true" AllowSorting="true" AllowFiltering="true"
+    <SfGrid @ref="gridRef" DataSource="@Items" AllowPaging="true" AllowSorting="true" AllowFiltering="true"
             Toolbar="@DefaultToolbar">
-        <GridEvents TValue="TItem" OnActionBegin="OnActionBegin"></GridEvents>
+        <GridEvents TValue="TItem" OnActionBegin="OnActionBegin" OnLoad="OnGridLoad"></GridEvents>
+        <GridSearchSettings Operator="Operator.Contains" IgnoreCase="true" />
         <GridEditSettings AllowAdding="true" AllowEditing="true" AllowDeleting="true" Mode="EditMode.Normal"></GridEditSettings>
         @if (UseFilterBar)
         {
@@ -35,6 +36,8 @@ else
 
 @code {
     private static readonly List<string> DefaultToolbar = ["Add", "Edit", "Delete", "Update", "Cancel", "Search"];
+
+    private SfGrid<TItem>? gridRef;
 
     [Parameter, EditorRequired]
     public IReadOnlyList<TItem> Items { get; set; } = [];
@@ -76,6 +79,26 @@ else
 
     [Parameter]
     public EventCallback<ActionEventArgs<TItem>> OnActionBeginExtra { get; set; }
+
+    private void OnGridLoad(object _)
+    {
+        if (gridRef?.Columns is null)
+        {
+            return;
+        }
+
+        foreach (var column in gridRef.Columns)
+        {
+            if (column.Type is ColumnType.Integer or ColumnType.Double or ColumnType.Long or ColumnType.Decimal
+                or ColumnType.Boolean or ColumnType.Date or ColumnType.DateTime or ColumnType.DateOnly
+                or ColumnType.TimeOnly or ColumnType.CheckBox)
+            {
+                continue;
+            }
+
+            column.FilterSettings = new FilterSettings { Operator = Operator.Contains };
+        }
+    }
 
     private async Task OnActionBegin(ActionEventArgs<TItem> args)
     {
