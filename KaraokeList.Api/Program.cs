@@ -40,10 +40,21 @@ builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IAdminUserService, AdminUserService>();
 builder.Services.AddScoped<ICurrentUserSingerResolver, CurrentUserSingerResolver>();
 builder.Services.AddScoped<IAiGenreService, AiGenreService>();
+builder.Services.AddScoped<IMusicBrainzService, MusicBrainzService>();
+builder.Services.AddScoped<ICanonicalCatalogService, CanonicalCatalogService>();
 
 builder.Services.AddHttpClient("GoogleSheets", client =>
 {
     client.DefaultRequestHeaders.UserAgent.ParseAdd("KaraokeList/1.0");
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
+
+builder.Services.AddHttpClient("MusicBrainz", client =>
+{
+    var userAgent = builder.Configuration["MusicBrainz:UserAgent"] ?? "KaraokeList/1.0 (https://github.com/jpridx/KaraokeList)";
+    client.BaseAddress = new Uri("https://musicbrainz.org/ws/2/");
+    client.DefaultRequestHeaders.UserAgent.ParseAdd(userAgent);
+    client.DefaultRequestHeaders.Accept.ParseAdd("application/json");
     client.Timeout = TimeSpan.FromSeconds(30);
 });
 

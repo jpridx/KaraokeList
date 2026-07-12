@@ -17,6 +17,11 @@
                         ArtistLookupsChanged="OnArtistLookupsRefreshed"
                         OnArtistConfirmed="OnArtistConfirmedAsync" Disabled="@isBusy" />
 
+        <CanonicalNameCheck Title="@title" TitleChanged="OnTitleChangedAsync"
+                            ArtistName="@artistName" ArtistNameChanged="OnArtistNameChangedAsync"
+                            OnCanonicalApplied="OnCanonicalAppliedAsync"
+                            Disabled="@isBusy" />
+
         <label class="form-label mt-3">Genre (optional)</label>
         <AddGenreField Genres="@genres" @bind-GenreName="genreName"
                        @bind-GenreName:after="SyncGenreFromNameAsync"
@@ -59,6 +64,8 @@
     private string genreName = string.Empty;
     private int? confirmedArtistId;
     private int? confirmedGenreId;
+    private string? recordingMbid;
+    private string? artistMbid;
     private string? localError;
     private bool isBusy;
     private bool isLoading = true;
@@ -196,6 +203,29 @@
         return Task.CompletedTask;
     }
 
+    private Task OnTitleChangedAsync(string value)
+    {
+        title = value;
+        return Task.CompletedTask;
+    }
+
+    private async Task OnArtistNameChangedAsync(string value)
+    {
+        artistName = value;
+        confirmedArtistId = LogArtistPicker.ResolveArtistId(artistName, artistLookups);
+        await Task.CompletedTask;
+    }
+
+    private Task OnCanonicalAppliedAsync(CanonicalAppliedEventArgs args)
+    {
+        title = args.Title;
+        artistName = args.ArtistName;
+        recordingMbid = args.RecordingMbid;
+        artistMbid = args.ArtistMbid;
+        confirmedArtistId = LogArtistPicker.ResolveArtistId(artistName, artistLookups);
+        return Task.CompletedTask;
+    }
+
     private async Task AddSongAsync()
     {
         localError = null;
@@ -232,7 +262,8 @@
             {
                 Title = trimmedTitle,
                 Artist = artistId,
-                Genre = resolvedGenreId
+                Genre = resolvedGenreId,
+                RecordingMbid = recordingMbid
             });
 
             var snapshot = await CatalogLoader.PatchCachedSongAsync(created.Id, trimmedTitle, trimmedArtist);

@@ -48,8 +48,8 @@ public interface IKaraokeApiClient
     Task DeleteSongAsync(int id);
     Task<CatalogMutateResult> TryDeleteSongAsync(int id);
     Task<AppVersionDto?> GetAppVersionAsync();
-    Task<CatalogImportFileResult> ImportCatalogFileAsync(Stream fileStream, string fileName);
-    Task<CatalogImportFileResult> ImportCatalogFromGSheetAsync(GSheetImportRequest request);
+    Task<CatalogImportFileResult> ImportCatalogFileAsync(Stream fileStream, string fileName, bool canonicize = true);
+    Task<CatalogImportFileResult> ImportCatalogFromGSheetAsync(GSheetImportRequest request, bool canonicize = true);
     Task<CatalogMutateResult> MergeSongsAsync(int sourceId, int targetId);
     Task<List<PerformanceDto>> GetPerformancesAsync(int? songId = null);
     Task<UserProfileDto?> GetProfileAsync();
@@ -103,6 +103,9 @@ public interface IKaraokeApiClient
     Task<List<AdminUserDto>> GetAdminUsersAsync();
     Task<AdminUserUpdateResult> UpdateAdminUserAsync(UpdateAdminUserRequest request);
     Task<GenreSuggestionResponse?> SuggestGenreAsync(GenreSuggestionRequest request);
+    Task<CanonicalLookupResponse?> LookupCanonicalAsync(CanonicalLookupRequest request);
+    Task<ApplyCanonicalResponse?> ApplyCanonicalAsync(ApplyCanonicalRequest request);
+    Task<CatalogVerifyResultDto?> VerifyCatalogAsync(CatalogVerifyRequest request);
 }
 
 public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
@@ -251,13 +254,13 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
         }
     }
 
-    public async Task<CatalogImportFileResult> ImportCatalogFileAsync(Stream fileStream, string fileName)
+    public async Task<CatalogImportFileResult> ImportCatalogFileAsync(Stream fileStream, string fileName, bool canonicize = true)
     {
         using var content = new MultipartFormDataContent();
         content.Add(new StreamContent(fileStream), "file", fileName);
         try
         {
-            var response = await http.PostAsync("api/catalog/import/file", content);
+            var response = await http.PostAsync($"api/catalog/import/file?canonicize={canonicize.ToString().ToLowerInvariant()}", content);
             if (response.IsSuccessStatusCode)
             {
                 var body = await response.Content.ReadFromJsonAsync<CatalogImportResultDto>(JsonOptions);
@@ -274,9 +277,9 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
         }
     }
 
-    public async Task<CatalogImportFileResult> ImportCatalogFromGSheetAsync(GSheetImportRequest request)
+    public async Task<CatalogImportFileResult> ImportCatalogFromGSheetAsync(GSheetImportRequest request, bool canonicize = true)
     {
-        var response = await http.PostAsJsonAsync("api/catalog/import/gsheet", request);
+        var response = await http.PostAsJsonAsync($"api/catalog/import/gsheet?canonicize={canonicize.ToString().ToLowerInvariant()}", request);
         if (response.IsSuccessStatusCode)
         {
             var body = await response.Content.ReadFromJsonAsync<CatalogImportResultDto>(JsonOptions);
@@ -1025,6 +1028,60 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
             }
 
             return await response.Content.ReadFromJsonAsync<GenreSuggestionResponse>(JsonOptions);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public async Task<CanonicalLookupResponse?> LookupCanonicalAsync(CanonicalLookupRequest request)
+    {
+        try
+        {
+            var response = await http.PostAsJsonAsync("api/canonical/lookup", request);
+            if (!response.IsSuccessStatusCode)
+            {
+                return null;
+            }
+
+            return await response.Content.ReadFromJsonAsync<CanonicalLookupResponse>(JsonOptions);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public async Task<ApplyCanonicalResponse?> ApplyCanonicalAsync(ApplyCanonicalRequest request)
+    {
+        try
+        {
+            var response = await http.PostAsJsonAsync("api/canonical/apply", request);
+            if (!response.IsSuccessStatusCode)
+            {
+                return null;
+            }
+
+            return await response.Content.ReadFromJsonAsync<ApplyCanonicalResponse>(JsonOptions);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public async Task<CatalogVerifyResultDto?> VerifyCatalogAsync(CatalogVerifyRequest request)
+    {
+        try
+        {
+            var response = await http.PostAsJsonAsync("api/canonical/verify-catalog", request);
+            if (!response.IsSuccessStatusCode)
+            {
+                return null;
+            }
+
+            return await response.Content.ReadFromJsonAsync<CatalogVerifyResultDto>(JsonOptions);
         }
         catch
         {

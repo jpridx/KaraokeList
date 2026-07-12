@@ -5,25 +5,27 @@ using Microsoft.EntityFrameworkCore;
 
 namespace KaraokeList.Api.Services;
 
-public sealed class CatalogImportService(ApplicationDbContext db)
+public sealed class CatalogImportService(ApplicationDbContext db, ICanonicalCatalogService canonicalCatalogService)
 {
     public const int MaxImportRows = 5000;
 
-    internal async Task<CatalogImportResultDto> ImportAsync(IReadOnlyList<CatalogImportRow> rows)
+    internal async Task<CatalogImportResultDto> ImportAsync(
+        IReadOnlyList<CatalogImportRow> rows,
+        bool canonicize = false,
+        CancellationToken cancellationToken = default)
     {
         var result = new CatalogImportResultDto { TotalRows = rows.Count };
 
-        // Pre-load catalog into memory for fast lookup
-        var artistByName = (await db.Artists.ToListAsync())
-            .ToDictionary(a => a.Name, a => a.Id, StringComparer.OrdinalIgnoreCase);
+        var artistByName = (await db.Artists.ToListAsync(cancellationToken))
+            .ToDictionary(a => a.Name, a => a, StringComparer.OrdinalIgnoreCase);
 
-        var genreByName = (await db.Genres.ToListAsync())
+        var genreByName = (await db.Genres.ToListAsync(cancellationToken))
             .ToDictionary(g => g.GenreName, g => g.Id, StringComparer.OrdinalIgnoreCase);
 
         var existingSongKeys = (await db.Songs
                 .Where(s => s.Artist != null)
                 .Select(s => new { s.Title, ArtistId = s.Artist!.Value })
-                .ToListAsync())
+                .ToListAsync(cancellationToken))
             .Select(s => MakeSongKey(s.Title, s.ArtistId))
             .ToHashSet();
 
@@ -43,37 +45,47 @@ public sealed class CatalogImportService(ApplicationDbContext db)
                 continue;
             }
 
+            var title = row.Title.Trim();
             var artistName = row.Artist.Trim();
             if (artistName.Length > 128)
-                artistName = artistName[..128];
-
-            if (!artistByName.TryGetValue(artistName, out var artistId))
             {
-                var artist = new Artist
+                artistName = artistName[..128];
+            }
+
+            string? recordingMbid = null;
+            string? artistMbid = null;
+            if (canonicize)
+            {
+                var canonical = await canonicalCatalogService.CanonicizeRowAsync(title, artistName, cancellationToken);
+                if (canonical is not null)
                 {
-                    Name = artistName,
-                    SortableName = SortableNameFormatting.FromDisplayName(artistName)
-                };
-                db.Artists.Add(artist);
-                try
-                {
-                    await db.SaveChangesAsync();
-                }
-                catch (Exception ex) when (ex.InnerException?.Message.Contains("duplicate", StringComparison.OrdinalIgnoreCase) == true
-                                        || ex.InnerException?.Message.Contains("unique", StringComparison.OrdinalIgnoreCase) == true)
-                {
-                    // Race: another request created this artist; reload
-                    db.Entry(artist).State = EntityState.Detached;
-                    var existing = await db.Artists.FirstOrDefaultAsync(a => a.Name == artistName);
-                    if (existing is null)
+                    if (!string.Equals(title, canonical.Title, StringComparison.OrdinalIgnoreCase)
+                        || !string.Equals(artistName, canonical.ArtistName, StringComparison.OrdinalIgnoreCase))
                     {
-                        result.Errors.Add(new CatalogImportErrorDto { Row = row.SourceRow, Message = $"Could not create artist '{artistName}'." });
-                        continue;
+                        result.Canonicized++;
                     }
-                    artistId = existing.Id;
+
+                    title = canonical.Title;
+                    artistName = canonical.ArtistName;
+                    if (artistName.Length > 128)
+                    {
+                        artistName = artistName[..128];
+                    }
+
+                    recordingMbid = canonical.RecordingMbid;
+                    artistMbid = canonical.ArtistMbid;
                 }
-                artistId = artist.Id;
-                artistByName[artistName] = artistId;
+            }
+
+            var artistId = await ResolveArtistIdAsync(artistName, artistMbid, artistByName, cancellationToken);
+            if (artistId is null)
+            {
+                result.Errors.Add(new CatalogImportErrorDto
+                {
+                    Row = row.SourceRow,
+                    Message = $"Could not create artist '{artistName}'."
+                });
+                continue;
             }
 
             int? genreId = null;
@@ -84,14 +96,14 @@ public sealed class CatalogImportService(ApplicationDbContext db)
                 {
                     var genre = new Genre { GenreName = genreName };
                     db.Genres.Add(genre);
-                    await db.SaveChangesAsync();
+                    await db.SaveChangesAsync(cancellationToken);
                     gid = genre.Id;
                     genreByName[genreName] = gid;
                 }
                 genreId = gid;
             }
 
-            var key = MakeSongKey(row.Title.Trim(), artistId);
+            var key = MakeSongKey(title, artistId.Value);
             if (existingSongKeys.Contains(key))
             {
                 result.Skipped++;
@@ -100,16 +112,17 @@ public sealed class CatalogImportService(ApplicationDbContext db)
 
             db.Songs.Add(new Song
             {
-                Title = row.Title.Trim(),
+                Title = title,
                 Artist = artistId,
                 Genre = genreId,
-                Year = row.Year
+                Year = row.Year,
+                RecordingMbid = recordingMbid
             });
             existingSongKeys.Add(key);
             result.Added++;
         }
 
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(cancellationToken);
 
         if (rows.Count > MaxImportRows)
         {
@@ -121,6 +134,56 @@ public sealed class CatalogImportService(ApplicationDbContext db)
         }
 
         return result;
+    }
+
+    private async Task<int?> ResolveArtistIdAsync(
+        string artistName,
+        string? artistMbid,
+        Dictionary<string, Artist> artistByName,
+        CancellationToken cancellationToken)
+    {
+        if (artistByName.TryGetValue(artistName, out var existingArtist))
+        {
+            if (string.IsNullOrWhiteSpace(existingArtist.Mbid) && !string.IsNullOrWhiteSpace(artistMbid))
+            {
+                existingArtist.Mbid = artistMbid;
+            }
+
+            return existingArtist.Id;
+        }
+
+        var artist = new Artist
+        {
+            Name = artistName,
+            SortableName = SortableNameFormatting.FromDisplayName(artistName),
+            Mbid = artistMbid
+        };
+        db.Artists.Add(artist);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception ex) when (ex.InnerException?.Message.Contains("duplicate", StringComparison.OrdinalIgnoreCase) == true
+                                || ex.InnerException?.Message.Contains("unique", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            db.Entry(artist).State = EntityState.Detached;
+            var existing = await db.Artists.FirstOrDefaultAsync(a => a.Name == artistName, cancellationToken);
+            if (existing is null)
+            {
+                return null;
+            }
+
+            if (string.IsNullOrWhiteSpace(existing.Mbid) && !string.IsNullOrWhiteSpace(artistMbid))
+            {
+                existing.Mbid = artistMbid;
+            }
+
+            artistByName[artistName] = existing;
+            return existing.Id;
+        }
+
+        artistByName[artistName] = artist;
+        return artist.Id;
     }
 
     private static string MakeSongKey(string title, int artistId) =>

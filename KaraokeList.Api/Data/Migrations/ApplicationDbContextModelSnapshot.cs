@@ -123,6 +123,10 @@ namespace KaraokeList.Api.Migrations
                     b.Property<int?>("MainGenre")
                         .HasColumnType("int");
 
+                    b.Property<string>("Mbid")
+                        .HasMaxLength(36)
+                        .HasColumnType("nvarchar(36)");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(128)
@@ -363,6 +367,10 @@ namespace KaraokeList.Api.Migrations
 
                     b.Property<int?>("Genre")
                         .HasColumnType("int");
+
+                    b.Property<string>("RecordingMbid")
+                        .HasMaxLength(36)
+                        .HasColumnType("nvarchar(36)");
 
                     b.Property<int?>("SecondaryArtist")
                         .HasColumnType("int");

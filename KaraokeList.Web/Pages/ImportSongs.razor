@@ -20,6 +20,12 @@
             Accepts <strong>.csv</strong>, <strong>.tsv</strong>, and <strong>.xlsx</strong>.
             Default column order: <em>Song, Artist, Genre, Year</em> — or include a header row to use any order.
         </p>
+        <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" id="canonicizeImport" @bind="canonicizeOnImport" />
+            <label class="form-check-label small" for="canonicizeImport">
+                Canonicize names via MusicBrainz (about 1 second per row)
+            </label>
+        </div>
         <InputFile OnChange="OnFileSelectedAsync" accept=".csv,.tsv,.txt,.xlsx,.xls"
                    class="form-control form-control-sm mb-2" />
         <button type="button" class="btn btn-primary btn-sm"
@@ -55,6 +61,7 @@
                 <dt class="col-6">Total rows</dt><dd class="col-6">@importResult.TotalRows</dd>
                 <dt class="col-6">Added</dt><dd class="col-6">@importResult.Added</dd>
                 <dt class="col-6">Skipped (already exist)</dt><dd class="col-6">@importResult.Skipped</dd>
+                <dt class="col-6">Canonicized</dt><dd class="col-6">@importResult.Canonicized</dd>
                 <dt class="col-6">Errors</dt><dd class="col-6">@importResult.Errors.Count</dd>
             </dl>
             @if (importResult.Errors.Count > 0)
@@ -74,6 +81,83 @@
             }
         </section>
     }
+
+    @* ── Verify existing catalog ──────────────────────────────────── *@
+    <section class="more-section">
+        <h2 class="more-section-title">Verify existing catalog</h2>
+        <p class="text-muted small mb-2">
+            Check unverified songs against MusicBrainz and apply canonical title/artist names.
+            Processes up to 25 songs per batch (about 1 second per song).
+        </p>
+        <button type="button" class="btn btn-outline-primary btn-sm"
+                @onclick="VerifyCatalogAsync"
+                disabled="@isVerifying">
+            @(isVerifying ? "Verifying…" : "Verify next batch")
+        </button>
+
+        @if (verifyResult is not null)
+        {
+            <dl class="row mb-2 small mt-2">
+                <dt class="col-6">Unverified songs</dt><dd class="col-6">@verifyResult.TotalMatching</dd>
+                <dt class="col-6">Scanned this batch</dt><dd class="col-6">@verifyResult.Scanned</dd>
+            </dl>
+
+            @if (verifyResult.Items.Count > 0)
+            {
+                <div class="table-responsive">
+                    <table class="table table-sm mt-2">
+                        <thead>
+                            <tr>
+                                <th>Current</th>
+                                <th>MusicBrainz</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in verifyResult.Items)
+                            {
+                                <tr>
+                                    <td>@item.CurrentTitle — @item.CurrentArtistName</td>
+                                    <td>
+                                        @if (item.Suggestion is not null)
+                                        {
+                                            <span>@item.Suggestion.Title — @item.Suggestion.ArtistName</span>
+                                            @if (item.NamesMatch)
+                                            {
+                                                <span class="badge bg-success ms-1">match</span>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">No match</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (item.Suggestion is not null && !item.NamesMatch)
+                                        {
+                                            <button type="button" class="btn btn-outline-primary btn-sm"
+                                                    disabled="@(applyingSongId == item.SongId)"
+                                                    @onclick="() => ApplyVerifiedAsync(item)">
+                                                @(applyingSongId == item.SongId ? "Applying…" : "Apply")
+                                            </button>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+
+            @if (verifyResult.HasMore)
+            {
+                <button type="button" class="btn btn-link btn-sm p-0"
+                        @onclick="VerifyCatalogAsync" disabled="@isVerifying">
+                    Verify next batch
+                </button>
+            }
+        }
+    </section>
 
     @* ── Merge duplicate songs ────────────────────────────────────── *@
     <section class="more-section">
@@ -148,10 +232,15 @@
 
     private IBrowserFile? selectedFile;
     private string sheetUrl = string.Empty;
+    private bool canonicizeOnImport = true;
     private bool isImporting;
     private ImportMode importMode = ImportMode.None;
     private CatalogImportResultDto? importResult;
     private string? pageError;
+
+    private bool isVerifying;
+    private CatalogVerifyResultDto? verifyResult;
+    private int? applyingSongId;
 
     private List<SongDto> allSongs = [];
     private List<ArtistLookupDto> allArtists = [];
@@ -212,7 +301,7 @@
         try
         {
             await using var stream = selectedFile.OpenReadStream(maxAllowedSize: 20 * 1024 * 1024);
-            var result = await Api.ImportCatalogFileAsync(stream, selectedFile.Name);
+            var result = await Api.ImportCatalogFileAsync(stream, selectedFile.Name, canonicizeOnImport);
             if (result.Succeeded)
             {
                 importResult = result.Response;
@@ -244,7 +333,7 @@
 
         try
         {
-            var result = await Api.ImportCatalogFromGSheetAsync(new GSheetImportRequest { SheetUrl = sheetUrl });
+            var result = await Api.ImportCatalogFromGSheetAsync(new GSheetImportRequest { SheetUrl = sheetUrl }, canonicizeOnImport);
             if (result.Succeeded)
             {
                 importResult = result.Response;
@@ -263,6 +352,75 @@
         {
             isImporting = false;
             importMode = ImportMode.None;
+        }
+    }
+
+    private async Task VerifyCatalogAsync()
+    {
+        if (isVerifying) return;
+        isVerifying = true;
+        pageError = null;
+
+        try
+        {
+            var result = await Api.VerifyCatalogAsync(new CatalogVerifyRequest
+            {
+                Offset = 0,
+                Limit = 25,
+                UnverifiedOnly = true
+            });
+
+            if (result is null)
+            {
+                pageError = "Catalog verification failed.";
+                return;
+            }
+
+            verifyResult = result;
+        }
+        catch (Exception ex)
+        {
+            pageError = $"Verification failed: {ex.Message}";
+        }
+        finally
+        {
+            isVerifying = false;
+        }
+    }
+
+    private async Task ApplyVerifiedAsync(CatalogVerifyItemDto item)
+    {
+        if (item.Suggestion is null || applyingSongId is not null) return;
+        applyingSongId = item.SongId;
+
+        try
+        {
+            var applied = await Api.ApplyCanonicalAsync(new ApplyCanonicalRequest
+            {
+                SongId = item.SongId,
+                Title = item.Suggestion.Title,
+                ArtistName = item.Suggestion.ArtistName,
+                RecordingMbid = item.Suggestion.RecordingMbid,
+                ArtistMbid = item.Suggestion.ArtistMbid
+            });
+
+            if (applied is null)
+            {
+                pageError = $"Could not apply canonical names for song #{item.SongId}.";
+                return;
+            }
+
+            await RefreshSongsAsync();
+            allArtists = await Api.GetArtistLookupsAsync();
+            item.NamesMatch = true;
+        }
+        catch (Exception ex)
+        {
+            pageError = $"Apply failed: {ex.Message}";
+        }
+        finally
+        {
+            applyingSongId = null;
         }
     }
 

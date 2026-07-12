@@ -18,6 +18,7 @@
             <GridColumn Field="@nameof(ArtistDto.Id)" IsPrimaryKey="true" Visible="false" />
             <GridColumn Field="@nameof(ArtistDto.Name)" HeaderText="Name" Width="200" />
             <GridColumn Field="@nameof(ArtistDto.SortableName)" HeaderText="Sortable Name" Width="200" />
+            <GridColumn Field="@nameof(ArtistDto.Mbid)" HeaderText="Artist MBID" Width="220" AllowEditing="false" />
             <GridColumn Field="@nameof(ArtistDto.MainGenre)" HeaderText="Main Genre" Width="180">
                 <Template Context="context">
                     @{
