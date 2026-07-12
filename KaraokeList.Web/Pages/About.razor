@@ -35,7 +35,7 @@
             ?? Assembly.GetExecutingAssembly().GetName().Version?.ToString())
         ?? "unknown";
 
-    /// Shortens "1.1.0+abc1234567890..." to "1.1.0+abc1234" (7-char SHA).
+    /// Shortens "1.2.0+abc1234567890..." to "1.2.0+abc1234" (7-char SHA).
     private static string? FormatVersion(string? version)
     {
         if (version is null) return null;
