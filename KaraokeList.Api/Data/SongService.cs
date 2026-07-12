@@ -12,6 +12,7 @@ namespace KaraokeList.Data
         public int? Genre { get; set; }
         public int? Year { get; set; }
         public int? SecondaryArtist { get; set; }
+        public string? RecordingMbid { get; set; }
     }
 
     public class SongService
@@ -28,7 +29,7 @@ namespace KaraokeList.Data
             using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
             var command = connection.CreateCommand();
-            command.CommandText = "SELECT Id, Title, Artist, Genre, Year, SecondaryArtist FROM Songs";
+            command.CommandText = "SELECT Id, Title, Artist, Genre, Year, SecondaryArtist, RecordingMbid FROM Songs";
             using var reader = await command.ExecuteReaderAsync();
             while (await reader.ReadAsync())
             {
@@ -39,7 +40,8 @@ namespace KaraokeList.Data
                     Artist = reader.IsDBNull(2) ? null : reader.GetInt32(2),
                     Genre = reader.IsDBNull(3) ? null : reader.GetInt32(3),
                     Year = reader.IsDBNull(4) ? null : reader.GetInt32(4),
-                    SecondaryArtist = reader.IsDBNull(5) ? null : reader.GetInt32(5)
+                    SecondaryArtist = reader.IsDBNull(5) ? null : reader.GetInt32(5),
+                    RecordingMbid = reader.IsDBNull(6) ? null : reader.GetString(6)
                 });
             }
             return songs;
@@ -51,15 +53,16 @@ namespace KaraokeList.Data
             await connection.OpenAsync();
             var command = connection.CreateCommand();
             command.CommandText = """
-                INSERT INTO Songs (Title, Artist, Genre, Year, SecondaryArtist)
-                OUTPUT INSERTED.Id, INSERTED.Title, INSERTED.Artist, INSERTED.Genre, INSERTED.Year, INSERTED.SecondaryArtist
-                VALUES (@Title, @Artist, @Genre, @Year, @SecondaryArtist);
+                INSERT INTO Songs (Title, Artist, Genre, Year, SecondaryArtist, RecordingMbid)
+                OUTPUT INSERTED.Id, INSERTED.Title, INSERTED.Artist, INSERTED.Genre, INSERTED.Year, INSERTED.SecondaryArtist, INSERTED.RecordingMbid
+                VALUES (@Title, @Artist, @Genre, @Year, @SecondaryArtist, @RecordingMbid);
                 """;
             command.Parameters.AddWithValue("@Title", song.Title);
             command.Parameters.AddWithValue("@Artist", (object?)song.Artist ?? DBNull.Value);
             command.Parameters.AddWithValue("@Genre", (object?)song.Genre ?? DBNull.Value);
             command.Parameters.AddWithValue("@Year", (object?)song.Year ?? DBNull.Value);
             command.Parameters.AddWithValue("@SecondaryArtist", (object?)song.SecondaryArtist ?? DBNull.Value);
+            command.Parameters.AddWithValue("@RecordingMbid", (object?)song.RecordingMbid ?? DBNull.Value);
             using var reader = await command.ExecuteReaderAsync();
             await reader.ReadAsync();
             return new Song
@@ -69,7 +72,8 @@ namespace KaraokeList.Data
                 Artist = reader.IsDBNull(2) ? null : reader.GetInt32(2),
                 Genre = reader.IsDBNull(3) ? null : reader.GetInt32(3),
                 Year = reader.IsDBNull(4) ? null : reader.GetInt32(4),
-                SecondaryArtist = reader.IsDBNull(5) ? null : reader.GetInt32(5)
+                SecondaryArtist = reader.IsDBNull(5) ? null : reader.GetInt32(5),
+                RecordingMbid = reader.IsDBNull(6) ? null : reader.GetString(6)
             };
         }
 
@@ -78,13 +82,14 @@ namespace KaraokeList.Data
             using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
             var command = connection.CreateCommand();
-            command.CommandText = @"UPDATE Songs SET Title=@Title, Artist=@Artist, Genre=@Genre, Year=@Year, SecondaryArtist=@SecondaryArtist WHERE Id=@Id;";
+            command.CommandText = @"UPDATE Songs SET Title=@Title, Artist=@Artist, Genre=@Genre, Year=@Year, SecondaryArtist=@SecondaryArtist, RecordingMbid=@RecordingMbid WHERE Id=@Id;";
             command.Parameters.AddWithValue("@Id", song.Id);
             command.Parameters.AddWithValue("@Title", song.Title);
             command.Parameters.AddWithValue("@Artist", (object?)song.Artist ?? DBNull.Value);
             command.Parameters.AddWithValue("@Genre", (object?)song.Genre ?? DBNull.Value);
             command.Parameters.AddWithValue("@Year", (object?)song.Year ?? DBNull.Value);
             command.Parameters.AddWithValue("@SecondaryArtist", (object?)song.SecondaryArtist ?? DBNull.Value);
+            command.Parameters.AddWithValue("@RecordingMbid", (object?)song.RecordingMbid ?? DBNull.Value);
             await command.ExecuteNonQueryAsync();
         }
 

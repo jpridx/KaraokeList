@@ -42,6 +42,7 @@ namespace KaraokeList.Data
             builder.Entity<Artist>(entity =>
             {
                 entity.Property(a => a.Name).HasMaxLength(128);
+                entity.Property(a => a.Mbid).HasMaxLength(36);
                 entity.HasIndex(a => a.Name).IsUnique();
             });
 
@@ -84,6 +85,8 @@ namespace KaraokeList.Data
 
             builder.Entity<Song>(entity =>
             {
+                entity.Property(s => s.RecordingMbid).HasMaxLength(36);
+
                 entity.HasOne<Artist>()
                     .WithMany()
                     .HasForeignKey(s => s.Artist)

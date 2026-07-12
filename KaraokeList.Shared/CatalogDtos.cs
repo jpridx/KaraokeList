@@ -20,6 +20,7 @@ public class CatalogImportResultDto
     public int TotalRows { get; set; }
     public int Added { get; set; }
     public int Skipped { get; set; }
+    public int Canonicized { get; set; }
     public List<CatalogImportErrorDto> Errors { get; set; } = [];
 }
 
@@ -52,6 +53,7 @@ public class ArtistDto
     public string Name { get; set; } = string.Empty;
     public string? SortableName { get; set; }
     public int? MainGenre { get; set; }
+    public string? Mbid { get; set; }
 }
 
 public class SingerDto
@@ -68,6 +70,7 @@ public class SongDto
     public int? Genre { get; set; }
     public int? Year { get; set; }
     public int? SecondaryArtist { get; set; }
+    public string? RecordingMbid { get; set; }
 }
 
 public class ArtistLookupDto

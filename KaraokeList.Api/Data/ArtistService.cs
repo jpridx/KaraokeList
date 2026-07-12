@@ -10,6 +10,7 @@ namespace KaraokeList.Data
         public string Name { get; set; } = string.Empty;
         public string? SortableName { get; set; }
         public int? MainGenre { get; set; }
+        public string? Mbid { get; set; }
     }
 
     public class ArtistService
@@ -26,7 +27,7 @@ namespace KaraokeList.Data
             using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
             var command = connection.CreateCommand();
-            command.CommandText = "SELECT Id, Name, SortableName, MainGenre FROM Artists";
+            command.CommandText = "SELECT Id, Name, SortableName, MainGenre, Mbid FROM Artists";
             using var reader = await command.ExecuteReaderAsync();
             while (await reader.ReadAsync())
             {
@@ -35,7 +36,8 @@ namespace KaraokeList.Data
                     Id = reader.GetInt32(0),
                     Name = reader.GetString(1),
                     SortableName = reader.IsDBNull(2) ? null : reader.GetString(2),
-                    MainGenre = reader.IsDBNull(3) ? null : reader.GetInt32(3)
+                    MainGenre = reader.IsDBNull(3) ? null : reader.GetInt32(3),
+                    Mbid = reader.IsDBNull(4) ? null : reader.GetString(4)
                 });
             }
             return artists;
@@ -46,10 +48,11 @@ namespace KaraokeList.Data
             using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
             var command = connection.CreateCommand();
-            command.CommandText = @"INSERT INTO Artists (Name, SortableName, MainGenre) VALUES (@Name, @SortableName, @MainGenre);";
+            command.CommandText = @"INSERT INTO Artists (Name, SortableName, MainGenre, Mbid) VALUES (@Name, @SortableName, @MainGenre, @Mbid);";
             command.Parameters.AddWithValue("@Name", artist.Name);
             command.Parameters.AddWithValue("@SortableName", (object?)artist.SortableName ?? DBNull.Value);
             command.Parameters.AddWithValue("@MainGenre", (object?)artist.MainGenre ?? DBNull.Value);
+            command.Parameters.AddWithValue("@Mbid", (object?)artist.Mbid ?? DBNull.Value);
             await command.ExecuteNonQueryAsync();
         }
 
@@ -58,11 +61,12 @@ namespace KaraokeList.Data
             using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
             var command = connection.CreateCommand();
-            command.CommandText = @"UPDATE Artists SET Name=@Name, SortableName=@SortableName, MainGenre=@MainGenre WHERE Id=@Id;";
+            command.CommandText = @"UPDATE Artists SET Name=@Name, SortableName=@SortableName, MainGenre=@MainGenre, Mbid=@Mbid WHERE Id=@Id;";
             command.Parameters.AddWithValue("@Id", artist.Id);
             command.Parameters.AddWithValue("@Name", artist.Name);
             command.Parameters.AddWithValue("@SortableName", (object?)artist.SortableName ?? DBNull.Value);
             command.Parameters.AddWithValue("@MainGenre", (object?)artist.MainGenre ?? DBNull.Value);
+            command.Parameters.AddWithValue("@Mbid", (object?)artist.Mbid ?? DBNull.Value);
             await command.ExecuteNonQueryAsync();
         }
 

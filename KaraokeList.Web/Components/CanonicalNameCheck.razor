@@ -1,0 +1,156 @@
+@inject IKaraokeApiClient Api
+
+@if (CanCheck)
+{
+    <button type="button" class="btn btn-link btn-sm p-0 mt-2 text-decoration-none"
+            disabled="@(_isBusy || Disabled)"
+            @onclick="CheckAsync">
+        @if (_isBusy)
+        {
+            <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+            <span>Checking MusicBrainz…</span>
+        }
+        else
+        {
+            <span>🎵 Check canonical names</span>
+        }
+    </button>
+}
+
+@if (_error is not null)
+{
+    <p class="form-text text-danger mb-0 mt-1">@_error</p>
+}
+
+@if (_match is not null)
+{
+    <div class="alert @(_namesMatch ? "alert-success" : "alert-info") small py-2 px-3 mt-2 mb-0" role="status">
+        @if (_namesMatch)
+        {
+            <span>Names match MusicBrainz (@_match.Score% confidence).</span>
+        }
+        else
+        {
+            <div>
+                <strong>MusicBrainz suggests:</strong>
+                <div class="mt-1">@_match.Title — @_match.ArtistName</div>
+                @if (!string.IsNullOrWhiteSpace(_match.Disambiguation))
+                {
+                    <div class="text-muted">@_match.Disambiguation</div>
+                }
+            </div>
+            @if (ShowApplyButton)
+            {
+                <button type="button" class="btn btn-outline-primary btn-sm mt-2"
+                        disabled="@(_isBusy || Disabled)" @onclick="ApplyAsync">
+                    Use canonical names
+                </button>
+            }
+        }
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = string.Empty;
+
+    [Parameter]
+    public EventCallback<string> TitleChanged { get; set; }
+
+    [Parameter, EditorRequired]
+    public string ArtistName { get; set; } = string.Empty;
+
+    [Parameter]
+    public EventCallback<string> ArtistNameChanged { get; set; }
+
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    [Parameter]
+    public bool ShowApplyButton { get; set; } = true;
+
+    [Parameter]
+    public bool AutoCheck { get; set; }
+
+    /// <summary>Fired when canonical names are applied, including optional MBIDs.</summary>
+    [Parameter]
+    public EventCallback<CanonicalAppliedEventArgs> OnCanonicalApplied { get; set; }
+
+    private CanonicalMatchDto? _match;
+    private bool _namesMatch;
+    private bool _isBusy;
+    private string? _error;
+    private string _lastCheckedKey = string.Empty;
+
+    private bool CanCheck =>
+        !string.IsNullOrWhiteSpace(Title) && !string.IsNullOrWhiteSpace(ArtistName);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!AutoCheck || !CanCheck)
+        {
+            return;
+        }
+
+        var key = $"{Title.Trim().ToLowerInvariant()}|{ArtistName.Trim().ToLowerInvariant()}";
+        if (key == _lastCheckedKey)
+        {
+            return;
+        }
+
+        await CheckAsync();
+    }
+
+    private async Task CheckAsync()
+    {
+        _error = null;
+        _match = null;
+        _isBusy = true;
+        try
+        {
+            var response = await Api.LookupCanonicalAsync(new CanonicalLookupRequest
+            {
+                Title = Title.Trim(),
+                Artist = ArtistName.Trim()
+            });
+
+            _match = response?.Match.Found == true ? response.Match : null;
+            if (_match is null)
+            {
+                _error = "No MusicBrainz match found — names will be saved as entered.";
+                _lastCheckedKey = string.Empty;
+                return;
+            }
+
+            _namesMatch = string.Equals(Title.Trim(), _match.Title, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(ArtistName.Trim(), _match.ArtistName, StringComparison.OrdinalIgnoreCase);
+            _lastCheckedKey = $"{Title.Trim().ToLowerInvariant()}|{ArtistName.Trim().ToLowerInvariant()}";
+        }
+        catch
+        {
+            _error = "Could not reach MusicBrainz — names will be saved as entered.";
+            _lastCheckedKey = string.Empty;
+        }
+        finally
+        {
+            _isBusy = false;
+        }
+    }
+
+    private async Task ApplyAsync()
+    {
+        if (_match is null)
+        {
+            return;
+        }
+
+        await TitleChanged.InvokeAsync(_match.Title);
+        await ArtistNameChanged.InvokeAsync(_match.ArtistName);
+        await OnCanonicalApplied.InvokeAsync(new CanonicalAppliedEventArgs(
+            _match.Title,
+            _match.ArtistName,
+            _match.RecordingMbid,
+            _match.ArtistMbid));
+        _namesMatch = true;
+    }
+}

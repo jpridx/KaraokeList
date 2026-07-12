@@ -18,7 +18,8 @@
                      GetId="@(song => song.Id)"
                      OnSaveAsync="SaveSongAsync"
                      OnDeleteAsync="DeleteSongAsync"
-                     OnReload="ReloadAsync">
+                     OnReload="ReloadAsync"
+                     OnActionBeginExtra="OnGridActionBeginAsync">
         <Columns>
             <GridColumn Field="@nameof(SongDisplay.Id)" IsPrimaryKey="true" Visible="false" />
             <GridColumn Field="@nameof(SongDisplay.Title)" HeaderText="Title" Width="200" />
@@ -33,6 +34,7 @@
                     </SfAutoComplete>
                 </EditTemplate>
             </GridColumn>
+            <GridColumn Field="@nameof(SongDisplay.RecordingMbid)" HeaderText="Recording MBID" Width="220" AllowEditing="false" />
             <GridColumn Field="@nameof(SongDisplay.GenreName)" HeaderText="Genre" Width="150">
                 <EditTemplate Context="context">
                     @{
@@ -59,6 +61,19 @@
             <GridColumn Field="@nameof(SongDisplay.Year)" HeaderText="Year" Width="100" />
         </Columns>
     </CatalogCrudGrid>
+
+    @if (editingSong is not null)
+    {
+        <div class="border rounded p-3 mt-3 bg-body-tertiary">
+            <h4 class="h6 mb-2">Canonical name check</h4>
+            <p class="small text-muted mb-2">
+                Editing <strong>@editingSong.Title</strong> — @editingSong.ArtistName
+            </p>
+            <CanonicalNameCheck Title="@editingSong.Title" TitleChanged="OnEditingTitleChangedAsync"
+                                ArtistName="@editingSong.ArtistName" ArtistNameChanged="OnEditingArtistChangedAsync"
+                                OnCanonicalApplied="OnEditingCanonicalAppliedAsync" />
+        </div>
+    }
 </div>
 
 @code {
@@ -67,8 +82,55 @@
     private List<GenreDto> genres = [];
     private bool isLoading = true;
     private string? gridError;
+    private SongDisplay? editingSong;
 
     protected override async Task OnInitializedAsync() => await ReloadAsync();
+
+    private async Task OnGridActionBeginAsync(ActionEventArgs<SongDisplay> args)
+    {
+        if (args.RequestType == Action.BeginEdit || args.RequestType == Action.Add)
+        {
+            editingSong = args.Data;
+        }
+        else if (args.RequestType is Action.Save or Action.Cancel)
+        {
+            editingSong = null;
+        }
+
+        await Task.CompletedTask;
+    }
+
+    private Task OnEditingTitleChangedAsync(string value)
+    {
+        if (editingSong is not null)
+        {
+            editingSong.Title = value;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private Task OnEditingArtistChangedAsync(string value)
+    {
+        if (editingSong is not null)
+        {
+            editingSong.ArtistName = value;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private Task OnEditingCanonicalAppliedAsync(CanonicalAppliedEventArgs args)
+    {
+        if (editingSong is not null)
+        {
+            editingSong.Title = args.Title;
+            editingSong.ArtistName = args.ArtistName;
+            editingSong.RecordingMbid = args.RecordingMbid;
+        }
+
+        return Task.CompletedTask;
+    }
 
     private async Task ReloadAsync()
     {

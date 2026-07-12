@@ -52,8 +52,8 @@ public class NotImplementedApiClient : IKaraokeApiClient
     public virtual Task DeleteSongAsync(int id) => Throw();
     public virtual Task<CatalogMutateResult> TryDeleteSongAsync(int id) => Throw<CatalogMutateResult>();
     public virtual Task<AppVersionDto?> GetAppVersionAsync() => Throw<AppVersionDto?>();
-    public virtual Task<CatalogImportFileResult> ImportCatalogFileAsync(Stream fileStream, string fileName) => Throw<CatalogImportFileResult>();
-    public virtual Task<CatalogImportFileResult> ImportCatalogFromGSheetAsync(GSheetImportRequest request) => Throw<CatalogImportFileResult>();
+    public virtual Task<CatalogImportFileResult> ImportCatalogFileAsync(Stream fileStream, string fileName, bool canonicize = true) => Throw<CatalogImportFileResult>();
+    public virtual Task<CatalogImportFileResult> ImportCatalogFromGSheetAsync(GSheetImportRequest request, bool canonicize = true) => Throw<CatalogImportFileResult>();
     public virtual Task<CatalogMutateResult> MergeSongsAsync(int sourceId, int targetId) => Throw<CatalogMutateResult>();
     public virtual Task<List<PerformanceDto>> GetPerformancesAsync(int? songId = null) => Throw<List<PerformanceDto>>();
     public virtual Task<UserProfileDto?> GetProfileAsync() => Throw<UserProfileDto?>();
@@ -107,6 +107,9 @@ public class NotImplementedApiClient : IKaraokeApiClient
     public virtual Task<List<AdminUserDto>> GetAdminUsersAsync() => Throw<List<AdminUserDto>>();
     public virtual Task<AdminUserUpdateResult> UpdateAdminUserAsync(UpdateAdminUserRequest request) => Throw<AdminUserUpdateResult>();
     public virtual Task<GenreSuggestionResponse?> SuggestGenreAsync(GenreSuggestionRequest request) => Throw<GenreSuggestionResponse?>();
+    public virtual Task<CanonicalLookupResponse?> LookupCanonicalAsync(CanonicalLookupRequest request) => Throw<CanonicalLookupResponse?>();
+    public virtual Task<ApplyCanonicalResponse?> ApplyCanonicalAsync(ApplyCanonicalRequest request) => Throw<ApplyCanonicalResponse?>();
+    public virtual Task<CatalogVerifyResultDto?> VerifyCatalogAsync(CatalogVerifyRequest request) => Throw<CatalogVerifyResultDto?>();
 
     private static Task Throw() =>
         throw new NotImplementedException("Override this IKaraokeApiClient member in your test stub.");

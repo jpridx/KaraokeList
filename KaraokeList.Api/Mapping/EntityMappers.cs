@@ -18,7 +18,8 @@ public static class EntityMappers
         Id = entity.Id,
         Name = entity.Name,
         SortableName = entity.SortableName,
-        MainGenre = entity.MainGenre
+        MainGenre = entity.MainGenre,
+        Mbid = entity.Mbid
     };
 
     public static Artist ToEntity(this ArtistDto dto) => new()
@@ -26,7 +27,8 @@ public static class EntityMappers
         Id = dto.Id,
         Name = dto.Name,
         SortableName = dto.SortableName,
-        MainGenre = dto.MainGenre
+        MainGenre = dto.MainGenre,
+        Mbid = dto.Mbid
     };
 
     public static SingerDto ToDto(this Singer entity) => new() { Id = entity.Id, Name = entity.Name };
@@ -40,7 +42,8 @@ public static class EntityMappers
         Artist = entity.Artist,
         Genre = entity.Genre,
         Year = entity.Year,
-        SecondaryArtist = entity.SecondaryArtist
+        SecondaryArtist = entity.SecondaryArtist,
+        RecordingMbid = entity.RecordingMbid
     };
 
     public static Song ToEntity(this SongDto dto) => new()
@@ -50,7 +53,8 @@ public static class EntityMappers
         Artist = dto.Artist,
         Genre = dto.Genre,
         Year = dto.Year,
-        SecondaryArtist = dto.SecondaryArtist
+        SecondaryArtist = dto.SecondaryArtist,
+        RecordingMbid = dto.RecordingMbid
     };
 
     public static ArtistLookupDto ToDto(this ArtistLookup entity) => new() { Id = entity.Id, Name = entity.Name };

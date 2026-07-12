@@ -18,7 +18,10 @@ public class CatalogImportController(
 
     [HttpPost("file")]
     [RequestSizeLimit(20 * 1024 * 1024)]
-    public async Task<ActionResult<CatalogImportResultDto>> ImportFile(IFormFile file)
+    public async Task<ActionResult<CatalogImportResultDto>> ImportFile(
+        IFormFile file,
+        [FromQuery] bool canonicize = true,
+        CancellationToken cancellationToken = default)
     {
         if (file is null || file.Length == 0)
             return BadRequest(new ApiErrorResponse { Message = "No file was provided." });
@@ -38,12 +41,15 @@ public class CatalogImportController(
         if (parsed.Error is not null)
             return BadRequest(new ApiErrorResponse { Message = parsed.Error });
 
-        var result = await importService.ImportAsync(parsed.Rows);
+        var result = await importService.ImportAsync(parsed.Rows, canonicize, cancellationToken);
         return Ok(result);
     }
 
     [HttpPost("gsheet")]
-    public async Task<ActionResult<CatalogImportResultDto>> ImportGSheet([FromBody] GSheetImportRequest request)
+    public async Task<ActionResult<CatalogImportResultDto>> ImportGSheet(
+        [FromBody] GSheetImportRequest request,
+        [FromQuery] bool canonicize = true,
+        CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(request.SheetUrl))
             return BadRequest(new ApiErrorResponse { Message = "SheetUrl is required." });
@@ -78,7 +84,7 @@ public class CatalogImportController(
         if (parsed.Error is not null)
             return BadRequest(new ApiErrorResponse { Message = parsed.Error });
 
-        var result = await importService.ImportAsync(parsed.Rows);
+        var result = await importService.ImportAsync(parsed.Rows, canonicize, cancellationToken);
         return Ok(result);
     }
 }
