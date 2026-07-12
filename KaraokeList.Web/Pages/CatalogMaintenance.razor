@@ -1,0 +1,27 @@
+@page "/admin/catalog"
+@attribute [Authorize(Roles = KaraokeRoles.Admin)]
+
+<PageTitle>Catalog maintenance</PageTitle>
+
+<div class="mobile-page">
+    <MobilePageHeader Title="Catalog maintenance" BackHref="/more" BackText="← More">
+        <Subtitle>Import, verify, and edit the shared song catalog.</Subtitle>
+    </MobilePageHeader>
+
+    <section class="more-section">
+        <h2 class="more-section-title">Tools</h2>
+        <a class="more-link" href="admin/import-songs">Catalog tools</a>
+        <p class="more-hint">Import lists, verify names against MusicBrainz, and merge duplicate songs.</p>
+    </section>
+
+    <section class="more-section">
+        <h2 class="more-section-title">Tables</h2>
+        <a class="more-link" href="songs">Songs</a>
+        <a class="more-link" href="artists">Artists</a>
+        <a class="more-link" href="genres">Genres</a>
+        <a class="more-link" href="genre-groups">Genre groups</a>
+        <a class="more-link" href="singers">Singers</a>
+        <a class="more-link" href="venues">Venues</a>
+        <a class="more-link" href="performances">Performances (grid)</a>
+    </section>
+</div>

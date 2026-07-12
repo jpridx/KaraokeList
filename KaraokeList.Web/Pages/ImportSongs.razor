@@ -3,87 +3,18 @@
 @inject IKaraokeApiClient Api
 @using Microsoft.AspNetCore.Components.Forms
 
-<PageTitle>Import catalog</PageTitle>
+<PageTitle>Catalog tools</PageTitle>
 
 <div class="mobile-page">
-    <MobilePageHeader Title="Import catalog" BackHref="/more" BackText="← More" />
+    <MobilePageHeader Title="Catalog tools" BackHref="/admin/catalog" BackText="← Catalog maintenance" />
 
     @if (!string.IsNullOrEmpty(pageError))
     {
         <StatusAlerts ErrorMessage="@pageError" />
     }
 
-    @* ── File upload ─────────────────────────────────────────────── *@
-    <section class="more-section">
-        <h2 class="more-section-title">Upload file</h2>
-        <p class="text-muted small mb-2">
-            Accepts <strong>.csv</strong>, <strong>.tsv</strong>, and <strong>.xlsx</strong>.
-            Default column order: <em>Song, Artist, Genre, Year</em> — or include a header row to use any order.
-        </p>
-        <div class="form-check mb-2">
-            <input class="form-check-input" type="checkbox" id="canonicizeImport" @bind="canonicizeOnImport" />
-            <label class="form-check-label small" for="canonicizeImport">
-                Canonicize names via MusicBrainz (about 1 second per row)
-            </label>
-        </div>
-        <InputFile OnChange="OnFileSelectedAsync" accept=".csv,.tsv,.txt,.xlsx,.xls"
-                   class="form-control form-control-sm mb-2" />
-        <button type="button" class="btn btn-primary btn-sm"
-                @onclick="ImportFileAsync"
-                disabled="@(selectedFile is null || isImporting)">
-            @(isImporting && importMode == ImportMode.File ? "Importing…" : "Import file")
-        </button>
-    </section>
-
-    @* ── Google Sheets ────────────────────────────────────────────── *@
-    <section class="more-section">
-        <h2 class="more-section-title">Google Sheets</h2>
-        <p class="text-muted small mb-2">
-            Paste the sharing URL of a Google Sheet with public view access.
-            The first sheet tab is imported.
-        </p>
-        <input type="url" @bind="sheetUrl" @bind:event="oninput"
-               class="form-control form-control-sm mb-2"
-               placeholder="https://docs.google.com/spreadsheets/d/…" />
-        <button type="button" class="btn btn-primary btn-sm"
-                @onclick="ImportGSheetAsync"
-                disabled="@(string.IsNullOrWhiteSpace(sheetUrl) || isImporting)">
-            @(isImporting && importMode == ImportMode.GSheet ? "Importing…" : "Import from Google Sheets")
-        </button>
-    </section>
-
-    @* ── Results ─────────────────────────────────────────────────── *@
-    @if (importResult is not null)
-    {
-        <section class="more-section">
-            <h2 class="more-section-title">Import results</h2>
-            <dl class="row mb-2 small">
-                <dt class="col-6">Total rows</dt><dd class="col-6">@importResult.TotalRows</dd>
-                <dt class="col-6">Added</dt><dd class="col-6">@importResult.Added</dd>
-                <dt class="col-6">Skipped (already exist)</dt><dd class="col-6">@importResult.Skipped</dd>
-                <dt class="col-6">Canonicized</dt><dd class="col-6">@importResult.Canonicized</dd>
-                <dt class="col-6">Errors</dt><dd class="col-6">@importResult.Errors.Count</dd>
-            </dl>
-            @if (importResult.Errors.Count > 0)
-            {
-                <details>
-                    <summary class="small text-muted">Show @importResult.Errors.Count error(s)</summary>
-                    <table class="table table-sm mt-2">
-                        <thead><tr><th>Row</th><th>Error</th></tr></thead>
-                        <tbody>
-                            @foreach (var err in importResult.Errors)
-                            {
-                                <tr><td>@err.Row</td><td>@err.Message</td></tr>
-                            }
-                        </tbody>
-                    </table>
-                </details>
-            }
-        </section>
-    }
-
     @* ── Verify existing catalog ──────────────────────────────────── *@
-    <section class="more-section">
+    <section id="verify" class="more-section">
         <h2 class="more-section-title">Verify existing catalog</h2>
         <p class="text-muted small mb-2">
             Check unverified songs against MusicBrainz and apply canonical title/artist names.
@@ -225,6 +156,77 @@
             <p class="mt-2 small @(mergeSuccess ? "text-success" : "text-danger")">@mergeMessage</p>
         }
     </section>
+
+    @* ── Import ───────────────────────────────────────────────────── *@
+    <section class="more-section">
+        <h2 class="more-section-title">Import catalog</h2>
+        <p class="text-muted small mb-2">
+            Add songs from a file or Google Sheet. Accepts <strong>.csv</strong>, <strong>.tsv</strong>, and <strong>.xlsx</strong>.
+            Default column order: <em>Song, Artist, Genre, Year</em> — or include a header row to use any order.
+        </p>
+        <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" id="canonicizeImport" @bind="canonicizeOnImport" />
+            <label class="form-check-label small" for="canonicizeImport">
+                Canonicize names via MusicBrainz (about 1 second per row)
+            </label>
+        </div>
+    </section>
+
+    <section class="more-section">
+        <h2 class="more-section-title">Upload file</h2>
+        <InputFile OnChange="OnFileSelectedAsync" accept=".csv,.tsv,.txt,.xlsx,.xls"
+                   class="form-control form-control-sm mb-2" />
+        <button type="button" class="btn btn-primary btn-sm"
+                @onclick="ImportFileAsync"
+                disabled="@(selectedFile is null || isImporting)">
+            @(isImporting && importMode == ImportMode.File ? "Importing…" : "Import file")
+        </button>
+    </section>
+
+    <section class="more-section">
+        <h2 class="more-section-title">Google Sheets</h2>
+        <p class="text-muted small mb-2">
+            Paste the sharing URL of a Google Sheet with public view access.
+            The first sheet tab is imported.
+        </p>
+        <input type="url" @bind="sheetUrl" @bind:event="oninput"
+               class="form-control form-control-sm mb-2"
+               placeholder="https://docs.google.com/spreadsheets/d/…" />
+        <button type="button" class="btn btn-primary btn-sm"
+                @onclick="ImportGSheetAsync"
+                disabled="@(string.IsNullOrWhiteSpace(sheetUrl) || isImporting)">
+            @(isImporting && importMode == ImportMode.GSheet ? "Importing…" : "Import from Google Sheets")
+        </button>
+    </section>
+
+    @if (importResult is not null)
+    {
+        <section class="more-section">
+            <h2 class="more-section-title">Import results</h2>
+            <dl class="row mb-2 small">
+                <dt class="col-6">Total rows</dt><dd class="col-6">@importResult.TotalRows</dd>
+                <dt class="col-6">Added</dt><dd class="col-6">@importResult.Added</dd>
+                <dt class="col-6">Skipped (already exist)</dt><dd class="col-6">@importResult.Skipped</dd>
+                <dt class="col-6">Canonicized</dt><dd class="col-6">@importResult.Canonicized</dd>
+                <dt class="col-6">Errors</dt><dd class="col-6">@importResult.Errors.Count</dd>
+            </dl>
+            @if (importResult.Errors.Count > 0)
+            {
+                <details>
+                    <summary class="small text-muted">Show @importResult.Errors.Count error(s)</summary>
+                    <table class="table table-sm mt-2">
+                        <thead><tr><th>Row</th><th>Error</th></tr></thead>
+                        <tbody>
+                            @foreach (var err in importResult.Errors)
+                            {
+                                <tr><td>@err.Row</td><td>@err.Message</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </details>
+            }
+        </section>
+    }
 </div>
 
 @code {
