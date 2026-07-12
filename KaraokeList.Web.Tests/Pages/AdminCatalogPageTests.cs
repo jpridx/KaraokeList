@@ -23,6 +23,18 @@ public sealed class AdminCatalogPageTests : AuthPageTestContext
     }
 
     [Fact]
+    public void CatalogMaintenance_page_shows_tools_and_tables()
+    {
+        var cut = Render<CatalogMaintenance>();
+
+        Assert.Contains("Catalog maintenance", cut.Markup);
+        Assert.Contains("Catalog tools", cut.Markup);
+        Assert.Contains("href=\"admin/import-songs\"", cut.Markup);
+        Assert.Contains("href=\"songs\"", cut.Markup);
+        Assert.Contains("href=\"artists\"", cut.Markup);
+    }
+
+    [Fact]
     public void Genres_page_loads_from_api()
     {
         Api.Setup(client => client.GetGenresAsync()).ReturnsAsync([]);
