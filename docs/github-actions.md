@@ -197,6 +197,7 @@ Edit `AZURE_RESOURCE_GROUP`, `AZURE_BASE_NAME`, or `WASM_PUBLIC_ORIGIN` in `.git
 | API smoke test not 401 | Cold start: first request can take minutes (SQL wake-up). Re-run deploy; check `az webapp log startup show` and `GET /api/version` |
 | Deploy API `Timeout reached while tracking deployment status` | Zip often succeeded; site still starting. Workflow uses `--track-status false` + smoke test. Migrations run in CI before deploy — check `/api/version` |
 | API Stopped / `SiteStartupCancelled` | Pending migration or restart during startup. Apply migrations manually per [azure-deployment.md](azure-deployment.md#production-schema-migrations-breaking-changes), then `az webapp restart` once |
+| `Failed to resolve action download info` / `Service Unavailable` on **Set up job** | Transient GitHub Actions outage — **Re-run all jobs** on the failed workflow (no code change needed) |
 | WASM loads, API calls fail | CORS is only synced by `deploy-api`. If you deployed WASM only, confirm `Cors__Origins__0` on the App Service matches `WASM_PUBLIC_ORIGIN` in `deploy-azure.yml`. If they're out of sync, trigger a manual `workflow_dispatch` to redeploy both. |
 | Login works, empty catalog | Run `scripts/seed-catalog.sql` against Azure SQL |
 

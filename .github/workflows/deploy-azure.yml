@@ -134,10 +134,23 @@ jobs:
       - name: Apply EF migrations
         run: |
           export PATH="$PATH:$HOME/.dotnet/tools"
-          CONN=$(az webapp config connection-string list \
+          API_NAME="${{ steps.azure.outputs.api_app_name }}"
+          # Bicep stores SQL auth in app settings (ConnectionStrings__DefaultConnection),
+          # not the App Service "Connection strings" blade.
+          CONN=$(az webapp config appsettings list \
             --resource-group "${AZURE_RESOURCE_GROUP}" \
-            --name "${{ steps.azure.outputs.api_app_name }}" \
-            --query "[?name=='DefaultConnection'].value" -o tsv)
+            --name "$API_NAME" \
+            --query "[?name=='ConnectionStrings__DefaultConnection'].value | [0]" -o tsv)
+          if [ -z "$CONN" ]; then
+            CONN=$(az webapp config connection-string list \
+              --resource-group "${AZURE_RESOURCE_GROUP}" \
+              --name "$API_NAME" \
+              --query "[?name=='DefaultConnection'].value | [0]" -o tsv)
+          fi
+          if [ -z "$CONN" ]; then
+            echo "ERROR: DefaultConnection not found in app settings or connection strings."
+            exit 1
+          fi
           dotnet ef database update \
             --project KaraokeList.Api/KaraokeList.Api.csproj \
             --connection "$CONN"
