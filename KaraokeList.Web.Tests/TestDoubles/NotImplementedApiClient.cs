@@ -110,6 +110,7 @@ public class NotImplementedApiClient : IKaraokeApiClient
     public virtual Task<CanonicalLookupResponse?> LookupCanonicalAsync(CanonicalLookupRequest request) => Throw<CanonicalLookupResponse?>();
     public virtual Task<ApplyCanonicalResponse?> ApplyCanonicalAsync(ApplyCanonicalRequest request) => Throw<ApplyCanonicalResponse?>();
     public virtual Task<CatalogVerifyResultDto?> VerifyCatalogAsync(CatalogVerifyRequest request) => Throw<CatalogVerifyResultDto?>();
+    public virtual Task<CatalogClearMatchesResultDto?> ClearCanonicalMatchesAsync(CatalogClearMatchesRequest request) => Throw<CatalogClearMatchesResultDto?>();
 
     private static Task Throw() =>
         throw new NotImplementedException("Override this IKaraokeApiClient member in your test stub.");

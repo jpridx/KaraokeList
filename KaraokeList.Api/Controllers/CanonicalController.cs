@@ -55,4 +55,22 @@ public class CanonicalController(ICanonicalCatalogService canonicalCatalogServic
         var result = await canonicalCatalogService.VerifyBatchAsync(request, cancellationToken);
         return Ok(result);
     }
+
+    [HttpPost("clear-matches")]
+    [Authorize(Roles = KaraokeRoles.Admin)]
+    public async Task<ActionResult<CatalogClearMatchesResultDto>> ClearMatches(
+        [FromBody] CatalogClearMatchesRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!request.ClearAll && request.SongIds is not { Count: > 0 })
+        {
+            return BadRequest(new ApiErrorResponse
+            {
+                Message = "Set ClearAll to true or provide SongIds to clear."
+            });
+        }
+
+        var result = await canonicalCatalogService.ClearMatchesAsync(request, cancellationToken);
+        return Ok(result);
+    }
 }

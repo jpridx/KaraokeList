@@ -42,25 +42,40 @@
             @if (ShowApplyButton)
             {
                 <button type="button" class="btn btn-outline-primary btn-sm mt-2"
-                        disabled="@(_isBusy || Disabled)" @onclick="ApplyAsync">
+                        disabled="@(_isBusy || Disabled)" @onclick="() => ApplyMatchAsync(_match)">
                     Use canonical names
                 </button>
             }
         }
-        @if (_match.Year is int year || !string.IsNullOrWhiteSpace(_match.SuggestedGenreName))
-        {
-            <div class="mt-1 text-muted">
-                @if (_match.Year is int matchedYear)
-                {
-                    <span>Year: @matchedYear</span>
-                }
-                @if (!string.IsNullOrWhiteSpace(_match.SuggestedGenreName))
-                {
-                    <span class="@(_match.Year is int ? "ms-2" : null)">Genre: @_match.SuggestedGenreName</span>
-                }
-            </div>
-        }
+        @RenderMatchMetadata(_match)
     </div>
+
+    @if (_alternatives.Count > 0)
+    {
+        <details class="small mt-2">
+            <summary class="text-muted">@_alternatives.Count other MusicBrainz match@(_alternatives.Count == 1 ? "" : "es")</summary>
+            <ul class="list-unstyled mb-0 mt-2">
+                @foreach (var alternative in _alternatives)
+                {
+                    <li class="border rounded p-2 mb-2">
+                        <div>@alternative.Title — @alternative.ArtistCreditDisplay</div>
+                        @if (!string.IsNullOrWhiteSpace(alternative.Disambiguation))
+                        {
+                            <div class="text-muted">@alternative.Disambiguation</div>
+                        }
+                        @RenderMatchMetadata(alternative)
+                        @if (ShowApplyButton)
+                        {
+                            <button type="button" class="btn btn-outline-secondary btn-sm mt-2"
+                                    disabled="@(_isBusy || Disabled)" @onclick="() => ApplyMatchAsync(alternative)">
+                                Use this match
+                            </button>
+                        }
+                    </li>
+                }
+            </ul>
+        </details>
+    }
 }
 
 @code {
@@ -90,6 +105,7 @@
     public EventCallback<CanonicalAppliedEventArgs> OnCanonicalApplied { get; set; }
 
     private CanonicalMatchDto? _match;
+    private List<CanonicalMatchDto> _alternatives = [];
     private bool _namesMatch;
     private bool _isBusy;
     private string? _error;
@@ -118,6 +134,7 @@
     {
         _error = null;
         _match = null;
+        _alternatives = [];
         _isBusy = true;
         try
         {
@@ -128,6 +145,7 @@
             });
 
             _match = response?.Match.Found == true ? response.Match : null;
+            _alternatives = response?.Alternatives ?? [];
             if (_match is null)
             {
                 _error = "No MusicBrainz match found — names will be saved as entered.";
@@ -150,24 +168,42 @@
         }
     }
 
-    private async Task ApplyAsync()
+    private async Task ApplyMatchAsync(CanonicalMatchDto match)
     {
-        if (_match is null)
+        _match = match;
+        await TitleChanged.InvokeAsync(match.Title);
+        await ArtistNameChanged.InvokeAsync(match.ArtistName);
+        await OnCanonicalApplied.InvokeAsync(new CanonicalAppliedEventArgs(
+            match.Title,
+            match.ArtistName,
+            match.RecordingMbid,
+            match.ArtistMbid,
+            match.ArtistCreditDisplay,
+            match.ArtistCredits.Select(c => c.Name).ToList(),
+            match.Year,
+            match.SuggestedGenreName));
+        _namesMatch = true;
+    }
+
+    private RenderFragment RenderMatchMetadata(CanonicalMatchDto match) => builder =>
+    {
+        if (match.Year is not int && string.IsNullOrWhiteSpace(match.SuggestedGenreName))
         {
             return;
         }
 
-        await TitleChanged.InvokeAsync(_match.Title);
-        await ArtistNameChanged.InvokeAsync(_match.ArtistName);
-        await OnCanonicalApplied.InvokeAsync(new CanonicalAppliedEventArgs(
-            _match.Title,
-            _match.ArtistName,
-            _match.RecordingMbid,
-            _match.ArtistMbid,
-            _match.ArtistCreditDisplay,
-            _match.ArtistCredits.Select(c => c.Name).ToList(),
-            _match.Year,
-            _match.SuggestedGenreName));
-        _namesMatch = true;
-    }
+        builder.OpenElement(0, "div");
+        builder.AddAttribute(1, "class", "mt-1 text-muted");
+        if (match.Year is int year)
+        {
+            builder.AddContent(2, $"Year: {year}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(match.SuggestedGenreName))
+        {
+            builder.AddContent(3, match.Year is int ? $" Genre: {match.SuggestedGenreName}" : $"Genre: {match.SuggestedGenreName}");
+        }
+
+        builder.CloseElement();
+    };
 }

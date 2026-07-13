@@ -90,6 +90,25 @@ public class CatalogVerifyItemDto
     public string? CurrentGenreName { get; set; }
     public string? RecordingMbid { get; set; }
     public CanonicalMatchDto? Suggestion { get; set; }
+    public List<CanonicalMatchDto> Alternatives { get; set; } = [];
     public bool NamesMatch { get; set; }
     public bool MetadataNeedsApply { get; set; }
+}
+
+public class CatalogClearMatchesRequest
+{
+    /// <summary>When true, clears RecordingMbid on all songs that have one.</summary>
+    public bool ClearAll { get; set; }
+
+    /// <summary>When true, also clears Year on affected songs so verify can refill from MusicBrainz.</summary>
+    public bool ClearYears { get; set; }
+
+    /// <summary>When set, only these song IDs are cleared (ClearAll is ignored).</summary>
+    public List<int>? SongIds { get; set; }
+}
+
+public class CatalogClearMatchesResultDto
+{
+    public int ClearedCount { get; set; }
+    public int TotalMatched { get; set; }
 }
