@@ -6,4 +6,6 @@ public sealed record CanonicalAppliedEventArgs(
     string? RecordingMbid,
     string? ArtistMbid,
     string ArtistCreditDisplay = "",
-    IReadOnlyList<string>? ArtistNames = null);
+    IReadOnlyList<string>? ArtistNames = null,
+    int? Year = null,
+    string? SuggestedGenreName = null);

@@ -54,6 +54,22 @@ public sealed class CatalogImportService(ApplicationDbContext db, ICanonicalCata
                 artistName = artistName[..128];
             }
 
+            int? genreId = null;
+            if (!string.IsNullOrWhiteSpace(row.Genre))
+            {
+                var genreName = row.Genre.Trim();
+                if (!genreByName.TryGetValue(genreName, out var gid))
+                {
+                    var genre = new Genre { GenreName = genreName };
+                    db.Genres.Add(genre);
+                    await db.SaveChangesAsync(cancellationToken);
+                    gid = genre.Id;
+                    genreByName[genreName] = gid;
+                }
+                genreId = gid;
+            }
+
+            int? year = row.Year;
             string? recordingMbid = null;
             string? artistCreditDisplay = null;
             List<CanonicalArtistCreditDto> artistCredits = [];
@@ -78,6 +94,22 @@ public sealed class CatalogImportService(ApplicationDbContext db, ICanonicalCata
                     }
 
                     recordingMbid = canonical.RecordingMbid;
+                    year ??= canonical.Year;
+
+                    if (genreId is null && !string.IsNullOrWhiteSpace(canonical.SuggestedGenreName))
+                    {
+                        var suggestedGenre = canonical.SuggestedGenreName.Trim();
+                        if (!genreByName.TryGetValue(suggestedGenre, out var suggestedId))
+                        {
+                            var genre = new Genre { GenreName = suggestedGenre };
+                            db.Genres.Add(genre);
+                            await db.SaveChangesAsync(cancellationToken);
+                            suggestedId = genre.Id;
+                            genreByName[suggestedGenre] = suggestedId;
+                        }
+
+                        genreId = suggestedId;
+                    }
                 }
             }
 
@@ -118,21 +150,6 @@ public sealed class CatalogImportService(ApplicationDbContext db, ICanonicalCata
             for (var i = 1; i < artistCredits.Count; i++)
             {
                 await ResolveArtistIdAsync(artistCredits[i].Name, artistCredits[i].ArtistMbid, artistByName, cancellationToken);
-            }
-
-            int? genreId = null;
-            if (!string.IsNullOrWhiteSpace(row.Genre))
-            {
-                var genreName = row.Genre.Trim();
-                if (!genreByName.TryGetValue(genreName, out var gid))
-                {
-                    var genre = new Genre { GenreName = genreName };
-                    db.Genres.Add(genre);
-                    await db.SaveChangesAsync(cancellationToken);
-                    gid = genre.Id;
-                    genreByName[genreName] = gid;
-                }
-                genreId = gid;
             }
 
             var key = MakeSongKey(title, primaryArtistId.Value);

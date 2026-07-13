@@ -35,7 +35,8 @@ public sealed class MusicBrainzService(IHttpClientFactory httpClientFactory, ICo
 
         var query = $"\"{EscapeQuery(title.Trim())}\" AND artist:\"{EscapeQuery(artist.Trim())}\"";
         var client = httpClientFactory.CreateClient("MusicBrainz");
-        var url = $"recording?query={Uri.EscapeDataString(query)}&fmt=json&limit=5";
+        var url =
+            $"recording?query={Uri.EscapeDataString(query)}&fmt=json&limit=5&inc=genres+tags+artist-credits+releases";
 
         using var response = await client.GetAsync(url, cancellationToken);
         if (!response.IsSuccessStatusCode)
@@ -50,19 +51,27 @@ public sealed class MusicBrainzService(IHttpClientFactory httpClientFactory, ICo
             return new CanonicalLookupResponse();
         }
 
-        var matches = new List<CanonicalMatchDto>();
-        foreach (var recording in payload.Recordings)
-        {
-            var mapped = await MapRecordingAsync(recording, client, cancellationToken);
-            if (mapped.Found)
-            {
-                matches.Add(mapped);
-            }
-        }
-
-        if (matches.Count == 0)
+        var bestRecording = SelectHeadOfClassRecording(payload.Recordings);
+        if (bestRecording?.Id is null)
         {
             return new CanonicalLookupResponse();
+        }
+
+        var enriched = await FetchRecordingDetailsAsync(client, bestRecording, cancellationToken);
+        var mapped = await MapRecordingAsync(enriched ?? bestRecording, client, cancellationToken);
+        if (!mapped.Found)
+        {
+            return new CanonicalLookupResponse();
+        }
+
+        var matches = new List<CanonicalMatchDto> { mapped };
+        foreach (var recording in payload.Recordings.Where(r => r.Id != bestRecording.Id))
+        {
+            var alternative = await MapRecordingAsync(recording, client, cancellationToken, includeMetadata: false);
+            if (alternative.Found)
+            {
+                matches.Add(alternative);
+            }
         }
 
         return new CanonicalLookupResponse
@@ -72,16 +81,54 @@ public sealed class MusicBrainzService(IHttpClientFactory httpClientFactory, ICo
         };
     }
 
+    /// <summary>
+    /// Picks the studio-style original from MusicBrainz search hits — Karen Valentine would approve the seating chart.
+    /// </summary>
+    private static MusicBrainzRecording? SelectHeadOfClassRecording(IReadOnlyList<MusicBrainzRecording> recordings)
+    {
+        return recordings
+            .OrderByDescending(r => r.Score ?? 0)
+            .ThenBy(r => IsLiveRecording(r) ? 1 : 0)
+            .ThenBy(r => MusicBrainzGenreResolver.ParseReleaseYear(r.FirstReleaseDate) ?? int.MaxValue)
+            .ThenBy(r => string.IsNullOrWhiteSpace(r.FirstReleaseDate) ? 1 : 0)
+            .FirstOrDefault();
+    }
+
+    private async Task<MusicBrainzRecording?> FetchRecordingDetailsAsync(
+        HttpClient client,
+        MusicBrainzRecording recording,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(recording.Id))
+        {
+            return recording;
+        }
+
+        await EnforceRateLimitAsync(cancellationToken);
+        using var response = await client.GetAsync(
+            $"recording/{recording.Id}?fmt=json&inc=genres+tags+release-groups+artist-credits",
+            cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            return recording;
+        }
+
+        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        return await JsonSerializer.DeserializeAsync<MusicBrainzRecording>(stream, JsonOptions, cancellationToken)
+            ?? recording;
+    }
+
     private async Task<CanonicalMatchDto> MapRecordingAsync(
         MusicBrainzRecording recording,
         HttpClient client,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool includeMetadata = true)
     {
         var credits = BuildArtistCredits(recording.ArtistCredit);
         var artistCreditDisplay = ComposeArtistCreditDisplay(credits);
         var primary = credits.FirstOrDefault();
 
-        return new CanonicalMatchDto
+        var match = new CanonicalMatchDto
         {
             Found = true,
             Title = recording.Title?.Trim() ?? string.Empty,
@@ -93,6 +140,53 @@ public sealed class MusicBrainzService(IHttpClientFactory httpClientFactory, ICo
             Disambiguation = string.IsNullOrWhiteSpace(recording.Disambiguation) ? null : recording.Disambiguation.Trim(),
             ArtistCredits = credits
         };
+
+        if (includeMetadata)
+        {
+            match.Year = MusicBrainzGenreResolver.ParseReleaseYear(recording.FirstReleaseDate);
+            match.SuggestedGenreName = ResolveSuggestedGenre(recording);
+        }
+
+        return match;
+    }
+
+    private static string? ResolveSuggestedGenre(MusicBrainzRecording recording)
+    {
+        var candidates = new List<(string Name, int Count)>();
+        AddGenreCandidates(candidates, recording.Genres);
+        AddGenreCandidates(candidates, recording.Tags);
+
+        foreach (var credit in recording.ArtistCredit ?? [])
+        {
+            AddGenreCandidates(candidates, credit.Artist?.Genres);
+            AddGenreCandidates(candidates, credit.Artist?.Tags);
+        }
+
+        foreach (var releaseGroup in recording.ReleaseGroups ?? [])
+        {
+            AddGenreCandidates(candidates, releaseGroup.Genres);
+            AddGenreCandidates(candidates, releaseGroup.Tags);
+        }
+
+        return MusicBrainzGenreResolver.ResolveBestGenre(candidates);
+    }
+
+    private static void AddGenreCandidates(List<(string Name, int Count)> candidates, List<MusicBrainzLabel>? labels)
+    {
+        if (labels is not { Count: > 0 })
+        {
+            return;
+        }
+
+        foreach (var label in labels)
+        {
+            if (string.IsNullOrWhiteSpace(label.Name))
+            {
+                continue;
+            }
+
+            candidates.Add((label.Name.Trim(), Math.Max(label.Count ?? 1, 1)));
+        }
     }
 
     internal async Task<Dictionary<string, string>> FetchSortNamesAsync(
@@ -166,6 +260,18 @@ public sealed class MusicBrainzService(IHttpClientFactory httpClientFactory, ICo
         return builder.ToString();
     }
 
+    private static bool IsLiveRecording(MusicBrainzRecording recording)
+    {
+        if (recording.Disambiguation?.Contains("live", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            return true;
+        }
+
+        return recording.Releases?.Any(release =>
+            release.ReleaseGroup?.SecondaryTypes?.Any(type =>
+                type.Contains("Live", StringComparison.OrdinalIgnoreCase)) == true) == true;
+    }
+
     private async Task<string?> FetchArtistSortNameAsync(
         HttpClient client,
         string artistMbid,
@@ -224,8 +330,50 @@ public sealed class MusicBrainzService(IHttpClientFactory httpClientFactory, ICo
         [JsonPropertyName("disambiguation")]
         public string? Disambiguation { get; set; }
 
+        [JsonPropertyName("first-release-date")]
+        public string? FirstReleaseDate { get; set; }
+
+        [JsonPropertyName("genres")]
+        public List<MusicBrainzLabel>? Genres { get; set; }
+
+        [JsonPropertyName("tags")]
+        public List<MusicBrainzLabel>? Tags { get; set; }
+
         [JsonPropertyName("artist-credit")]
         public List<MusicBrainzArtistCredit>? ArtistCredit { get; set; }
+
+        [JsonPropertyName("releases")]
+        public List<MusicBrainzRelease>? Releases { get; set; }
+
+        [JsonPropertyName("release-groups")]
+        public List<MusicBrainzReleaseGroup>? ReleaseGroups { get; set; }
+    }
+
+    private sealed class MusicBrainzRelease
+    {
+        [JsonPropertyName("release-group")]
+        public MusicBrainzReleaseGroup? ReleaseGroup { get; set; }
+    }
+
+    private sealed class MusicBrainzReleaseGroup
+    {
+        [JsonPropertyName("genres")]
+        public List<MusicBrainzLabel>? Genres { get; set; }
+
+        [JsonPropertyName("tags")]
+        public List<MusicBrainzLabel>? Tags { get; set; }
+
+        [JsonPropertyName("secondary-types")]
+        public List<string>? SecondaryTypes { get; set; }
+    }
+
+    private sealed class MusicBrainzLabel
+    {
+        [JsonPropertyName("name")]
+        public string? Name { get; set; }
+
+        [JsonPropertyName("count")]
+        public int? Count { get; set; }
     }
 
     private sealed class MusicBrainzArtistCredit
@@ -244,6 +392,12 @@ public sealed class MusicBrainzService(IHttpClientFactory httpClientFactory, ICo
     {
         [JsonPropertyName("id")]
         public string? Id { get; set; }
+
+        [JsonPropertyName("genres")]
+        public List<MusicBrainzLabel>? Genres { get; set; }
+
+        [JsonPropertyName("tags")]
+        public List<MusicBrainzLabel>? Tags { get; set; }
     }
 
     private sealed class MusicBrainzArtistDetail

@@ -77,6 +77,17 @@ public sealed class CanonicalCatalogService(
             ? MusicBrainzService.ComposeArtistCreditDisplay(credits)
             : request.ArtistCreditDisplay.Trim();
 
+        if (request.Year is int year)
+        {
+            song.Year = year;
+        }
+
+        var resolvedGenreId = request.GenreId ?? await ResolveGenreIdAsync(request.GenreName, cancellationToken);
+        if (resolvedGenreId is int genreId)
+        {
+            song.Genre = genreId;
+        }
+
         var existingCredits = await db.SongArtists.Where(sa => sa.SongId == song.Id).ToListAsync(cancellationToken);
         db.SongArtists.RemoveRange(existingCredits);
         foreach (var artist in resolvedArtists)
@@ -91,6 +102,10 @@ public sealed class CanonicalCatalogService(
 
         await db.SaveChangesAsync(cancellationToken);
 
+        var genreName = resolvedGenreId is int gid
+            ? await db.Genres.Where(g => g.Id == gid).Select(g => g.GenreName).FirstOrDefaultAsync(cancellationToken)
+            : null;
+
         return new ApplyCanonicalResponse
         {
             SongId = song.Id,
@@ -100,6 +115,9 @@ public sealed class CanonicalCatalogService(
             ArtistId = resolvedArtists.FirstOrDefault()?.ArtistId,
             RecordingMbid = song.RecordingMbid,
             ArtistMbid = credits.FirstOrDefault()?.ArtistMbid,
+            Year = song.Year,
+            GenreId = song.Genre,
+            GenreName = genreName,
             Artists = resolvedArtists
         };
     }
@@ -127,6 +145,7 @@ public sealed class CanonicalCatalogService(
 
         var songIds = songs.Select(s => s.Id).ToList();
         var creditsBySong = await LoadCreditsBySongAsync(songIds, cancellationToken);
+        var genreNamesById = await db.Genres.ToDictionaryAsync(g => g.Id, g => g.GenreName, cancellationToken);
 
         var items = new List<CatalogVerifyItemDto>();
         foreach (var song in songs)
@@ -137,16 +156,27 @@ public sealed class CanonicalCatalogService(
                 song.ArtistCreditDisplay,
                 credits.Select(c => c.Name));
 
+            var currentGenreName = song.Genre is int genreId
+                ? genreNamesById.GetValueOrDefault(genreId)
+                : null;
+
             var lookup = await musicBrainzService.LookupAsync(song.Title, primaryName, cancellationToken);
             var suggestion = lookup.Match.Found ? lookup.Match : null;
             var namesMatch = suggestion is not null
                 && string.Equals(song.Title, suggestion.Title, StringComparison.OrdinalIgnoreCase)
                 && string.Equals(currentDisplay, suggestion.ArtistCreditDisplay, StringComparison.OrdinalIgnoreCase);
 
-            if (namesMatch && suggestion?.RecordingMbid is not null && song.RecordingMbid is null)
+            if (namesMatch && suggestion is not null)
             {
-                song.RecordingMbid = suggestion.RecordingMbid;
+                BackfillMetadataFromSuggestion(song, suggestion);
+                if (song.Genre is null && !string.IsNullOrWhiteSpace(suggestion.SuggestedGenreName))
+                {
+                    song.Genre = await ResolveGenreIdAsync(suggestion.SuggestedGenreName, cancellationToken);
+                    currentGenreName = suggestion.SuggestedGenreName;
+                }
             }
+
+            var metadataNeedsApply = suggestion is not null && MetadataDiffers(song, currentGenreName, suggestion);
 
             items.Add(new CatalogVerifyItemDto
             {
@@ -154,9 +184,12 @@ public sealed class CanonicalCatalogService(
                 CurrentTitle = song.Title,
                 CurrentArtistName = primaryName,
                 CurrentArtistDisplay = currentDisplay,
+                CurrentYear = song.Year,
+                CurrentGenreName = currentGenreName,
                 RecordingMbid = song.RecordingMbid,
                 Suggestion = suggestion,
-                NamesMatch = namesMatch
+                NamesMatch = namesMatch,
+                MetadataNeedsApply = metadataNeedsApply
             });
         }
 
@@ -180,6 +213,56 @@ public sealed class CanonicalCatalogService(
     {
         var lookup = await musicBrainzService.LookupAsync(title, artist, cancellationToken);
         return lookup.Match.Found ? lookup.Match : null;
+    }
+
+    private static void BackfillMetadataFromSuggestion(Song song, CanonicalMatchDto suggestion)
+    {
+        if (suggestion.RecordingMbid is not null && song.RecordingMbid is null)
+        {
+            song.RecordingMbid = suggestion.RecordingMbid;
+        }
+
+        if (suggestion.Year is int year && song.Year is null)
+        {
+            song.Year = year;
+        }
+    }
+
+    private static bool MetadataDiffers(Song song, string? currentGenreName, CanonicalMatchDto suggestion)
+    {
+        if (suggestion.Year is int year && song.Year != year)
+        {
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(suggestion.SuggestedGenreName)
+            && !string.Equals(currentGenreName, suggestion.SuggestedGenreName, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    private async Task<int?> ResolveGenreIdAsync(string? genreName, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(genreName))
+        {
+            return null;
+        }
+
+        var trimmed = genreName.Trim();
+        var existing = await db.Genres
+            .FirstOrDefaultAsync(g => g.GenreName == trimmed, cancellationToken);
+        if (existing is not null)
+        {
+            return existing.Id;
+        }
+
+        var created = new Genre { GenreName = trimmed };
+        db.Genres.Add(created);
+        await db.SaveChangesAsync(cancellationToken);
+        return created.Id;
     }
 
     private static List<CanonicalArtistCreditDto> BuildCreditsFromLegacyRequest(ApplyCanonicalRequest request)

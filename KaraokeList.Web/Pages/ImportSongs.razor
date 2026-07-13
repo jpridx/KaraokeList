@@ -17,8 +17,8 @@
     <section id="verify" class="more-section">
         <h2 class="more-section-title">Verify existing catalog</h2>
         <p class="text-muted small mb-2">
-            Check unverified songs against MusicBrainz and apply canonical title/artist names.
-            Processes up to 25 songs per batch (about 1 second per song).
+            Check unverified songs against MusicBrainz and apply canonical title, artist, year, and genre.
+            Processes up to 25 songs per batch (about 2 seconds per song).
         </p>
         <button type="button" class="btn btn-outline-primary btn-sm"
                 @onclick="VerifyCatalogAsync"
@@ -48,11 +48,39 @@
                             @foreach (var item in verifyResult.Items)
                             {
                                 <tr>
-                                    <td>@item.CurrentTitle — @item.CurrentArtistDisplay</td>
+                                    <td>
+                                        <div>@item.CurrentTitle — @item.CurrentArtistDisplay</div>
+                                        @if (item.CurrentYear is int year || !string.IsNullOrWhiteSpace(item.CurrentGenreName))
+                                        {
+                                            <div class="text-muted small">
+                                                @if (item.CurrentYear is int currentYear)
+                                                {
+                                                    <span>@currentYear</span>
+                                                }
+                                                @if (!string.IsNullOrWhiteSpace(item.CurrentGenreName))
+                                                {
+                                                    <span class="@(item.CurrentYear is int ? "ms-1" : null)">@item.CurrentGenreName</span>
+                                                }
+                                            </div>
+                                        }
+                                    </td>
                                     <td>
                                         @if (item.Suggestion is not null)
                                         {
                                             <span>@item.Suggestion.Title — @item.Suggestion.ArtistCreditDisplay</span>
+                                            @if (item.Suggestion.Year is int suggestedYear || !string.IsNullOrWhiteSpace(item.Suggestion.SuggestedGenreName))
+                                            {
+                                                <div class="text-muted small">
+                                                    @if (item.Suggestion.Year is int suggestedYearValue)
+                                                    {
+                                                        <span>@suggestedYearValue</span>
+                                                    }
+                                                    @if (!string.IsNullOrWhiteSpace(item.Suggestion.SuggestedGenreName))
+                                                    {
+                                                        <span class="@(item.Suggestion.Year is int ? "ms-1" : null)">@item.Suggestion.SuggestedGenreName</span>
+                                                    }
+                                                </div>
+                                            }
                                             @if (item.NamesMatch)
                                             {
                                                 <span class="badge bg-success ms-1">match</span>
@@ -64,7 +92,7 @@
                                         }
                                     </td>
                                     <td>
-                                        @if (item.Suggestion is not null && !item.NamesMatch)
+                                        @if (item.Suggestion is not null && (!item.NamesMatch || item.MetadataNeedsApply))
                                         {
                                             <button type="button" class="btn btn-outline-primary btn-sm"
                                                     disabled="@(applyingSongId == item.SongId)"
@@ -405,7 +433,9 @@
                 ArtistCreditDisplay = item.Suggestion.ArtistCreditDisplay,
                 RecordingMbid = item.Suggestion.RecordingMbid,
                 ArtistMbid = item.Suggestion.ArtistMbid,
-                ArtistCredits = item.Suggestion.ArtistCredits
+                ArtistCredits = item.Suggestion.ArtistCredits,
+                Year = item.Suggestion.Year,
+                GenreName = item.Suggestion.SuggestedGenreName
             });
 
             if (applied is null)
@@ -417,6 +447,9 @@
             await RefreshSongsAsync();
             allArtists = await Api.GetArtistLookupsAsync();
             item.NamesMatch = true;
+            item.MetadataNeedsApply = false;
+            item.CurrentYear = applied.Year;
+            item.CurrentGenreName = applied.GenreName;
         }
         catch (Exception ex)
         {
