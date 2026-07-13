@@ -18,7 +18,7 @@
         <h2 class="more-section-title">Verify existing catalog</h2>
         <p class="text-muted small mb-2">
             Check songs against MusicBrainz and apply canonical title, artist, year, and genre.
-            Processes up to 25 songs per batch (about 2 seconds per song).
+            Processes up to 10 songs per batch (about 2 seconds per song) to avoid browser timeouts.
         </p>
         <div class="form-check mb-2">
             <input class="form-check-input" type="checkbox" id="verifyUnverifiedOnly" @bind="verifyUnverifiedOnly" />
@@ -27,9 +27,9 @@
             </label>
         </div>
         <button type="button" class="btn btn-outline-primary btn-sm"
-                @onclick="VerifyCatalogAsync"
+                @onclick="() => VerifyCatalogAsync(advanceBatch: false)"
                 disabled="@isVerifying">
-            @(isVerifying ? "Verifying…" : "Verify next batch")
+            @(isVerifying ? "Verifying…" : verifyResult is null ? "Verify batch" : "Restart verification")
         </button>
 
         @if (verifyResult is not null)
@@ -140,7 +140,7 @@
             @if (verifyResult.HasMore)
             {
                 <button type="button" class="btn btn-link btn-sm p-0"
-                        @onclick="VerifyCatalogAsync" disabled="@isVerifying">
+                        @onclick="() => VerifyCatalogAsync(advanceBatch: true)" disabled="@isVerifying">
                     Verify next batch
                 </button>
             }
@@ -323,6 +323,7 @@
 
     private bool isVerifying;
     private bool verifyUnverifiedOnly = true;
+    private int verifyOffset;
     private CatalogVerifyResultDto? verifyResult;
     private int? applyingSongId;
 
@@ -444,28 +445,38 @@
         }
     }
 
-    private async Task VerifyCatalogAsync()
+    private async Task VerifyCatalogAsync(bool advanceBatch)
     {
         if (isVerifying) return;
         isVerifying = true;
         pageError = null;
 
+        if (!advanceBatch)
+        {
+            verifyOffset = 0;
+        }
+
         try
         {
             var result = await Api.VerifyCatalogAsync(new CatalogVerifyRequest
             {
-                Offset = 0,
-                Limit = 25,
+                Offset = verifyOffset,
+                Limit = CatalogVerifyRequest.RecommendedBatchSize,
                 UnverifiedOnly = verifyUnverifiedOnly
             });
 
             if (result is null)
             {
-                pageError = "Catalog verification failed.";
+                pageError = "Catalog verification failed — the request may have timed out. Try again with a smaller catalog batch or check your connection.";
                 return;
             }
 
             verifyResult = result;
+            verifyOffset = result.Offset + result.Scanned;
+        }
+        catch (TaskCanceledException)
+        {
+            pageError = "Catalog verification timed out. Each batch checks up to 10 songs (~20 seconds). Click Verify next batch to continue.";
         }
         catch (Exception ex)
         {
@@ -562,6 +573,7 @@
                 ? "No MusicBrainz matches were stored."
                 : $"Cleared {result.ClearedCount} MusicBrainz match{(result.ClearedCount == 1 ? "" : "es")}.";
             verifyResult = null;
+            verifyOffset = 0;
             await RefreshSongsAsync();
         }
         catch (Exception ex)
