@@ -49,6 +49,7 @@
                         <RecentLogList Items="@recentLogs"
                                        Heading="Recently logged"
                                        HeadingSuffix="@(catalogState.UsingOfflineCatalog && !catalogState.HasCachedCatalog ? " — tap to pick a song" : string.Empty)"
+                                       MaxItems="@LogPerformanceLocalStore.MaxRecentLogs"
                                        IncludeKeyInMeta="true"
                                        OnItemSelected="SelectSongAsync" />
                     </div>

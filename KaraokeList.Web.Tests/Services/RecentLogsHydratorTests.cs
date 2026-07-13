@@ -61,6 +61,20 @@ public sealed class RecentLogsHydratorTests
         Assert.Equal("Older Song", merged[1].Title);
     }
 
+    [Fact]
+    public void Merge_limits_to_max_recent_logs()
+    {
+        var api = Enumerable.Range(1, 6)
+            .Select(i => CreateApiEntry(i, $"Song {i}", new DateTime(2026, 7, i)))
+            .ToList();
+
+        var merged = RecentLogsHydrator.Merge(api, [], []);
+
+        Assert.Equal(LogPerformanceLocalStore.MaxRecentLogs, merged.Count);
+        Assert.Equal("Song 6", merged[0].Title);
+        Assert.Equal("Song 4", merged[2].Title);
+    }
+
     private static MyPerformanceEntryDto CreateApiEntry(int songId, string title, DateTime performedOn) =>
         new()
         {
