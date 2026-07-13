@@ -53,7 +53,7 @@
     @if (_alternatives.Count > 0)
     {
         <details class="small mt-2">
-            <summary class="text-muted">@_alternatives.Count other MusicBrainz match@(_alternatives.Count == 1 ? "" : "es")</summary>
+            <summary class="text-muted">@_alternatives.Count other match@(_alternatives.Count == 1 ? "" : "es"), oldest first</summary>
             <ul class="list-unstyled mb-0 mt-2">
                 @foreach (var alternative in _alternatives)
                 {
@@ -145,7 +145,7 @@
             });
 
             _match = response?.Match.Found == true ? response.Match : null;
-            _alternatives = response?.Alternatives ?? [];
+            _alternatives = MusicBrainzSearchHelper.SortMatchesOldestFirst(response?.Alternatives ?? []);
             if (_match is null)
             {
                 _error = "No MusicBrainz match found — names will be saved as entered.";

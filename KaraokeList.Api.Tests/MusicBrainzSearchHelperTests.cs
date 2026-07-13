@@ -40,6 +40,34 @@ public class MusicBrainzSearchHelperTests
 
         Assert.Equal(1979, year);
     }
+
+    [Fact]
+    public void SortMatchesOldestFirst_orders_by_year_ascending()
+    {
+        var sorted = MusicBrainzSearchHelper.SortMatchesOldestFirst(
+        [
+            new CanonicalMatchDto { Title = "Reissue", Year = 1994, Score = 100 },
+            new CanonicalMatchDto { Title = "Original", Year = 1979, Score = 95 },
+            new CanonicalMatchDto { Title = "Undated", Year = null, Score = 99 }
+        ]);
+
+        Assert.Equal("Original", sorted[0].Title);
+        Assert.Equal("Reissue", sorted[1].Title);
+        Assert.Equal("Undated", sorted[2].Title);
+    }
+
+    [Fact]
+    public void SortMatchesOldestFirst_puts_likely_reissues_last()
+    {
+        var sorted = MusicBrainzSearchHelper.SortMatchesOldestFirst(
+        [
+            new CanonicalMatchDto { Title = "Compilation", Year = 1979, Score = 100, Disambiguation = "1994 compilation" },
+            new CanonicalMatchDto { Title = "Single", Year = 1979, Score = 90 }
+        ]);
+
+        Assert.Equal("Single", sorted[0].Title);
+        Assert.Equal("Compilation", sorted[1].Title);
+    }
 }
 
 public class MusicBrainzRecordingSelectionTests
@@ -116,5 +144,25 @@ public class MusicBrainzRecordingSelectionTests
         var year = MusicBrainzService.GetEarliestReleaseYear(recording);
 
         Assert.Equal(2005, year);
+    }
+
+    [Fact]
+    public void OrderMatchesOldestFirst_promotes_earliest_studio_recording()
+    {
+        var recordingsById = new Dictionary<string, MusicBrainzService.MusicBrainzRecording>(StringComparer.Ordinal)
+        {
+            ["1994"] = new() { Id = "1994", FirstReleaseDate = "1994", Score = 100 },
+            ["1979"] = new() { Id = "1979", FirstReleaseDate = "1979", Score = 95 }
+        };
+
+        var ordered = MusicBrainzService.OrderMatchesOldestFirst(
+        [
+            new CanonicalMatchDto { RecordingMbid = "1994", Title = "My Sharona", Year = 1994, Score = 100 },
+            new CanonicalMatchDto { RecordingMbid = "1979", Title = "My Sharona", Year = 1979, Score = 95 }
+        ],
+        recordingsById);
+
+        Assert.Equal("1979", ordered[0].RecordingMbid);
+        Assert.Equal("1994", ordered[1].RecordingMbid);
     }
 }
