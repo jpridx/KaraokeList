@@ -29,6 +29,9 @@
                        OnGenreConfirmed="OnGenreConfirmedAsync" Disabled="@isBusy"
                        Title="@title" Artist="@PrimaryArtistName" />
 
+        <label class="form-label mt-3">Year (optional)</label>
+        <input class="form-control mb-2" type="number" min="1900" max="2100" @bind="yearText" placeholder="e.g. 1981" />
+
         @if (!string.IsNullOrEmpty(localError))
         {
             <div class="alert alert-danger small mt-3 mb-0">@localError</div>
@@ -63,6 +66,7 @@
     private List<string> artistNames = [string.Empty];
     private string genreName = string.Empty;
     private int? confirmedGenreId;
+    private string yearText = string.Empty;
     private string? artistCreditDisplay;
     private string? recordingMbid;
     private string? localError;
@@ -235,6 +239,18 @@
         recordingMbid = args.RecordingMbid;
         artistCreditDisplay = args.ArtistCreditDisplay;
         artistNames = args.ArtistNames?.ToList() ?? [args.ArtistName];
+
+        if (args.Year is int year)
+        {
+            yearText = year.ToString();
+        }
+
+        if (!string.IsNullOrWhiteSpace(args.SuggestedGenreName))
+        {
+            genreName = args.SuggestedGenreName;
+            confirmedGenreId = LogGenrePicker.ResolveGenreId(genreName, genres);
+        }
+
         return Task.CompletedTask;
     }
 
@@ -271,6 +287,7 @@
             {
                 Title = trimmedTitle,
                 Genre = resolvedGenreId,
+                Year = ParseYear(yearText),
                 RecordingMbid = recordingMbid,
                 ArtistCreditDisplay = artistCreditDisplay,
                 Artists = artistCredits
@@ -293,4 +310,7 @@
     }
 
     private Task CancelAsync() => OnCancelled.InvokeAsync();
+
+    private static int? ParseYear(string? value) =>
+        int.TryParse(value?.Trim(), out var year) && year is >= 1900 and <= 2100 ? year : null;
 }

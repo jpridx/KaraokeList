@@ -47,6 +47,19 @@
                 </button>
             }
         }
+        @if (_match.Year is int year || !string.IsNullOrWhiteSpace(_match.SuggestedGenreName))
+        {
+            <div class="mt-1 text-muted">
+                @if (_match.Year is int matchedYear)
+                {
+                    <span>Year: @matchedYear</span>
+                }
+                @if (!string.IsNullOrWhiteSpace(_match.SuggestedGenreName))
+                {
+                    <span class="@(_match.Year is int ? "ms-2" : null)">Genre: @_match.SuggestedGenreName</span>
+                }
+            </div>
+        }
     </div>
 }
 
@@ -72,7 +85,7 @@
     [Parameter]
     public bool AutoCheck { get; set; }
 
-    /// <summary>Fired when canonical names are applied, including optional MBIDs.</summary>
+    /// <summary>Fired when canonical names are applied, including optional MBIDs, year, and genre.</summary>
     [Parameter]
     public EventCallback<CanonicalAppliedEventArgs> OnCanonicalApplied { get; set; }
 
@@ -152,7 +165,9 @@
             _match.RecordingMbid,
             _match.ArtistMbid,
             _match.ArtistCreditDisplay,
-            _match.ArtistCredits.Select(c => c.Name).ToList()));
+            _match.ArtistCredits.Select(c => c.Name).ToList(),
+            _match.Year,
+            _match.SuggestedGenreName));
         _namesMatch = true;
     }
 }

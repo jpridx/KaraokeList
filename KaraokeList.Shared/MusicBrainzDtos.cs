@@ -24,6 +24,8 @@ public class CanonicalMatchDto
     public string? ArtistMbid { get; set; }
     public int Score { get; set; }
     public string? Disambiguation { get; set; }
+    public int? Year { get; set; }
+    public string? SuggestedGenreName { get; set; }
     public List<CanonicalArtistCreditDto> ArtistCredits { get; set; } = [];
 }
 
@@ -41,6 +43,9 @@ public class ApplyCanonicalRequest
     public string? ArtistCreditDisplay { get; set; }
     public string? RecordingMbid { get; set; }
     public string? ArtistMbid { get; set; }
+    public int? Year { get; set; }
+    public int? GenreId { get; set; }
+    public string? GenreName { get; set; }
     public List<CanonicalArtistCreditDto> ArtistCredits { get; set; } = [];
 }
 
@@ -53,6 +58,9 @@ public class ApplyCanonicalResponse
     public int? ArtistId { get; set; }
     public string? RecordingMbid { get; set; }
     public string? ArtistMbid { get; set; }
+    public int? Year { get; set; }
+    public int? GenreId { get; set; }
+    public string? GenreName { get; set; }
     public List<SongArtistDto> Artists { get; set; } = [];
 }
 
@@ -78,7 +86,10 @@ public class CatalogVerifyItemDto
     public string CurrentTitle { get; set; } = string.Empty;
     public string CurrentArtistName { get; set; } = string.Empty;
     public string CurrentArtistDisplay { get; set; } = string.Empty;
+    public int? CurrentYear { get; set; }
+    public string? CurrentGenreName { get; set; }
     public string? RecordingMbid { get; set; }
     public CanonicalMatchDto? Suggestion { get; set; }
     public bool NamesMatch { get; set; }
+    public bool MetadataNeedsApply { get; set; }
 }
