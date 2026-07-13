@@ -17,9 +17,15 @@
     <section id="verify" class="more-section">
         <h2 class="more-section-title">Verify existing catalog</h2>
         <p class="text-muted small mb-2">
-            Check unverified songs against MusicBrainz and apply canonical title, artist, year, and genre.
+            Check songs against MusicBrainz and apply canonical title, artist, year, and genre.
             Processes up to 25 songs per batch (about 2 seconds per song).
         </p>
+        <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" id="verifyUnverifiedOnly" @bind="verifyUnverifiedOnly" />
+            <label class="form-check-label small" for="verifyUnverifiedOnly">
+                Only songs without a MusicBrainz match
+            </label>
+        </div>
         <button type="button" class="btn btn-outline-primary btn-sm"
                 @onclick="VerifyCatalogAsync"
                 disabled="@isVerifying">
@@ -29,7 +35,7 @@
         @if (verifyResult is not null)
         {
             <dl class="row mb-2 small mt-2">
-                <dt class="col-6">Unverified songs</dt><dd class="col-6">@verifyResult.TotalMatching</dd>
+                <dt class="col-6">@(verifyUnverifiedOnly ? "Unverified songs" : "Songs in catalog")</dt><dd class="col-6">@verifyResult.TotalMatching</dd>
                 <dt class="col-6">Scanned this batch</dt><dd class="col-6">@verifyResult.Scanned</dd>
             </dl>
 
@@ -85,6 +91,29 @@
                                             {
                                                 <span class="badge bg-success ms-1">match</span>
                                             }
+                                            @if (item.Alternatives.Count > 0)
+                                            {
+                                                <details class="small mt-1">
+                                                    <summary class="text-muted">@item.Alternatives.Count other match@(item.Alternatives.Count == 1 ? "" : "es")</summary>
+                                                    <ul class="list-unstyled mb-0 mt-1">
+                                                        @foreach (var alt in item.Alternatives)
+                                                        {
+                                                            <li class="mb-1">
+                                                                <div>@alt.Title — @alt.ArtistCreditDisplay</div>
+                                                                @if (alt.Year is int altYear)
+                                                                {
+                                                                    <span class="text-muted">@altYear</span>
+                                                                }
+                                                                <button type="button" class="btn btn-link btn-sm p-0 ms-1"
+                                                                        disabled="@(applyingSongId == item.SongId)"
+                                                                        @onclick="() => ApplyAlternativeAsync(item, alt)">
+                                                                    Use this
+                                                                </button>
+                                                            </li>
+                                                        }
+                                                    </ul>
+                                                </details>
+                                            }
                                         }
                                         else
                                         {
@@ -115,6 +144,30 @@
                     Verify next batch
                 </button>
             }
+        }
+    </section>
+
+    @* ── Reset MusicBrainz matches ────────────────────────────────── *@
+    <section class="more-section">
+        <h2 class="more-section-title">Reset MusicBrainz matches</h2>
+        <p class="text-muted small mb-2">
+            Clear stored MusicBrainz recording IDs so you can re-verify the catalog from scratch.
+            Song titles, artists, and performances are not changed.
+        </p>
+        <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" id="clearYearsToo" @bind="clearYearsToo" />
+            <label class="form-check-label small" for="clearYearsToo">
+                Also clear release years (recommended when fixing wrong dates)
+            </label>
+        </div>
+        <button type="button" class="btn btn-outline-danger btn-sm"
+                @onclick="ClearMatchesAsync"
+                disabled="@isClearingMatches">
+            @(isClearingMatches ? "Clearing…" : "Clear all MusicBrainz matches")
+        </button>
+        @if (!string.IsNullOrEmpty(clearMatchesMessage))
+        {
+            <p class="mt-2 small @(clearMatchesSuccess ? "text-success" : "text-danger")">@clearMatchesMessage</p>
         }
     </section>
 
@@ -269,8 +322,14 @@
     private string? pageError;
 
     private bool isVerifying;
+    private bool verifyUnverifiedOnly = true;
     private CatalogVerifyResultDto? verifyResult;
     private int? applyingSongId;
+
+    private bool isClearingMatches;
+    private bool clearYearsToo = true;
+    private string? clearMatchesMessage;
+    private bool clearMatchesSuccess;
 
     private List<SongDto> allSongs = [];
     private List<ArtistLookupDto> allArtists = [];
@@ -397,7 +456,7 @@
             {
                 Offset = 0,
                 Limit = 25,
-                UnverifiedOnly = true
+                UnverifiedOnly = verifyUnverifiedOnly
             });
 
             if (result is null)
@@ -421,6 +480,18 @@
     private async Task ApplyVerifiedAsync(CatalogVerifyItemDto item)
     {
         if (item.Suggestion is null || applyingSongId is not null) return;
+        await ApplyMatchAsync(item, item.Suggestion);
+    }
+
+    private async Task ApplyAlternativeAsync(CatalogVerifyItemDto item, CanonicalMatchDto alternative)
+    {
+        if (applyingSongId is not null) return;
+        item.Suggestion = alternative;
+        await ApplyMatchAsync(item, alternative);
+    }
+
+    private async Task ApplyMatchAsync(CatalogVerifyItemDto item, CanonicalMatchDto match)
+    {
         applyingSongId = item.SongId;
 
         try
@@ -428,14 +499,14 @@
             var applied = await Api.ApplyCanonicalAsync(new ApplyCanonicalRequest
             {
                 SongId = item.SongId,
-                Title = item.Suggestion.Title,
-                ArtistName = item.Suggestion.ArtistName,
-                ArtistCreditDisplay = item.Suggestion.ArtistCreditDisplay,
-                RecordingMbid = item.Suggestion.RecordingMbid,
-                ArtistMbid = item.Suggestion.ArtistMbid,
-                ArtistCredits = item.Suggestion.ArtistCredits,
-                Year = item.Suggestion.Year,
-                GenreName = item.Suggestion.SuggestedGenreName
+                Title = match.Title,
+                ArtistName = match.ArtistName,
+                ArtistCreditDisplay = match.ArtistCreditDisplay,
+                RecordingMbid = match.RecordingMbid,
+                ArtistMbid = match.ArtistMbid,
+                ArtistCredits = match.ArtistCredits,
+                Year = match.Year,
+                GenreName = match.SuggestedGenreName
             });
 
             if (applied is null)
@@ -448,8 +519,11 @@
             allArtists = await Api.GetArtistLookupsAsync();
             item.NamesMatch = true;
             item.MetadataNeedsApply = false;
+            item.CurrentTitle = applied.Title;
+            item.CurrentArtistDisplay = applied.ArtistCreditDisplay;
             item.CurrentYear = applied.Year;
             item.CurrentGenreName = applied.GenreName;
+            item.RecordingMbid = applied.RecordingMbid;
         }
         catch (Exception ex)
         {
@@ -458,6 +532,46 @@
         finally
         {
             applyingSongId = null;
+        }
+    }
+
+    private async Task ClearMatchesAsync()
+    {
+        if (isClearingMatches) return;
+        isClearingMatches = true;
+        clearMatchesMessage = null;
+        pageError = null;
+
+        try
+        {
+            var result = await Api.ClearCanonicalMatchesAsync(new CatalogClearMatchesRequest
+            {
+                ClearAll = true,
+                ClearYears = clearYearsToo
+            });
+
+            if (result is null)
+            {
+                clearMatchesSuccess = false;
+                clearMatchesMessage = "Could not clear MusicBrainz matches.";
+                return;
+            }
+
+            clearMatchesSuccess = true;
+            clearMatchesMessage = result.ClearedCount == 0
+                ? "No MusicBrainz matches were stored."
+                : $"Cleared {result.ClearedCount} MusicBrainz match{(result.ClearedCount == 1 ? "" : "es")}.";
+            verifyResult = null;
+            await RefreshSongsAsync();
+        }
+        catch (Exception ex)
+        {
+            clearMatchesSuccess = false;
+            clearMatchesMessage = $"Clear failed: {ex.Message}";
+        }
+        finally
+        {
+            isClearingMatches = false;
         }
     }
 

@@ -9,6 +9,7 @@ public interface ICanonicalCatalogService
     Task<CanonicalLookupResponse> LookupAsync(string title, string artist, CancellationToken cancellationToken = default);
     Task<ApplyCanonicalResponse?> ApplyAsync(ApplyCanonicalRequest request, CancellationToken cancellationToken = default);
     Task<CatalogVerifyResultDto> VerifyBatchAsync(CatalogVerifyRequest request, CancellationToken cancellationToken = default);
+    Task<CatalogClearMatchesResultDto> ClearMatchesAsync(CatalogClearMatchesRequest request, CancellationToken cancellationToken = default);
     Task<CanonicalMatchDto?> CanonicizeRowAsync(string title, string artist, CancellationToken cancellationToken = default);
 }
 
@@ -188,6 +189,7 @@ public sealed class CanonicalCatalogService(
                 CurrentGenreName = currentGenreName,
                 RecordingMbid = song.RecordingMbid,
                 Suggestion = suggestion,
+                Alternatives = lookup.Alternatives,
                 NamesMatch = namesMatch,
                 MetadataNeedsApply = metadataNeedsApply
             });
@@ -213,6 +215,45 @@ public sealed class CanonicalCatalogService(
     {
         var lookup = await musicBrainzService.LookupAsync(title, artist, cancellationToken);
         return lookup.Match.Found ? lookup.Match : null;
+    }
+
+    public async Task<CatalogClearMatchesResultDto> ClearMatchesAsync(
+        CatalogClearMatchesRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        IQueryable<Song> query = db.Songs.Where(s => s.RecordingMbid != null);
+
+        if (request.SongIds is { Count: > 0 })
+        {
+            query = query.Where(s => request.SongIds.Contains(s.Id));
+        }
+        else if (!request.ClearAll)
+        {
+            return new CatalogClearMatchesResultDto();
+        }
+
+        var songs = await query.ToListAsync(cancellationToken);
+        var totalMatched = await db.Songs.CountAsync(s => s.RecordingMbid != null, cancellationToken);
+
+        foreach (var song in songs)
+        {
+            song.RecordingMbid = null;
+            if (request.ClearYears)
+            {
+                song.Year = null;
+            }
+        }
+
+        if (songs.Count > 0)
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+
+        return new CatalogClearMatchesResultDto
+        {
+            ClearedCount = songs.Count,
+            TotalMatched = totalMatched
+        };
     }
 
     private static void BackfillMetadataFromSuggestion(Song song, CanonicalMatchDto suggestion)

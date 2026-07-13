@@ -35,6 +35,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="KaraokeList.Api.IntegrationTests" />
+    <InternalsVisibleTo Include="KaraokeList.Api.Tests" />
   </ItemGroup>
 
 </Project>

@@ -106,6 +106,7 @@ public interface IKaraokeApiClient
     Task<CanonicalLookupResponse?> LookupCanonicalAsync(CanonicalLookupRequest request);
     Task<ApplyCanonicalResponse?> ApplyCanonicalAsync(ApplyCanonicalRequest request);
     Task<CatalogVerifyResultDto?> VerifyCatalogAsync(CatalogVerifyRequest request);
+    Task<CatalogClearMatchesResultDto?> ClearCanonicalMatchesAsync(CatalogClearMatchesRequest request);
 }
 
 public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
@@ -1082,6 +1083,24 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
             }
 
             return await response.Content.ReadFromJsonAsync<CatalogVerifyResultDto>(JsonOptions);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public async Task<CatalogClearMatchesResultDto?> ClearCanonicalMatchesAsync(CatalogClearMatchesRequest request)
+    {
+        try
+        {
+            var response = await http.PostAsJsonAsync("api/canonical/clear-matches", request);
+            if (!response.IsSuccessStatusCode)
+            {
+                return null;
+            }
+
+            return await response.Content.ReadFromJsonAsync<CatalogClearMatchesResultDto>(JsonOptions);
         }
         catch
         {
