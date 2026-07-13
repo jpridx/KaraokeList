@@ -73,42 +73,14 @@ Catalog CRUD uses raw SQL `DELETE FROM … WHERE Id=@Id` with no referential che
 
 ---
 
-### `SongArtists` → `Songs` / `Artists` — enforce (**CASCADE** / **RESTRICT**)
+### `SongArtists` → `Songs` / `Artists` — enforced (**CASCADE** / **RESTRICT**)
 
 **Table:** `SongArtists` (`SongId`, `ArtistId`, `DisplayOrder`)
 
-**Today:** Junction table links songs to one or more artists. `DisplayOrder = 0` is primary.
+**Today:** Junction table links songs to one or more artists. `DisplayOrder = 0` is primary. FKs applied in migration `20260713010358_AddSongArtists`. Legacy `Songs.Artist` / `Songs.SecondaryArtist` columns were backfilled and dropped in `20260713011029_AddArtistCreditDisplayAndDropLegacySongArtists`.
 
-**Recommendation:**
-
-- `SongId` → **`ON DELETE CASCADE`** (delete credits when song is deleted).
-- `ArtistId` → **`ON DELETE RESTRICT`** (admin must remove artist credits before deleting an artist).
-
----
-
-### `Songs.SecondaryArtist` → `Artists` — legacy (**SET NULL**)
-
-**Column:** `Songs.SecondaryArtist` (deprecated; replaced by `SongArtists`)
-
-**Today:** Optional int; backfilled to `SongArtists` with `DisplayOrder = 1`. Column dropped after API/UI migration.
-
-**Recommendation:** FK with **`ON DELETE SET NULL`** until column is removed.
-
----
-
-### `Songs` → `Artists` (primary) — legacy (**RESTRICT** or **SET NULL**)
-
-**Column:** `Songs.Artist` (deprecated; replaced by `SongArtists` primary row)
-
-**Today:** No FK.
-
-**Problems:**
-
-- Deleted artist → song keeps stale id; grids and JOINs show blank artist.
-- Song remains loggable; performance history shows empty artist via `LEFT JOIN`.
-- Catalog quality degrades silently.
-
-**Recommendation:** **`RESTRICT`** if artist is required for a valid catalog row; admin must reassign songs before removing an artist.
+- `SongId` → **`ON DELETE CASCADE`**
+- `ArtistId` → **`ON DELETE RESTRICT`**
 
 ---
 
@@ -188,8 +160,8 @@ API delete endpoints (admin unless noted):
 
 ### Phase 2 — catalog
 
-1. FKs on `Songs` → `Artists`, `Genres`; `Songs.SecondaryArtist` → `Artists`; `Artists.MainGenre` → `Genres`.
-2. Same orphan cleanup before migration.
+1. FKs on `Songs` → `Genres`; `Artists.MainGenre` → `Genres`; multi-artist credits via `SongArtists` (done).
+2. Same orphan cleanup before migration where FKs are added.
 
 ### Phase 3 — accounts and performance policy
 

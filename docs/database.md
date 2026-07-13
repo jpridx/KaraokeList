@@ -13,6 +13,8 @@ Migrations live in `KaraokeList.Api/Data/Migrations/`:
 | `20260616033911_UniqueArtistName` | Unique index on `Artists.Name` |
 | `20260623235540_AddCatalogForeignKeys` | Performance/song/singer/venue FKs; song→artist FKs; `Performances.Song`/`Singer` NOT NULL |
 | `20260711012300_AddGenreGroups` | `GenreGroups`, `GenreGroupGenres`; seeds six fixed groups + genre mappings |
+| `20260713010358_AddSongArtists` | `SongArtists` junction; backfill from legacy `Songs.Artist` / `SecondaryArtist` |
+| `20260713011029_AddArtistCreditDisplayAndDropLegacySongArtists` | `ArtistCreditDisplay`; drop legacy artist columns |
 
 ### Apply schema
 

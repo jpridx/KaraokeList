@@ -104,9 +104,50 @@ jobs:
         id: azure
         run: |
           API_APP_NAME="api-${AZURE_BASE_NAME}"
+          SQL_SERVER_NAME="sql-${AZURE_BASE_NAME}"
           API_BASE_URL="https://${API_APP_NAME}.azurewebsites.net"
           echo "api_app_name=${API_APP_NAME}" >> "$GITHUB_OUTPUT"
+          echo "sql_server_name=${SQL_SERVER_NAME}" >> "$GITHUB_OUTPUT"
           echo "api_base_url=${API_BASE_URL}" >> "$GITHUB_OUTPUT"
+
+      - name: Allow GitHub Actions runner on SQL firewall
+        id: sqlfw
+        run: |
+          RUNNER_IP=$(curl -s https://api.ipify.org)
+          RULE_NAME="gha-${{ github.run_id }}"
+          az sql server firewall-rule create \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --server "${{ steps.azure.outputs.sql_server_name }}" \
+            --name "$RULE_NAME" \
+            --start-ip-address "$RUNNER_IP" \
+            --end-ip-address "$RUNNER_IP" \
+            --output none
+          echo "rule_name=$RULE_NAME" >> "$GITHUB_OUTPUT"
+          echo "Runner IP ${RUNNER_IP} allowed as ${RULE_NAME}"
+
+      - name: Install EF tools
+        run: dotnet tool install --global dotnet-ef --version 10.0.8
+
+      - name: Apply EF migrations
+        run: |
+          export PATH="$PATH:$HOME/.dotnet/tools"
+          CONN=$(az webapp config connection-string list \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --name "${{ steps.azure.outputs.api_app_name }}" \
+            --query "[?name=='DefaultConnection'].value" -o tsv)
+          dotnet ef database update \
+            --project KaraokeList.Api/KaraokeList.Api.csproj \
+            --connection "$CONN"
+
+      - name: Remove GitHub Actions SQL firewall rule
+        if: always() && steps.sqlfw.outputs.rule_name != ''
+        run: |
+          az sql server firewall-rule delete \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --server "${{ steps.azure.outputs.sql_server_name }}" \
+            --name "${{ steps.sqlfw.outputs.rule_name }}" \
+            --output none \
+            || true
 
       - name: Publish API
         run: |
@@ -135,7 +176,7 @@ jobs:
       - name: Deploy API (zip)
         run: |
           # --track-status false: Azure CLI 2.61+ polls until "site started" (~5 min cap).
-          # EF migrate + cold SQL often exceed that even when deploy succeeds; smoke test below is the gate.
+          # Migrations run before publish; startup MigrateAsync() is a dev/fresh-DB safety net.
           az webapp deploy \
             --resource-group "${AZURE_RESOURCE_GROUP}" \
             --name "${{ steps.azure.outputs.api_app_name }}" \
@@ -172,8 +213,13 @@ jobs:
             ME_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 180 "${API_URL}/api/auth/me" || echo "000")
             REG_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 180 "${API_URL}/api/auth/registration" || echo "000")
             if [ "$ME_STATUS" = "401" ] || [ "$REG_STATUS" = "200" ]; then
-              echo "API smoke test passed on attempt ${attempt} (me=${ME_STATUS}, registration=${REG_STATUS})."
-              exit 0
+              VERSION_JSON=$(curl -s --max-time 60 "${API_URL}/api/version" || echo "{}")
+              echo "Version: ${VERSION_JSON}"
+              if echo "${VERSION_JSON}" | grep -q '"databaseAvailable":true'; then
+                echo "API smoke test passed on attempt ${attempt} (me=${ME_STATUS}, registration=${REG_STATUS}, database available)."
+                exit 0
+              fi
+              echo "API responded but databaseAvailable is not true — retrying..."
             fi
             ROOT_SNIPPET=$(curl -s --max-time 30 "${API_URL}/" | tr -d '\n' | head -c 120)
             echo "Attempt ${attempt}/40: me=${ME_STATUS}, registration=${REG_STATUS}"
@@ -295,5 +341,5 @@ jobs:
             echo "| WASM | ${WASM_PUBLIC_ORIGIN%/} |"
             echo "| Register | ${WASM_PUBLIC_ORIGIN%/}/register?invite=YOUR_CODE |"
             echo ""
-            echo "EF migrations run on first API startup. Seed catalog if needed (\`scripts/seed-catalog.sql\`)."
+            echo "EF migrations run in deploy-api before publish. Seed catalog if needed (\`scripts/seed-catalog.sql\`)."
           } >> "$GITHUB_STEP_SUMMARY"
