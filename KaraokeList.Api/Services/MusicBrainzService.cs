@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using KaraokeList.Shared;
@@ -49,10 +50,15 @@ public sealed class MusicBrainzService(IHttpClientFactory httpClientFactory, ICo
             return new CanonicalLookupResponse();
         }
 
-        var matches = payload.Recordings
-            .Select(MapRecording)
-            .Where(m => m.Found)
-            .ToList();
+        var matches = new List<CanonicalMatchDto>();
+        foreach (var recording in payload.Recordings)
+        {
+            var mapped = await MapRecordingAsync(recording, client, cancellationToken);
+            if (mapped.Found)
+            {
+                matches.Add(mapped);
+            }
+        }
 
         if (matches.Count == 0)
         {
@@ -66,19 +72,115 @@ public sealed class MusicBrainzService(IHttpClientFactory httpClientFactory, ICo
         };
     }
 
-    private static CanonicalMatchDto MapRecording(MusicBrainzRecording recording)
+    private async Task<CanonicalMatchDto> MapRecordingAsync(
+        MusicBrainzRecording recording,
+        HttpClient client,
+        CancellationToken cancellationToken)
     {
-        var artistCredit = recording.ArtistCredit?.FirstOrDefault();
+        var credits = BuildArtistCredits(recording.ArtistCredit);
+        var artistCreditDisplay = ComposeArtistCreditDisplay(credits);
+        var primary = credits.FirstOrDefault();
+
         return new CanonicalMatchDto
         {
             Found = true,
             Title = recording.Title?.Trim() ?? string.Empty,
-            ArtistName = artistCredit?.Name?.Trim() ?? string.Empty,
+            ArtistName = primary?.Name ?? string.Empty,
+            ArtistCreditDisplay = artistCreditDisplay,
             RecordingMbid = recording.Id,
-            ArtistMbid = artistCredit?.Artist?.Id,
+            ArtistMbid = primary?.ArtistMbid,
             Score = recording.Score ?? 0,
-            Disambiguation = string.IsNullOrWhiteSpace(recording.Disambiguation) ? null : recording.Disambiguation.Trim()
+            Disambiguation = string.IsNullOrWhiteSpace(recording.Disambiguation) ? null : recording.Disambiguation.Trim(),
+            ArtistCredits = credits
         };
+    }
+
+    internal async Task<Dictionary<string, string>> FetchSortNamesAsync(
+        HttpClient client,
+        IEnumerable<string?> artistMbids,
+        CancellationToken cancellationToken)
+    {
+        var result = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var mbid in artistMbids.Where(m => !string.IsNullOrWhiteSpace(m)).Distinct(StringComparer.Ordinal))
+        {
+            var sortName = await FetchArtistSortNameAsync(client, mbid!, cancellationToken);
+            if (!string.IsNullOrWhiteSpace(sortName))
+            {
+                result[mbid!] = sortName;
+            }
+        }
+
+        return result;
+    }
+
+    private static List<CanonicalArtistCreditDto> BuildArtistCredits(List<MusicBrainzArtistCredit>? artistCredit)
+    {
+        if (artistCredit is not { Count: > 0 })
+        {
+            return [];
+        }
+
+        var credits = new List<CanonicalArtistCreditDto>();
+        foreach (var entry in artistCredit)
+        {
+            if (string.IsNullOrWhiteSpace(entry.Name))
+            {
+                continue;
+            }
+
+            credits.Add(new CanonicalArtistCreditDto
+            {
+                Name = entry.Name.Trim(),
+                ArtistMbid = entry.Artist?.Id,
+                DisplayOrder = credits.Count,
+                JoinPhrase = string.IsNullOrWhiteSpace(entry.JoinPhrase) ? null : entry.JoinPhrase
+            });
+        }
+
+        return credits;
+    }
+
+    internal static string ComposeArtistCreditDisplay(IReadOnlyList<CanonicalArtistCreditDto> credits)
+    {
+        if (credits.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        var builder = new StringBuilder(credits[0].Name);
+        for (var i = 1; i < credits.Count; i++)
+        {
+            var joinPhrase = credits[i].JoinPhrase;
+            if (!string.IsNullOrWhiteSpace(joinPhrase))
+            {
+                builder.Append(joinPhrase.StartsWith(' ') ? joinPhrase : $" {joinPhrase}");
+            }
+            else
+            {
+                builder.Append(", ");
+            }
+
+            builder.Append(credits[i].Name);
+        }
+
+        return builder.ToString();
+    }
+
+    private async Task<string?> FetchArtistSortNameAsync(
+        HttpClient client,
+        string artistMbid,
+        CancellationToken cancellationToken)
+    {
+        await EnforceRateLimitAsync(cancellationToken);
+        using var response = await client.GetAsync($"artist/{artistMbid}?fmt=json", cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            return null;
+        }
+
+        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        var artist = await JsonSerializer.DeserializeAsync<MusicBrainzArtistDetail>(stream, JsonOptions, cancellationToken);
+        return string.IsNullOrWhiteSpace(artist?.SortName) ? null : artist.SortName.Trim();
     }
 
     private static string EscapeQuery(string value) => value.Replace("\"", "\\\"", StringComparison.Ordinal);
@@ -131,6 +233,9 @@ public sealed class MusicBrainzService(IHttpClientFactory httpClientFactory, ICo
         [JsonPropertyName("name")]
         public string? Name { get; set; }
 
+        [JsonPropertyName("joinphrase")]
+        public string? JoinPhrase { get; set; }
+
         [JsonPropertyName("artist")]
         public MusicBrainzArtist? Artist { get; set; }
     }
@@ -139,5 +244,11 @@ public sealed class MusicBrainzService(IHttpClientFactory httpClientFactory, ICo
     {
         [JsonPropertyName("id")]
         public string? Id { get; set; }
+    }
+
+    private sealed class MusicBrainzArtistDetail
+    {
+        [JsonPropertyName("sort-name")]
+        public string? SortName { get; set; }
     }
 }

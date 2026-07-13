@@ -46,7 +46,7 @@ var tables = new (string Table, string[] Columns, bool HasIdentity)[]
     ("Artists", ["Id", "Name", "SortableName", "MainGenre"], true),
     ("Singers", ["Id", "Name"], true),
     ("Venues", ["Id", "VenueName"], true),
-    ("Songs", ["Id", "Title", "Artist", "Genre", "Year", "SecondaryArtist"], true),
+    ("Songs", ["Id", "Title", "Genre", "Year"], true),
     ("Performances", ["Id", "Singer", "Song", "Venue", "PerformedOn", "KeyChangeSemitones"], true),
 };
 
@@ -55,6 +55,9 @@ foreach (var (table, columns, _) in tables)
     await MigrateTableAsync(sqlite, sql, table, columns);
     Console.WriteLine($"Migrated {table}");
 }
+
+await MigrateSongArtistsAsync(sqlite, sql);
+Console.WriteLine("Migrated SongArtists");
 
 Console.WriteLine("Done.");
 
@@ -101,4 +104,54 @@ static async Task MigrateTableAsync(SqliteConnection sqlite, SqlConnection sql, 
     await using var identityOff = sql.CreateCommand();
     identityOff.CommandText = $"SET IDENTITY_INSERT dbo.[{table}] OFF";
     await identityOff.ExecuteNonQueryAsync();
+}
+
+static async Task MigrateSongArtistsAsync(SqliteConnection sqlite, SqlConnection sql)
+{
+    await using var clear = sql.CreateCommand();
+    clear.CommandText = "DELETE FROM dbo.[SongArtists]";
+    try
+    {
+        await clear.ExecuteNonQueryAsync();
+    }
+    catch (SqlException)
+    {
+        // Table may not exist yet; app startup creates schema.
+    }
+
+    await using var read = sqlite.CreateCommand();
+    read.CommandText = "SELECT Id, Artist, SecondaryArtist FROM Songs";
+    await using var reader = await read.ExecuteReaderAsync();
+
+    while (await reader.ReadAsync())
+    {
+        var songId = reader.GetInt32(0);
+        if (!reader.IsDBNull(1))
+        {
+            await InsertSongArtistAsync(sql, songId, reader.GetInt32(1), 0);
+        }
+
+        if (!reader.IsDBNull(2))
+        {
+            var secondaryArtist = reader.GetInt32(2);
+            if (secondaryArtist != 0)
+            {
+                await InsertSongArtistAsync(sql, songId, secondaryArtist, 1);
+            }
+        }
+    }
+}
+
+static async Task InsertSongArtistAsync(SqlConnection sql, int songId, int artistId, int displayOrder)
+{
+    await using var insert = sql.CreateCommand();
+    insert.CommandText = """
+        IF NOT EXISTS (SELECT 1 FROM dbo.SongArtists WHERE SongId = @SongId AND ArtistId = @ArtistId)
+        INSERT INTO dbo.SongArtists (SongId, ArtistId, DisplayOrder)
+        VALUES (@SongId, @ArtistId, @DisplayOrder);
+        """;
+    insert.Parameters.AddWithValue("@SongId", songId);
+    insert.Parameters.AddWithValue("@ArtistId", artistId);
+    insert.Parameters.AddWithValue("@DisplayOrder", displayOrder);
+    await insert.ExecuteNonQueryAsync();
 }

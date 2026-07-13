@@ -1,4 +1,3 @@
-using KaraokeList.Api.Mapping;
 using KaraokeList.Api.Services;
 using KaraokeList.Data;
 using KaraokeList.Shared;
@@ -10,27 +9,29 @@ namespace KaraokeList.Api.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class SongsController(SongService songService, CatalogIntegrityService integrity, CatalogMergeService mergeService) : ControllerBase
+public class SongsController(
+    SongCatalogService songCatalogService,
+    CatalogIntegrityService integrity,
+    CatalogMergeService mergeService) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<List<SongDto>>> GetAll()
     {
-        var songs = await songService.GetSongsAsync();
-        return Ok(songs.Select(s => s.ToDto()).ToList());
+        var songs = await songCatalogService.GetSongsAsync();
+        return Ok(songs);
     }
 
     [HttpPost]
     public async Task<ActionResult<SongDto>> Create([FromBody] SongDto dto)
     {
-        var validation = await ValidateArtistReferencesAsync(dto);
+        var validation = await songCatalogService.ValidateArtistReferencesAsync(dto.Artists);
         if (validation is not null)
         {
-            return validation;
+            return BadRequest(new ApiErrorResponse { Message = validation });
         }
 
-        var created = await songService.AddSongAsync(dto.ToEntity());
-        var result = created.ToDto();
-        return CreatedAtAction(nameof(GetAll), new { id = result.Id }, result);
+        var created = await songCatalogService.AddSongAsync(dto);
+        return CreatedAtAction(nameof(GetAll), new { id = created.Id }, created);
     }
 
     [HttpPut("{id:int}")]
@@ -38,13 +39,13 @@ public class SongsController(SongService songService, CatalogIntegrityService in
     public async Task<IActionResult> Update(int id, [FromBody] SongDto dto)
     {
         dto.Id = id;
-        var validation = await ValidateArtistReferencesAsync(dto);
+        var validation = await songCatalogService.ValidateArtistReferencesAsync(dto.Artists);
         if (validation is not null)
         {
-            return validation;
+            return BadRequest(new ApiErrorResponse { Message = validation });
         }
 
-        await songService.UpdateSongAsync(dto.ToEntity());
+        await songCatalogService.UpdateSongAsync(dto);
         return NoContent();
     }
 
@@ -60,7 +61,7 @@ public class SongsController(SongService songService, CatalogIntegrityService in
             });
         }
 
-        await songService.DeleteSongAsync(id);
+        await songCatalogService.DeleteSongAsync(id);
         return NoContent();
     }
 
@@ -73,20 +74,5 @@ public class SongsController(SongService songService, CatalogIntegrityService in
             return BadRequest(new ApiErrorResponse { Message = error ?? "Merge failed." });
 
         return NoContent();
-    }
-
-    private async Task<ActionResult?> ValidateArtistReferencesAsync(SongDto dto)
-    {
-        if (dto.Artist is int artistId && !await integrity.ArtistExistsAsync(artistId))
-        {
-            return BadRequest(new ApiErrorResponse { Message = "Primary artist was not found." });
-        }
-
-        if (dto.SecondaryArtist is int secondaryId && !await integrity.ArtistExistsAsync(secondaryId))
-        {
-            return BadRequest(new ApiErrorResponse { Message = "Secondary artist was not found." });
-        }
-
-        return null;
     }
 }

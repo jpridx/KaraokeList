@@ -50,11 +50,11 @@ public class ArtistsController(ArtistService artistService, ArtistLookupService 
     [Authorize(Roles = KaraokeRoles.Admin)]
     public async Task<IActionResult> Delete(int id)
     {
-        if (await integrity.HasSongsWithPrimaryArtistAsync(id))
+        if (await integrity.HasSongsWithArtistAsync(id))
         {
             return Conflict(new ApiErrorResponse
             {
-                Message = "Cannot delete this artist because songs list them as the primary artist."
+                Message = "Cannot delete this artist because songs credit them."
             });
         }
 

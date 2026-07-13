@@ -4,16 +4,19 @@ using KaraokeList.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace KaraokeList.Api.Migrations
+namespace KaraokeList.Api.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260713010358_AddSongArtists")]
+    partial class AddSongArtists
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -362,9 +365,8 @@ namespace KaraokeList.Api.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("ArtistCreditDisplay")
-                        .HasMaxLength(512)
-                        .HasColumnType("nvarchar(512)");
+                    b.Property<int?>("Artist")
+                        .HasColumnType("int");
 
                     b.Property<int?>("Genre")
                         .HasColumnType("int");
@@ -372,6 +374,9 @@ namespace KaraokeList.Api.Migrations
                     b.Property<string>("RecordingMbid")
                         .HasMaxLength(36)
                         .HasColumnType("nvarchar(36)");
+
+                    b.Property<int?>("SecondaryArtist")
+                        .HasColumnType("int");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -381,6 +386,10 @@ namespace KaraokeList.Api.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Artist");
+
+                    b.HasIndex("SecondaryArtist");
 
                     b.ToTable("Songs");
                 });
@@ -663,6 +672,21 @@ namespace KaraokeList.Api.Migrations
                     b.Navigation("Singer");
 
                     b.Navigation("Song");
+                });
+
+            modelBuilder.Entity("KaraokeList.Data.Song", b =>
+                {
+                    b.HasOne("KaraokeList.Data.Artist", null)
+                        .WithMany()
+                        .HasForeignKey("Artist")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_Songs_Artists_Artist");
+
+                    b.HasOne("KaraokeList.Data.Artist", null)
+                        .WithMany()
+                        .HasForeignKey("SecondaryArtist")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("FK_Songs_Artists_SecondaryArtist");
                 });
 
             modelBuilder.Entity("KaraokeList.Data.SongArtist", b =>

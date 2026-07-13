@@ -14,7 +14,8 @@ public interface ICanonicalCatalogService
 
 public sealed class CanonicalCatalogService(
     ApplicationDbContext db,
-    IMusicBrainzService musicBrainzService) : ICanonicalCatalogService
+    IMusicBrainzService musicBrainzService,
+    IHttpClientFactory httpClientFactory) : ICanonicalCatalogService
 {
     public const int MaxVerifyBatchSize = 50;
 
@@ -29,45 +30,77 @@ public sealed class CanonicalCatalogService(
         CancellationToken cancellationToken = default)
     {
         var song = await db.Songs.FirstOrDefaultAsync(s => s.Id == request.SongId, cancellationToken);
-        if (song is null || song.Artist is not int artistId)
+        if (song is null)
         {
             return null;
         }
 
-        var currentArtist = await db.Artists.FindAsync([artistId], cancellationToken);
-        if (currentArtist is null)
+        var credits = request.ArtistCredits.Count > 0
+            ? request.ArtistCredits
+            : BuildCreditsFromLegacyRequest(request);
+
+        if (credits.Count == 0)
         {
             return null;
         }
 
         var canonicalTitle = request.Title.Trim();
-        var canonicalArtistName = request.ArtistName.Trim();
-        if (string.IsNullOrWhiteSpace(canonicalTitle) || string.IsNullOrWhiteSpace(canonicalArtistName))
+        if (string.IsNullOrWhiteSpace(canonicalTitle))
         {
             return null;
         }
 
-        var resolvedArtistId = await ResolveArtistIdAsync(
-            canonicalArtistName,
-            request.ArtistMbid,
-            currentArtist,
-            cancellationToken);
+        var client = httpClientFactory.CreateClient("MusicBrainz");
+        var sortNames = musicBrainzService is MusicBrainzService mbService
+            ? await mbService.FetchSortNamesAsync(client, credits.Select(c => c.ArtistMbid), cancellationToken)
+            : [];
+
+        var resolvedArtists = new List<SongArtistDto>();
+        foreach (var credit in credits.OrderBy(c => c.DisplayOrder))
+        {
+            var artistId = await ResolveArtistIdAsync(
+                credit.Name,
+                credit.ArtistMbid,
+                sortNames.GetValueOrDefault(credit.ArtistMbid ?? string.Empty),
+                cancellationToken);
+            resolvedArtists.Add(new SongArtistDto
+            {
+                ArtistId = artistId,
+                DisplayOrder = resolvedArtists.Count,
+                Name = credit.Name
+            });
+        }
 
         song.Title = canonicalTitle;
-        song.Artist = resolvedArtistId;
         song.RecordingMbid = request.RecordingMbid;
+        song.ArtistCreditDisplay = string.IsNullOrWhiteSpace(request.ArtistCreditDisplay)
+            ? MusicBrainzService.ComposeArtistCreditDisplay(credits)
+            : request.ArtistCreditDisplay.Trim();
+
+        var existingCredits = await db.SongArtists.Where(sa => sa.SongId == song.Id).ToListAsync(cancellationToken);
+        db.SongArtists.RemoveRange(existingCredits);
+        foreach (var artist in resolvedArtists)
+        {
+            db.SongArtists.Add(new SongArtist
+            {
+                SongId = song.Id,
+                ArtistId = artist.ArtistId,
+                DisplayOrder = artist.DisplayOrder
+            });
+        }
 
         await db.SaveChangesAsync(cancellationToken);
 
-        var artist = await db.Artists.FindAsync([resolvedArtistId], cancellationToken);
         return new ApplyCanonicalResponse
         {
             SongId = song.Id,
             Title = song.Title,
-            ArtistName = artist?.Name ?? canonicalArtistName,
-            ArtistId = resolvedArtistId,
+            ArtistName = resolvedArtists.FirstOrDefault()?.Name ?? string.Empty,
+            ArtistCreditDisplay = song.ArtistCreditDisplay ?? string.Empty,
+            ArtistId = resolvedArtists.FirstOrDefault()?.ArtistId,
             RecordingMbid = song.RecordingMbid,
-            ArtistMbid = artist?.Mbid
+            ArtistMbid = credits.FirstOrDefault()?.ArtistMbid,
+            Artists = resolvedArtists
         };
     }
 
@@ -78,45 +111,56 @@ public sealed class CanonicalCatalogService(
         var limit = Math.Clamp(request.Limit, 1, MaxVerifyBatchSize);
         var offset = Math.Max(0, request.Offset);
 
-        var query = db.Songs.Where(s => s.Artist != null).AsQueryable();
+        var query = db.SongArtists.Where(sa => sa.DisplayOrder == 0).Select(sa => sa.SongId).Distinct();
+        var songsQuery = db.Songs.Where(s => query.Contains(s.Id)).AsQueryable();
         if (request.UnverifiedOnly)
         {
-            query = query.Where(s => s.RecordingMbid == null);
+            songsQuery = songsQuery.Where(s => s.RecordingMbid == null);
         }
 
-        var totalMatching = await query.CountAsync(cancellationToken);
-        var songs = await query
+        var totalMatching = await songsQuery.CountAsync(cancellationToken);
+        var songs = await songsQuery
             .OrderBy(s => s.Id)
             .Skip(offset)
             .Take(limit)
             .ToListAsync(cancellationToken);
 
-        var artistIds = songs.Where(s => s.Artist is int id).Select(s => s.Artist!.Value).Distinct().ToList();
-        var artists = await db.Artists
-            .Where(a => artistIds.Contains(a.Id))
-            .ToDictionaryAsync(a => a.Id, cancellationToken);
+        var songIds = songs.Select(s => s.Id).ToList();
+        var creditsBySong = await LoadCreditsBySongAsync(songIds, cancellationToken);
 
         var items = new List<CatalogVerifyItemDto>();
         foreach (var song in songs)
         {
-            var artistName = song.Artist is int aid && artists.TryGetValue(aid, out var artist)
-                ? artist.Name
-                : string.Empty;
+            var credits = creditsBySong.GetValueOrDefault(song.Id, []);
+            var primaryName = credits.FirstOrDefault()?.Name ?? string.Empty;
+            var currentDisplay = SongArtistFormatting.FormatDisplay(
+                song.ArtistCreditDisplay,
+                credits.Select(c => c.Name));
 
-            var lookup = await musicBrainzService.LookupAsync(song.Title, artistName, cancellationToken);
+            var lookup = await musicBrainzService.LookupAsync(song.Title, primaryName, cancellationToken);
             var suggestion = lookup.Match.Found ? lookup.Match : null;
+            var namesMatch = suggestion is not null
+                && string.Equals(song.Title, suggestion.Title, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(currentDisplay, suggestion.ArtistCreditDisplay, StringComparison.OrdinalIgnoreCase);
+
+            if (namesMatch && suggestion?.RecordingMbid is not null && song.RecordingMbid is null)
+            {
+                song.RecordingMbid = suggestion.RecordingMbid;
+            }
+
             items.Add(new CatalogVerifyItemDto
             {
                 SongId = song.Id,
                 CurrentTitle = song.Title,
-                CurrentArtistName = artistName,
+                CurrentArtistName = primaryName,
+                CurrentArtistDisplay = currentDisplay,
                 RecordingMbid = song.RecordingMbid,
                 Suggestion = suggestion,
-                NamesMatch = suggestion is not null
-                    && string.Equals(song.Title, suggestion.Title, StringComparison.OrdinalIgnoreCase)
-                    && string.Equals(artistName, suggestion.ArtistName, StringComparison.OrdinalIgnoreCase)
+                NamesMatch = namesMatch
             });
         }
+
+        await db.SaveChangesAsync(cancellationToken);
 
         var nextOffset = offset + songs.Count;
         return new CatalogVerifyResultDto
@@ -138,10 +182,62 @@ public sealed class CanonicalCatalogService(
         return lookup.Match.Found ? lookup.Match : null;
     }
 
+    private static List<CanonicalArtistCreditDto> BuildCreditsFromLegacyRequest(ApplyCanonicalRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.ArtistName))
+        {
+            return [];
+        }
+
+        return
+        [
+            new CanonicalArtistCreditDto
+            {
+                Name = request.ArtistName.Trim(),
+                ArtistMbid = request.ArtistMbid,
+                DisplayOrder = 0
+            }
+        ];
+    }
+
+    private async Task<Dictionary<int, List<SongArtistDto>>> LoadCreditsBySongAsync(
+        IReadOnlyCollection<int> songIds,
+        CancellationToken cancellationToken)
+    {
+        if (songIds.Count == 0)
+        {
+            return [];
+        }
+
+        var rows = await (
+            from sa in db.SongArtists
+            join a in db.Artists on sa.ArtistId equals a.Id
+            where songIds.Contains(sa.SongId)
+            orderby sa.SongId, sa.DisplayOrder
+            select new
+            {
+                sa.SongId,
+                sa.ArtistId,
+                sa.DisplayOrder,
+                a.Name
+            }).ToListAsync(cancellationToken);
+
+        return rows
+            .GroupBy(r => r.SongId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Select(r => new SongArtistDto
+                {
+                    ArtistId = r.ArtistId,
+                    DisplayOrder = r.DisplayOrder,
+                    Name = r.Name
+                }).ToList());
+    }
+
     private async Task<int> ResolveArtistIdAsync(
         string canonicalArtistName,
         string? artistMbid,
-        Artist currentArtist,
+        string? musicBrainzSortName,
         CancellationToken cancellationToken)
     {
         if (canonicalArtistName.Length > 128)
@@ -154,38 +250,42 @@ public sealed class CanonicalCatalogService(
 
         if (existing is not null)
         {
-            if (string.IsNullOrWhiteSpace(existing.Mbid) && !string.IsNullOrWhiteSpace(artistMbid))
-            {
-                existing.Mbid = artistMbid;
-            }
-
+            await BackfillArtistMetadataAsync(existing, artistMbid, musicBrainzSortName, canonicalArtistName);
             return existing.Id;
-        }
-
-        if (string.Equals(currentArtist.Name, canonicalArtistName, StringComparison.OrdinalIgnoreCase))
-        {
-            currentArtist.Name = canonicalArtistName;
-            if (string.IsNullOrWhiteSpace(currentArtist.SortableName))
-            {
-                currentArtist.SortableName = SortableNameFormatting.FromDisplayName(canonicalArtistName);
-            }
-
-            if (string.IsNullOrWhiteSpace(currentArtist.Mbid) && !string.IsNullOrWhiteSpace(artistMbid))
-            {
-                currentArtist.Mbid = artistMbid;
-            }
-
-            return currentArtist.Id;
         }
 
         var created = new Artist
         {
             Name = canonicalArtistName,
-            SortableName = SortableNameFormatting.FromDisplayName(canonicalArtistName),
+            SortableName = ResolveSortableName(musicBrainzSortName, canonicalArtistName),
             Mbid = artistMbid
         };
         db.Artists.Add(created);
         await db.SaveChangesAsync(cancellationToken);
         return created.Id;
     }
+
+    private async Task BackfillArtistMetadataAsync(
+        Artist artist,
+        string? artistMbid,
+        string? musicBrainzSortName,
+        string canonicalArtistName)
+    {
+        if (string.IsNullOrWhiteSpace(artist.Mbid) && !string.IsNullOrWhiteSpace(artistMbid))
+        {
+            artist.Mbid = artistMbid;
+        }
+
+        if (string.IsNullOrWhiteSpace(artist.SortableName))
+        {
+            artist.SortableName = ResolveSortableName(musicBrainzSortName, canonicalArtistName);
+        }
+
+        await db.SaveChangesAsync();
+    }
+
+    private static string? ResolveSortableName(string? musicBrainzSortName, string displayName) =>
+        !string.IsNullOrWhiteSpace(musicBrainzSortName)
+            ? musicBrainzSortName.Trim()
+            : SortableNameFormatting.FromDisplayName(displayName);
 }

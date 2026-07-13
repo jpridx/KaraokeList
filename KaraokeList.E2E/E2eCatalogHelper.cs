@@ -29,7 +29,10 @@ internal static class E2eCatalogHelper
         var createSong = await apiClient.PostAsJsonAsync("/api/songs", new SongDto
         {
             Title = songTitle,
-            Artist = artistId
+            Artists =
+            [
+                new SongArtistDto { ArtistId = artistId, DisplayOrder = 0, Name = artistName }
+            ]
         });
         if (!createSong.IsSuccessStatusCode)
         {

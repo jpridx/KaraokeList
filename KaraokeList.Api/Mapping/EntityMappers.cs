@@ -35,26 +35,16 @@ public static class EntityMappers
 
     public static Singer ToEntity(this SingerDto dto) => new() { Id = dto.Id, Name = dto.Name };
 
-    public static SongDto ToDto(this Song entity) => new()
-    {
-        Id = entity.Id,
-        Title = entity.Title,
-        Artist = entity.Artist,
-        Genre = entity.Genre,
-        Year = entity.Year,
-        SecondaryArtist = entity.SecondaryArtist,
-        RecordingMbid = entity.RecordingMbid
-    };
+    public static SongDto ToDto(this Song entity) => SongCatalogService.ToDto(entity, []);
 
     public static Song ToEntity(this SongDto dto) => new()
     {
         Id = dto.Id,
         Title = dto.Title,
-        Artist = dto.Artist,
         Genre = dto.Genre,
         Year = dto.Year,
-        SecondaryArtist = dto.SecondaryArtist,
-        RecordingMbid = dto.RecordingMbid
+        RecordingMbid = dto.RecordingMbid,
+        ArtistCreditDisplay = dto.ArtistCreditDisplay
     };
 
     public static ArtistLookupDto ToDto(this ArtistLookup entity) => new() { Id = entity.Id, Name = entity.Name };
@@ -91,6 +81,7 @@ public static class EntityMappers
         SongId = song.SongId,
         Title = song.Title,
         ArtistName = song.ArtistName,
+        ArtistDisplay = string.IsNullOrWhiteSpace(song.ArtistDisplay) ? song.ArtistName : song.ArtistDisplay,
         GenreId = song.GenreId,
         GenreName = song.GenreName,
         LastPerformedOn = song.LastPerformedOn,
@@ -121,6 +112,7 @@ public static class EntityMappers
         SongId = entry.SongId,
         Title = entry.Title,
         ArtistName = entry.ArtistName,
+        ArtistDisplay = string.IsNullOrWhiteSpace(entry.ArtistDisplay) ? entry.ArtistName : entry.ArtistDisplay,
         PerformedOn = entry.PerformedOn,
         VenueId = entry.VenueId,
         VenueName = entry.VenueName,
@@ -136,6 +128,7 @@ public static class EntityMappers
             SongId = song.SongId,
             Title = song.Title,
             ArtistName = song.ArtistName,
+            ArtistDisplay = string.IsNullOrWhiteSpace(song.ArtistDisplay) ? song.ArtistName : song.ArtistDisplay,
             LastPerformedOn = lastPerformed,
             PerformanceCount = song.PerformanceCount,
             DaysSinceLastPerformed = PerformanceRelativeDate.DaysSince(lastPerformed, today) ?? 0
@@ -165,6 +158,7 @@ public static class EntityMappers
                 SongId = s.SongId,
                 Title = s.Title,
                 ArtistName = s.ArtistName,
+                ArtistDisplay = string.IsNullOrWhiteSpace(s.ArtistDisplay) ? s.ArtistName : s.ArtistDisplay,
                 PerformanceCount = s.PerformanceCount
             }).ToList(),
             TopArtists = stats.TopArtists.Select(a => new ArtistStatDto
@@ -178,6 +172,7 @@ public static class EntityMappers
                 SongId = s.SongId,
                 Title = s.Title,
                 ArtistName = s.ArtistName,
+                ArtistDisplay = string.IsNullOrWhiteSpace(s.ArtistDisplay) ? s.ArtistName : s.ArtistDisplay,
                 FirstPerformedOn = s.FirstPerformedOn.Date
             }).ToList(),
             NewRepertoireDays = stats.NewRepertoireDays

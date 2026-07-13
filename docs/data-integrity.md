@@ -73,9 +73,32 @@ Catalog CRUD uses raw SQL `DELETE FROM … WHERE Id=@Id` with no referential che
 
 ---
 
-### `Songs` → `Artists` (primary) — enforce (**RESTRICT** or **SET NULL**)
+### `SongArtists` → `Songs` / `Artists` — enforce (**CASCADE** / **RESTRICT**)
 
-**Column:** `Songs.Artist`
+**Table:** `SongArtists` (`SongId`, `ArtistId`, `DisplayOrder`)
+
+**Today:** Junction table links songs to one or more artists. `DisplayOrder = 0` is primary.
+
+**Recommendation:**
+
+- `SongId` → **`ON DELETE CASCADE`** (delete credits when song is deleted).
+- `ArtistId` → **`ON DELETE RESTRICT`** (admin must remove artist credits before deleting an artist).
+
+---
+
+### `Songs.SecondaryArtist` → `Artists` — legacy (**SET NULL**)
+
+**Column:** `Songs.SecondaryArtist` (deprecated; replaced by `SongArtists`)
+
+**Today:** Optional int; backfilled to `SongArtists` with `DisplayOrder = 1`. Column dropped after API/UI migration.
+
+**Recommendation:** FK with **`ON DELETE SET NULL`** until column is removed.
+
+---
+
+### `Songs` → `Artists` (primary) — legacy (**RESTRICT** or **SET NULL**)
+
+**Column:** `Songs.Artist` (deprecated; replaced by `SongArtists` primary row)
 
 **Today:** No FK.
 
@@ -101,18 +124,6 @@ Catalog CRUD uses raw SQL `DELETE FROM … WHERE Id=@Id` with no referential che
 - Genre delete with referencing songs → orphan ids and blank genre in grids.
 
 **Recommendation:** **`RESTRICT`** — admin must reassign songs before deleting a genre.
-
----
-
-### `Songs.SecondaryArtist` → `Artists` — enforce (**SET NULL**)
-
-**Column:** `Songs.SecondaryArtist`
-
-**Today:** Optional int, no FK; rarely used in performance SQL.
-
-**Problems:** Same as primary artist but lower impact — mainly catalog display.
-
-**Recommendation:** FK with **`ON DELETE SET NULL`** (secondary artist is optional metadata).
 
 ---
 

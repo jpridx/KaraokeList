@@ -15,8 +15,18 @@ public sealed class LogCatalogLoaderTests
         {
             Songs =
             [
-                new SongDto { Id = 1, Title = "Jeopardy", Artist = 10 },
-                new SongDto { Id = 2, Title = "Sweet Caroline", Artist = 11 }
+                new SongDto
+                {
+                    Id = 1,
+                    Title = "Jeopardy",
+                    Artists = [new SongArtistDto { ArtistId = 10, DisplayOrder = 0, Name = "The Greg Kihn Band" }]
+                },
+                new SongDto
+                {
+                    Id = 2,
+                    Title = "Sweet Caroline",
+                    Artists = [new SongArtistDto { ArtistId = 11, DisplayOrder = 0, Name = "Neil Diamond" }]
+                }
             ],
             Artists =
             [

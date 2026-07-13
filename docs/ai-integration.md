@@ -97,7 +97,7 @@ The bulk import feature (#57) does not exist yet. When it is built, users will s
 
 On upload, send the first 10 rows (headers + sample values, stringified as CSV) to the LLM:
 
-> These are the first rows of a spreadsheet. Map each column to one of these fields: Title, Artist, Genre, Year, SecondaryArtist, or Ignore.  
+> These are the first rows of a spreadsheet. Map each column to one of these fields: Title, Artist, Genre, Year, or Ignore. Additional credited artists can be filled via MusicBrainz canonicization.  
 > Return a JSON object: `{ "columnIndex": "fieldName", … }`.
 
 The user sees a confirmation table of the proposed mapping before any import proceeds. They can adjust any column before confirming. Token cost: ~200–400 per upload (headers + sample rows), fires once per file.

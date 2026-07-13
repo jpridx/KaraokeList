@@ -13,7 +13,7 @@ public static class CatalogSongMapper
             .Select(s => new LogSongPickItem(
                 s.Id,
                 s.Title,
-                s.Artist is int artistId && artistNames.TryGetValue(artistId, out var name) ? name : string.Empty,
+                ResolveArtistDisplay(s, artistNames),
                 repertoireSongIds?.Contains(s.Id) == true,
                 workingUpSongIds?.Contains(s.Id) == true))
             .OrderByDescending(s => s.InRepertoire)
@@ -37,4 +37,22 @@ public static class CatalogSongMapper
         string title,
         string artistName) =>
         LogArtistPicker.FindCreatedSong(items, title, artistName, s => s.Title, s => s.ArtistName);
+
+    private static string ResolveArtistDisplay(SongDto song, IReadOnlyDictionary<int, string> artistNames)
+    {
+        if (!string.IsNullOrWhiteSpace(song.ArtistCreditDisplay))
+        {
+            return song.ArtistCreditDisplay.Trim();
+        }
+
+        var names = song.Artists
+            .OrderBy(a => a.DisplayOrder)
+            .Select(a => !string.IsNullOrWhiteSpace(a.Name)
+                ? a.Name
+                : artistNames.GetValueOrDefault(a.ArtistId, string.Empty))
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .ToList();
+
+        return SongArtistFormatting.FormatDisplay(null, names);
+    }
 }

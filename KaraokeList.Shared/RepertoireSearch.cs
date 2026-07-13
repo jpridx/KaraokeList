@@ -16,5 +16,6 @@ public static class RepertoireSearch
     public static bool Matches(RepertoireSongDto song, string query) =>
         FlexibleSearch.Contains(song.Title, query)
         || FlexibleSearch.Contains(song.ArtistName, query)
+        || FlexibleSearch.Contains(song.ArtistDisplay, query)
         || FlexibleSearch.Contains(song.GenreName, query);
 }

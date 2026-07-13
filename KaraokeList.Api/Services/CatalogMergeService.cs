@@ -27,6 +27,7 @@ public sealed class CatalogMergeService(ApplicationDbContext db)
         await MergeSingerListSongsAsync(sourceId, targetId);
         await MergeTicklerExclusionsAsync(sourceId, targetId);
         await MergePerformancesAsync(sourceId, targetId);
+        await MergeSongArtistsAsync(sourceId, targetId);
 
         db.Songs.Remove(source);
         await db.SaveChangesAsync();
@@ -81,6 +82,48 @@ public sealed class CatalogMergeService(ApplicationDbContext db)
                 db.SingerSongTicklerExclusions.Remove(row);
             else
                 row.SongId = targetId;
+        }
+
+        await db.SaveChangesAsync();
+    }
+
+    private async Task MergeSongArtistsAsync(int sourceId, int targetId)
+    {
+        var sourceRows = await db.SongArtists
+            .Where(sa => sa.SongId == sourceId)
+            .ToListAsync();
+
+        if (sourceRows.Count == 0)
+        {
+            return;
+        }
+
+        var targetArtistIds = (await db.SongArtists
+                .Where(sa => sa.SongId == targetId)
+                .Select(sa => sa.ArtistId)
+                .ToListAsync())
+            .ToHashSet();
+
+        var nextOrder = await db.SongArtists
+            .Where(sa => sa.SongId == targetId)
+            .Select(sa => (int?)sa.DisplayOrder)
+            .MaxAsync() ?? -1;
+
+        foreach (var row in sourceRows.OrderBy(r => r.DisplayOrder))
+        {
+            if (targetArtistIds.Contains(row.ArtistId))
+            {
+                continue;
+            }
+
+            nextOrder++;
+            db.SongArtists.Add(new SongArtist
+            {
+                SongId = targetId,
+                ArtistId = row.ArtistId,
+                DisplayOrder = nextOrder
+            });
+            targetArtistIds.Add(row.ArtistId);
         }
 
         await db.SaveChangesAsync();
