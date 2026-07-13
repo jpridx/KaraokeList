@@ -125,10 +125,17 @@ az sql server firewall-rule create `
   -g rg-karaokelist -s sql-karaokelist `
   -n MyDevMachine --start-ip-address $myIp --end-ip-address $myIp
 
-# 2. Use the App Service SQL connection string (not an AAD/SSMS string)
-$conn = (az webapp config connection-string list `
+# 2. Use the App Service SQL connection string (not an AAD/SSMS string).
+# Bicep stores this as an app setting; fall back to the Connection strings blade if needed.
+$conn = (az webapp config appsettings list `
   -g rg-karaokelist -n api-karaokelist `
-  --query "[?name=='DefaultConnection'].value" -o tsv)
+  --query "[?name=='ConnectionStrings__DefaultConnection'].value | [0]" -o tsv)
+if (-not $conn) {
+  $conn = (az webapp config connection-string list `
+    -g rg-karaokelist -n api-karaokelist `
+    --query "[?name=='DefaultConnection'].value | [0]" -o tsv)
+}
+if (-not $conn) { throw "DefaultConnection not found on api-karaokelist." }
 
 dotnet ef database update --project KaraokeList.Api/KaraokeList.Api.csproj --connection $conn
 
