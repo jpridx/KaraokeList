@@ -118,6 +118,31 @@ public static partial class MusicBrainzSearchHelper
             || secondaryType.Contains("Mix", StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Sorts MusicBrainz match suggestions oldest release year first (undated and likely reissues last).
+    /// </summary>
+    public static List<CanonicalMatchDto> SortMatchesOldestFirst(IEnumerable<CanonicalMatchDto> matches) =>
+        matches
+            .OrderBy(m => IsLikelyReissueOrLive(m) ? 1 : 0)
+            .ThenBy(m => m.Year ?? int.MaxValue)
+            .ThenByDescending(m => m.Score)
+            .ThenBy(m => m.Title, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+    public static bool IsLikelyReissueOrLive(CanonicalMatchDto match)
+    {
+        if (string.IsNullOrWhiteSpace(match.Disambiguation))
+        {
+            return false;
+        }
+
+        var disambiguation = match.Disambiguation;
+        return disambiguation.Contains("live", StringComparison.OrdinalIgnoreCase)
+            || disambiguation.Contains("compilation", StringComparison.OrdinalIgnoreCase)
+            || disambiguation.Contains("remaster", StringComparison.OrdinalIgnoreCase)
+            || disambiguation.Contains("reissue", StringComparison.OrdinalIgnoreCase);
+    }
+
     private static void AddQuery(List<string> queries, string query)
     {
         if (queries.Count >= MaxSearchQueries || queries.Contains(query, StringComparer.Ordinal))
