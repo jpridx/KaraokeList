@@ -112,6 +112,41 @@ On first API startup (or after `dotnet ef database update --project KaraokeList.
 1. EF Core migrations apply (Identity + catalog tables)
 2. Seed catalog separately if needed — see [database.md](database.md)
 
+### Production schema migrations (breaking changes)
+
+The **Deploy Azure** workflow applies pending EF migrations **before** publishing a new API build (see [github-actions.md](github-actions.md)). `Program.cs` still calls `MigrateAsync()` on startup as a safety net for local dev and fresh databases.
+
+If a deploy leaves the API **Stopped** / `SiteStartupCancelled`, or `/api/version` shows `databaseAvailable: false`, apply migrations manually from your machine:
+
+```powershell
+# 1. Allow your IP on the SQL server (one-time per IP change)
+$myIp = (Invoke-RestMethod https://api.ipify.org).Trim()
+az sql server firewall-rule create `
+  -g rg-karaokelist -s sql-karaokelist `
+  -n MyDevMachine --start-ip-address $myIp --end-ip-address $myIp
+
+# 2. Use the App Service SQL connection string (not an AAD/SSMS string)
+$conn = (az webapp config connection-string list `
+  -g rg-karaokelist -n api-karaokelist `
+  --query "[?name=='DefaultConnection'].value" -o tsv)
+
+dotnet ef database update --project KaraokeList.Api/KaraokeList.Api.csproj --connection $conn
+
+# 3. Restart once — do not restart repeatedly during migration
+az webapp restart -g rg-karaokelist -n api-karaokelist
+```
+
+Verify: `GET https://api-karaokelist.azurewebsites.net/api/version` → `databaseAvailable: true` and the expected `latestMigration`.
+
+**Orphan artist ids** (only if migration fails on `SongArtists` backfill and legacy columns still exist):
+
+```sql
+UPDATE Songs SET Artist = NULL WHERE Artist IS NOT NULL AND Artist NOT IN (SELECT Id FROM Artists);
+UPDATE Songs SET SecondaryArtist = NULL
+WHERE SecondaryArtist IS NOT NULL AND SecondaryArtist <> 0
+  AND SecondaryArtist NOT IN (SELECT Id FROM Artists);
+```
+
 ## 5. Publish and deploy
 
 ### Option A — helper script (recommended)
@@ -217,6 +252,7 @@ After Azure resources exist, configure OIDC and secrets per [github-actions.md](
 |---------|--------|
 | WASM loads, API calls fail (CORS) | `Cors__Origins__0` matches exact WASM origin (scheme + host, no path) |
 | Login fails / 401 on all API calls | `Jwt__Key` set on API; WASM `ApiBaseUrl` points at same API host |
+| API Stopped / `databaseAvailable: false` | Run manual EF migration — [production schema migrations](azure-deployment.md#production-schema-migrations-breaking-changes) |
 | Grids empty after login | SQL schema + catalog migration; API logs in App Service |
 | Deep link 404 on WASM | `staticwebapp.config.json` deployed with `wwwroot` |
 | `swa deploy` fails / zipdeploy 413 | Usually oversized publish; ensure `Syncfusion.Blazor.Themes` is not referenced (theme CSS comes from CDN) |

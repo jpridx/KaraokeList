@@ -87,7 +87,7 @@ Integration tests use `[SkippableFact]` and **skip** on `ubuntu-latest` when Loc
 |-----|-----------|--------------|
 | `changes` | Always | Detects which paths changed (dorny/paths-filter) |
 | `test` | Always | Full build + unit + integration tests |
-| `deploy-api` | API paths changed or manual | Publish + zip → `az webapp deploy` → CORS sync → smoke test |
+| `deploy-api` | API paths changed or manual | EF `database update` → publish + zip → `az webapp deploy` → CORS sync → smoke test |
 | `deploy-wasm` | WASM paths changed or manual | Patch `ApiBaseUrl` → `dotnet publish` → `swa deploy` → smoke test |
 
 The deploy job uses GitHub environment **`production`**. That affects the OIDC token subject (see setup below).
@@ -194,8 +194,9 @@ Edit `AZURE_RESOURCE_GROUP`, `AZURE_BASE_NAME`, or `WASM_PUBLIC_ORIGIN` in `.git
 | `AADSTS700213` / federated credential mismatch | Re-run `setup-github-oidc.ps1`; deploy uses `environment:production`, not just `refs/heads/master` |
 | `AuthorizationFailed` on `az webapp deploy` | Service principal needs **Contributor** on `rg-karaokelist` |
 | WASM publish fails on Syncfusion | Set `SYNCFUSION_KEY` secret |
-| API smoke test not 401 | Cold start: first request can take minutes (SQL + EF migrate). Re-run deploy; check `az webapp log startup show` |
-| Deploy API `Timeout reached while tracking deployment status` | Zip often succeeded; site still starting (EF migrate + cold SQL). Workflow uses `--track-status false` + smoke test. Check migrations in `__EFMigrationsHistory__` or Kudu deployment log |
+| API smoke test not 401 | Cold start: first request can take minutes (SQL wake-up). Re-run deploy; check `az webapp log startup show` and `GET /api/version` |
+| Deploy API `Timeout reached while tracking deployment status` | Zip often succeeded; site still starting. Workflow uses `--track-status false` + smoke test. Migrations run in CI before deploy — check `/api/version` |
+| API Stopped / `SiteStartupCancelled` | Pending migration or restart during startup. Apply migrations manually per [azure-deployment.md](azure-deployment.md#production-schema-migrations-breaking-changes), then `az webapp restart` once |
 | WASM loads, API calls fail | CORS is only synced by `deploy-api`. If you deployed WASM only, confirm `Cors__Origins__0` on the App Service matches `WASM_PUBLIC_ORIGIN` in `deploy-azure.yml`. If they're out of sync, trigger a manual `workflow_dispatch` to redeploy both. |
 | Login works, empty catalog | Run `scripts/seed-catalog.sql` against Azure SQL |
 
