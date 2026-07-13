@@ -66,11 +66,11 @@ public class SongDto
 {
     public int Id { get; set; }
     public string Title { get; set; } = string.Empty;
-    public int? Artist { get; set; }
     public int? Genre { get; set; }
     public int? Year { get; set; }
-    public int? SecondaryArtist { get; set; }
     public string? RecordingMbid { get; set; }
+    public string? ArtistCreditDisplay { get; set; }
+    public List<SongArtistDto> Artists { get; set; } = [];
 }
 
 public class ArtistLookupDto
@@ -124,6 +124,7 @@ public class MyPerformanceEntryDto
     public int SongId { get; set; }
     public string Title { get; set; } = string.Empty;
     public string ArtistName { get; set; } = string.Empty;
+    public string ArtistDisplay { get; set; } = string.Empty;
     public DateTime PerformedOn { get; set; }
     public int? VenueId { get; set; }
     public string VenueName { get; set; } = string.Empty;
@@ -146,6 +147,7 @@ public class RepertoireSongDto
     public int SongId { get; set; }
     public string Title { get; set; } = string.Empty;
     public string ArtistName { get; set; } = string.Empty;
+    public string ArtistDisplay { get; set; } = string.Empty;
     public int? GenreId { get; set; }
     public string GenreName { get; set; } = string.Empty;
     public DateTime? LastPerformedOn { get; set; }
@@ -157,6 +159,7 @@ public class StaleSongDto
     public int SongId { get; set; }
     public string Title { get; set; } = string.Empty;
     public string ArtistName { get; set; } = string.Empty;
+    public string ArtistDisplay { get; set; } = string.Empty;
     public DateTime? LastPerformedOn { get; set; }
     public int PerformanceCount { get; set; }
     public int DaysSinceLastPerformed { get; set; }
@@ -179,6 +182,7 @@ public class SongStatDto
     public int SongId { get; set; }
     public string Title { get; set; } = string.Empty;
     public string ArtistName { get; set; } = string.Empty;
+    public string ArtistDisplay { get; set; } = string.Empty;
     public int PerformanceCount { get; set; }
 }
 
@@ -194,6 +198,7 @@ public class NewRepertoireSongDto
     public int SongId { get; set; }
     public string Title { get; set; } = string.Empty;
     public string ArtistName { get; set; } = string.Empty;
+    public string ArtistDisplay { get; set; } = string.Empty;
     public DateTime FirstPerformedOn { get; set; }
 }
 

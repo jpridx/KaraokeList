@@ -12,13 +12,13 @@
         <input class="form-control mb-2" @bind="title" />
 
         <label class="form-label">Artist</label>
-        <AddArtistField ArtistLookups="@artistLookups" @bind-ArtistName="artistName"
-                        @bind-ArtistName:after="SyncArtistFromNameAsync"
-                        ArtistLookupsChanged="OnArtistLookupsRefreshed"
-                        OnArtistConfirmed="OnArtistConfirmedAsync" Disabled="@isBusy" />
+        <SongArtistsEditor ArtistNames="@artistNames"
+                           ArtistNamesChanged="OnArtistNamesChangedAsync"
+                           ArtistLookups="@artistLookups"
+                           Disabled="@isBusy" />
 
         <CanonicalNameCheck Title="@title" TitleChanged="OnTitleChangedAsync"
-                            ArtistName="@artistName" ArtistNameChanged="OnArtistNameChangedAsync"
+                            ArtistName="@PrimaryArtistName" ArtistNameChanged="OnArtistNameChangedAsync"
                             OnCanonicalApplied="OnCanonicalAppliedAsync"
                             Disabled="@isBusy" />
 
@@ -27,7 +27,7 @@
                        @bind-GenreName:after="SyncGenreFromNameAsync"
                        GenresChanged="OnGenresRefreshed"
                        OnGenreConfirmed="OnGenreConfirmedAsync" Disabled="@isBusy"
-                       Title="@title" Artist="@artistName" />
+                       Title="@title" Artist="@PrimaryArtistName" />
 
         @if (!string.IsNullOrEmpty(localError))
         {
@@ -60,19 +60,20 @@
     private IReadOnlyList<ArtistLookupDto> artistLookups = [];
     private IReadOnlyList<GenreDto> genres = [];
     private string title = string.Empty;
-    private string artistName = string.Empty;
+    private List<string> artistNames = [string.Empty];
     private string genreName = string.Empty;
-    private int? confirmedArtistId;
     private int? confirmedGenreId;
+    private string? artistCreditDisplay;
     private string? recordingMbid;
-    private string? artistMbid;
     private string? localError;
     private bool isBusy;
     private bool isLoading = true;
 
+    private string PrimaryArtistName => artistNames.FirstOrDefault(name => !string.IsNullOrWhiteSpace(name))?.Trim() ?? string.Empty;
+
     private bool CanAddSong =>
         !string.IsNullOrWhiteSpace(title)
-        && ResolveArtistId() is not null
+        && ResolveArtistCredits().Count > 0
         && !NeedsNewGenre();
 
     private string? AddSongHint
@@ -84,16 +85,14 @@
                 return "Enter a song title first.";
             }
 
-            if (string.IsNullOrWhiteSpace(artistName.Trim()))
+            if (string.IsNullOrWhiteSpace(PrimaryArtistName))
             {
-                return "Type the artist name, then pick from the list or add them.";
+                return "Type at least one artist name and pick from the list.";
             }
 
-            if (ResolveArtistId() is null)
+            if (ResolveArtistCredits().Count == 0)
             {
-                return LogArtistPicker.NeedsNewArtist(artistName, artistLookups)
-                    ? $"Tap Add artist \"{artistName.Trim()}\" above, then Add song."
-                    : "Select an artist from the list.";
+                return "Each artist must match an existing catalog artist before adding the song.";
             }
 
             if (NeedsNewGenre())
@@ -105,8 +104,27 @@
         }
     }
 
-    private int? ResolveArtistId() =>
-        confirmedArtistId ?? LogArtistPicker.ResolveArtistId(artistName, artistLookups);
+    private List<SongArtistDto> ResolveArtistCredits()
+    {
+        var credits = new List<SongArtistDto>();
+        foreach (var name in artistNames.Where(name => !string.IsNullOrWhiteSpace(name)))
+        {
+            var artistId = LogArtistPicker.ResolveArtistId(name, artistLookups);
+            if (artistId is null)
+            {
+                return [];
+            }
+
+            credits.Add(new SongArtistDto
+            {
+                ArtistId = artistId.Value,
+                DisplayOrder = credits.Count,
+                Name = name.Trim()
+            });
+        }
+
+        return credits;
+    }
 
     private int? ResolveGenreId() =>
         confirmedGenreId ?? LogGenrePicker.ResolveGenreId(genreName, genres);
@@ -165,34 +183,22 @@
         }
     }
 
-    private void OnArtistLookupsRefreshed(IReadOnlyList<ArtistLookupDto> refreshed)
+    private Task OnArtistNamesChangedAsync(List<string> names)
     {
-        artistLookups = refreshed;
-        confirmedArtistId ??= LogArtistPicker.ResolveArtistId(artistName, refreshed);
+        artistNames = names.Count == 0 ? [string.Empty] : names;
+        return Task.CompletedTask;
     }
 
-    private void OnGenresRefreshed(IReadOnlyList<GenreDto> refreshed)
+    private Task OnGenresRefreshed(IReadOnlyList<GenreDto> refreshed)
     {
         genres = refreshed;
         confirmedGenreId ??= LogGenrePicker.ResolveGenreId(genreName, refreshed);
-    }
-
-    private Task SyncArtistFromNameAsync()
-    {
-        confirmedArtistId = LogArtistPicker.ResolveArtistId(artistName, artistLookups);
         return Task.CompletedTask;
     }
 
     private Task SyncGenreFromNameAsync()
     {
         confirmedGenreId = LogGenrePicker.ResolveGenreId(genreName, genres);
-        return Task.CompletedTask;
-    }
-
-    private Task OnArtistConfirmedAsync(ArtistConfirmedEventArgs args)
-    {
-        artistName = args.Name;
-        confirmedArtistId = args.Id;
         return Task.CompletedTask;
     }
 
@@ -209,20 +215,26 @@
         return Task.CompletedTask;
     }
 
-    private async Task OnArtistNameChangedAsync(string value)
+    private Task OnArtistNameChangedAsync(string value)
     {
-        artistName = value;
-        confirmedArtistId = LogArtistPicker.ResolveArtistId(artistName, artistLookups);
-        await Task.CompletedTask;
+        if (artistNames.Count == 0)
+        {
+            artistNames.Add(value);
+        }
+        else
+        {
+            artistNames[0] = value;
+        }
+
+        return Task.CompletedTask;
     }
 
     private Task OnCanonicalAppliedAsync(CanonicalAppliedEventArgs args)
     {
         title = args.Title;
-        artistName = args.ArtistName;
         recordingMbid = args.RecordingMbid;
-        artistMbid = args.ArtistMbid;
-        confirmedArtistId = LogArtistPicker.ResolveArtistId(artistName, artistLookups);
+        artistCreditDisplay = args.ArtistCreditDisplay;
+        artistNames = args.ArtistNames?.ToList() ?? [args.ArtistName];
         return Task.CompletedTask;
     }
 
@@ -230,9 +242,8 @@
     {
         localError = null;
         var trimmedTitle = title.Trim();
-        var trimmedArtist = artistName.Trim();
         var trimmedGenre = genreName.Trim();
-        var artistId = confirmedArtistId ?? LogArtistPicker.ResolveArtistId(trimmedArtist, artistLookups);
+        var artistCredits = ResolveArtistCredits();
         var resolvedGenreId = confirmedGenreId ?? LogGenrePicker.ResolveGenreId(trimmedGenre, genres);
 
         if (string.IsNullOrWhiteSpace(trimmedTitle))
@@ -241,11 +252,9 @@
             return;
         }
 
-        if (artistId is null)
+        if (artistCredits.Count == 0)
         {
-            localError = LogArtistPicker.NeedsNewArtist(trimmedArtist, artistLookups)
-                ? $"Add artist \"{trimmedArtist}\" first, then tap Add song."
-                : "Artist is required.";
+            localError = "Each artist must exist in the catalog before adding the song.";
             return;
         }
 
@@ -261,13 +270,17 @@
             var created = await Api.CreateSongAsync(new SongDto
             {
                 Title = trimmedTitle,
-                Artist = artistId,
                 Genre = resolvedGenreId,
-                RecordingMbid = recordingMbid
+                RecordingMbid = recordingMbid,
+                ArtistCreditDisplay = artistCreditDisplay,
+                Artists = artistCredits
             });
 
-            var snapshot = await CatalogLoader.PatchCachedSongAsync(created.Id, trimmedTitle, trimmedArtist);
-            await OnSongAdded.InvokeAsync(new SongAddedEventArgs(created.Id, trimmedTitle, trimmedArtist, snapshot));
+            var artistDisplay = SongArtistFormatting.FormatDisplay(
+                artistCreditDisplay,
+                artistCredits.Select(a => a.Name));
+            var snapshot = await CatalogLoader.PatchCachedSongAsync(created.Id, trimmedTitle, artistDisplay);
+            await OnSongAdded.InvokeAsync(new SongAddedEventArgs(created.Id, trimmedTitle, artistDisplay, snapshot));
         }
         catch (Exception ex)
         {

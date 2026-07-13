@@ -14,32 +14,87 @@ public static class SongDisplayMapper
     public static SongDisplay ToDisplay(
         SongDto song,
         IReadOnlyList<ArtistLookupDto> artistLookups,
-        IReadOnlyList<GenreDto> genres) =>
-        new()
+        IReadOnlyList<GenreDto> genres)
+    {
+        var artists = song.Artists
+            .OrderBy(a => a.DisplayOrder)
+            .Select((artist, index) => new SongArtistDto
+            {
+                ArtistId = artist.ArtistId,
+                DisplayOrder = index,
+                Name = string.IsNullOrWhiteSpace(artist.Name)
+                    ? ResolveArtistName(artist.ArtistId, artistLookups)
+                    : artist.Name
+            })
+            .ToList();
+
+        return new SongDisplay
         {
             Id = song.Id,
             Title = song.Title,
-            Artist = song.Artist,
-            ArtistName = ResolveArtistName(song.Artist, artistLookups),
             Genre = song.Genre,
             GenreName = ResolveGenreName(song.Genre, genres),
             Year = song.Year,
-            SecondaryArtist = song.SecondaryArtist,
-            SecondaryArtistName = ResolveArtistName(song.SecondaryArtist, artistLookups)
+            RecordingMbid = song.RecordingMbid,
+            ArtistCreditDisplay = song.ArtistCreditDisplay,
+            Artists = artists
         };
+    }
+
+    public static SongDto ToDto(SongDisplay display, IReadOnlyList<ArtistLookupDto> artistLookups)
+    {
+        ApplyArtistLookups(display, artistLookups);
+        return new SongDto
+        {
+            Id = display.Id,
+            Title = display.Title,
+            Genre = display.Genre,
+            Year = display.Year,
+            RecordingMbid = display.RecordingMbid,
+            ArtistCreditDisplay = display.ArtistCreditDisplay,
+            Artists = display.Artists
+                .OrderBy(a => a.DisplayOrder)
+                .Select((artist, index) => new SongArtistDto
+                {
+                    ArtistId = artist.ArtistId,
+                    DisplayOrder = index,
+                    Name = artist.Name
+                })
+                .ToList()
+        };
+    }
 
     public static void ApplyArtistLookups(SongDisplay display, IReadOnlyList<ArtistLookupDto> artistLookups)
     {
-        display.Artist = artistLookups.FirstOrDefault(a => a.Name == display.ArtistName)?.Id;
-        display.SecondaryArtist = string.IsNullOrWhiteSpace(display.SecondaryArtistName)
-            ? null
-            : artistLookups.FirstOrDefault(a => a.Name == display.SecondaryArtistName)?.Id;
+        var resolved = new List<SongArtistDto>();
+        for (var i = 0; i < display.Artists.Count; i++)
+        {
+            var entry = display.Artists[i];
+            var name = entry.Name?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                continue;
+            }
+
+            var artistId = artistLookups.FirstOrDefault(a => a.Name == name)?.Id;
+            if (artistId is not int id)
+            {
+                continue;
+            }
+
+            resolved.Add(new SongArtistDto
+            {
+                ArtistId = id,
+                DisplayOrder = resolved.Count,
+                Name = name
+            });
+        }
+
+        display.Artists = resolved;
     }
 
-    private static string ResolveArtistName(int? artistId, IReadOnlyList<ArtistLookupDto> artistLookups) =>
-        artistId is int id
-            ? artistLookups.FirstOrDefault(a => a.Id == id)?.Name ?? string.Empty
-            : string.Empty;
+    private static string ResolveArtistName(int artistId, IReadOnlyList<ArtistLookupDto> artistLookups) =>
+        artistLookups.FirstOrDefault(a => a.Id == artistId)?.Name ?? string.Empty;
 
     private static string ResolveGenreName(int? genreId, IReadOnlyList<GenreDto> genres) =>
         genreId is int id

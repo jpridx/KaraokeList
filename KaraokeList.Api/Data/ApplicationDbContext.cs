@@ -18,6 +18,7 @@ namespace KaraokeList.Data
         public DbSet<SingerSongTicklerExclusion> SingerSongTicklerExclusions { get; set; } = null!;
         public DbSet<GenreGroup> GenreGroups { get; set; } = null!;
         public DbSet<GenreGroupGenre> GenreGroupGenres { get; set; } = null!;
+        public DbSet<SongArtist> SongArtists { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -86,18 +87,7 @@ namespace KaraokeList.Data
             builder.Entity<Song>(entity =>
             {
                 entity.Property(s => s.RecordingMbid).HasMaxLength(36);
-
-                entity.HasOne<Artist>()
-                    .WithMany()
-                    .HasForeignKey(s => s.Artist)
-                    .HasConstraintName("FK_Songs_Artists_Artist")
-                    .OnDelete(DeleteBehavior.Restrict);
-
-                entity.HasOne<Artist>()
-                    .WithMany()
-                    .HasForeignKey(s => s.SecondaryArtist)
-                    .HasConstraintName("FK_Songs_Artists_SecondaryArtist")
-                    .OnDelete(DeleteBehavior.SetNull);
+                entity.Property(s => s.ArtistCreditDisplay).HasMaxLength(512);
             });
 
             builder.Entity<SingerList>(entity =>
@@ -158,6 +148,22 @@ namespace KaraokeList.Data
                     .WithMany()
                     .HasForeignKey(m => m.GenreId)
                     .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            builder.Entity<SongArtist>(entity =>
+            {
+                entity.HasKey(sa => new { sa.SongId, sa.ArtistId });
+                entity.HasIndex(sa => sa.ArtistId);
+
+                entity.HasOne(sa => sa.Song)
+                    .WithMany()
+                    .HasForeignKey(sa => sa.SongId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(sa => sa.Artist)
+                    .WithMany()
+                    .HasForeignKey(sa => sa.ArtistId)
+                    .OnDelete(DeleteBehavior.Restrict);
             });
         }
     }

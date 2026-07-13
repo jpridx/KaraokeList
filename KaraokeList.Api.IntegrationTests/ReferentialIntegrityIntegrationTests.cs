@@ -85,8 +85,7 @@ public sealed class ReferentialIntegrityIntegrationTests(KaraokeApiFactory facto
 
         var songs = await client.GetFromJsonAsync<List<SongDto>>("/api/songs");
         Assert.NotNull(songs);
-        var artistId = Assert.Single(songs, s => s.Id == songId).Artist;
-        Assert.NotNull(artistId);
+        var artistId = Assert.Single(songs, s => s.Id == songId).Artists.First().ArtistId;
 
         var response = await admin.DeleteAsync($"/api/artists/{artistId}");
 
@@ -111,7 +110,10 @@ public sealed class ReferentialIntegrityIntegrationTests(KaraokeApiFactory facto
         var response = await client.PostAsJsonAsync("/api/songs", new SongDto
         {
             Title = songTitle,
-            Artist = artistId
+            Artists =
+            [
+                new SongArtistDto { ArtistId = artistId, DisplayOrder = 0, Name = artistName }
+            ]
         });
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
@@ -119,7 +121,7 @@ public sealed class ReferentialIntegrityIntegrationTests(KaraokeApiFactory facto
         Assert.NotNull(created);
         Assert.True(created!.Id > 0);
         Assert.Equal(songTitle, created.Title);
-        Assert.Equal(artistId, created.Artist);
+        Assert.Equal(artistId, created.Artists.First().ArtistId);
     }
 
     [SkippableFact]
@@ -132,7 +134,10 @@ public sealed class ReferentialIntegrityIntegrationTests(KaraokeApiFactory facto
         var response = await client.PostAsJsonAsync("/api/songs", new SongDto
         {
             Title = $"Song {Guid.NewGuid():N}",
-            Artist = 999_999
+            Artists =
+            [
+                new SongArtistDto { ArtistId = 999_999, DisplayOrder = 0, Name = "Missing" }
+            ]
         });
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);

@@ -24,9 +24,12 @@ public sealed class RepertoireImportService(ApplicationDbContext db, SingerListS
             return (false, $"Too many rows in one import (max {MaxImportRows}).", null);
         }
 
-        var catalog = await db.Songs
-            .Where(s => s.Artist != null)
-            .Join(db.Artists, s => s.Artist, a => a.Id, (s, a) => new { s.Id, s.Title, ArtistName = a.Name })
+        var catalog = await (
+                from sa in db.SongArtists
+                join s in db.Songs on sa.SongId equals s.Id
+                join a in db.Artists on sa.ArtistId equals a.Id
+                where sa.DisplayOrder == 0
+                select new { s.Id, s.Title, ArtistName = a.Name })
             .ToListAsync();
 
         var songByKey = catalog

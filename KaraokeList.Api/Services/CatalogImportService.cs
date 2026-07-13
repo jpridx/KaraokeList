@@ -22,9 +22,11 @@ public sealed class CatalogImportService(ApplicationDbContext db, ICanonicalCata
         var genreByName = (await db.Genres.ToListAsync(cancellationToken))
             .ToDictionary(g => g.GenreName, g => g.Id, StringComparer.OrdinalIgnoreCase);
 
-        var existingSongKeys = (await db.Songs
-                .Where(s => s.Artist != null)
-                .Select(s => new { s.Title, ArtistId = s.Artist!.Value })
+        var existingSongKeys = (await (
+                from sa in db.SongArtists
+                join s in db.Songs on sa.SongId equals s.Id
+                where sa.DisplayOrder == 0
+                select new { s.Title, sa.ArtistId })
                 .ToListAsync(cancellationToken))
             .Select(s => MakeSongKey(s.Title, s.ArtistId))
             .ToHashSet();
@@ -53,39 +55,69 @@ public sealed class CatalogImportService(ApplicationDbContext db, ICanonicalCata
             }
 
             string? recordingMbid = null;
-            string? artistMbid = null;
+            string? artistCreditDisplay = null;
+            List<CanonicalArtistCreditDto> artistCredits = [];
             if (canonicize)
             {
                 var canonical = await canonicalCatalogService.CanonicizeRowAsync(title, artistName, cancellationToken);
                 if (canonical is not null)
                 {
                     if (!string.Equals(title, canonical.Title, StringComparison.OrdinalIgnoreCase)
-                        || !string.Equals(artistName, canonical.ArtistName, StringComparison.OrdinalIgnoreCase))
+                        || !string.Equals(artistName, canonical.ArtistCreditDisplay, StringComparison.OrdinalIgnoreCase))
                     {
                         result.Canonicized++;
                     }
 
                     title = canonical.Title;
                     artistName = canonical.ArtistName;
+                    artistCreditDisplay = canonical.ArtistCreditDisplay;
+                    artistCredits = canonical.ArtistCredits;
                     if (artistName.Length > 128)
                     {
                         artistName = artistName[..128];
                     }
 
                     recordingMbid = canonical.RecordingMbid;
-                    artistMbid = canonical.ArtistMbid;
                 }
             }
 
-            var artistId = await ResolveArtistIdAsync(artistName, artistMbid, artistByName, cancellationToken);
-            if (artistId is null)
+            if (artistCredits.Count == 0)
+            {
+                var artistId = await ResolveArtistIdAsync(artistName, null, artistByName, cancellationToken);
+                if (artistId is null)
+                {
+                    result.Errors.Add(new CatalogImportErrorDto
+                    {
+                        Row = row.SourceRow,
+                        Message = $"Could not create artist '{artistName}'."
+                    });
+                    continue;
+                }
+
+                artistCredits =
+                [
+                    new CanonicalArtistCreditDto
+                    {
+                        Name = artistName,
+                        DisplayOrder = 0
+                    }
+                ];
+            }
+
+            var primaryArtistId = await ResolveArtistIdAsync(artistCredits[0].Name, artistCredits[0].ArtistMbid, artistByName, cancellationToken);
+            if (primaryArtistId is null)
             {
                 result.Errors.Add(new CatalogImportErrorDto
                 {
                     Row = row.SourceRow,
-                    Message = $"Could not create artist '{artistName}'."
+                    Message = $"Could not create artist '{artistCredits[0].Name}'."
                 });
                 continue;
+            }
+
+            for (var i = 1; i < artistCredits.Count; i++)
+            {
+                await ResolveArtistIdAsync(artistCredits[i].Name, artistCredits[i].ArtistMbid, artistByName, cancellationToken);
             }
 
             int? genreId = null;
@@ -103,21 +135,40 @@ public sealed class CatalogImportService(ApplicationDbContext db, ICanonicalCata
                 genreId = gid;
             }
 
-            var key = MakeSongKey(title, artistId.Value);
+            var key = MakeSongKey(title, primaryArtistId.Value);
             if (existingSongKeys.Contains(key))
             {
                 result.Skipped++;
                 continue;
             }
 
-            db.Songs.Add(new Song
+            var song = new Song
             {
                 Title = title,
-                Artist = artistId,
                 Genre = genreId,
                 Year = row.Year,
-                RecordingMbid = recordingMbid
-            });
+                RecordingMbid = recordingMbid,
+                ArtistCreditDisplay = artistCreditDisplay
+            };
+            db.Songs.Add(song);
+            await db.SaveChangesAsync(cancellationToken);
+
+            for (var i = 0; i < artistCredits.Count; i++)
+            {
+                var credit = artistCredits[i];
+                var creditArtistId = await ResolveArtistIdAsync(credit.Name, credit.ArtistMbid, artistByName, cancellationToken);
+                if (creditArtistId is null)
+                {
+                    continue;
+                }
+
+                db.SongArtists.Add(new SongArtist
+                {
+                    SongId = song.Id,
+                    ArtistId = creditArtistId.Value,
+                    DisplayOrder = i
+                });
+            }
             existingSongKeys.Add(key);
             result.Added++;
         }

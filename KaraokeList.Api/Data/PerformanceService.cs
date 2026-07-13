@@ -53,6 +53,7 @@ public class RepertoireSong
     public int SongId { get; set; }
     public string Title { get; set; } = string.Empty;
     public string ArtistName { get; set; } = string.Empty;
+    public string ArtistDisplay { get; set; } = string.Empty;
     public int? GenreId { get; set; }
     public string GenreName { get; set; } = string.Empty;
     public DateTime? LastPerformedOn { get; set; }
@@ -64,6 +65,7 @@ public class StaleSong
     public int SongId { get; set; }
     public string Title { get; set; } = string.Empty;
     public string ArtistName { get; set; } = string.Empty;
+    public string ArtistDisplay { get; set; } = string.Empty;
     public DateTime? LastPerformedOn { get; set; }
     public int PerformanceCount { get; set; }
 }
@@ -94,6 +96,7 @@ public class SongPerformanceCount
     public int SongId { get; set; }
     public string Title { get; set; } = string.Empty;
     public string ArtistName { get; set; } = string.Empty;
+    public string ArtistDisplay { get; set; } = string.Empty;
     public int PerformanceCount { get; set; }
 }
 
@@ -109,6 +112,7 @@ public class NewRepertoireSong
     public int SongId { get; set; }
     public string Title { get; set; } = string.Empty;
     public string ArtistName { get; set; } = string.Empty;
+    public string ArtistDisplay { get; set; } = string.Empty;
     public DateTime FirstPerformedOn { get; set; }
 }
 
@@ -124,6 +128,7 @@ public class MyPerformanceEntry
     public int SongId { get; set; }
     public string Title { get; set; } = string.Empty;
     public string ArtistName { get; set; } = string.Empty;
+    public string ArtistDisplay { get; set; } = string.Empty;
     public DateTime PerformedOn { get; set; }
     public int? VenueId { get; set; }
     public string VenueName { get; set; } = string.Empty;
@@ -175,12 +180,12 @@ public class PerformanceService(string connectionString)
         await using var connection = new SqlConnection(connectionString);
         await connection.OpenAsync();
         await using var command = connection.CreateCommand();
-        var sql = """
-            SELECT p.Id, p.Song, s.Title, ISNULL(a.Name, N''), p.PerformedOn,
+        var sql = $"""
+            SELECT p.Id, p.Song, s.Title, {SongArtistSql.PrimaryArtistName}, {SongArtistSql.ArtistDisplay}, p.PerformedOn,
                    p.Venue, ISNULL(v.VenueName, N''), p.KeyChangeSemitones
             FROM Performances p
             INNER JOIN Songs s ON s.Id = p.Song
-            LEFT JOIN Artists a ON a.Id = s.Artist
+            {SongArtistSql.PrimaryArtistJoin}
             LEFT JOIN Venues v ON v.Id = p.Venue
             WHERE p.Singer = @Singer
             """;
@@ -202,10 +207,11 @@ public class PerformanceService(string connectionString)
                 SongId = reader.GetInt32(1),
                 Title = reader.GetString(2),
                 ArtistName = reader.GetString(3),
-                PerformedOn = reader.GetDateTime(4),
-                VenueId = reader.IsDBNull(5) ? null : reader.GetInt32(5),
-                VenueName = reader.GetString(6),
-                KeyChangeSemitones = reader.IsDBNull(7) ? null : reader.GetInt32(7)
+                ArtistDisplay = reader.GetString(4),
+                PerformedOn = reader.GetDateTime(5),
+                VenueId = reader.IsDBNull(6) ? null : reader.GetInt32(6),
+                VenueName = reader.GetString(7),
+                KeyChangeSemitones = reader.IsDBNull(8) ? null : reader.GetInt32(8)
             });
         }
 
@@ -342,17 +348,18 @@ public class PerformanceService(string connectionString)
             command.CommandText = $"""
                 SELECT s.Id,
                        s.Title,
-                       ISNULL(a.Name, N'') AS ArtistName,
+                       {SongArtistSql.PrimaryArtistName} AS ArtistName,
+                       {SongArtistSql.ArtistDisplay} AS ArtistDisplay,
                        s.Genre,
                        ISNULL(g.GenreName, N'') AS GenreName,
                        MAX(p.PerformedOn) AS LastPerformedOn,
                        COUNT(p.Id) AS PerformanceCount
                 FROM Songs s
                 LEFT JOIN Performances p ON p.Song = s.Id AND p.Singer = @Singer
-                LEFT JOIN Artists a ON a.Id = s.Artist
+                {SongArtistSql.PrimaryArtistJoin}
                 LEFT JOIN Genres g ON g.Id = s.Genre
                 WHERE (@GenreId IS NULL OR s.Genre = @GenreId)
-                GROUP BY s.Id, s.Title, a.Name, a.SortableName, s.Genre, g.GenreName
+                GROUP BY s.Id, s.Title, s.ArtistCreditDisplay, a.Name, a.SortableName, s.Genre, g.GenreName
                 ORDER BY {orderClause}
                 """;
         }
@@ -361,18 +368,19 @@ public class PerformanceService(string connectionString)
             command.CommandText = $"""
                 SELECT s.Id,
                        s.Title,
-                       ISNULL(a.Name, N'') AS ArtistName,
+                       {SongArtistSql.PrimaryArtistName} AS ArtistName,
+                       {SongArtistSql.ArtistDisplay} AS ArtistDisplay,
                        s.Genre,
                        ISNULL(g.GenreName, N'') AS GenreName,
                        MAX(p.PerformedOn) AS LastPerformedOn,
                        COUNT(*) AS PerformanceCount
                 FROM Performances p
                 INNER JOIN Songs s ON s.Id = p.Song
-                LEFT JOIN Artists a ON a.Id = s.Artist
+                {SongArtistSql.PrimaryArtistJoin}
                 LEFT JOIN Genres g ON g.Id = s.Genre
                 WHERE p.Singer = @Singer
                   AND (@GenreId IS NULL OR s.Genre = @GenreId)
-                GROUP BY s.Id, s.Title, a.Name, a.SortableName, s.Genre, g.GenreName
+                GROUP BY s.Id, s.Title, s.ArtistCreditDisplay, a.Name, a.SortableName, s.Genre, g.GenreName
                 ORDER BY {orderClause}
                 """;
         }
@@ -389,10 +397,11 @@ public class PerformanceService(string connectionString)
                 SongId = reader.GetInt32(0),
                 Title = reader.GetString(1),
                 ArtistName = reader.GetString(2),
-                GenreId = reader.IsDBNull(3) ? null : reader.GetInt32(3),
-                GenreName = reader.GetString(4),
-                LastPerformedOn = reader.IsDBNull(5) ? null : reader.GetDateTime(5),
-                PerformanceCount = reader.GetInt32(6)
+                ArtistDisplay = reader.GetString(3),
+                GenreId = reader.IsDBNull(4) ? null : reader.GetInt32(4),
+                GenreName = reader.GetString(5),
+                LastPerformedOn = reader.IsDBNull(6) ? null : reader.GetDateTime(6),
+                PerformanceCount = reader.GetInt32(7)
             });
         }
 
@@ -409,24 +418,26 @@ public class PerformanceService(string connectionString)
         await using var connection = new SqlConnection(connectionString);
         await connection.OpenAsync();
         await using var command = connection.CreateCommand();
-        command.CommandText = """
+        command.CommandText = $"""
             SELECT TOP (@Limit)
                    SongId,
                    Title,
                    ArtistName,
+                   ArtistDisplay,
                    LastPerformedOn,
                    PerformanceCount
             FROM (
                 SELECT s.Id AS SongId,
                        s.Title,
-                       ISNULL(a.Name, N'') AS ArtistName,
+                       {SongArtistSql.PrimaryArtistName} AS ArtistName,
+                       {SongArtistSql.ArtistDisplay} AS ArtistDisplay,
                        MAX(p.PerformedOn) AS LastPerformedOn,
                        COUNT(*) AS PerformanceCount
                 FROM Performances p
                 INNER JOIN Songs s ON s.Id = p.Song
-                LEFT JOIN Artists a ON a.Id = s.Artist
+                {SongArtistSql.PrimaryArtistJoin}
                 WHERE p.Singer = @Singer
-                GROUP BY s.Id, s.Title, a.Name
+                GROUP BY s.Id, s.Title, s.ArtistCreditDisplay, a.Name
                 HAVING MAX(p.PerformedOn) < @Cutoff
                   AND NOT EXISTS (
                       SELECT 1
@@ -438,13 +449,14 @@ public class PerformanceService(string connectionString)
 
                 SELECT s.Id AS SongId,
                        s.Title,
-                       ISNULL(a.Name, N'') AS ArtistName,
+                       {SongArtistSql.PrimaryArtistName} AS ArtistName,
+                       {SongArtistSql.ArtistDisplay} AS ArtistDisplay,
                        CAST(NULL AS datetime2) AS LastPerformedOn,
                        0 AS PerformanceCount
                 FROM SingerListSongs sls
                 INNER JOIN SingerLists sl ON sl.Id = sls.ListId
                 INNER JOIN Songs s ON s.Id = sls.SongId
-                LEFT JOIN Artists a ON a.Id = s.Artist
+                {SongArtistSql.PrimaryArtistJoin}
                 WHERE sl.SingerId = @Singer
                   AND sl.Kind = @RepertoireKind
                   AND NOT EXISTS (
@@ -474,8 +486,9 @@ public class PerformanceService(string connectionString)
                 SongId = reader.GetInt32(0),
                 Title = reader.GetString(1),
                 ArtistName = reader.GetString(2),
-                LastPerformedOn = reader.IsDBNull(3) ? null : reader.GetDateTime(3),
-                PerformanceCount = reader.GetInt32(4)
+                ArtistDisplay = reader.GetString(3),
+                LastPerformedOn = reader.IsDBNull(4) ? null : reader.GetDateTime(4),
+                PerformanceCount = reader.GetInt32(5)
             });
         }
 
@@ -575,13 +588,13 @@ public class PerformanceService(string connectionString)
         if (topSongLimit > 0)
         {
             await using var songsCommand = connection.CreateCommand();
-            songsCommand.CommandText = """
-                SELECT TOP (@Limit) s.Id, s.Title, ISNULL(a.Name, N''), COUNT(*) AS PerformanceCount
+            songsCommand.CommandText = $"""
+                SELECT TOP (@Limit) s.Id, s.Title, {SongArtistSql.PrimaryArtistName}, {SongArtistSql.ArtistDisplay}, COUNT(*) AS PerformanceCount
                 FROM Performances p
                 INNER JOIN Songs s ON s.Id = p.Song
-                LEFT JOIN Artists a ON a.Id = s.Artist
+                {SongArtistSql.PrimaryArtistJoin}
                 WHERE p.Singer = @Singer
-                GROUP BY s.Id, s.Title, a.Name
+                GROUP BY s.Id, s.Title, s.ArtistCreditDisplay, a.Name
                 ORDER BY COUNT(*) DESC, s.Title ASC
                 """;
             songsCommand.Parameters.AddWithValue("@Singer", singerId);
@@ -594,7 +607,8 @@ public class PerformanceService(string connectionString)
                     SongId = reader.GetInt32(0),
                     Title = reader.GetString(1),
                     ArtistName = reader.GetString(2),
-                    PerformanceCount = reader.GetInt32(3)
+                    ArtistDisplay = reader.GetString(3),
+                    PerformanceCount = reader.GetInt32(4)
                 });
             }
         }
@@ -606,7 +620,8 @@ public class PerformanceService(string connectionString)
                 SELECT TOP (@Limit) a.Id, a.Name, COUNT(*) AS PerformanceCount
                 FROM Performances p
                 INNER JOIN Songs s ON s.Id = p.Song
-                INNER JOIN Artists a ON a.Id = s.Artist
+                INNER JOIN SongArtists sa ON sa.SongId = s.Id
+                INNER JOIN Artists a ON a.Id = sa.ArtistId
                 WHERE p.Singer = @Singer
                 GROUP BY a.Id, a.Name
                 ORDER BY COUNT(*) DESC, a.Name ASC
@@ -630,13 +645,13 @@ public class PerformanceService(string connectionString)
             stats.NewRepertoireDays = newRepertoireDays;
             var cutoff = PerformanceRelativeDate.StaleCutoff(newRepertoireDays, today);
             await using var newSongsCommand = connection.CreateCommand();
-            newSongsCommand.CommandText = """
-                SELECT s.Id, s.Title, ISNULL(a.Name, N''), MIN(p.PerformedOn) AS FirstPerformedOn
+            newSongsCommand.CommandText = $"""
+                SELECT s.Id, s.Title, {SongArtistSql.PrimaryArtistName}, {SongArtistSql.ArtistDisplay}, MIN(p.PerformedOn) AS FirstPerformedOn
                 FROM Performances p
                 INNER JOIN Songs s ON s.Id = p.Song
-                LEFT JOIN Artists a ON a.Id = s.Artist
+                {SongArtistSql.PrimaryArtistJoin}
                 WHERE p.Singer = @Singer
-                GROUP BY s.Id, s.Title, a.Name
+                GROUP BY s.Id, s.Title, s.ArtistCreditDisplay, a.Name
                 HAVING MIN(p.PerformedOn) >= @Cutoff
                 ORDER BY MIN(p.PerformedOn) DESC, s.Title ASC
                 """;
@@ -650,7 +665,8 @@ public class PerformanceService(string connectionString)
                     SongId = reader.GetInt32(0),
                     Title = reader.GetString(1),
                     ArtistName = reader.GetString(2),
-                    FirstPerformedOn = reader.GetDateTime(3)
+                    ArtistDisplay = reader.GetString(3),
+                    FirstPerformedOn = reader.GetDateTime(4)
                 });
             }
         }

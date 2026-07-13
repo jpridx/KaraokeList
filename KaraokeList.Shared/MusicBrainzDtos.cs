@@ -6,15 +6,25 @@ public class CanonicalLookupRequest
     public string Artist { get; set; } = string.Empty;
 }
 
+public class CanonicalArtistCreditDto
+{
+    public string Name { get; set; } = string.Empty;
+    public string? ArtistMbid { get; set; }
+    public int DisplayOrder { get; set; }
+    public string? JoinPhrase { get; set; }
+}
+
 public class CanonicalMatchDto
 {
     public bool Found { get; set; }
     public string Title { get; set; } = string.Empty;
     public string ArtistName { get; set; } = string.Empty;
+    public string ArtistCreditDisplay { get; set; } = string.Empty;
     public string? RecordingMbid { get; set; }
     public string? ArtistMbid { get; set; }
     public int Score { get; set; }
     public string? Disambiguation { get; set; }
+    public List<CanonicalArtistCreditDto> ArtistCredits { get; set; } = [];
 }
 
 public class CanonicalLookupResponse
@@ -28,8 +38,10 @@ public class ApplyCanonicalRequest
     public int SongId { get; set; }
     public string Title { get; set; } = string.Empty;
     public string ArtistName { get; set; } = string.Empty;
+    public string? ArtistCreditDisplay { get; set; }
     public string? RecordingMbid { get; set; }
     public string? ArtistMbid { get; set; }
+    public List<CanonicalArtistCreditDto> ArtistCredits { get; set; } = [];
 }
 
 public class ApplyCanonicalResponse
@@ -37,9 +49,11 @@ public class ApplyCanonicalResponse
     public int SongId { get; set; }
     public string Title { get; set; } = string.Empty;
     public string ArtistName { get; set; } = string.Empty;
+    public string ArtistCreditDisplay { get; set; } = string.Empty;
     public int? ArtistId { get; set; }
     public string? RecordingMbid { get; set; }
     public string? ArtistMbid { get; set; }
+    public List<SongArtistDto> Artists { get; set; } = [];
 }
 
 public class CatalogVerifyRequest
@@ -63,6 +77,7 @@ public class CatalogVerifyItemDto
     public int SongId { get; set; }
     public string CurrentTitle { get; set; } = string.Empty;
     public string CurrentArtistName { get; set; } = string.Empty;
+    public string CurrentArtistDisplay { get; set; } = string.Empty;
     public string? RecordingMbid { get; set; }
     public CanonicalMatchDto? Suggestion { get; set; }
     public bool NamesMatch { get; set; }

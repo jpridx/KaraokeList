@@ -33,7 +33,7 @@
         {
             <div>
                 <strong>MusicBrainz suggests:</strong>
-                <div class="mt-1">@_match.Title — @_match.ArtistName</div>
+                <div class="mt-1">@_match.Title — @_match.ArtistCreditDisplay</div>
                 @if (!string.IsNullOrWhiteSpace(_match.Disambiguation))
                 {
                     <div class="text-muted">@_match.Disambiguation</div>
@@ -123,7 +123,7 @@
             }
 
             _namesMatch = string.Equals(Title.Trim(), _match.Title, StringComparison.OrdinalIgnoreCase)
-                && string.Equals(ArtistName.Trim(), _match.ArtistName, StringComparison.OrdinalIgnoreCase);
+                && string.Equals(ArtistName.Trim(), _match.ArtistCreditDisplay, StringComparison.OrdinalIgnoreCase);
             _lastCheckedKey = $"{Title.Trim().ToLowerInvariant()}|{ArtistName.Trim().ToLowerInvariant()}";
         }
         catch
@@ -150,7 +150,9 @@
             _match.Title,
             _match.ArtistName,
             _match.RecordingMbid,
-            _match.ArtistMbid));
+            _match.ArtistMbid,
+            _match.ArtistCreditDisplay,
+            _match.ArtistCredits.Select(c => c.Name).ToList()));
         _namesMatch = true;
     }
 }

@@ -23,15 +23,14 @@
         <Columns>
             <GridColumn Field="@nameof(SongDisplay.Id)" IsPrimaryKey="true" Visible="false" />
             <GridColumn Field="@nameof(SongDisplay.Title)" HeaderText="Title" Width="200" />
-            <GridColumn Field="@nameof(SongDisplay.ArtistName)" HeaderText="Artist" Width="200">
+            <GridColumn Field="@nameof(SongDisplay.ArtistDisplay)" HeaderText="Artists" Width="260">
                 <EditTemplate Context="context">
                     @{
                         var song = (SongDisplay)context!;
                     }
-                    <SfAutoComplete TValue="string" TItem="ArtistLookupDto" DataSource="@artistLookups" @bind-Value="song.ArtistName"
-                                    Placeholder="Search artist...">
-                        <AutoCompleteFieldSettings Value="Name" Text="Name" />
-                    </SfAutoComplete>
+                    <SongArtistsEditor ArtistNames="@GetEditableArtistNames(song)"
+                                       ArtistNamesChanged="@(names => OnArtistNamesChanged(song, names))"
+                                       ArtistLookups="@artistLookups" />
                 </EditTemplate>
             </GridColumn>
             <GridColumn Field="@nameof(SongDisplay.RecordingMbid)" HeaderText="Recording MBID" Width="220" AllowEditing="false" />
@@ -47,17 +46,6 @@
                     </SfDropDownList>
                 </EditTemplate>
             </GridColumn>
-            <GridColumn Field="@nameof(SongDisplay.SecondaryArtistName)" HeaderText="Secondary Artist" Width="200">
-                <EditTemplate Context="context">
-                    @{
-                        var song = (SongDisplay)context!;
-                    }
-                    <SfAutoComplete TValue="string" TItem="ArtistLookupDto" DataSource="@artistLookups" @bind-Value="song.SecondaryArtistName"
-                                    Placeholder="Search artist...">
-                        <AutoCompleteFieldSettings Value="Name" Text="Name" />
-                    </SfAutoComplete>
-                </EditTemplate>
-            </GridColumn>
             <GridColumn Field="@nameof(SongDisplay.Year)" HeaderText="Year" Width="100" />
         </Columns>
     </CatalogCrudGrid>
@@ -67,10 +55,10 @@
         <div class="border rounded p-3 mt-3 bg-body-tertiary">
             <h4 class="h6 mb-2">Canonical name check</h4>
             <p class="small text-muted mb-2">
-                Editing <strong>@editingSong.Title</strong> — @editingSong.ArtistName
+                Editing <strong>@editingSong.Title</strong> — @editingSong.ArtistDisplay
             </p>
             <CanonicalNameCheck Title="@editingSong.Title" TitleChanged="OnEditingTitleChangedAsync"
-                                ArtistName="@editingSong.ArtistName" ArtistNameChanged="OnEditingArtistChangedAsync"
+                                ArtistName="@editingSong.PrimaryArtistName" ArtistNameChanged="OnEditingArtistChangedAsync"
                                 OnCanonicalApplied="OnEditingCanonicalAppliedAsync" />
         </div>
     }
@@ -91,6 +79,10 @@
         if (args.RequestType == Action.BeginEdit || args.RequestType == Action.Add)
         {
             editingSong = args.Data;
+            if (editingSong is not null && editingSong.Artists.Count == 0)
+            {
+                editingSong.Artists.Add(new SongArtistDto { DisplayOrder = 0, Name = string.Empty });
+            }
         }
         else if (args.RequestType is Action.Save or Action.Cancel)
         {
@@ -98,6 +90,24 @@
         }
 
         await Task.CompletedTask;
+    }
+
+    private List<string> GetEditableArtistNames(SongDisplay song) =>
+        song.Artists.Count == 0
+            ? [string.Empty]
+            : song.Artists.OrderBy(a => a.DisplayOrder).Select(a => a.Name).ToList();
+
+    private Task OnArtistNamesChanged(SongDisplay song, List<string> names)
+    {
+        song.Artists = names
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Select((name, index) => new SongArtistDto
+            {
+                DisplayOrder = index,
+                Name = name.Trim()
+            })
+            .ToList();
+        return Task.CompletedTask;
     }
 
     private Task OnEditingTitleChangedAsync(string value)
@@ -114,7 +124,14 @@
     {
         if (editingSong is not null)
         {
-            editingSong.ArtistName = value;
+            if (editingSong.Artists.Count == 0)
+            {
+                editingSong.Artists.Add(new SongArtistDto { DisplayOrder = 0, Name = value });
+            }
+            else
+            {
+                editingSong.Artists[0].Name = value;
+            }
         }
 
         return Task.CompletedTask;
@@ -125,8 +142,17 @@
         if (editingSong is not null)
         {
             editingSong.Title = args.Title;
-            editingSong.ArtistName = args.ArtistName;
             editingSong.RecordingMbid = args.RecordingMbid;
+            editingSong.ArtistCreditDisplay = args.ArtistCreditDisplay;
+            var names = args.ArtistNames?.ToList() ?? [args.ArtistName];
+            editingSong.Artists = names
+                .Where(name => !string.IsNullOrWhiteSpace(name))
+                .Select((name, index) => new SongArtistDto
+                {
+                    DisplayOrder = index,
+                    Name = name.Trim()
+                })
+                .ToList();
         }
 
         return Task.CompletedTask;
@@ -144,10 +170,10 @@
 
     private async Task<CatalogMutateResult> SaveSongAsync(SongDisplay song, bool isNew)
     {
-        SongDisplayMapper.ApplyArtistLookups(song, artistLookups);
+        var dto = SongDisplayMapper.ToDto(song, artistLookups);
         return isNew
-            ? await Api.TryCreateSongAsync(song)
-            : await Api.TryUpdateSongAsync(song);
+            ? await Api.TryCreateSongAsync(dto)
+            : await Api.TryUpdateSongAsync(dto);
     }
 
     private Task<CatalogMutateResult> DeleteSongAsync(SongDisplay song) =>

@@ -90,19 +90,20 @@ public sealed class SingerListService(
         command.CommandText = $"""
             SELECT s.Id,
                    s.Title,
-                   ISNULL(a.Name, N'') AS ArtistName,
+                   {SongArtistSql.PrimaryArtistName} AS ArtistName,
+                   {SongArtistSql.ArtistDisplay} AS ArtistDisplay,
                    g.Id AS GenreId,
                    ISNULL(g.GenreName, N'') AS GenreName,
                    MAX(p.PerformedOn) AS LastPerformedOn,
                    COUNT(p.Id) AS PerformanceCount
             FROM SingerListSongs sls
             INNER JOIN Songs s ON s.Id = sls.SongId
-            LEFT JOIN Artists a ON a.Id = s.Artist
+            {SongArtistSql.PrimaryArtistJoin}
             LEFT JOIN Genres g ON g.Id = s.Genre
             LEFT JOIN Performances p ON p.Song = s.Id AND p.Singer = @SingerId
             WHERE sls.ListId = @ListId
               AND (@GenreId IS NULL OR s.Genre = @GenreId)
-            GROUP BY s.Id, s.Title, a.Name, a.SortableName, g.Id, g.GenreName
+            GROUP BY s.Id, s.Title, s.ArtistCreditDisplay, a.Name, a.SortableName, g.Id, g.GenreName
             ORDER BY {orderClause}
             """;
         command.Parameters.AddWithValue("@ListId", listId);
@@ -118,10 +119,11 @@ public sealed class SingerListService(
                 SongId = reader.GetInt32(0),
                 Title = reader.GetString(1),
                 ArtistName = reader.GetString(2),
-                GenreId = reader.IsDBNull(3) ? null : reader.GetInt32(3),
-                GenreName = reader.GetString(4),
-                LastPerformedOn = reader.IsDBNull(5) ? null : reader.GetDateTime(5),
-                PerformanceCount = reader.GetInt32(6)
+                ArtistDisplay = reader.GetString(3),
+                GenreId = reader.IsDBNull(4) ? null : reader.GetInt32(4),
+                GenreName = reader.GetString(5),
+                LastPerformedOn = reader.IsDBNull(6) ? null : reader.GetDateTime(6),
+                PerformanceCount = reader.GetInt32(7)
             });
         }
 

@@ -48,11 +48,11 @@
                             @foreach (var item in verifyResult.Items)
                             {
                                 <tr>
-                                    <td>@item.CurrentTitle — @item.CurrentArtistName</td>
+                                    <td>@item.CurrentTitle — @item.CurrentArtistDisplay</td>
                                     <td>
                                         @if (item.Suggestion is not null)
                                         {
-                                            <span>@item.Suggestion.Title — @item.Suggestion.ArtistName</span>
+                                            <span>@item.Suggestion.Title — @item.Suggestion.ArtistCreditDisplay</span>
                                             @if (item.NamesMatch)
                                             {
                                                 <span class="badge bg-success ms-1">match</span>
@@ -111,14 +111,14 @@
                     {
                         <button type="button" class="list-group-item list-group-item-action py-1"
                                 @onclick="() => SelectMergeSource(s)">
-                            @s.Title — @GetArtistName(s.Artist)
+                            @s.Title — @GetArtistDisplay(s)
                         </button>
                     }
                 </div>
             }
             @if (mergeSource is not null)
             {
-                <span class="badge bg-secondary">@mergeSource.Title — @GetArtistName(mergeSource.Artist) <button type="button" class="btn-close btn-close-white ms-1" style="font-size:0.6rem" @onclick="() => mergeSource = null"></button></span>
+                <span class="badge bg-secondary">@mergeSource.Title — @GetArtistDisplay(mergeSource) <button type="button" class="btn-close btn-close-white ms-1" style="font-size:0.6rem" @onclick="() => mergeSource = null"></button></span>
             }
         </div>
 
@@ -134,14 +134,14 @@
                     {
                         <button type="button" class="list-group-item list-group-item-action py-1"
                                 @onclick="() => SelectMergeTarget(s)">
-                            @s.Title — @GetArtistName(s.Artist)
+                            @s.Title — @GetArtistDisplay(s)
                         </button>
                     }
                 </div>
             }
             @if (mergeTarget is not null)
             {
-                <span class="badge bg-primary">@mergeTarget.Title — @GetArtistName(mergeTarget.Artist) <button type="button" class="btn-close btn-close-white ms-1" style="font-size:0.6rem" @onclick="() => mergeTarget = null"></button></span>
+                <span class="badge bg-primary">@mergeTarget.Title — @GetArtistDisplay(mergeTarget) <button type="button" class="btn-close btn-close-white ms-1" style="font-size:0.6rem" @onclick="() => mergeTarget = null"></button></span>
             }
         </div>
 
@@ -259,7 +259,7 @@
             ? []
             : allSongs
                 .Where(s => s.Title.Contains(mergeSourceSearch, StringComparison.OrdinalIgnoreCase)
-                         || GetArtistName(s.Artist).Contains(mergeSourceSearch, StringComparison.OrdinalIgnoreCase))
+                         || GetArtistDisplay(s).Contains(mergeSourceSearch, StringComparison.OrdinalIgnoreCase))
                 .Take(10)
                 .ToList();
 
@@ -268,7 +268,7 @@
             ? []
             : allSongs
                 .Where(s => s.Title.Contains(mergeTargetSearch, StringComparison.OrdinalIgnoreCase)
-                         || GetArtistName(s.Artist).Contains(mergeTargetSearch, StringComparison.OrdinalIgnoreCase))
+                         || GetArtistDisplay(s).Contains(mergeTargetSearch, StringComparison.OrdinalIgnoreCase))
                 .Take(10)
                 .ToList();
 
@@ -402,8 +402,10 @@
                 SongId = item.SongId,
                 Title = item.Suggestion.Title,
                 ArtistName = item.Suggestion.ArtistName,
+                ArtistCreditDisplay = item.Suggestion.ArtistCreditDisplay,
                 RecordingMbid = item.Suggestion.RecordingMbid,
-                ArtistMbid = item.Suggestion.ArtistMbid
+                ArtistMbid = item.Suggestion.ArtistMbid,
+                ArtistCredits = item.Suggestion.ArtistCredits
             });
 
             if (applied is null)
@@ -479,8 +481,13 @@
         mergeTargetSearch = string.Empty;
     }
 
-    private string GetArtistName(int? artistId) =>
-        artistId is int id
-            ? allArtists.FirstOrDefault(a => a.Id == id)?.Name ?? $"#{id}"
-            : string.Empty;
+    private string GetArtistDisplay(SongDto song) =>
+        SongArtistFormatting.FormatDisplay(
+            song.ArtistCreditDisplay,
+            song.Artists.OrderBy(a => a.DisplayOrder).Select(GetArtistNameFromCredit));
+
+    private string GetArtistNameFromCredit(SongArtistDto credit) =>
+        !string.IsNullOrWhiteSpace(credit.Name)
+            ? credit.Name
+            : allArtists.FirstOrDefault(a => a.Id == credit.ArtistId)?.Name ?? $"#{credit.ArtistId}";
 }

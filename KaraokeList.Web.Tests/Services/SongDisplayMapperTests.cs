@@ -13,9 +13,13 @@ public sealed class SongDisplayMapperTests
         {
             Id = 1,
             Title = "Jeopardy",
-            Artist = 10,
             Genre = 20,
-            SecondaryArtist = 11
+            ArtistCreditDisplay = "The Greg Kihn Band feat. Guest",
+            Artists =
+            [
+                new SongArtistDto { ArtistId = 10, DisplayOrder = 0, Name = "The Greg Kihn Band" },
+                new SongArtistDto { ArtistId = 11, DisplayOrder = 1, Name = "Guest" }
+            ]
         };
 
         var display = SongDisplayMapper.ToDisplay(
@@ -23,9 +27,9 @@ public sealed class SongDisplayMapperTests
             [new ArtistLookupDto { Id = 10, Name = "The Greg Kihn Band" }, new ArtistLookupDto { Id = 11, Name = "Guest" }],
             [new GenreDto { Id = 20, GenreName = "Rock" }]);
 
-        Assert.Equal("The Greg Kihn Band", display.ArtistName);
+        Assert.Equal("The Greg Kihn Band feat. Guest", display.ArtistDisplay);
         Assert.Equal("Rock", display.GenreName);
-        Assert.Equal("Guest", display.SecondaryArtistName);
+        Assert.Equal(2, display.Artists.Count);
     }
 
     [Fact]
@@ -33,15 +37,17 @@ public sealed class SongDisplayMapperTests
     {
         var display = new SongDisplay
         {
-            ArtistName = "Neil Diamond",
-            SecondaryArtistName = ""
+            Artists =
+            [
+                new SongArtistDto { DisplayOrder = 0, Name = "Neil Diamond" }
+            ]
         };
 
         SongDisplayMapper.ApplyArtistLookups(
             display,
             [new ArtistLookupDto { Id = 5, Name = "Neil Diamond" }]);
 
-        Assert.Equal(5, display.Artist);
-        Assert.Null(display.SecondaryArtist);
+        Assert.Single(display.Artists);
+        Assert.Equal(5, display.Artists[0].ArtistId);
     }
 }

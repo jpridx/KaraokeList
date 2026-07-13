@@ -30,8 +30,8 @@ public sealed class SingerListFileImportIntegrationTests(KaraokeApiFactory facto
 
         var songA = songs.Single(s => s.Id == songIdA);
         var songB = songs.Single(s => s.Id == songIdB);
-        var artistA = artists.Single(a => a.Id == songA.Artist);
-        var artistB = artists.Single(a => a.Id == songB.Artist);
+        var artistA = artists.Single(a => a.Id == songA.Artists.First().ArtistId);
+        var artistB = artists.Single(a => a.Id == songB.Artists.First().ArtistId);
 
         using var scope = factory.Services.CreateScope();
         var importService = scope.ServiceProvider.GetRequiredService<RepertoireImportService>();

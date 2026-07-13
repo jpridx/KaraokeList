@@ -245,8 +245,11 @@ internal static class PerformanceTestDataHelper
         var createSong = await client.PostAsJsonAsync("/api/songs", new SongDto
         {
             Title = songTitle,
-            Artist = artistId,
-            Genre = genreId
+            Genre = genreId,
+            Artists =
+            [
+                new SongArtistDto { ArtistId = artistId, DisplayOrder = 0, Name = artistName }
+            ]
         });
         Assert.Equal(HttpStatusCode.Created, createSong.StatusCode);
         var createdSong = await createSong.Content.ReadFromJsonAsync<SongDto>();

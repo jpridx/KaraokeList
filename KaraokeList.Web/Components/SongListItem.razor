@@ -2,7 +2,7 @@
     <button type="button" class="song-list-item-body" @onclick="() => OnHistory.InvokeAsync(Song)">
         <div class="song-list-item-main">
             <div class="song-list-item-title">@Song.Title</div>
-            <div class="song-list-item-artist">@Song.ArtistName</div>
+            <div class="song-list-item-artist">@(string.IsNullOrWhiteSpace(Song.ArtistDisplay) ? Song.ArtistName : Song.ArtistDisplay)</div>
         </div>
         <div class="song-list-item-meta">
             @if (!string.IsNullOrWhiteSpace(Song.GenreName))
