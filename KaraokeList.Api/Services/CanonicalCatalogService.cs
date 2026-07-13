@@ -18,7 +18,10 @@ public sealed class CanonicalCatalogService(
     IMusicBrainzService musicBrainzService,
     IHttpClientFactory httpClientFactory) : ICanonicalCatalogService
 {
-    public const int MaxVerifyBatchSize = 50;
+    /// <summary>Default batch size — each song needs ~2s of MusicBrainz rate-limited calls.</summary>
+    public const int RecommendedVerifyBatchSize = CatalogVerifyRequest.RecommendedBatchSize;
+
+    public const int MaxVerifyBatchSize = 25;
 
     public Task<CanonicalLookupResponse> LookupAsync(
         string title,

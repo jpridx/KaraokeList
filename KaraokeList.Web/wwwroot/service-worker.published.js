@@ -39,6 +39,14 @@ async function onActivate(event) {
 }
 
 async function onFetch(event) {
+    const url = new URL(event.request.url);
+
+    // API calls go to a different host and can run 30–60+ seconds (MusicBrainz verify).
+    // Do not route them through the offline cache logic.
+    if (url.origin !== self.location.origin) {
+        return fetch(event.request);
+    }
+
     let cachedResponse = false;
 
     if (event.request.method === 'GET') {
