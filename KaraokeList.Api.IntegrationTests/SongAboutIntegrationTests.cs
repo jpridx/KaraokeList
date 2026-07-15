@@ -37,7 +37,8 @@ public sealed class SongAboutIntegrationTests(KaraokeApiFactory factory)
         Skip.IfNot(factory.IsDatabaseAvailable, IntegrationTestConnection.SkipReason);
 
         var client = await CreateAuthedClientAsync();
-        var genreId = await PerformanceTestDataHelper.CreateGenreAsync(client, $"Rock {Guid.NewGuid():N}");
+        var (adminClient, _) = await IntegrationAuthHelper.CreateAdminClientAsync(factory);
+        var genreId = await PerformanceTestDataHelper.CreateGenreAsync(adminClient, $"Rock {Guid.NewGuid():N}");
 
         var artistName = $"Artist {Guid.NewGuid():N}";
         var createArtist = await client.PostAsJsonAsync("/api/artists", new ArtistDto { Name = artistName });
