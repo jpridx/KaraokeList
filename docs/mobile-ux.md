@@ -198,6 +198,7 @@ Implemented in `ShowHostMessageFormatting` (`KaraokeList.Shared`). Shown on Log 
 | `SingerListResolver` | Find singer list by kind; load lists from API |
 | `SingerListActions` | Add/remove song on want-to-sing or working-up lists |
 | `AddToWorkingUpButton` | Log page shortcut to add selected song to working up |
+| `SongAboutPanel` | Collapsible **About this song** on song detail — catalog facts plus MusicBrainz recording context (album, style tags, length) loaded on first expand |
 | `SongPerformanceSummaryPanel` | Times sung / last performance stats (mobile song detail, admin summary) |
 | `SongSummaryHints` | Log page hint text from song performance summary |
 | `MobileLoadingState` | Loading wrapper — shows message while loading, otherwise renders child content |
@@ -222,6 +223,7 @@ See [Performances.md](Performances.md) for schema and endpoints. Key calls:
 - `GET api/performances/my-repertoire` — My Songs list
 - `GET api/performances/my-history` — mobile performance browse
 - `GET api/performances/my-song-summary?songId=` — defaults + history
+- `GET api/songs/{id}/about?enrich=true` — catalog facts + optional MusicBrainz enrichment for **About this song**
 - `GET api/performances/my-stale-songs` — random sample of songs not performed recently (uses saved tickler settings; optional `days` / `limit` / `asOfDate=yyyy-MM-dd`)
 - `GET api/performances/my-stats?topVenues=&topSongs=&topArtists=&newRepertoireDays=` — singer totals, recency, ranked lists (0 = omit a section; optional `asOfDate=yyyy-MM-dd`; WASM sends browser-local today)
 - `GET api/auth/tickler-settings`, `PUT api/auth/tickler-settings` — per-user stale-song days and limit
