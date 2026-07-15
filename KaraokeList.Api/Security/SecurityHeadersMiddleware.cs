@@ -3,7 +3,7 @@ namespace KaraokeList.Security;
 public sealed class SecurityHeadersMiddleware(RequestDelegate next)
 {
     private static readonly string ApiVersion =
-        typeof(SecurityHeadersMiddleware).Assembly.GetName().Version?.ToString() ?? "2.1.0";
+        typeof(SecurityHeadersMiddleware).Assembly.GetName().Version?.ToString() ?? "2.2.0";
 
     public async Task InvokeAsync(HttpContext context)
     {

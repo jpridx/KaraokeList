@@ -8,6 +8,7 @@ namespace KaraokeList.Api.Services;
 public interface IMusicBrainzService
 {
     Task<CanonicalLookupResponse> LookupAsync(string title, string artist, CancellationToken cancellationToken = default);
+    Task<SongAboutEnrichmentDto?> GetRecordingEnrichmentAsync(string recordingMbid, CancellationToken cancellationToken = default);
 }
 
 public sealed class MusicBrainzService(IHttpClientFactory httpClientFactory, IConfiguration configuration) : IMusicBrainzService
@@ -83,6 +84,124 @@ public sealed class MusicBrainzService(IHttpClientFactory httpClientFactory, ICo
             Match = ordered[0],
             Alternatives = ordered.Skip(1).ToList()
         };
+    }
+
+    public async Task<SongAboutEnrichmentDto?> GetRecordingEnrichmentAsync(
+        string recordingMbid,
+        CancellationToken cancellationToken = default)
+    {
+        if (!configuration.GetValue("MusicBrainz:Enabled", true)
+            || string.IsNullOrWhiteSpace(recordingMbid))
+        {
+            return null;
+        }
+
+        var client = httpClientFactory.CreateClient("MusicBrainz");
+        var recording = await FetchRecordingDetailsAsync(
+            client,
+            new MusicBrainzRecording { Id = recordingMbid.Trim() },
+            cancellationToken);
+
+        return MapRecordingToEnrichment(recording);
+    }
+
+    internal static SongAboutEnrichmentDto? MapRecordingToEnrichment(MusicBrainzRecording? recording)
+    {
+        if (recording?.Id is not { Length: > 0 } id)
+        {
+            return null;
+        }
+
+        var styleTags = GetTopStyleTags(recording, max: 5);
+        var notableRelease = FormatNotableRelease(recording);
+        var versionNote = string.IsNullOrWhiteSpace(recording.Disambiguation)
+            ? null
+            : recording.Disambiguation.Trim();
+
+        if (notableRelease is null
+            && styleTags.Count == 0
+            && recording.Length is not int
+            && versionNote is null)
+        {
+            return null;
+        }
+
+        return new SongAboutEnrichmentDto
+        {
+            NotableRelease = notableRelease,
+            StyleTags = styleTags,
+            DurationMs = recording.Length,
+            VersionNote = versionNote,
+            ExternalUrl = $"https://musicbrainz.org/recording/{id}"
+        };
+    }
+
+    internal static List<string> GetTopStyleTags(MusicBrainzRecording recording, int max)
+    {
+        var candidates = new List<(string Name, int Count)>();
+        AddGenreCandidates(candidates, recording.Tags);
+        AddGenreCandidates(candidates, recording.Genres);
+
+        foreach (var releaseGroup in recording.ReleaseGroups ?? [])
+        {
+            AddGenreCandidates(candidates, releaseGroup.Tags);
+            AddGenreCandidates(candidates, releaseGroup.Genres);
+        }
+
+        return candidates
+            .GroupBy(c => c.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(g => (Name: g.Key, Count: g.Sum(x => x.Count)))
+            .OrderByDescending(x => x.Count)
+            .ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
+            .Take(max)
+            .Select(x => x.Name)
+            .ToList();
+    }
+
+    internal static string? FormatNotableRelease(MusicBrainzRecording recording)
+    {
+        var candidates = new List<(string Title, int? Year)>();
+
+        foreach (var release in recording.Releases ?? [])
+        {
+            var title = release.ReleaseGroup?.Title ?? release.Title;
+            if (string.IsNullOrWhiteSpace(title))
+            {
+                continue;
+            }
+
+            var year = MusicBrainzSearchHelper.ResolveEarliestReleaseYear(
+            [
+                release.Date,
+                release.ReleaseGroup?.FirstReleaseDate
+            ]);
+            candidates.Add((title.Trim(), year));
+        }
+
+        foreach (var releaseGroup in recording.ReleaseGroups ?? [])
+        {
+            if (string.IsNullOrWhiteSpace(releaseGroup.Title))
+            {
+                continue;
+            }
+
+            var year = MusicBrainzSearchHelper.ResolveEarliestReleaseYear([releaseGroup.FirstReleaseDate]);
+            candidates.Add((releaseGroup.Title.Trim(), year));
+        }
+
+        var best = candidates
+            .OrderBy(c => c.Year ?? int.MaxValue)
+            .ThenBy(c => c.Title, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault();
+
+        if (string.IsNullOrWhiteSpace(best.Title))
+        {
+            return null;
+        }
+
+        return best.Year is int yearValue
+            ? $"{best.Title} ({yearValue})"
+            : best.Title;
     }
 
     internal static List<CanonicalMatchDto> OrderMatchesOldestFirst(
@@ -487,6 +606,9 @@ public sealed class MusicBrainzService(IHttpClientFactory httpClientFactory, ICo
         [JsonPropertyName("disambiguation")]
         public string? Disambiguation { get; set; }
 
+        [JsonPropertyName("length")]
+        public int? Length { get; set; }
+
         [JsonPropertyName("first-release-date")]
         public string? FirstReleaseDate { get; set; }
 
@@ -508,6 +630,9 @@ public sealed class MusicBrainzService(IHttpClientFactory httpClientFactory, ICo
 
     internal sealed class MusicBrainzRelease
     {
+        [JsonPropertyName("title")]
+        public string? Title { get; set; }
+
         [JsonPropertyName("date")]
         public string? Date { get; set; }
 
@@ -517,6 +642,9 @@ public sealed class MusicBrainzService(IHttpClientFactory httpClientFactory, ICo
 
     internal sealed class MusicBrainzReleaseGroup
     {
+        [JsonPropertyName("title")]
+        public string? Title { get; set; }
+
         [JsonPropertyName("first-release-date")]
         public string? FirstReleaseDate { get; set; }
 
