@@ -11,9 +11,22 @@ namespace KaraokeList.Api.Controllers;
 [Authorize]
 public class SongsController(
     SongCatalogService songCatalogService,
+    ISongAboutService songAboutService,
     CatalogIntegrityService integrity,
     CatalogMergeService mergeService) : ControllerBase
 {
+    [HttpGet("{id:int}/about")]
+    public async Task<ActionResult<SongAboutDto>> GetAbout(
+        int id,
+        [FromQuery] bool enrich = false,
+        CancellationToken cancellationToken = default)
+    {
+        var about = await songAboutService.GetAboutAsync(id, enrich, cancellationToken);
+        return about is null
+            ? NotFound(new ApiErrorResponse { Message = "Song was not found." })
+            : Ok(about);
+    }
+
     [HttpGet]
     public async Task<ActionResult<List<SongDto>>> GetAll()
     {

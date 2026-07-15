@@ -59,6 +59,7 @@ public interface IKaraokeApiClient
     Task<PasswordRecoveryResult> ForgotPasswordAsync(ForgotPasswordRequest request);
     Task<PasswordRecoveryResult> ResetPasswordAsync(ResetPasswordRequest request);
     Task<SongSummaryResult> GetMySongSummaryAsync(int songId);
+    Task<SongAboutResult> GetSongAboutAsync(int songId, bool enrich = false);
     Task<RepertoireResult> GetMyRepertoireAsync(
         string sortBy = "lastPerformed",
         string sortDir = "desc",
@@ -388,6 +389,22 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
 
         var message = await ReadApiErrorMessageAsync(response);
         return SongSummaryResult.Fail(message ?? "Could not load song summary.");
+    }
+
+    public async Task<SongAboutResult> GetSongAboutAsync(int songId, bool enrich = false)
+    {
+        var query = enrich ? "?enrich=true" : string.Empty;
+        var response = await http.GetAsync($"api/songs/{songId}/about{query}");
+        if (response.IsSuccessStatusCode)
+        {
+            var about = await response.Content.ReadFromJsonAsync<SongAboutDto>(JsonOptions);
+            return about is null
+                ? SongAboutResult.Fail("Unexpected empty response from the server.")
+                : SongAboutResult.Ok(about);
+        }
+
+        var message = await ReadApiErrorMessageAsync(response);
+        return SongAboutResult.Fail(message ?? "Could not load song details.");
     }
 
     public async Task<RepertoireResult> GetMyRepertoireAsync(

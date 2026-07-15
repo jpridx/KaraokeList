@@ -42,6 +42,7 @@ builder.Services.AddScoped<ICurrentUserSingerResolver, CurrentUserSingerResolver
 builder.Services.AddScoped<IAiGenreService, AiGenreService>();
 builder.Services.AddScoped<IMusicBrainzService, MusicBrainzService>();
 builder.Services.AddScoped<ICanonicalCatalogService, CanonicalCatalogService>();
+builder.Services.AddScoped<ISongAboutService, SongAboutService>();
 
 builder.Services.AddHttpClient("GoogleSheets", client =>
 {

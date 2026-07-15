@@ -63,6 +63,7 @@ public class NotImplementedApiClient : IKaraokeApiClient
     public virtual Task<PasswordRecoveryResult> ForgotPasswordAsync(ForgotPasswordRequest request) => Throw<PasswordRecoveryResult>();
     public virtual Task<PasswordRecoveryResult> ResetPasswordAsync(ResetPasswordRequest request) => Throw<PasswordRecoveryResult>();
     public virtual Task<SongSummaryResult> GetMySongSummaryAsync(int songId) => Throw<SongSummaryResult>();
+    public virtual Task<SongAboutResult> GetSongAboutAsync(int songId, bool enrich = false) => Throw<SongAboutResult>();
     public virtual Task<RepertoireResult> GetMyRepertoireAsync(
         string sortBy = "lastPerformed",
         string sortDir = "desc",
