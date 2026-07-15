@@ -11,7 +11,7 @@
     <LeadingContent>
         <button type="button" class="btn btn-link btn-sm ps-0" @onclick="GoBackAsync">← My Songs</button>
     </LeadingContent>
-    <Subtitle>@(songMeta?.ArtistName)</Subtitle>
+    <Subtitle>@(songMeta?.ArtistDisplay ?? songMeta?.ArtistName)</Subtitle>
     <ChildContent Context="singerId">
         <MobileLoadingState IsLoading="@isLoading">
                 @if (!string.IsNullOrEmpty(loadError))

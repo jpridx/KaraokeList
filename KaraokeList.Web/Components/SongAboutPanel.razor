@@ -13,11 +13,34 @@
         }
         else if (_about is not null)
         {
-            <p class="small mb-0">@_about.Title</p>
+            @if (HasCatalogDetails(_about))
+            {
+                <dl class="song-about-facts small mb-0">
+                    @if (!string.IsNullOrWhiteSpace(_about.ArtistDisplay))
+                    {
+                        <dt class="text-muted">Artists</dt>
+                        <dd class="mb-2">@_about.ArtistDisplay</dd>
+                    }
+                    @if (_about.Year is int year)
+                    {
+                        <dt class="text-muted">Released</dt>
+                        <dd class="mb-2">@year</dd>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(_about.GenreName))
+                    {
+                        <dt class="text-muted">Genre</dt>
+                        <dd class="mb-0">@_about.GenreName</dd>
+                    }
+                </dl>
+            }
+            else
+            {
+                <p class="small text-muted mb-0">No extra details yet.</p>
+            }
         }
         else if (_hasExpanded)
         {
-            <p class="small text-muted mb-0">Details coming soon.</p>
+            <p class="small text-muted mb-0">No extra details yet.</p>
         }
     </div>
 </details>
@@ -31,6 +54,11 @@
     private bool _hasExpanded;
     private bool _hasLoaded;
     private string? _error;
+
+    private static bool HasCatalogDetails(SongAboutDto about) =>
+        !string.IsNullOrWhiteSpace(about.ArtistDisplay)
+        || about.Year is int
+        || !string.IsNullOrWhiteSpace(about.GenreName);
 
     private async Task OnSummaryClickedAsync()
     {
