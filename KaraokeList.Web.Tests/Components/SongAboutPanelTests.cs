@@ -51,4 +51,47 @@ public sealed class SongAboutPanelTests : BunitTestContext
             api.Verify(client => client.GetSongAboutAsync(7, false), Times.Once);
         });
     }
+
+    [Fact]
+    public void More_about_this_recording_loads_enrichment()
+    {
+        api.Setup(client => client.GetSongAboutAsync(7, false))
+            .ReturnsAsync(SongAboutResult.Ok(new SongAboutDto
+            {
+                SongId = 7,
+                Title = "Zombie",
+                Year = 1994
+            }));
+
+        api.Setup(client => client.GetSongAboutAsync(7, true))
+            .ReturnsAsync(SongAboutResult.Ok(new SongAboutDto
+            {
+                SongId = 7,
+                Title = "Zombie",
+                Year = 1994,
+                Enrichment = new SongAboutEnrichmentDto
+                {
+                    NotableRelease = "No Need to Argue (1994)",
+                    StyleTags = ["alternative rock"],
+                    DurationMs = 306000,
+                    ExternalUrl = "https://musicbrainz.org/recording/example"
+                }
+            }));
+
+        var cut = Render<SongAboutPanel>(parameters => parameters.Add(p => p.SongId, 7));
+        cut.Find("summary").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("More about this recording", cut.Markup));
+        cut.Find("button.btn-link").Click();
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Contains("From", cut.Markup);
+            Assert.Contains("No Need to Argue (1994)", cut.Markup);
+            Assert.Contains("alternative rock", cut.Markup);
+            Assert.Contains("5:06", cut.Markup);
+            Assert.Contains("MusicBrainz", cut.Markup);
+            api.Verify(client => client.GetSongAboutAsync(7, true), Times.Once);
+        });
+    }
 }

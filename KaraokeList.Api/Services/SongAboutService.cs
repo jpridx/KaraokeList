@@ -11,7 +11,8 @@ public interface ISongAboutService
 
 public sealed class SongAboutService(
     SongCatalogService songCatalogService,
-    ApplicationDbContext db) : ISongAboutService
+    ApplicationDbContext db,
+    IMusicBrainzService musicBrainzService) : ISongAboutService
 {
     public async Task<SongAboutDto?> GetAboutAsync(
         int songId,
@@ -24,11 +25,15 @@ public sealed class SongAboutService(
             return null;
         }
 
-        // Phase 2 handles enrich=true.
-        _ = enrich;
-
         var genreName = await ResolveGenreNameAsync(song.Genre, cancellationToken);
-        return ToAboutDto(song, genreName);
+        var about = ToAboutDto(song, genreName);
+
+        if (enrich)
+        {
+            about.Enrichment = await ResolveEnrichmentAsync(song, cancellationToken);
+        }
+
+        return about;
     }
 
     internal static SongAboutDto ToAboutDto(SongDto song, string? genreName)
@@ -48,6 +53,31 @@ public sealed class SongAboutService(
             Year = song.Year,
             GenreName = string.IsNullOrWhiteSpace(genreName) ? null : genreName.Trim()
         };
+    }
+
+    private async Task<SongAboutEnrichmentDto?> ResolveEnrichmentAsync(
+        SongDto song,
+        CancellationToken cancellationToken)
+    {
+        if (!string.IsNullOrWhiteSpace(song.RecordingMbid))
+        {
+            return await musicBrainzService.GetRecordingEnrichmentAsync(song.RecordingMbid, cancellationToken);
+        }
+
+        var primaryArtist = SongArtistFormatting.PrimaryArtistName(song.Artists);
+        if (string.IsNullOrWhiteSpace(primaryArtist))
+        {
+            return null;
+        }
+
+        var lookup = await musicBrainzService.LookupAsync(song.Title, primaryArtist, cancellationToken);
+        var recordingMbid = lookup.Match.RecordingMbid;
+        if (string.IsNullOrWhiteSpace(recordingMbid))
+        {
+            return null;
+        }
+
+        return await musicBrainzService.GetRecordingEnrichmentAsync(recordingMbid, cancellationToken);
     }
 
     private async Task<string?> ResolveGenreNameAsync(int? genreId, CancellationToken cancellationToken)
