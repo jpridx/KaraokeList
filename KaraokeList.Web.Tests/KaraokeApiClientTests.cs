@@ -296,6 +296,46 @@ public sealed class KaraokeApiClientTests
     }
 
     [Fact]
+    public async Task GetSongAboutAsync_WhenSuccessful_ReturnsAbout()
+    {
+        var client = CreateClient(new StubHandler(request =>
+        {
+            Assert.Equal(HttpMethod.Get, request.Method);
+            Assert.Equal("/api/songs/42/about", request.RequestUri?.PathAndQuery);
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = JsonContent.Create(new SongAboutDto
+                {
+                    SongId = 42,
+                    Title = "Bohemian Rhapsody"
+                })
+            };
+        }));
+
+        var result = await client.GetSongAboutAsync(42);
+
+        Assert.True(result.Succeeded);
+        Assert.NotNull(result.About);
+        Assert.Equal(42, result.About.SongId);
+        Assert.Equal("Bohemian Rhapsody", result.About.Title);
+    }
+
+    [Fact]
+    public async Task GetSongAboutAsync_WhenNotFound_ReturnsApiErrorMessage()
+    {
+        var client = CreateClient(new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.NotFound)
+        {
+            Content = new StringContent("""{"message":"Song was not found."}""", Encoding.UTF8, "application/json")
+        }));
+
+        var result = await client.GetSongAboutAsync(99);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal("Song was not found.", result.ErrorMessage);
+    }
+
+    [Fact]
     public async Task GetMyRepertoireGenresAsync_WhenSuccessful_ReturnsGenres()
     {
         var client = CreateClient(new StubHandler(request =>

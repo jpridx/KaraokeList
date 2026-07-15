@@ -1,0 +1,73 @@
+@inject IKaraokeApiClient Api
+
+<details class="mobile-panel song-about-details mt-2">
+    <summary class="history-details-summary" @onclick="OnSummaryClickedAsync">About this song</summary>
+    <div class="song-about-body mt-2">
+        @if (_isLoading)
+        {
+            <p class="small text-muted mb-0">Loading…</p>
+        }
+        else if (!string.IsNullOrEmpty(_error))
+        {
+            <p class="small text-danger mb-0">@_error</p>
+        }
+        else if (_about is not null)
+        {
+            <p class="small mb-0">@_about.Title</p>
+        }
+        else if (_hasExpanded)
+        {
+            <p class="small text-muted mb-0">Details coming soon.</p>
+        }
+    </div>
+</details>
+
+@code {
+    [Parameter, EditorRequired]
+    public int SongId { get; set; }
+
+    private SongAboutDto? _about;
+    private bool _isLoading;
+    private bool _hasExpanded;
+    private bool _hasLoaded;
+    private string? _error;
+
+    private async Task OnSummaryClickedAsync()
+    {
+        if (_hasLoaded)
+        {
+            return;
+        }
+
+        _hasExpanded = true;
+        await LoadAboutAsync();
+    }
+
+    private async Task LoadAboutAsync()
+    {
+        _isLoading = true;
+        _error = null;
+
+        try
+        {
+            var result = await Api.GetSongAboutAsync(SongId);
+            if (result.Succeeded && result.About is not null)
+            {
+                _about = result.About;
+            }
+            else
+            {
+                _error = result.ErrorMessage ?? "Could not load song details.";
+            }
+        }
+        catch
+        {
+            _error = "Could not load song details.";
+        }
+        finally
+        {
+            _isLoading = false;
+            _hasLoaded = true;
+        }
+    }
+}
