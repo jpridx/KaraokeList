@@ -13,7 +13,7 @@
         }
         else if (_about is not null)
         {
-            @if (HasCatalogDetails(_about))
+            @if (HasAnyDetails(_about))
             {
                 <dl class="song-about-facts small mb-0">
                     @if (!string.IsNullOrWhiteSpace(_about.ArtistDisplay))
@@ -29,70 +29,48 @@
                     @if (!string.IsNullOrWhiteSpace(_about.GenreName))
                     {
                         <dt class="text-muted">Genre</dt>
-                        <dd class="@(_about.Enrichment is null && !_enrichmentLoaded ? "mb-2" : "mb-0")">@_about.GenreName</dd>
+                        <dd class="mb-2">@_about.GenreName</dd>
+                    }
+                    @if (_about.Enrichment is not null)
+                    {
+                        @if (!string.IsNullOrWhiteSpace(_about.Enrichment.NotableRelease))
+                        {
+                            <dt class="text-muted">From</dt>
+                            <dd class="mb-2">@_about.Enrichment.NotableRelease</dd>
+                        }
+                        @if (_about.Enrichment.StyleTags.Count > 0)
+                        {
+                            <dt class="text-muted">Style</dt>
+                            <dd class="mb-2">
+                                @foreach (var tag in _about.Enrichment.StyleTags)
+                                {
+                                    <span class="badge text-bg-secondary me-1 mb-1">@tag</span>
+                                }
+                            </dd>
+                        }
+                        @if (_about.Enrichment.DurationMs is int durationMs)
+                        {
+                            <dt class="text-muted">Length</dt>
+                            <dd class="mb-2">@FormatDuration(durationMs)</dd>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(_about.Enrichment.VersionNote))
+                        {
+                            <dt class="text-muted">Note</dt>
+                            <dd class="mb-2">@_about.Enrichment.VersionNote</dd>
+                        }
                     }
                 </dl>
-            }
-            else if (!_enrichmentLoaded)
-            {
-                <p class="small text-muted mb-2">No extra details yet.</p>
-            }
-
-            @if (_about.Enrichment is not null)
-            {
-                <dl class="song-about-facts small mb-0 mt-2">
-                    @if (!string.IsNullOrWhiteSpace(_about.Enrichment.NotableRelease))
-                    {
-                        <dt class="text-muted">From</dt>
-                        <dd class="mb-2">@_about.Enrichment.NotableRelease</dd>
-                    }
-                    @if (_about.Enrichment.StyleTags.Count > 0)
-                    {
-                        <dt class="text-muted">Style</dt>
-                        <dd class="mb-2">
-                            @foreach (var tag in _about.Enrichment.StyleTags)
-                            {
-                                <span class="badge text-bg-secondary me-1 mb-1">@tag</span>
-                            }
-                        </dd>
-                    }
-                    @if (_about.Enrichment.DurationMs is int durationMs)
-                    {
-                        <dt class="text-muted">Length</dt>
-                        <dd class="mb-2">@FormatDuration(durationMs)</dd>
-                    }
-                    @if (!string.IsNullOrWhiteSpace(_about.Enrichment.VersionNote))
-                    {
-                        <dt class="text-muted">Note</dt>
-                        <dd class="mb-2">@_about.Enrichment.VersionNote</dd>
-                    }
-                </dl>
-                @if (!string.IsNullOrWhiteSpace(_about.Enrichment.ExternalUrl))
+                @if (_about.Enrichment is not null
+                     && !string.IsNullOrWhiteSpace(_about.Enrichment.ExternalUrl))
                 {
                     <p class="small text-muted mb-0 mt-2">
                         Source: <a href="@_about.Enrichment.ExternalUrl" target="_blank" rel="noopener noreferrer">MusicBrainz</a>
                     </p>
                 }
             }
-            else if (_enrichmentLoaded && !string.IsNullOrEmpty(_enrichmentError))
+            else
             {
-                <p class="small text-muted mb-0 mt-2">@_enrichmentError</p>
-            }
-            else if (!_enrichmentLoaded)
-            {
-                <button type="button"
-                        class="btn btn-link btn-sm ps-0 mt-2"
-                        disabled="@_enrichmentLoading"
-                        @onclick="LoadEnrichmentAsync">
-                    @if (_enrichmentLoading)
-                    {
-                        <span>Loading recording details…</span>
-                    }
-                    else
-                    {
-                        <span>More about this recording</span>
-                    }
-                </button>
+                <p class="small text-muted mb-0">No extra details yet.</p>
             }
         }
         else if (_hasExpanded)
@@ -110,15 +88,13 @@
     private bool _isLoading;
     private bool _hasExpanded;
     private bool _hasLoaded;
-    private bool _enrichmentLoading;
-    private bool _enrichmentLoaded;
     private string? _error;
-    private string? _enrichmentError;
 
-    private static bool HasCatalogDetails(SongAboutDto about) =>
+    private static bool HasAnyDetails(SongAboutDto about) =>
         !string.IsNullOrWhiteSpace(about.ArtistDisplay)
         || about.Year is int
-        || !string.IsNullOrWhiteSpace(about.GenreName);
+        || !string.IsNullOrWhiteSpace(about.GenreName)
+        || about.Enrichment is not null;
 
     private static string FormatDuration(int durationMs)
     {
@@ -146,7 +122,7 @@
 
         try
         {
-            var result = await Api.GetSongAboutAsync(SongId);
+            var result = await Api.GetSongAboutAsync(SongId, enrich: true);
             if (result.Succeeded && result.About is not null)
             {
                 _about = result.About;
@@ -164,43 +140,6 @@
         {
             _isLoading = false;
             _hasLoaded = true;
-        }
-    }
-
-    private async Task LoadEnrichmentAsync()
-    {
-        if (_enrichmentLoading || _enrichmentLoaded || _about is null)
-        {
-            return;
-        }
-
-        _enrichmentLoading = true;
-        _enrichmentError = null;
-
-        try
-        {
-            var result = await Api.GetSongAboutAsync(SongId, enrich: true);
-            if (result.Succeeded && result.About is not null)
-            {
-                _about.Enrichment = result.About.Enrichment;
-                if (_about.Enrichment is null)
-                {
-                    _enrichmentError = "Recording details aren't available for this song.";
-                }
-            }
-            else
-            {
-                _enrichmentError = result.ErrorMessage ?? "Couldn't load recording details.";
-            }
-        }
-        catch
-        {
-            _enrichmentError = "Couldn't load recording details.";
-        }
-        finally
-        {
-            _enrichmentLoading = false;
-            _enrichmentLoaded = true;
         }
     }
 }
