@@ -25,13 +25,16 @@ public sealed class SongAboutPanelTests : BunitTestContext
     }
 
     [Fact]
-    public void Expanding_loads_song_title_from_api()
+    public void Expanding_shows_catalog_fact_rows()
     {
         api.Setup(client => client.GetSongAboutAsync(7, false))
             .ReturnsAsync(SongAboutResult.Ok(new SongAboutDto
             {
                 SongId = 7,
-                Title = "Zombie"
+                Title = "Zombie",
+                ArtistDisplay = "The Cranberries",
+                Year = 1994,
+                GenreName = "Alternative Rock"
             }));
 
         var cut = Render<SongAboutPanel>(parameters => parameters.Add(p => p.SongId, 7));
@@ -39,7 +42,12 @@ public sealed class SongAboutPanelTests : BunitTestContext
 
         cut.WaitForAssertion(() =>
         {
-            Assert.Contains("Zombie", cut.Markup);
+            Assert.Contains("Artists", cut.Markup);
+            Assert.Contains("The Cranberries", cut.Markup);
+            Assert.Contains("Released", cut.Markup);
+            Assert.Contains("1994", cut.Markup);
+            Assert.Contains("Genre", cut.Markup);
+            Assert.Contains("Alternative Rock", cut.Markup);
             api.Verify(client => client.GetSongAboutAsync(7, false), Times.Once);
         });
     }
