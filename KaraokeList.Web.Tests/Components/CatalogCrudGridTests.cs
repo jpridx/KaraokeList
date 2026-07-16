@@ -39,6 +39,17 @@ public sealed class CatalogCrudGridTests : BunitTestContext
         });
     }
 
+    [Fact]
+    public async Task SyncEditingRowAsync_does_not_throw_when_grid_not_rendered()
+    {
+        var cut = RenderCatalogGrid(isLoading: true);
+        var item = new VenueDto { Id = 1, VenueName = "Main Stage" };
+
+        var exception = await Record.ExceptionAsync(() => cut.Instance.SyncEditingRowAsync(item));
+
+        Assert.Null(exception);
+    }
+
     private IRenderedComponent<CatalogCrudGrid<VenueDto>> RenderCatalogGrid(
         bool isLoading,
         IReadOnlyList<VenueDto>? items = null) =>

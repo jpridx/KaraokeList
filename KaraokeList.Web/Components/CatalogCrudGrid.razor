@@ -119,7 +119,7 @@ else
             }
 
             await SetErrorAsync(null);
-            await OnReload.InvokeAsync();
+            await ReloadItemsAsync();
         }
         else if (args.RequestType == Action.Delete && args.Data is not null)
         {
@@ -132,7 +132,34 @@ else
             }
 
             await SetErrorAsync(null);
-            await OnReload.InvokeAsync();
+            await ReloadItemsAsync();
+        }
+    }
+
+    /// <summary>Refreshes the grid row UI from an in-memory model change (e.g. MusicBrainz apply during edit).</summary>
+    public async Task SyncEditingRowAsync(TItem item)
+    {
+        if (gridRef is null)
+        {
+            return;
+        }
+
+        await gridRef.SetRowDataAsync(GetId(item), item, preventDataUpdate: true);
+    }
+
+    private async Task ReloadItemsAsync()
+    {
+        string? persist = null;
+        if (gridRef is not null)
+        {
+            persist = await gridRef.GetPersistDataAsync();
+        }
+
+        await OnReload.InvokeAsync();
+
+        if (persist is not null && gridRef is not null)
+        {
+            await gridRef.SetPersistDataAsync(persist);
         }
     }
 
