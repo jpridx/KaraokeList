@@ -64,6 +64,15 @@ public static partial class MusicBrainzSearchHelper
             AddQuery(queries, $"\"{EscapeQuery(trimmedTitle)}\" AND artist:\"{EscapeQuery(artistWithoutFeat)}\"");
         }
 
+        var duoSurnames = ExtractDuoSurnames(trimmedArtist);
+        if (duoSurnames.Count >= 2)
+        {
+            var surnameFilters = duoSurnames
+                .Select(name => $"artist:{EscapeQuery(name)}")
+                .ToList();
+            AddQuery(queries, $"\"{EscapeQuery(trimmedTitle)}\" AND {string.Join(" AND ", surnameFilters)}");
+        }
+
         return queries;
     }
 
@@ -78,6 +87,15 @@ public static partial class MusicBrainzSearchHelper
 
         AddQuery(queries, $"{EscapeQuery(trimmedTitle)} AND artist:{EscapeQuery(trimmedArtist)} AND NOT live");
         AddQuery(queries, $"\"{EscapeQuery(trimmedTitle)}\" AND artist:\"{EscapeQuery(trimmedArtist)}\" AND NOT live");
+
+        var duoSurnames = ExtractDuoSurnames(trimmedArtist);
+        if (duoSurnames.Count >= 2)
+        {
+            var surnameFilters = duoSurnames
+                .Select(name => $"artist:{EscapeQuery(name)}")
+                .ToList();
+            AddQuery(queries, $"\"{EscapeQuery(trimmedTitle)}\" AND {string.Join(" AND ", surnameFilters)} AND NOT live");
+        }
 
         return queries;
     }
@@ -245,9 +263,9 @@ public static partial class MusicBrainzSearchHelper
         return list
             .OrderBy(m => GetClearlyUnwantedRank(m))
             .ThenBy(m => TitleMatchesSearch(m.Title, searchTitle) ? 0 : 1)
-            .ThenBy(m => GetArtistMatchRank(m, searchArtist))
             .ThenBy(m => GetSoftUnwantedRank(m, searchTitle, oldestExactTitleYear, isSoftUnwanted))
             .ThenBy(m => m.Year ?? int.MaxValue)
+            .ThenBy(m => GetArtistMatchRank(m, searchArtist))
             .ThenByDescending(m => m.Score)
             .ThenBy(m => m.Title, StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -332,23 +350,19 @@ public static partial class MusicBrainzSearchHelper
         var scoped = credible.Count > 0 ? credible : pool;
         if (!string.IsNullOrWhiteSpace(searchArtist))
         {
-            var exactArtist = scoped
-                .Where(m => GetArtistMatchRank(m, searchArtist) == 0)
+            var artistMatched = scoped
+                .Where(m => GetArtistMatchRank(m, searchArtist) <= 1)
                 .ToList();
-            if (exactArtist.Count > 0)
+            if (artistMatched.Count > 0)
             {
-                scoped = exactArtist;
+                scoped = artistMatched;
             }
-            else
-            {
-                var equivalentArtist = scoped
-                    .Where(m => GetArtistMatchRank(m, searchArtist) == 1)
-                    .ToList();
-                if (equivalentArtist.Count > 0)
-                {
-                    scoped = equivalentArtist;
-                }
-            }
+        }
+
+        var withoutReissues = scoped.Where(m => !IsLikelyReissueOrLive(m)).ToList();
+        if (withoutReissues.Count > 0)
+        {
+            scoped = withoutReissues;
         }
 
         var oldestYear = scoped
@@ -361,7 +375,8 @@ public static partial class MusicBrainzSearchHelper
         {
             var oldestMatches = scoped
                 .Where(m => m.Year == oldestYear)
-                .OrderByDescending(m => m.Score)
+                .OrderBy(m => GetArtistMatchRank(m, searchArtist))
+                .ThenByDescending(m => m.Score)
                 .ToList();
 
             if (oldestMatches.Count > 0)

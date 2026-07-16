@@ -79,7 +79,7 @@ public class MusicBrainzSearchHelperTests
     }
 
     [Fact]
-    public void RankMatches_prefers_exact_artist_credit_over_legal_duo_name()
+    public void RankMatches_prefers_exact_artist_credit_when_release_year_ties()
     {
         var sorted = MusicBrainzSearchHelper.RankMatches(
         [
@@ -87,7 +87,7 @@ public class MusicBrainzSearchHelperTests
             {
                 Title = "Private Eyes",
                 ArtistCreditDisplay = "Daryl Hall & John Oates",
-                Year = 1976,
+                Year = 1981,
                 Score = 100
             },
             new CanonicalMatchDto
@@ -115,9 +115,9 @@ public class MusicBrainzSearchHelperTests
                 Found = true,
                 Title = "Private Eyes",
                 ArtistCreditDisplay = "Daryl Hall & John Oates",
-                Year = 1976,
+                Year = 1981,
                 Score = 100,
-                RecordingMbid = "1976-full-name"
+                RecordingMbid = "1981-full-name"
             },
             new CanonicalMatchDto
             {
@@ -134,6 +134,83 @@ public class MusicBrainzSearchHelperTests
 
         Assert.Equal("1981-alias", best?.RecordingMbid);
         Assert.Equal(1981, best?.Year);
+    }
+
+    [Fact]
+    public void SelectBestCredibleSuggestion_picks_1980_studio_kiss_on_my_list_over_2001_reissue()
+    {
+        var pool = new[]
+        {
+            new CanonicalMatchDto
+            {
+                Found = true,
+                Title = "Kiss on My List",
+                ArtistCreditDisplay = "Hall & Oates",
+                Year = 2001,
+                Score = 99,
+                RecordingMbid = "2001-live"
+            },
+            new CanonicalMatchDto
+            {
+                Found = true,
+                Title = "Kiss on My List",
+                ArtistCreditDisplay = "Daryl Hall & John Oates",
+                Year = 1980,
+                Score = 97,
+                RecordingMbid = "1980-studio"
+            },
+            new CanonicalMatchDto
+            {
+                Found = true,
+                Title = "Kiss on My List",
+                ArtistCreditDisplay = "Hall & Oates",
+                Year = 1988,
+                Score = 99,
+                Disambiguation = "1994 compilation",
+                RecordingMbid = "1988-compilation"
+            }
+        };
+
+        var best = MusicBrainzSearchHelper.SelectBestCredibleSuggestion(pool, "Kiss on My List", "Hall & Oates");
+
+        Assert.Equal("1980-studio", best?.RecordingMbid);
+        Assert.Equal(1980, best?.Year);
+    }
+
+    [Fact]
+    public void RankMatches_prefers_1980_studio_over_2001_reissue_for_kiss_on_my_list()
+    {
+        var sorted = MusicBrainzSearchHelper.RankMatches(
+        [
+            new CanonicalMatchDto
+            {
+                Title = "Kiss on My List",
+                ArtistCreditDisplay = "Hall & Oates",
+                Year = 2001,
+                Score = 99
+            },
+            new CanonicalMatchDto
+            {
+                Title = "Kiss on My List",
+                ArtistCreditDisplay = "Daryl Hall & John Oates",
+                Year = 1980,
+                Score = 97
+            }
+        ],
+        "Kiss on My List",
+        searchArtist: "Hall & Oates");
+
+        Assert.Equal(1980, sorted[0].Year);
+        Assert.Equal("Daryl Hall & John Oates", sorted[0].ArtistCreditDisplay);
+    }
+
+    [Fact]
+    public void BuildSearchQueries_includes_duo_surname_variant()
+    {
+        var queries = MusicBrainzSearchHelper.BuildSearchQueries("Kiss on My List", "Hall & Oates");
+
+        Assert.Contains(queries, q => q.Contains("artist:Hall", StringComparison.Ordinal)
+            && q.Contains("artist:Oates", StringComparison.Ordinal));
     }
 
     [Fact]
