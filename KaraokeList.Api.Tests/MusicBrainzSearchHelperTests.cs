@@ -166,6 +166,58 @@ public class MusicBrainzSearchHelperTests
     }
 
     [Fact]
+    public void SelectBestCredibleSuggestion_promotes_1974_strutter_over_live_2014()
+    {
+        var pool = new[]
+        {
+            new CanonicalMatchDto
+            {
+                Found = true,
+                Title = "Strutter",
+                Year = 2014,
+                Score = 100,
+                RecordingMbid = "live-2014",
+                Disambiguation = "live, 2014-11-04: IJsselhallen, Zwolle, NL"
+            },
+            new CanonicalMatchDto
+            {
+                Found = true,
+                Title = "Strutter",
+                Year = 1970,
+                Score = 100,
+                RecordingMbid = "demo",
+                Disambiguation = "demo"
+            },
+            new CanonicalMatchDto
+            {
+                Found = true,
+                Title = "Strutter",
+                Year = 1974,
+                Score = 95,
+                RecordingMbid = "studio-1974"
+            }
+        };
+
+        var best = MusicBrainzSearchHelper.SelectBestCredibleSuggestion(pool, "Strutter");
+
+        Assert.Equal("studio-1974", best?.RecordingMbid);
+        Assert.Equal(1974, best?.Year);
+    }
+
+    [Fact]
+    public void IsBestCredibleMatch_is_false_when_primary_is_not_oldest_credible_hit()
+    {
+        var pool = new[]
+        {
+            new CanonicalMatchDto { Found = true, Title = "Strutter", Year = 2014, RecordingMbid = "live-2014", Disambiguation = "live" },
+            new CanonicalMatchDto { Found = true, Title = "Strutter", Year = 1974, RecordingMbid = "studio-1974" }
+        };
+
+        Assert.False(MusicBrainzSearchHelper.IsBestCredibleMatch(pool[0], "Strutter", pool));
+        Assert.True(MusicBrainzSearchHelper.IsBestCredibleMatch(pool[1], "Strutter", pool));
+    }
+
+    [Fact]
     public void SortMatchesOldestFirst_puts_likely_reissues_last()
     {
         var sorted = MusicBrainzSearchHelper.SortMatchesOldestFirst(
