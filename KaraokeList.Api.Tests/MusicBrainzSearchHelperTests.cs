@@ -130,6 +130,42 @@ public class MusicBrainzSearchHelperTests
     }
 
     [Fact]
+    public void BuildStudioSearchQueries_excludes_live_recordings()
+    {
+        var queries = MusicBrainzSearchHelper.BuildStudioSearchQueries("Strutter", "KISS");
+
+        Assert.Equal(2, queries.Count);
+        Assert.All(queries, q => Assert.Contains("NOT live", q, StringComparison.Ordinal));
+        Assert.Contains(queries, q => q.Contains("artist:KISS", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void RankMatches_promotes_studio_strutter_over_live_and_demo()
+    {
+        var sorted = MusicBrainzSearchHelper.RankMatches(
+        [
+            new CanonicalMatchDto
+            {
+                Title = "Strutter",
+                Year = 1984,
+                Score = 100,
+                Disambiguation = "live, 1984-11-04: IJsselhallen, Zwolle, NL"
+            },
+            new CanonicalMatchDto
+            {
+                Title = "Strutter",
+                Year = 1970,
+                Score = 100,
+                Disambiguation = "demo"
+            },
+            new CanonicalMatchDto { Title = "Strutter", Year = 1974, Score = 100 }
+        ],
+        "Strutter");
+
+        Assert.Equal(1974, sorted[0].Year);
+    }
+
+    [Fact]
     public void SortMatchesOldestFirst_puts_likely_reissues_last()
     {
         var sorted = MusicBrainzSearchHelper.SortMatchesOldestFirst(

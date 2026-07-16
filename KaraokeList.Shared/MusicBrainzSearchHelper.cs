@@ -61,6 +61,21 @@ public static partial class MusicBrainzSearchHelper
     }
 
     /// <summary>
+    /// Lucene queries that exclude live recordings so studio originals surface (e.g. KISS "Strutter" 1974).
+    /// </summary>
+    public static IReadOnlyList<string> BuildStudioSearchQueries(string title, string artist)
+    {
+        var queries = new List<string>();
+        var trimmedTitle = title.Trim();
+        var trimmedArtist = artist.Trim();
+
+        AddQuery(queries, $"{EscapeQuery(trimmedTitle)} AND artist:{EscapeQuery(trimmedArtist)} AND NOT live");
+        AddQuery(queries, $"\"{EscapeQuery(trimmedTitle)}\" AND artist:\"{EscapeQuery(trimmedArtist)}\" AND NOT live");
+
+        return queries;
+    }
+
+    /// <summary>
     /// Returns the earliest year found across MusicBrainz date strings.
     /// </summary>
     public static int? ResolveEarliestReleaseYear(IEnumerable<string?> dates)
@@ -232,6 +247,9 @@ public static partial class MusicBrainzSearchHelper
         }
 
         return disambiguation.Contains("live", StringComparison.OrdinalIgnoreCase)
+            || disambiguation.Contains("demo", StringComparison.OrdinalIgnoreCase)
+            || disambiguation.Contains("interview", StringComparison.OrdinalIgnoreCase)
+            || disambiguation.Contains("remix", StringComparison.OrdinalIgnoreCase)
             || disambiguation.Contains("dj-mix", StringComparison.OrdinalIgnoreCase)
             || disambiguation.Contains("dj mix", StringComparison.OrdinalIgnoreCase)
             || disambiguation.Contains("mastermix", StringComparison.OrdinalIgnoreCase)
