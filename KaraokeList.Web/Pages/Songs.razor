@@ -6,19 +6,19 @@
 
 <div class="catalog-container">
     <MobilePageHeader Title="Songs" BackHref="/admin/catalog" BackText="← Catalog maintenance" />
-    @if (!isLoading && songs.Count == 0)
+    @if (!isInitialLoading && songs.Count == 0)
     {
         <div class="alert alert-warning">No songs found. Add artists and songs to get started.</div>
     }
 
-    <CatalogCrudGrid TItem="SongDisplay"
+    <CatalogCrudGrid @ref="catalogGrid" TItem="SongDisplay"
                      Items="@songs"
-                     IsLoading="@isLoading"
+                     IsLoading="@isInitialLoading"
                      @bind-ErrorMessage="gridError"
                      GetId="@(song => song.Id)"
                      OnSaveAsync="SaveSongAsync"
                      OnDeleteAsync="DeleteSongAsync"
-                     OnReload="ReloadAsync"
+                     OnReload="ReloadAfterMutateAsync"
                      OnActionBeginExtra="OnGridActionBeginAsync">
         <Columns>
             <GridColumn Field="@nameof(SongDisplay.Id)" IsPrimaryKey="true" Visible="false" />
@@ -65,14 +65,15 @@
 </div>
 
 @code {
+    private CatalogCrudGrid<SongDisplay>? catalogGrid;
     private List<SongDisplay> songs = [];
     private List<ArtistLookupDto> artistLookups = [];
     private List<GenreDto> genres = [];
-    private bool isLoading = true;
+    private bool isInitialLoading = true;
     private string? gridError;
     private SongDisplay? editingSong;
 
-    protected override async Task OnInitializedAsync() => await ReloadAsync();
+    protected override async Task OnInitializedAsync() => await ReloadAsync(initialLoad: true);
 
     private async Task OnGridActionBeginAsync(ActionEventArgs<SongDisplay> args)
     {
@@ -137,7 +138,7 @@
         return Task.CompletedTask;
     }
 
-    private Task OnEditingCanonicalAppliedAsync(CanonicalAppliedEventArgs args)
+    private async Task OnEditingCanonicalAppliedAsync(CanonicalAppliedEventArgs args)
     {
         if (editingSong is not null)
         {
@@ -164,19 +165,32 @@
                 editingSong.Genre = LogGenrePicker.ResolveGenreId(args.SuggestedGenreName, genres);
                 editingSong.GenreName = args.SuggestedGenreName;
             }
-        }
 
-        return Task.CompletedTask;
+            if (catalogGrid is not null)
+            {
+                await catalogGrid.SyncEditingRowAsync(editingSong);
+            }
+        }
     }
 
-    private async Task ReloadAsync()
+    private Task ReloadAfterMutateAsync() => ReloadAsync();
+
+    private async Task ReloadAsync(bool initialLoad = false)
     {
-        isLoading = true;
+        if (initialLoad)
+        {
+            isInitialLoading = true;
+        }
+
         artistLookups = await Api.GetArtistLookupsAsync();
         genres = await Api.GetGenresAsync();
         var raw = await Api.GetSongsAsync();
         songs = SongDisplayMapper.ToDisplayList(raw, artistLookups, genres);
-        isLoading = false;
+
+        if (initialLoad)
+        {
+            isInitialLoading = false;
+        }
     }
 
     private async Task<CatalogMutateResult> SaveSongAsync(SongDisplay song, bool isNew)
