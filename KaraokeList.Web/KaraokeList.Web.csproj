@@ -8,7 +8,7 @@
     <ServiceWorkerAssetsManifest>service-worker-assets.js</ServiceWorkerAssetsManifest>
     <UserSecretsId>karaokelist-web-local</UserSecretsId>
     <LaunchProfile>https</LaunchProfile>
-    <Version>2.2.5</Version>
+    <Version>2.2.6</Version>
   </PropertyGroup>
 
   <ItemGroup>

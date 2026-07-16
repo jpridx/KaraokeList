@@ -6,7 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>aspnet-KaraokeList-c18b707a-c37e-48aa-8c09-9a1896e75fd1</UserSecretsId>
     <LaunchProfile>https</LaunchProfile>
-    <Version>2.2.4</Version>
+    <Version>2.2.5</Version>
   </PropertyGroup>
 
   <ItemGroup>

@@ -98,7 +98,7 @@
             ? [string.Empty]
             : song.Artists.OrderBy(a => a.DisplayOrder).Select(a => a.Name).ToList();
 
-    private Task OnArtistNamesChanged(SongDisplay song, List<string> names)
+    private async Task OnArtistNamesChanged(SongDisplay song, List<string> names)
     {
         song.Artists = names
             .Where(name => !string.IsNullOrWhiteSpace(name))
@@ -108,7 +108,12 @@
                 Name = name.Trim()
             })
             .ToList();
-        return Task.CompletedTask;
+        song.ArtistCreditDisplay = null;
+
+        if (ReferenceEquals(song, editingSong) && catalogGrid is not null)
+        {
+            await catalogGrid.SyncEditingRowAsync(song);
+        }
     }
 
     private Task OnEditingTitleChangedAsync(string value)
