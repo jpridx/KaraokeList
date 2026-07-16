@@ -13,7 +13,7 @@ public interface IMusicBrainzService
 
 public sealed class MusicBrainzService(IHttpClientFactory httpClientFactory, IConfiguration configuration) : IMusicBrainzService
 {
-    private const int SearchLimit = 25;
+    private const int SearchLimit = 50;
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private static readonly SemaphoreSlim RateLimiter = new(1, 1);
@@ -306,6 +306,12 @@ public sealed class MusicBrainzService(IHttpClientFactory httpClientFactory, ICo
                 $"{MusicBrainzSearchHelper.EscapeQuery(apostropheFreeTitle)} AND artist:{MusicBrainzSearchHelper.EscapeQuery(apostropheFreeArtist)}";
             var fallbackRecordings = await ExecuteSearchAsync(client, fallbackQuery, cancellationToken);
             MergeRecordings(merged, fallbackRecordings);
+        }
+
+        foreach (var studioQuery in MusicBrainzSearchHelper.BuildStudioSearchQueries(title, artist))
+        {
+            var studioRecordings = await ExecuteSearchAsync(client, studioQuery, cancellationToken);
+            MergeRecordings(merged, studioRecordings);
         }
 
         return merged.Values.ToList();
