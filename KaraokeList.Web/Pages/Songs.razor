@@ -4,8 +4,8 @@
 
 <PageTitle>Songs</PageTitle>
 
-<h3>Songs</h3>
 <div class="catalog-container">
+    <MobilePageHeader Title="Songs" BackHref="/admin/catalog" BackText="← Catalog maintenance" />
     @if (!isLoading && songs.Count == 0)
     {
         <div class="alert alert-warning">No songs found. Add artists and songs to get started.</div>
