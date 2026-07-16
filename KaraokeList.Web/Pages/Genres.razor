@@ -4,8 +4,8 @@
 
 <PageTitle>Genres</PageTitle>
 
-<h3>Genres</h3>
 <div class="catalog-container">
+    <MobilePageHeader Title="Genres" BackHref="/admin/catalog" BackText="← Catalog maintenance" />
     <CatalogCrudGrid TItem="GenreDto"
                      Items="@genres"
                      IsLoading="@isLoading"

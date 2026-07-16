@@ -43,6 +43,7 @@ public sealed class AdminCatalogPageTests : AuthPageTestContext
 
         cut.WaitForAssertion(() => Api.Verify(client => client.GetGenresAsync(), Times.Once));
         Assert.Contains("Genres", cut.Markup);
+        AssertCatalogMaintenanceBackLink(cut.Markup);
     }
 
     [Fact]
@@ -59,6 +60,7 @@ public sealed class AdminCatalogPageTests : AuthPageTestContext
             Api.Verify(client => client.GetGenresAsync(), Times.Once);
         });
         Assert.Contains("Genre Groups", cut.Markup);
+        AssertCatalogMaintenanceBackLink(cut.Markup);
     }
 
     [Fact]
@@ -70,6 +72,7 @@ public sealed class AdminCatalogPageTests : AuthPageTestContext
 
         cut.WaitForAssertion(() => Api.Verify(client => client.GetSingersAsync(), Times.Once));
         Assert.Contains("Singers", cut.Markup);
+        AssertCatalogMaintenanceBackLink(cut.Markup);
     }
 
     [Fact]
@@ -81,6 +84,7 @@ public sealed class AdminCatalogPageTests : AuthPageTestContext
 
         cut.WaitForAssertion(() => Api.Verify(client => client.GetVenuesAsync(), Times.Once));
         Assert.Contains("Venues", cut.Markup);
+        AssertCatalogMaintenanceBackLink(cut.Markup);
     }
 
     [Fact]
@@ -97,6 +101,7 @@ public sealed class AdminCatalogPageTests : AuthPageTestContext
             Api.Verify(client => client.GetArtistsAsync(), Times.Once);
         });
         Assert.Contains("Artists", cut.Markup);
+        AssertCatalogMaintenanceBackLink(cut.Markup);
     }
 
     [Fact]
@@ -114,6 +119,7 @@ public sealed class AdminCatalogPageTests : AuthPageTestContext
             Api.Verify(client => client.GetArtistLookupsAsync(), Times.Once);
         });
         Assert.Contains("Songs", cut.Markup);
+        AssertCatalogMaintenanceBackLink(cut.Markup);
     }
 
     [Fact]
@@ -137,5 +143,12 @@ public sealed class AdminCatalogPageTests : AuthPageTestContext
             Assert.Contains("Performances", cut.Markup);
             Assert.Contains("About a song", cut.Markup);
         });
+        AssertCatalogMaintenanceBackLink(cut.Markup);
+    }
+
+    private static void AssertCatalogMaintenanceBackLink(string markup)
+    {
+        Assert.Contains("href=\"/admin/catalog\"", markup);
+        Assert.Contains("← Catalog maintenance", markup);
     }
 }

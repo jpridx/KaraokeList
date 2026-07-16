@@ -4,8 +4,8 @@
 
 <PageTitle>Venues</PageTitle>
 
-<h3>Venues</h3>
 <div class="catalog-container">
+    <MobilePageHeader Title="Venues" BackHref="/admin/catalog" BackText="← Catalog maintenance" />
     <CatalogCrudGrid TItem="VenueDto"
                      Items="@venues"
                      IsLoading="@isLoading"

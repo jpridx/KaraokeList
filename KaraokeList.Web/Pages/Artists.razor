@@ -4,8 +4,8 @@
 
 <PageTitle>Artists</PageTitle>
 
-<h3>Artists</h3>
 <div class="catalog-container">
+    <MobilePageHeader Title="Artists" BackHref="/admin/catalog" BackText="← Catalog maintenance" />
     <CatalogCrudGrid TItem="ArtistDto"
                      Items="@artists"
                      IsLoading="@isLoading"
