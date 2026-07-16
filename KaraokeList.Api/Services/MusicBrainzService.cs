@@ -13,7 +13,7 @@ public interface IMusicBrainzService
 
 public sealed class MusicBrainzService(IHttpClientFactory httpClientFactory, IConfiguration configuration) : IMusicBrainzService
 {
-    private const int SearchLimit = 15;
+    private const int SearchLimit = 25;
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private static readonly SemaphoreSlim RateLimiter = new(1, 1);
@@ -35,26 +35,20 @@ public sealed class MusicBrainzService(IHttpClientFactory httpClientFactory, ICo
         }
 
         var client = httpClientFactory.CreateClient("MusicBrainz");
-        var recordings = await SearchRecordingsAsync(client, title.Trim(), artist.Trim(), cancellationToken);
+        var trimmedTitle = title.Trim();
+        var trimmedArtist = artist.Trim();
+        var recordings = await SearchRecordingsAsync(client, trimmedTitle, trimmedArtist, cancellationToken);
         if (recordings.Count == 0)
         {
             return new CanonicalLookupResponse();
         }
 
-        var bestRecording = SelectHeadOfClassRecording(recordings);
-        if (bestRecording?.Id is null)
-        {
-            return new CanonicalLookupResponse();
-        }
-
-        var enriched = await FetchRecordingDetailsAsync(client, bestRecording, cancellationToken);
         var recordingsById = recordings
             .Where(r => !string.IsNullOrWhiteSpace(r.Id))
             .ToDictionary(r => r.Id!, StringComparer.Ordinal);
-        if (enriched?.Id is not null)
-        {
-            recordingsById[enriched.Id] = enriched;
-        }
+        var searchScores = recordings
+            .Where(r => !string.IsNullOrWhiteSpace(r.Id))
+            .ToDictionary(r => r.Id!, r => r.Score ?? 0, StringComparer.Ordinal);
 
         var allMatches = new List<CanonicalMatchDto>();
         foreach (var recording in recordings)
@@ -64,19 +58,37 @@ public sealed class MusicBrainzService(IHttpClientFactory httpClientFactory, ICo
                 continue;
             }
 
-            var source = recordingsById.GetValueOrDefault(recording.Id, recording);
-            var isPrimary = string.Equals(recording.Id, bestRecording.Id, StringComparison.Ordinal);
-            var mapped = await MapRecordingAsync(source, client, cancellationToken, includeMetadata: isPrimary);
+            var mapped = await MapRecordingAsync(
+                recordingsById[recording.Id],
+                client,
+                cancellationToken,
+                includeMetadata: false);
             if (mapped.Found)
             {
                 allMatches.Add(mapped);
             }
         }
 
-        var ordered = OrderMatchesOldestFirst(allMatches, recordingsById);
+        var ordered = RankMatches(allMatches, trimmedTitle, recordingsById);
         if (ordered.Count == 0)
         {
             return new CanonicalLookupResponse();
+        }
+
+        var bestMatch = ordered[0];
+        if (bestMatch.RecordingMbid is { Length: > 0 } bestId
+            && recordingsById.TryGetValue(bestId, out var bestRecording))
+        {
+            var searchScore = searchScores.GetValueOrDefault(bestId);
+            var enriched = await FetchRecordingDetailsAsync(client, bestRecording, cancellationToken);
+            if (enriched?.Id is not null)
+            {
+                enriched.Score = searchScore;
+                recordingsById[enriched.Id] = enriched;
+                bestMatch = await MapRecordingAsync(enriched, client, cancellationToken, includeMetadata: true);
+                bestMatch.Score = searchScore;
+                ordered[0] = bestMatch;
+            }
         }
 
         return new CanonicalLookupResponse
@@ -204,28 +216,46 @@ public sealed class MusicBrainzService(IHttpClientFactory httpClientFactory, ICo
             : best.Title;
     }
 
+    internal static List<CanonicalMatchDto> RankMatches(
+        IEnumerable<CanonicalMatchDto> matches,
+        string searchTitle,
+        IReadOnlyDictionary<string, MusicBrainzRecording> recordingsById) =>
+        MusicBrainzSearchHelper.RankMatches(
+            matches,
+            searchTitle,
+            match => IsSoftUnwantedRecording(match, recordingsById));
+
     internal static List<CanonicalMatchDto> OrderMatchesOldestFirst(
         IEnumerable<CanonicalMatchDto> matches,
-        IReadOnlyDictionary<string, MusicBrainzRecording> recordingsById) =>
-        matches
-            .OrderBy(m => GetUnwantedRank(m, recordingsById))
-            .ThenBy(m => m.Year ?? int.MaxValue)
-            .ThenByDescending(m => m.Score)
-            .ThenBy(m => m.Title, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        IReadOnlyDictionary<string, MusicBrainzRecording> recordingsById,
+        string searchTitle) =>
+        RankMatches(matches, searchTitle, recordingsById);
 
-    private static int GetUnwantedRank(
+    private static bool IsSoftUnwantedRecording(
         CanonicalMatchDto match,
         IReadOnlyDictionary<string, MusicBrainzRecording> recordingsById)
     {
-        if (match.RecordingMbid is not null
-            && recordingsById.TryGetValue(match.RecordingMbid, out var recording)
-            && IsUnwantedRecording(recording))
+        if (match.RecordingMbid is null
+            || !recordingsById.TryGetValue(match.RecordingMbid, out var recording))
         {
-            return 1;
+            return false;
         }
 
-        return MusicBrainzSearchHelper.IsLikelyReissueOrLive(match) ? 1 : 0;
+        return IsCompilationOrRemaster(recording);
+    }
+
+    private static int? GetOldestExactTitleYear(
+        IEnumerable<MusicBrainzRecording> recordings,
+        string searchTitle)
+    {
+        var years = recordings
+            .Where(r => MusicBrainzSearchHelper.TitleMatchesSearch(r.Title ?? string.Empty, searchTitle))
+            .Select(GetEarliestReleaseYear)
+            .Where(year => year.HasValue)
+            .Select(year => year!.Value)
+            .ToList();
+
+        return years.Count > 0 ? years.Min() : null;
     }
 
     private async Task<List<MusicBrainzRecording>> SearchRecordingsAsync(
@@ -234,12 +264,34 @@ public sealed class MusicBrainzService(IHttpClientFactory httpClientFactory, ICo
         string artist,
         CancellationToken cancellationToken)
     {
-        foreach (var query in MusicBrainzSearchHelper.BuildSearchQueries(title, artist))
+        var merged = new Dictionary<string, MusicBrainzRecording>(StringComparer.Ordinal);
+        var queries = MusicBrainzSearchHelper.BuildSearchQueries(title, artist);
+        int? previousOldestExactYear = null;
+
+        for (var i = 0; i < queries.Count; i++)
         {
-            var recordings = await ExecuteSearchAsync(client, query, cancellationToken);
-            if (recordings.Count > 0)
+            var recordings = await ExecuteSearchAsync(client, queries[i], cancellationToken);
+            MergeRecordings(merged, recordings);
+
+            var oldestExactYear = GetOldestExactTitleYear(merged.Values, title);
+            if (oldestExactYear.HasValue
+                && previousOldestExactYear.HasValue
+                && oldestExactYear.Value < previousOldestExactYear.Value)
             {
-                return recordings;
+                break;
+            }
+
+            if (i >= 2
+                && oldestExactYear.HasValue
+                && previousOldestExactYear.HasValue
+                && oldestExactYear.Value >= previousOldestExactYear.Value)
+            {
+                break;
+            }
+
+            if (oldestExactYear.HasValue)
+            {
+                previousOldestExactYear = oldestExactYear;
             }
         }
 
@@ -253,13 +305,29 @@ public sealed class MusicBrainzService(IHttpClientFactory httpClientFactory, ICo
             var fallbackQuery =
                 $"{MusicBrainzSearchHelper.EscapeQuery(apostropheFreeTitle)} AND artist:{MusicBrainzSearchHelper.EscapeQuery(apostropheFreeArtist)}";
             var fallbackRecordings = await ExecuteSearchAsync(client, fallbackQuery, cancellationToken);
-            if (fallbackRecordings.Count > 0)
-            {
-                return fallbackRecordings;
-            }
+            MergeRecordings(merged, fallbackRecordings);
         }
 
-        return [];
+        return merged.Values.ToList();
+    }
+
+    private static void MergeRecordings(
+        Dictionary<string, MusicBrainzRecording> merged,
+        IEnumerable<MusicBrainzRecording> recordings)
+    {
+        foreach (var recording in recordings)
+        {
+            if (string.IsNullOrWhiteSpace(recording.Id))
+            {
+                continue;
+            }
+
+            if (!merged.TryGetValue(recording.Id, out var existing)
+                || (recording.Score ?? 0) > (existing.Score ?? 0))
+            {
+                merged[recording.Id] = recording;
+            }
+        }
     }
 
     private async Task<List<MusicBrainzRecording>> ExecuteSearchAsync(
@@ -285,13 +353,30 @@ public sealed class MusicBrainzService(IHttpClientFactory httpClientFactory, ICo
     /// <summary>
     /// Picks the studio-style original from MusicBrainz search hits — earliest release wins over reissues.
     /// </summary>
-    internal static MusicBrainzRecording? SelectHeadOfClassRecording(IReadOnlyList<MusicBrainzRecording> recordings)
+    internal static MusicBrainzRecording? SelectHeadOfClassRecording(
+        IReadOnlyList<MusicBrainzRecording> recordings,
+        string searchTitle = "")
     {
-        return recordings
-            .OrderBy(r => IsUnwantedRecording(r) ? 1 : 0)
-            .ThenBy(r => GetEarliestReleaseYear(r) ?? int.MaxValue)
-            .ThenByDescending(r => r.Score ?? 0)
-            .FirstOrDefault();
+        var matches = recordings
+            .Where(r => !string.IsNullOrWhiteSpace(r.Id))
+            .Select(r => new CanonicalMatchDto
+            {
+                Found = true,
+                Title = r.Title?.Trim() ?? string.Empty,
+                RecordingMbid = r.Id,
+                Score = r.Score ?? 0,
+                Disambiguation = string.IsNullOrWhiteSpace(r.Disambiguation) ? null : r.Disambiguation.Trim(),
+                Year = GetEarliestReleaseYear(r)
+            })
+            .ToList();
+
+        var recordingsById = recordings
+            .Where(r => !string.IsNullOrWhiteSpace(r.Id))
+            .ToDictionary(r => r.Id!, StringComparer.Ordinal);
+
+        var ranked = RankMatches(matches, searchTitle, recordingsById);
+        var bestId = ranked.FirstOrDefault()?.RecordingMbid;
+        return bestId is null ? null : recordingsById.GetValueOrDefault(bestId);
     }
 
     internal static int? GetEarliestReleaseYear(MusicBrainzRecording recording)
@@ -483,7 +568,9 @@ public sealed class MusicBrainzService(IHttpClientFactory httpClientFactory, ICo
     }
 
     private static bool IsUnwantedRecording(MusicBrainzRecording recording) =>
-        IsLiveRecording(recording) || IsCompilationOrRemaster(recording);
+        IsLiveRecording(recording)
+        || MusicBrainzSearchHelper.IsClearlyUnwantedDisambiguation(recording.Disambiguation)
+        || IsCompilationOrRemaster(recording);
 
     private static bool IsLiveRecording(MusicBrainzRecording recording)
     {

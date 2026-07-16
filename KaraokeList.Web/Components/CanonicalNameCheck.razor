@@ -27,7 +27,7 @@
     <div class="alert @(_namesMatch ? "alert-success" : "alert-info") small py-2 px-3 mt-2 mb-0" role="status">
         @if (_namesMatch)
         {
-            <span>Names match MusicBrainz (@_match.Score% confidence).</span>
+            <span>Names match MusicBrainz@(_match.Score > 0 ? $" ({_match.Score}% confidence)" : "").</span>
         }
         else
         {
@@ -48,6 +48,10 @@
             }
         }
         @RenderMatchMetadata(_match)
+        @if (_olderAlternativeYear is int olderYear)
+        {
+            <div class="mt-1 text-muted">Older version available in alternatives (@olderYear).</div>
+        }
     </div>
 
     @if (_alternatives.Count > 0)
@@ -107,6 +111,7 @@
     private CanonicalMatchDto? _match;
     private List<CanonicalMatchDto> _alternatives = [];
     private bool _namesMatch;
+    private int? _olderAlternativeYear;
     private bool _isBusy;
     private string? _error;
     private string _lastCheckedKey = string.Empty;
@@ -135,6 +140,7 @@
         _error = null;
         _match = null;
         _alternatives = [];
+        _olderAlternativeYear = null;
         _isBusy = true;
         try
         {
@@ -145,7 +151,7 @@
             });
 
             _match = response?.Match.Found == true ? response.Match : null;
-            _alternatives = MusicBrainzSearchHelper.SortMatchesOldestFirst(response?.Alternatives ?? []);
+            _alternatives = response?.Alternatives ?? [];
             if (_match is null)
             {
                 _error = "No MusicBrainz match found — names will be saved as entered.";
@@ -153,8 +159,14 @@
                 return;
             }
 
-            _namesMatch = string.Equals(Title.Trim(), _match.Title, StringComparison.OrdinalIgnoreCase)
-                && string.Equals(ArtistName.Trim(), _match.ArtistCreditDisplay, StringComparison.OrdinalIgnoreCase);
+            _namesMatch = MusicBrainzSearchHelper.NamesMatchCatalog(
+                Title.Trim(),
+                ArtistName.Trim(),
+                _match);
+            _olderAlternativeYear = _alternatives
+                .Where(a => a.Year is int year && (_match.Year is null || year < _match.Year))
+                .Select(a => a.Year)
+                .Min();
             _lastCheckedKey = $"{Title.Trim().ToLowerInvariant()}|{ArtistName.Trim().ToLowerInvariant()}";
         }
         catch

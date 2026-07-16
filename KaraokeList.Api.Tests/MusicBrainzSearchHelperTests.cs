@@ -23,6 +23,34 @@ public class MusicBrainzSearchHelperTests
     public void StripLeadingArticle_removes_leading_the(string input, string expected) =>
         Assert.Equal(expected, MusicBrainzSearchHelper.StripLeadingArticle(input));
 
+    [Theory]
+    [InlineData("Queen feat. David Bowie", "Queen")]
+    [InlineData("Kenny Rogers ft. Dolly Parton", "Kenny Rogers")]
+    public void StripFeaturingSuffix_removes_featuring_clause(string input, string expected) =>
+        Assert.Equal(expected, MusicBrainzSearchHelper.StripFeaturingSuffix(input));
+
+    [Theory]
+    [InlineData("Don't Stop Believin'", "Don't Stop Believin'", true)]
+    [InlineData("Dont Stop Believin", "Don't Stop Believin'", true)]
+    [InlineData("Other Song", "Don't Stop Believin'", false)]
+    public void TitleMatchesSearch_ignores_punctuation_and_apostrophes(
+        string recordingTitle,
+        string searchTitle,
+        bool expected) =>
+        Assert.Equal(expected, MusicBrainzSearchHelper.TitleMatchesSearch(recordingTitle, searchTitle));
+
+    [Fact]
+    public void NamesMatchCatalog_treats_apostrophe_variants_as_equal()
+    {
+        var match = new CanonicalMatchDto
+        {
+            Title = "Don't Stop Believin'",
+            ArtistCreditDisplay = "Journey"
+        };
+
+        Assert.True(MusicBrainzSearchHelper.NamesMatchCatalog("Dont Stop Believin", "Journey", match));
+    }
+
     [Fact]
     public void BuildSearchQueries_includes_strict_and_relaxed_variants()
     {
@@ -30,7 +58,16 @@ public class MusicBrainzSearchHelperTests
 
         Assert.Contains("\"My Sharona\" AND artist:\"The Knack\"", queries);
         Assert.Contains("My Sharona AND artist:\"The Knack\"", queries);
+        Assert.Contains("My Sharona AND artist:The Knack", queries);
         Assert.Contains("\"My Sharona\" AND artist:\"Knack\"", queries);
+    }
+
+    [Fact]
+    public void BuildSearchQueries_includes_hyphen_and_and_variants()
+    {
+        var queries = MusicBrainzSearchHelper.BuildSearchQueries("Semi-Charmed Life", "Third Eye Blind");
+
+        Assert.Contains(queries, q => q.Contains("Semi Charmed Life", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -42,18 +79,54 @@ public class MusicBrainzSearchHelperTests
     }
 
     [Fact]
-    public void SortMatchesOldestFirst_orders_by_year_ascending()
+    public void RankMatches_orders_by_year_ascending()
     {
-        var sorted = MusicBrainzSearchHelper.SortMatchesOldestFirst(
+        var sorted = MusicBrainzSearchHelper.RankMatches(
         [
             new CanonicalMatchDto { Title = "Reissue", Year = 1994, Score = 100 },
             new CanonicalMatchDto { Title = "Original", Year = 1979, Score = 95 },
             new CanonicalMatchDto { Title = "Undated", Year = null, Score = 99 }
-        ]);
+        ],
+        "Original");
 
         Assert.Equal("Original", sorted[0].Title);
         Assert.Equal("Reissue", sorted[1].Title);
         Assert.Equal("Undated", sorted[2].Title);
+    }
+
+    [Fact]
+    public void RankMatches_puts_dj_mix_last()
+    {
+        var sorted = MusicBrainzSearchHelper.RankMatches(
+        [
+            new CanonicalMatchDto
+            {
+                Title = "My Sharona",
+                Year = 2007,
+                Score = 100,
+                Disambiguation = "part of Mastermix: Flashback 1979–1983 DJ-mix"
+            },
+            new CanonicalMatchDto { Title = "My Sharona", Year = 1979, Score = 100 }
+        ],
+        "My Sharona");
+
+        Assert.Equal(1979, sorted[0].Year);
+        Assert.Equal(2007, sorted[1].Year);
+    }
+
+    [Fact]
+    public void RankMatches_keeps_oldest_exact_title_despite_compilation_tag()
+    {
+        var sorted = MusicBrainzSearchHelper.RankMatches(
+        [
+            new CanonicalMatchDto { Title = "Coward of the County", Year = 1989, Score = 100 },
+            new CanonicalMatchDto { Title = "Coward of the County", Year = 1979, Score = 100 }
+        ],
+        "Coward of the County",
+        match => match.Year == 1979);
+
+        Assert.Equal(1979, sorted[0].Year);
+        Assert.Equal(1989, sorted[1].Year);
     }
 
     [Fact]
@@ -63,7 +136,8 @@ public class MusicBrainzSearchHelperTests
         [
             new CanonicalMatchDto { Title = "Compilation", Year = 1979, Score = 100, Disambiguation = "1994 compilation" },
             new CanonicalMatchDto { Title = "Single", Year = 1979, Score = 90 }
-        ]);
+        ],
+        "Single");
 
         Assert.Equal("Single", sorted[0].Title);
         Assert.Equal("Compilation", sorted[1].Title);
@@ -93,7 +167,7 @@ public class MusicBrainzRecordingSelectionTests
             }
         };
 
-        var selected = MusicBrainzService.SelectHeadOfClassRecording(recordings);
+        var selected = MusicBrainzService.SelectHeadOfClassRecording(recordings, "My Sharona");
 
         Assert.Equal("original", selected?.Id);
     }
@@ -120,7 +194,7 @@ public class MusicBrainzRecordingSelectionTests
             }
         };
 
-        var selected = MusicBrainzService.SelectHeadOfClassRecording(recordings);
+        var selected = MusicBrainzService.SelectHeadOfClassRecording(recordings, "Jeopardy");
 
         Assert.Equal("studio", selected?.Id);
     }
@@ -147,22 +221,62 @@ public class MusicBrainzRecordingSelectionTests
     }
 
     [Fact]
-    public void OrderMatchesOldestFirst_promotes_earliest_studio_recording()
+    public void RankMatches_promotes_earliest_exact_title_recording()
     {
         var recordingsById = new Dictionary<string, MusicBrainzService.MusicBrainzRecording>(StringComparer.Ordinal)
         {
-            ["1994"] = new() { Id = "1994", FirstReleaseDate = "1994", Score = 100 },
-            ["1979"] = new() { Id = "1979", FirstReleaseDate = "1979", Score = 95 }
+            ["1994"] = new() { Id = "1994", FirstReleaseDate = "1994", Score = 100, Title = "My Sharona" },
+            ["1979"] = new() { Id = "1979", FirstReleaseDate = "1979", Score = 95, Title = "My Sharona" }
         };
 
-        var ordered = MusicBrainzService.OrderMatchesOldestFirst(
+        var ordered = MusicBrainzService.RankMatches(
         [
             new CanonicalMatchDto { RecordingMbid = "1994", Title = "My Sharona", Year = 1994, Score = 100 },
             new CanonicalMatchDto { RecordingMbid = "1979", Title = "My Sharona", Year = 1979, Score = 95 }
         ],
+        "My Sharona",
         recordingsById);
 
         Assert.Equal("1979", ordered[0].RecordingMbid);
         Assert.Equal("1994", ordered[1].RecordingMbid);
+    }
+
+    [Fact]
+    public void RankMatches_promotes_1979_coward_over_1989_despite_compilation_metadata()
+    {
+        var recordingsById = new Dictionary<string, MusicBrainzService.MusicBrainzRecording>(StringComparer.Ordinal)
+        {
+            ["1989"] = new()
+            {
+                Id = "1989",
+                FirstReleaseDate = "1989",
+                Score = 100,
+                Title = "Coward of the County"
+            },
+            ["1979"] = new()
+            {
+                Id = "1979",
+                FirstReleaseDate = "1979",
+                Score = 100,
+                Title = "Coward of the County",
+                ReleaseGroups =
+                [
+                    new MusicBrainzService.MusicBrainzReleaseGroup
+                    {
+                        SecondaryTypes = ["Compilation"]
+                    }
+                ]
+            }
+        };
+
+        var ordered = MusicBrainzService.RankMatches(
+        [
+            new CanonicalMatchDto { RecordingMbid = "1989", Title = "Coward of the County", Year = 1989, Score = 100 },
+            new CanonicalMatchDto { RecordingMbid = "1979", Title = "Coward of the County", Year = 1979, Score = 100 }
+        ],
+        "Coward of the County",
+        recordingsById);
+
+        Assert.Equal("1979", ordered[0].RecordingMbid);
     }
 }

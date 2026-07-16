@@ -167,8 +167,7 @@ public sealed class CanonicalCatalogService(
             var lookup = await musicBrainzService.LookupAsync(song.Title, primaryName, cancellationToken);
             var suggestion = lookup.Match.Found ? lookup.Match : null;
             var namesMatch = suggestion is not null
-                && string.Equals(song.Title, suggestion.Title, StringComparison.OrdinalIgnoreCase)
-                && string.Equals(currentDisplay, suggestion.ArtistCreditDisplay, StringComparison.OrdinalIgnoreCase);
+                && MusicBrainzSearchHelper.NamesMatchCatalog(song.Title, currentDisplay, suggestion);
 
             if (namesMatch && suggestion is not null)
             {

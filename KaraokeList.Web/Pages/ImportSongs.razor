@@ -96,7 +96,7 @@
                                                 <details class="small mt-1">
                                                     <summary class="text-muted">@item.Alternatives.Count other match@(item.Alternatives.Count == 1 ? "" : "es"), oldest first</summary>
                                                     <ul class="list-unstyled mb-0 mt-1">
-                                                        @foreach (var alt in MusicBrainzSearchHelper.SortMatchesOldestFirst(item.Alternatives))
+                                                        @foreach (var alt in item.Alternatives)
                                                         {
                                                             <li class="mb-1">
                                                                 <div>@alt.Title — @alt.ArtistCreditDisplay</div>
