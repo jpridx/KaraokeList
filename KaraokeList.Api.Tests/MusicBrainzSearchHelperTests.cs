@@ -51,6 +51,91 @@ public class MusicBrainzSearchHelperTests
         Assert.True(MusicBrainzSearchHelper.NamesMatchCatalog("Dont Stop Believin", "Journey", match));
     }
 
+    [Theory]
+    [InlineData("Hall & Oates", "Daryl Hall & John Oates")]
+    [InlineData("Hall & Oates", "Hall and Oates")]
+    [InlineData("Hall & Oates", "Hall & Oates")]
+    [InlineData("Daryl Hall & John Oates", "Hall & Oates")]
+    public void ArtistMatchesSearch_treats_duo_act_aliases_as_equal(string catalogArtist, string matchArtist) =>
+        Assert.True(MusicBrainzSearchHelper.ArtistMatchesSearch(catalogArtist, matchArtist));
+
+    [Theory]
+    [InlineData("Hall & Oates", "Journey")]
+    [InlineData("Hall & Oates", "Hallmark")]
+    public void ArtistMatchesSearch_rejects_unrelated_artists(string catalogArtist, string matchArtist) =>
+        Assert.False(MusicBrainzSearchHelper.ArtistMatchesSearch(catalogArtist, matchArtist));
+
+    [Fact]
+    public void NamesMatchCatalog_accepts_hall_and_oates_for_rich_girl()
+    {
+        var match = new CanonicalMatchDto
+        {
+            Title = "Rich Girl",
+            ArtistCreditDisplay = "Daryl Hall & John Oates",
+            Year = 1977
+        };
+
+        Assert.True(MusicBrainzSearchHelper.NamesMatchCatalog("Rich Girl", "Hall & Oates", match));
+    }
+
+    [Fact]
+    public void RankMatches_prefers_exact_artist_credit_over_legal_duo_name()
+    {
+        var sorted = MusicBrainzSearchHelper.RankMatches(
+        [
+            new CanonicalMatchDto
+            {
+                Title = "Private Eyes",
+                ArtistCreditDisplay = "Daryl Hall & John Oates",
+                Year = 1976,
+                Score = 100
+            },
+            new CanonicalMatchDto
+            {
+                Title = "Private Eyes",
+                ArtistCreditDisplay = "Hall & Oates",
+                Year = 1981,
+                Score = 95
+            }
+        ],
+        "Private Eyes",
+        searchArtist: "Hall & Oates");
+
+        Assert.Equal("Hall & Oates", sorted[0].ArtistCreditDisplay);
+        Assert.Equal(1981, sorted[0].Year);
+    }
+
+    [Fact]
+    public void SelectBestCredibleSuggestion_prefers_hall_and_oates_credit_for_private_eyes()
+    {
+        var pool = new[]
+        {
+            new CanonicalMatchDto
+            {
+                Found = true,
+                Title = "Private Eyes",
+                ArtistCreditDisplay = "Daryl Hall & John Oates",
+                Year = 1976,
+                Score = 100,
+                RecordingMbid = "1976-full-name"
+            },
+            new CanonicalMatchDto
+            {
+                Found = true,
+                Title = "Private Eyes",
+                ArtistCreditDisplay = "Hall & Oates",
+                Year = 1981,
+                Score = 95,
+                RecordingMbid = "1981-alias"
+            }
+        };
+
+        var best = MusicBrainzSearchHelper.SelectBestCredibleSuggestion(pool, "Private Eyes", "Hall & Oates");
+
+        Assert.Equal("1981-alias", best?.RecordingMbid);
+        Assert.Equal(1981, best?.Year);
+    }
+
     [Fact]
     public void BuildSearchQueries_includes_strict_and_relaxed_variants()
     {
@@ -323,6 +408,7 @@ public class MusicBrainzRecordingSelectionTests
             new CanonicalMatchDto { RecordingMbid = "1979", Title = "My Sharona", Year = 1979, Score = 95 }
         ],
         "My Sharona",
+        string.Empty,
         recordingsById);
 
         Assert.Equal("1979", ordered[0].RecordingMbid);
@@ -363,6 +449,7 @@ public class MusicBrainzRecordingSelectionTests
             new CanonicalMatchDto { RecordingMbid = "1979", Title = "Coward of the County", Year = 1979, Score = 100 }
         ],
         "Coward of the County",
+        string.Empty,
         recordingsById);
 
         Assert.Equal("1979", ordered[0].RecordingMbid);

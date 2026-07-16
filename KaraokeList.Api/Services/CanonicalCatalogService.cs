@@ -169,19 +169,19 @@ public sealed class CanonicalCatalogService(
                 ? new[] { lookup.Match }.Concat(lookup.Alternatives)
                 : lookup.Alternatives;
             var poolList = pool.ToList();
-            var suggestion = MusicBrainzSearchHelper.SelectBestCredibleSuggestion(poolList, song.Title);
+            var suggestion = MusicBrainzSearchHelper.SelectBestCredibleSuggestion(poolList, song.Title, primaryName);
             var alternatives = suggestion is null
                 ? poolList
                 : poolList
                     .Where(m => !string.Equals(m.RecordingMbid, suggestion.RecordingMbid, StringComparison.Ordinal))
                     .ToList();
-            alternatives = MusicBrainzSearchHelper.RankMatches(alternatives, song.Title);
+            alternatives = MusicBrainzSearchHelper.RankMatches(alternatives, song.Title, searchArtist: primaryName);
 
             var metadataNeedsApply = suggestion is not null && MetadataDiffers(song, currentGenreName, suggestion);
 
             var namesMatch = suggestion is not null
                 && MusicBrainzSearchHelper.NamesMatchCatalog(song.Title, currentDisplay, suggestion)
-                && MusicBrainzSearchHelper.IsBestCredibleMatch(suggestion, song.Title, poolList)
+                && MusicBrainzSearchHelper.IsBestCredibleMatch(suggestion, song.Title, poolList, primaryName)
                 && !metadataNeedsApply;
 
             if (namesMatch && suggestion is not null)

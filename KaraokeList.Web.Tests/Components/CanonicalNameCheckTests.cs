@@ -156,4 +156,45 @@ public sealed class CanonicalNameCheckTests : BunitTestContext
         Assert.Equal(1993, applied.Year);
         Assert.Equal("Rock", applied.SuggestedGenreName);
     }
+
+    [Fact]
+    public void Apply_match_preserves_catalog_artist_for_duo_alias()
+    {
+        CanonicalAppliedEventArgs? applied = null;
+        api.Setup(client => client.LookupCanonicalAsync(It.IsAny<CanonicalLookupRequest>()))
+            .ReturnsAsync(new CanonicalLookupResponse
+            {
+                Match = new CanonicalMatchDto
+                {
+                    Found = true,
+                    Title = "Rich Girl",
+                    ArtistName = "Daryl Hall & John Oates",
+                    ArtistCreditDisplay = "Daryl Hall & John Oates",
+                    RecordingMbid = "rich-girl",
+                    Year = 1977,
+                    SuggestedGenreName = "Pop Rock",
+                    Score = 100
+                }
+            });
+
+        var cut = Render<CanonicalNameCheck>(parameters => parameters
+            .Add(p => p.Title, "Rich Girl")
+            .Add(p => p.ArtistName, "Hall & Oates")
+            .Add(p => p.OnCanonicalApplied, EventCallback.Factory.Create<CanonicalAppliedEventArgs>(
+                this, args => applied = args)));
+
+        cut.Find("button").Click();
+
+        cut.WaitForAssertion(() => cut.Markup.Contains("Apply MBID, genre"));
+
+        cut.FindAll("button")
+            .First(button => button.TextContent?.Contains("Apply MBID, genre", StringComparison.Ordinal) == true)
+            .Click();
+
+        Assert.NotNull(applied);
+        Assert.Equal("Hall & Oates", applied.ArtistName);
+        Assert.Equal("Hall & Oates", applied.ArtistCreditDisplay);
+        Assert.Equal("rich-girl", applied.RecordingMbid);
+        Assert.Equal(1977, applied.Year);
+    }
 }
