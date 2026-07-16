@@ -153,6 +153,17 @@
                     Name = name.Trim()
                 })
                 .ToList();
+
+            if (args.Year is int year)
+            {
+                editingSong.Year = year;
+            }
+
+            if (!string.IsNullOrWhiteSpace(args.SuggestedGenreName))
+            {
+                editingSong.Genre = LogGenrePicker.ResolveGenreId(args.SuggestedGenreName, genres);
+                editingSong.GenreName = args.SuggestedGenreName;
+            }
         }
 
         return Task.CompletedTask;

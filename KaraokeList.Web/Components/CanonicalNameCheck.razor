@@ -28,6 +28,11 @@
         @if (_namesMatch)
         {
             <span>Names match MusicBrainz@(_match.Score > 0 ? $" ({_match.Score}% confidence)" : "").</span>
+            <div class="mt-1">@_match.Title — @_match.ArtistCreditDisplay</div>
+            @if (!string.IsNullOrWhiteSpace(_match.Disambiguation))
+            {
+                <div class="text-muted">@_match.Disambiguation</div>
+            }
         }
         else
         {
@@ -39,13 +44,13 @@
                     <div class="text-muted">@_match.Disambiguation</div>
                 }
             </div>
-            @if (ShowApplyButton)
-            {
-                <button type="button" class="btn btn-outline-primary btn-sm mt-2"
-                        disabled="@(_isBusy || Disabled)" @onclick="() => ApplyMatchAsync(_match)">
-                    Use canonical names
-                </button>
-            }
+        }
+        @if (ShowApplyButton)
+        {
+            <button type="button" class="btn btn-outline-primary btn-sm mt-2"
+                    disabled="@(_isBusy || Disabled)" @onclick="() => ApplyMatchAsync(_match)">
+                @(_namesMatch ? "Apply MBID, genre & year" : "Use canonical names")
+            </button>
         }
         @RenderMatchMetadata(_match)
         @if (_olderAlternativeYear is int olderYear)
