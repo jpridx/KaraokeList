@@ -188,15 +188,28 @@
     private async Task ApplyMatchAsync(CanonicalMatchDto match)
     {
         _match = match;
-        await TitleChanged.InvokeAsync(match.Title);
-        await ArtistNameChanged.InvokeAsync(match.ArtistName);
+        var catalogTitle = Title.Trim();
+        var catalogArtist = ArtistName.Trim();
+        var artistEquivalent = MusicBrainzSearchHelper.ArtistMatchesSearch(catalogArtist, match.ArtistCreditDisplay);
+        var titleEquivalent = MusicBrainzSearchHelper.TitleMatchesSearch(catalogTitle, match.Title);
+
+        if (!titleEquivalent)
+        {
+            await TitleChanged.InvokeAsync(match.Title);
+        }
+
+        if (!artistEquivalent)
+        {
+            await ArtistNameChanged.InvokeAsync(match.ArtistName);
+        }
+
         await OnCanonicalApplied.InvokeAsync(new CanonicalAppliedEventArgs(
-            match.Title,
-            match.ArtistName,
+            titleEquivalent ? catalogTitle : match.Title,
+            artistEquivalent ? catalogArtist : match.ArtistName,
             match.RecordingMbid,
             match.ArtistMbid,
-            match.ArtistCreditDisplay,
-            match.ArtistCredits.Select(c => c.Name).ToList(),
+            artistEquivalent ? catalogArtist : match.ArtistCreditDisplay,
+            artistEquivalent ? null : match.ArtistCredits.Select(c => c.Name).ToList(),
             match.Year,
             match.SuggestedGenreName));
         _namesMatch = true;

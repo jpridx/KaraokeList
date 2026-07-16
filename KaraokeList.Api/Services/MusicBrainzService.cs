@@ -69,7 +69,7 @@ public sealed class MusicBrainzService(IHttpClientFactory httpClientFactory, ICo
             }
         }
 
-        var ordered = RankMatches(allMatches, trimmedTitle, recordingsById);
+        var ordered = RankMatches(allMatches, trimmedTitle, trimmedArtist, recordingsById);
         if (ordered.Count == 0)
         {
             return new CanonicalLookupResponse();
@@ -219,17 +219,20 @@ public sealed class MusicBrainzService(IHttpClientFactory httpClientFactory, ICo
     internal static List<CanonicalMatchDto> RankMatches(
         IEnumerable<CanonicalMatchDto> matches,
         string searchTitle,
+        string searchArtist,
         IReadOnlyDictionary<string, MusicBrainzRecording> recordingsById) =>
         MusicBrainzSearchHelper.RankMatches(
             matches,
             searchTitle,
-            match => IsSoftUnwantedRecording(match, recordingsById));
+            match => IsSoftUnwantedRecording(match, recordingsById),
+            searchArtist);
 
     internal static List<CanonicalMatchDto> OrderMatchesOldestFirst(
         IEnumerable<CanonicalMatchDto> matches,
         IReadOnlyDictionary<string, MusicBrainzRecording> recordingsById,
-        string searchTitle) =>
-        RankMatches(matches, searchTitle, recordingsById);
+        string searchTitle,
+        string searchArtist = "") =>
+        RankMatches(matches, searchTitle, searchArtist, recordingsById);
 
     private static bool IsSoftUnwantedRecording(
         CanonicalMatchDto match,
@@ -361,7 +364,8 @@ public sealed class MusicBrainzService(IHttpClientFactory httpClientFactory, ICo
     /// </summary>
     internal static MusicBrainzRecording? SelectHeadOfClassRecording(
         IReadOnlyList<MusicBrainzRecording> recordings,
-        string searchTitle = "")
+        string searchTitle = "",
+        string searchArtist = "")
     {
         var matches = recordings
             .Where(r => !string.IsNullOrWhiteSpace(r.Id))
@@ -380,7 +384,7 @@ public sealed class MusicBrainzService(IHttpClientFactory httpClientFactory, ICo
             .Where(r => !string.IsNullOrWhiteSpace(r.Id))
             .ToDictionary(r => r.Id!, StringComparer.Ordinal);
 
-        var ranked = RankMatches(matches, searchTitle, recordingsById);
+        var ranked = RankMatches(matches, searchTitle, searchArtist, recordingsById);
         var bestId = ranked.FirstOrDefault()?.RecordingMbid;
         return bestId is null ? null : recordingsById.GetValueOrDefault(bestId);
     }

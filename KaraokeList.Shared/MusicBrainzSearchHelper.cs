@@ -51,6 +51,13 @@ public static partial class MusicBrainzSearchHelper
             AddQuery(queries, $"\"{EscapeQuery(andTitle)}\" AND artist:\"{EscapeQuery(trimmedArtist)}\"");
         }
 
+        var andArtist = trimmedArtist.Replace(" & ", " and ", StringComparison.OrdinalIgnoreCase);
+        if (!string.Equals(andArtist, trimmedArtist, StringComparison.OrdinalIgnoreCase))
+        {
+            AddQuery(queries, $"\"{EscapeQuery(trimmedTitle)}\" AND artist:\"{EscapeQuery(andArtist)}\"");
+            AddQuery(queries, $"{EscapeQuery(trimmedTitle)} AND artist:{EscapeQuery(andArtist)}");
+        }
+
         var artistWithoutFeat = StripFeaturingSuffix(trimmedArtist);
         if (!string.Equals(artistWithoutFeat, trimmedArtist, StringComparison.OrdinalIgnoreCase))
         {
@@ -170,11 +177,40 @@ public static partial class MusicBrainzSearchHelper
             StringComparison.Ordinal);
 
     /// <summary>
+    /// True when catalog and MusicBrainz artist credits refer to the same act (e.g. Hall &amp; Oates vs Daryl Hall &amp; John Oates).
+    /// </summary>
+    public static bool ArtistMatchesSearch(string catalogArtist, string matchArtistDisplay)
+    {
+        if (string.IsNullOrWhiteSpace(catalogArtist) || string.IsNullOrWhiteSpace(matchArtistDisplay))
+        {
+            return false;
+        }
+
+        var catalog = StripFeaturingSuffix(catalogArtist.Trim());
+        var match = StripFeaturingSuffix(matchArtistDisplay.Trim());
+        if (string.Equals(catalog, match, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (string.Equals(NormalizeArtistComparable(catalog), NormalizeArtistComparable(match), StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        var catalogSurnames = ExtractDuoSurnames(catalog);
+        var matchSurnames = ExtractDuoSurnames(match);
+        return catalogSurnames.Count >= 2
+            && matchSurnames.Count >= 2
+            && catalogSurnames.SetEquals(matchSurnames);
+    }
+
+    /// <summary>
     /// True when catalog title/artist match a MusicBrainz suggestion (punctuation-insensitive on title).
     /// </summary>
     public static bool NamesMatchCatalog(string catalogTitle, string catalogArtist, CanonicalMatchDto match) =>
         TitleMatchesSearch(catalogTitle, match.Title)
-        && string.Equals(catalogArtist.Trim(), match.ArtistCreditDisplay.Trim(), StringComparison.OrdinalIgnoreCase);
+        && ArtistMatchesSearch(catalogArtist, match.ArtistCreditDisplay);
 
     public static bool IsUnwantedSecondaryType(string? secondaryType)
     {
@@ -196,7 +232,8 @@ public static partial class MusicBrainzSearchHelper
     public static List<CanonicalMatchDto> RankMatches(
         IEnumerable<CanonicalMatchDto> matches,
         string searchTitle,
-        Func<CanonicalMatchDto, bool>? isSoftUnwanted = null)
+        Func<CanonicalMatchDto, bool>? isSoftUnwanted = null,
+        string? searchArtist = null)
     {
         var list = matches.ToList();
         var oldestExactTitleYear = list
@@ -208,6 +245,7 @@ public static partial class MusicBrainzSearchHelper
         return list
             .OrderBy(m => GetClearlyUnwantedRank(m))
             .ThenBy(m => TitleMatchesSearch(m.Title, searchTitle) ? 0 : 1)
+            .ThenBy(m => GetArtistMatchRank(m, searchArtist))
             .ThenBy(m => GetSoftUnwantedRank(m, searchTitle, oldestExactTitleYear, isSoftUnwanted))
             .ThenBy(m => m.Year ?? int.MaxValue)
             .ThenByDescending(m => m.Score)
@@ -277,7 +315,8 @@ public static partial class MusicBrainzSearchHelper
     /// </summary>
     public static CanonicalMatchDto? SelectBestCredibleSuggestion(
         IEnumerable<CanonicalMatchDto> matches,
-        string searchTitle)
+        string searchTitle,
+        string? searchArtist = null)
     {
         var pool = matches.Where(m => m.Found).ToList();
         if (pool.Count == 0)
@@ -285,13 +324,43 @@ public static partial class MusicBrainzSearchHelper
             return null;
         }
 
-        var oldestYear = GetOldestCredibleYear(pool, searchTitle);
-        if (oldestYear is int year)
+        var credible = pool
+            .Where(m => TitleMatchesSearch(m.Title, searchTitle))
+            .Where(m => !IsClearlyUnwantedDisambiguation(m.Disambiguation))
+            .ToList();
+
+        var scoped = credible.Count > 0 ? credible : pool;
+        if (!string.IsNullOrWhiteSpace(searchArtist))
         {
-            var oldestMatches = pool
-                .Where(m => TitleMatchesSearch(m.Title, searchTitle))
-                .Where(m => !IsClearlyUnwantedDisambiguation(m.Disambiguation))
-                .Where(m => m.Year == year)
+            var exactArtist = scoped
+                .Where(m => GetArtistMatchRank(m, searchArtist) == 0)
+                .ToList();
+            if (exactArtist.Count > 0)
+            {
+                scoped = exactArtist;
+            }
+            else
+            {
+                var equivalentArtist = scoped
+                    .Where(m => GetArtistMatchRank(m, searchArtist) == 1)
+                    .ToList();
+                if (equivalentArtist.Count > 0)
+                {
+                    scoped = equivalentArtist;
+                }
+            }
+        }
+
+        var oldestYear = scoped
+            .Where(m => m.Year is int)
+            .Select(m => m.Year!.Value)
+            .DefaultIfEmpty(int.MaxValue)
+            .Min();
+
+        if (oldestYear < int.MaxValue)
+        {
+            var oldestMatches = scoped
+                .Where(m => m.Year == oldestYear)
                 .OrderByDescending(m => m.Score)
                 .ToList();
 
@@ -301,21 +370,67 @@ public static partial class MusicBrainzSearchHelper
             }
         }
 
-        return RankMatches(pool, searchTitle).FirstOrDefault();
+        return RankMatches(pool, searchTitle, searchArtist: searchArtist).FirstOrDefault();
     }
 
     public static bool IsBestCredibleMatch(
         CanonicalMatchDto match,
         string searchTitle,
-        IEnumerable<CanonicalMatchDto> pool)
+        IEnumerable<CanonicalMatchDto> pool,
+        string? searchArtist = null)
     {
-        var best = SelectBestCredibleSuggestion(pool, searchTitle);
+        var best = SelectBestCredibleSuggestion(pool, searchTitle, searchArtist);
         return best is not null
             && string.Equals(best.RecordingMbid, match.RecordingMbid, StringComparison.Ordinal);
     }
 
     private static int GetClearlyUnwantedRank(CanonicalMatchDto match) =>
         IsClearlyUnwantedDisambiguation(match.Disambiguation) ? 1 : 0;
+
+    private static int GetArtistMatchRank(CanonicalMatchDto match, string? searchArtist)
+    {
+        if (string.IsNullOrWhiteSpace(searchArtist))
+        {
+            return 0;
+        }
+
+        var catalog = StripFeaturingSuffix(searchArtist.Trim());
+        var display = StripFeaturingSuffix(match.ArtistCreditDisplay.Trim());
+        if (string.Equals(catalog, display, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(NormalizeArtistComparable(catalog), NormalizeArtistComparable(display), StringComparison.Ordinal))
+        {
+            return 0;
+        }
+
+        return ArtistMatchesSearch(searchArtist, match.ArtistCreditDisplay) ? 1 : 2;
+    }
+
+    private static string NormalizeArtistComparable(string artist) =>
+        FlexibleSearch.Normalize(artist.Replace(" and ", " & ", StringComparison.OrdinalIgnoreCase));
+
+    private static HashSet<string> ExtractDuoSurnames(string artist)
+    {
+        var surnames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var part in SplitArtistParts(artist))
+        {
+            var tokens = part.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+            if (tokens.Length > 0)
+            {
+                surnames.Add(tokens[^1]);
+            }
+        }
+
+        return surnames;
+    }
+
+    private static List<string> SplitArtistParts(string artist)
+    {
+        var normalized = artist.Replace(" and ", " & ", StringComparison.OrdinalIgnoreCase);
+        return normalized
+            .Split('&', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(part => !string.IsNullOrWhiteSpace(part))
+            .ToList();
+    }
 
     private static int GetSoftUnwantedRank(
         CanonicalMatchDto match,
