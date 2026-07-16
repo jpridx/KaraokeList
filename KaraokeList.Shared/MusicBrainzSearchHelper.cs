@@ -256,6 +256,64 @@ public static partial class MusicBrainzSearchHelper
             || disambiguation.Contains("5.1 mix", StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Oldest release year among exact-title matches that are not live/demo/interview/remix.
+    /// </summary>
+    public static int? GetOldestCredibleYear(IEnumerable<CanonicalMatchDto> matches, string searchTitle)
+    {
+        var years = matches
+            .Where(m => TitleMatchesSearch(m.Title, searchTitle))
+            .Where(m => !IsClearlyUnwantedDisambiguation(m.Disambiguation))
+            .Where(m => m.Year is int)
+            .Select(m => m.Year!.Value)
+            .ToList();
+
+        return years.Count > 0 ? years.Min() : null;
+    }
+
+    /// <summary>
+    /// Picks the best karaoke catalog suggestion from a lookup pool — oldest credible studio-style original.
+    /// Ignores any catalog year; title and artist matching only.
+    /// </summary>
+    public static CanonicalMatchDto? SelectBestCredibleSuggestion(
+        IEnumerable<CanonicalMatchDto> matches,
+        string searchTitle)
+    {
+        var pool = matches.Where(m => m.Found).ToList();
+        if (pool.Count == 0)
+        {
+            return null;
+        }
+
+        var oldestYear = GetOldestCredibleYear(pool, searchTitle);
+        if (oldestYear is int year)
+        {
+            var oldestMatches = pool
+                .Where(m => TitleMatchesSearch(m.Title, searchTitle))
+                .Where(m => !IsClearlyUnwantedDisambiguation(m.Disambiguation))
+                .Where(m => m.Year == year)
+                .OrderByDescending(m => m.Score)
+                .ToList();
+
+            if (oldestMatches.Count > 0)
+            {
+                return oldestMatches[0];
+            }
+        }
+
+        return RankMatches(pool, searchTitle).FirstOrDefault();
+    }
+
+    public static bool IsBestCredibleMatch(
+        CanonicalMatchDto match,
+        string searchTitle,
+        IEnumerable<CanonicalMatchDto> pool)
+    {
+        var best = SelectBestCredibleSuggestion(pool, searchTitle);
+        return best is not null
+            && string.Equals(best.RecordingMbid, match.RecordingMbid, StringComparison.Ordinal);
+    }
+
     private static int GetClearlyUnwantedRank(CanonicalMatchDto match) =>
         IsClearlyUnwantedDisambiguation(match.Disambiguation) ? 1 : 0;
 

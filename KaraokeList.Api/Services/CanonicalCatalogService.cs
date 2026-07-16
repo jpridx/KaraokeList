@@ -165,9 +165,24 @@ public sealed class CanonicalCatalogService(
                 : null;
 
             var lookup = await musicBrainzService.LookupAsync(song.Title, primaryName, cancellationToken);
-            var suggestion = lookup.Match.Found ? lookup.Match : null;
+            var pool = lookup.Match.Found
+                ? new[] { lookup.Match }.Concat(lookup.Alternatives)
+                : lookup.Alternatives;
+            var poolList = pool.ToList();
+            var suggestion = MusicBrainzSearchHelper.SelectBestCredibleSuggestion(poolList, song.Title);
+            var alternatives = suggestion is null
+                ? poolList
+                : poolList
+                    .Where(m => !string.Equals(m.RecordingMbid, suggestion.RecordingMbid, StringComparison.Ordinal))
+                    .ToList();
+            alternatives = MusicBrainzSearchHelper.RankMatches(alternatives, song.Title);
+
+            var metadataNeedsApply = suggestion is not null && MetadataDiffers(song, currentGenreName, suggestion);
+
             var namesMatch = suggestion is not null
-                && MusicBrainzSearchHelper.NamesMatchCatalog(song.Title, currentDisplay, suggestion);
+                && MusicBrainzSearchHelper.NamesMatchCatalog(song.Title, currentDisplay, suggestion)
+                && MusicBrainzSearchHelper.IsBestCredibleMatch(suggestion, song.Title, poolList)
+                && !metadataNeedsApply;
 
             if (namesMatch && suggestion is not null)
             {
@@ -179,8 +194,6 @@ public sealed class CanonicalCatalogService(
                 }
             }
 
-            var metadataNeedsApply = suggestion is not null && MetadataDiffers(song, currentGenreName, suggestion);
-
             items.Add(new CatalogVerifyItemDto
             {
                 SongId = song.Id,
@@ -191,7 +204,7 @@ public sealed class CanonicalCatalogService(
                 CurrentGenreName = currentGenreName,
                 RecordingMbid = song.RecordingMbid,
                 Suggestion = suggestion,
-                Alternatives = lookup.Alternatives,
+                Alternatives = alternatives,
                 NamesMatch = namesMatch,
                 MetadataNeedsApply = metadataNeedsApply
             });
