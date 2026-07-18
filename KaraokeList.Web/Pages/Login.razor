@@ -42,6 +42,11 @@ else
         </button>
     </EditForm>
 
+    <ExternalLoginButtons Providers="externalProviders"
+                          ApiBaseUrl="@apiBaseUrl"
+                          ReturnUrl="@ReturnUrl"
+                          RememberMe="@Input.RememberMe" />
+
     @if (registrationInfo?.IsPasswordRecoveryAllowed == true)
     {
         <p class="mt-3 mb-0"><a href="forgot-password">Forgot your password?</a></p>
@@ -58,11 +63,16 @@ else
     [Inject]
     private NavigationManager NavigationManager { get; set; } = default!;
 
+    [Inject]
+    private HttpClient Http { get; set; } = default!;
+
     [SupplyParameterFromQuery]
     private string? ReturnUrl { get; set; }
 
     private LoginRequest Input { get; set; } = new();
     private RegistrationInfoDto? registrationInfo;
+    private ExternalAuthProvidersDto? externalProviders;
+    private string apiBaseUrl = string.Empty;
     private bool loading = true;
     private string? errorMessage;
     private bool errorIsTransient;
@@ -70,7 +80,9 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        apiBaseUrl = Http.BaseAddress?.ToString().TrimEnd('/') ?? string.Empty;
         registrationInfo = await Api.GetRegistrationInfoAsync();
+        externalProviders = await Api.GetExternalAuthProvidersAsync();
         loading = false;
     }
 

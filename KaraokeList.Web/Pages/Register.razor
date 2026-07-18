@@ -69,6 +69,10 @@ else
             @(isSubmitting ? "Creating account…" : "Create account")
         </button>
     </EditForm>
+
+    <ExternalLoginButtons Providers="externalProviders"
+                          ApiBaseUrl="@apiBaseUrl"
+                          Invite="@Input.InviteCode" />
 }
 
 @code {
@@ -81,11 +85,16 @@ else
     [Inject]
     private NavigationManager NavigationManager { get; set; } = default!;
 
+    [Inject]
+    private HttpClient Http { get; set; } = default!;
+
     [SupplyParameterFromQuery]
     private string? Invite { get; set; }
 
     private RegisterRequest Input { get; set; } = new();
     private RegistrationInfoDto? registrationInfo;
+    private ExternalAuthProvidersDto? externalProviders;
+    private string apiBaseUrl = string.Empty;
     private string? errorMessage;
     private bool errorIsTransient;
     private bool isSubmitting;
@@ -93,7 +102,9 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        apiBaseUrl = Http.BaseAddress?.ToString().TrimEnd('/') ?? string.Empty;
         registrationInfo = await Api.GetRegistrationInfoAsync();
+        externalProviders = await Api.GetExternalAuthProvidersAsync();
         if (!string.IsNullOrWhiteSpace(Invite))
         {
             Input.InviteCode = Invite;

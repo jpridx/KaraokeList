@@ -119,6 +119,21 @@ public class RegistrationInfoDto
     public bool IsPasswordRecoveryAllowed { get; set; }
 }
 
+public class ExternalAuthProvidersDto
+{
+    public bool GoogleEnabled { get; set; }
+
+    public bool MicrosoftEnabled { get; set; }
+
+    public bool AnyEnabled => GoogleEnabled || MicrosoftEnabled;
+}
+
+public class ExternalAuthExchangeRequest
+{
+    [Required]
+    public string Code { get; set; } = string.Empty;
+}
+
 public class InviteShareDto
 {
     public bool CanShare { get; set; }

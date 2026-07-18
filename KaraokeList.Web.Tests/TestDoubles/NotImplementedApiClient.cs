@@ -12,6 +12,8 @@ public class NotImplementedApiClient : IKaraokeApiClient
     public virtual Task<AuthResult> LoginAsync(LoginRequest request) => Throw<AuthResult>();
     public virtual Task<AuthResult> RegisterAsync(RegisterRequest request) => Throw<AuthResult>();
     public virtual Task<RegistrationInfoDto?> GetRegistrationInfoAsync() => Throw<RegistrationInfoDto?>();
+    public virtual Task<ExternalAuthProvidersDto?> GetExternalAuthProvidersAsync() => Throw<ExternalAuthProvidersDto?>();
+    public virtual Task<AuthResult> ExchangeExternalAuthCodeAsync(ExternalAuthExchangeRequest request) => Throw<AuthResult>();
     public virtual Task<List<VenueDto>> GetVenuesAsync() => Throw<List<VenueDto>>();
     public virtual Task CreateVenueAsync(VenueDto dto) => Throw();
     public virtual Task<CatalogMutateResult> TryCreateVenueAsync(VenueDto dto) => Throw<CatalogMutateResult>();

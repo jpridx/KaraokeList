@@ -1,5 +1,6 @@
 // KaraokeList.Api — JSON API only (no Syncfusion; see KaraokeList.Web for UI).
 using System.Text;
+using KaraokeList.Api;
 using KaraokeList.Api.Services;
 using KaraokeList.Data;
 using KaraokeList.Security;
@@ -85,8 +86,7 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
     .AddSignInManager()
     .AddDefaultTokenProviders();
 
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer();
+builder.Services.AddKaraokeExternalAuth(builder.Configuration);
 
 builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
     .Configure<IOptions<JwtSettings>>((options, jwt) =>

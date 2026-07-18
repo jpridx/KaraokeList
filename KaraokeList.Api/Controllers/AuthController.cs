@@ -1,9 +1,11 @@
+using KaraokeList.Api;
 using KaraokeList.Api.Services;
 using System.Security.Claims;
 using System.Text;
 using KaraokeList.Data;
 using KaraokeList.Security;
 using KaraokeList.Shared;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -24,7 +26,10 @@ public class AuthController(
     IAuthRateLimiter authRateLimiter,
     ICurrentUserSingerResolver currentUserSinger,
     IAccountEmailSender accountEmailSender,
-    IOptions<AppSettings> appSettings) : ControllerBase
+    IExternalAuthService externalAuthService,
+    IExternalAuthCodeStore externalAuthCodeStore,
+    IOptions<AppSettings> appSettings,
+    IOptions<AuthenticationSettings> authenticationSettings) : ControllerBase
 {
     [AllowAnonymous]
     [HttpPost("register")]
@@ -465,6 +470,164 @@ public class AuthController(
         await userManager.SetLockoutEndDateAsync(user, null);
         await userManager.ResetAccessFailedCountAsync(user);
         return NoContent();
+    }
+
+    [AllowAnonymous]
+    [HttpGet("external/providers")]
+    public ActionResult<ExternalAuthProvidersDto> GetExternalAuthProviders() =>
+        Ok(ExternalAuthConfiguration.GetProvidersDto(authenticationSettings));
+
+    [AllowAnonymous]
+    [HttpGet("external/{provider}")]
+    public IActionResult StartExternalLogin(
+        string provider,
+        [FromQuery] string? returnUrl,
+        [FromQuery] string? invite,
+        [FromQuery] bool rememberMe = false)
+    {
+        if (!ExternalAuthProviders.TryGetScheme(provider, out var scheme)
+            || !ExternalAuthProviders.IsConfigured(authenticationSettings.Value, provider))
+        {
+            return NotFound(new ApiErrorResponse { Message = "That sign-in provider is not available." });
+        }
+
+        var clientKey = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        if (!authRateLimiter.AllowAttempt(
+                "external-login",
+                clientKey,
+                AuthRateLimitPolicies.ExternalLoginMaxAttempts,
+                AuthRateLimitPolicies.ExternalLoginWindow))
+        {
+            return Redirect(BuildExternalErrorRedirect("Too many sign-in attempts. Try again later.", returnUrl));
+        }
+
+        var callbackUrl = Url.Action(nameof(ExternalLoginCallback), "Auth", null, Request.Scheme, Request.Host.Value)!;
+        var properties = signInManager.ConfigureExternalAuthenticationProperties(scheme, callbackUrl);
+        properties.Items[ExternalAuthProviders.ReturnUrlItemKey] = SanitizeReturnUrl(returnUrl);
+        if (!string.IsNullOrWhiteSpace(invite))
+        {
+            properties.Items[ExternalAuthProviders.InviteItemKey] = invite.Trim();
+        }
+
+        properties.Items[ExternalAuthProviders.RememberMeItemKey] = rememberMe ? "true" : "false";
+        return Challenge(properties, scheme);
+    }
+
+    [AllowAnonymous]
+    [HttpGet("external/callback")]
+    public async Task<IActionResult> ExternalLoginCallback()
+    {
+        var info = await signInManager.GetExternalLoginInfoAsync();
+        if (info is null)
+        {
+            return Redirect(BuildExternalErrorRedirect("External sign-in failed. Try again.", GetStoredReturnUrl()));
+        }
+
+        var returnUrl = GetStoredReturnUrl(info);
+        var invite = info.AuthenticationProperties?.Items.TryGetValue(ExternalAuthProviders.InviteItemKey, out var storedInvite) == true
+            ? storedInvite
+            : null;
+        var rememberMe = info.AuthenticationProperties?.Items.TryGetValue(ExternalAuthProviders.RememberMeItemKey, out var rememberValue) == true
+            && string.Equals(rememberValue, "true", StringComparison.OrdinalIgnoreCase);
+
+        await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
+
+        var processResult = await externalAuthService.ProcessExternalLoginAsync(info, invite);
+        if (!processResult.Succeeded || processResult.User is null)
+        {
+            return Redirect(BuildExternalErrorRedirect(
+                processResult.ErrorMessage ?? "External sign-in failed.",
+                returnUrl));
+        }
+
+        var code = externalAuthCodeStore.CreateCode(processResult.User.Id, rememberMe);
+        return Redirect(BuildExternalSuccessRedirect(code, returnUrl));
+    }
+
+    [AllowAnonymous]
+    [HttpPost("external/exchange")]
+    public async Task<ActionResult<AuthResponse>> ExchangeExternalAuthCode([FromBody] ExternalAuthExchangeRequest request)
+    {
+        var clientKey = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        if (!authRateLimiter.AllowAttempt(
+                "external-exchange",
+                clientKey,
+                AuthRateLimitPolicies.ExternalLoginMaxAttempts,
+                AuthRateLimitPolicies.ExternalLoginWindow))
+        {
+            return BadRequest(new ApiErrorResponse { Message = "Too many sign-in attempts. Try again later." });
+        }
+
+        var entry = externalAuthCodeStore.ConsumeCode(request.Code);
+        if (entry is null)
+        {
+            return Unauthorized(new ApiErrorResponse { Message = "Sign-in link expired or invalid. Try again." });
+        }
+
+        var user = await userManager.FindByIdAsync(entry.UserId);
+        if (user is null)
+        {
+            return Unauthorized(new ApiErrorResponse { Message = "Sign-in link expired or invalid. Try again." });
+        }
+
+        var (token, expires) = await CreateAuthTokenAsync(user, entry.RememberMe);
+        return Ok(new AuthResponse
+        {
+            Token = token,
+            Email = user.Email ?? string.Empty,
+            SingerId = user.SingerId,
+            ExpiresUtc = expires
+        });
+    }
+
+    private string BuildExternalSuccessRedirect(string code, string returnUrl)
+    {
+        var baseUrl = appSettings.Value.WebBaseUrl.TrimEnd('/');
+        return QueryHelpers.AddQueryString(
+            $"{baseUrl}/auth/callback",
+            new Dictionary<string, string?>
+            {
+                ["code"] = code,
+                ["returnUrl"] = returnUrl
+            });
+    }
+
+    private string BuildExternalErrorRedirect(string message, string? returnUrl)
+    {
+        var baseUrl = appSettings.Value.WebBaseUrl.TrimEnd('/');
+        return QueryHelpers.AddQueryString(
+            $"{baseUrl}/auth/callback",
+            new Dictionary<string, string?>
+            {
+                ["error"] = message,
+                ["returnUrl"] = SanitizeReturnUrl(returnUrl)
+            });
+    }
+
+    private static string SanitizeReturnUrl(string? returnUrl)
+    {
+        if (string.IsNullOrWhiteSpace(returnUrl))
+        {
+            return "/";
+        }
+
+        if (returnUrl.StartsWith('/') && !returnUrl.StartsWith("//", StringComparison.Ordinal))
+        {
+            return returnUrl;
+        }
+
+        return "/";
+    }
+
+    private static string GetStoredReturnUrl(ExternalLoginInfo? info = null)
+    {
+        if (info?.AuthenticationProperties?.Items.TryGetValue(ExternalAuthProviders.ReturnUrlItemKey, out var stored) == true
+            && !string.IsNullOrWhiteSpace(stored))
+        {
+            return SanitizeReturnUrl(stored);
+        }
+
+        return "/";
     }
 
     private async Task<(string Token, DateTime ExpiresUtc)> CreateAuthTokenAsync(ApplicationUser user, bool rememberMe = false)
