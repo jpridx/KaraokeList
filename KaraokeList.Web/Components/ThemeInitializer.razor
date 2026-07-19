@@ -12,7 +12,14 @@
         }
 
         initialized = true;
-        await ThemeService.InitializeAsync();
+        try
+        {
+            await ThemeService.InitializeAsync();
+        }
+        catch
+        {
+            // Avoid crashing app render if theme storage or API init fails unexpectedly.
+        }
     }
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;

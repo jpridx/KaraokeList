@@ -72,9 +72,21 @@ window.karaokeListTheme = {
         this.mediaQuery.addEventListener('change', this.mediaHandler);
     },
 
+    toStorageValue: function (preference) {
+        if (preference === 'Dark' || preference === 2 || preference === '2') {
+            return '2';
+        }
+
+        if (preference === 'Light' || preference === 1 || preference === '1') {
+            return '1';
+        }
+
+        return '0';
+    },
+
     setPreference: function (preference) {
         try {
-            localStorage.setItem(this.storageKey, preference);
+            localStorage.setItem(this.storageKey, this.toStorageValue(preference));
         } catch (e) {
             // Ignore storage failures; still apply the theme for this session.
         }

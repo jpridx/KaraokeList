@@ -13,6 +13,11 @@
         <StatusAlerts ErrorMessage="@pageError" />
     }
 
+    @if (isLoadingCatalog)
+    {
+        <p class="text-muted small mb-2" role="status" aria-live="polite">Loading catalog…</p>
+    }
+
     @* ── Verify existing catalog ──────────────────────────────────── *@
     <section id="verify" class="more-section">
         <h2 class="more-section-title">Verify existing catalog</h2>
@@ -320,6 +325,7 @@
     private ImportMode importMode = ImportMode.None;
     private CatalogImportResultDto? importResult;
     private string? pageError;
+    private bool isLoadingCatalog = true;
 
     private bool isVerifying;
     private bool verifyUnverifiedOnly = true;
@@ -362,15 +368,72 @@
 
     protected override async Task OnInitializedAsync()
     {
+        var loadTask = LoadCatalogAsync();
+
+        if (await Task.WhenAny(loadTask, Task.Delay(ApiSlowRequestNotifier.PageLoadTimeout)) != loadTask)
+        {
+            pageError = ApiTransientFailure.ColdStartInProgressMessage;
+            isLoadingCatalog = false;
+            StateHasChanged();
+
+            _ = loadTask.ContinueWith(async t =>
+            {
+                if (t.IsCompletedSuccessfully)
+                {
+                    await InvokeAsync(() =>
+                    {
+                        ApplyCatalogLoad(t.Result);
+                        isLoadingCatalog = false;
+                        StateHasChanged();
+                    });
+                }
+                else if (t.IsFaulted)
+                {
+                    await InvokeAsync(() =>
+                    {
+                        HandleCatalogLoadFailure(t.Exception?.GetBaseException());
+                        isLoadingCatalog = false;
+                        StateHasChanged();
+                    });
+                }
+            });
+            return;
+        }
+
         try
         {
-            allSongs = await Api.GetSongsAsync();
-            allArtists = await Api.GetArtistLookupsAsync();
+            ApplyCatalogLoad(await loadTask);
         }
-        catch
+        catch (Exception ex)
         {
-            pageError = "Could not load the song catalog. Some features may be unavailable.";
+            HandleCatalogLoadFailure(ex);
         }
+        finally
+        {
+            isLoadingCatalog = false;
+        }
+    }
+
+    private async Task<(List<SongDto> Songs, List<ArtistLookupDto> Artists)> LoadCatalogAsync()
+    {
+        var songsTask = Api.GetSongsAsync();
+        var artistsTask = Api.GetArtistLookupsAsync();
+        await Task.WhenAll(songsTask, artistsTask);
+        return (await songsTask, await artistsTask);
+    }
+
+    private void ApplyCatalogLoad((List<SongDto> Songs, List<ArtistLookupDto> Artists) result)
+    {
+        allSongs = result.Songs;
+        allArtists = result.Artists;
+        pageError = null;
+    }
+
+    private void HandleCatalogLoadFailure(Exception? ex)
+    {
+        pageError = ex is not null && ApiTransientFailure.IsTransient(ex)
+            ? ApiTransientFailure.ColdStartInProgressMessage
+            : "Could not load the song catalog. Some features may be unavailable.";
     }
 
     private void OnFileSelectedAsync(InputFileChangeEventArgs e)
