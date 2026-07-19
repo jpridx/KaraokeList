@@ -265,8 +265,12 @@
         <button type="button" class="btn btn-primary btn-sm"
                 @onclick="ImportFileAsync"
                 disabled="@(selectedFile is null || isImporting)">
-            @(isImporting && importMode == ImportMode.File ? "Importing…" : "Import file")
+            @(GetImportButtonLabel(ImportMode.File))
         </button>
+        @if (isImporting && importMode == ImportMode.File && !string.IsNullOrEmpty(importProgressMessage))
+        {
+            <p class="small text-muted mt-2 mb-0">@importProgressMessage</p>
+        }
     </section>
 
     <section class="more-section">
@@ -281,8 +285,12 @@
         <button type="button" class="btn btn-primary btn-sm"
                 @onclick="ImportGSheetAsync"
                 disabled="@(string.IsNullOrWhiteSpace(sheetUrl) || isImporting)">
-            @(isImporting && importMode == ImportMode.GSheet ? "Importing…" : "Import from Google Sheets")
+            @(GetImportButtonLabel(ImportMode.GSheet))
         </button>
+        @if (isImporting && importMode == ImportMode.GSheet && !string.IsNullOrEmpty(importProgressMessage))
+        {
+            <p class="small text-muted mt-2 mb-0">@importProgressMessage</p>
+        }
     </section>
 
     @if (importResult is not null)
@@ -323,6 +331,7 @@
     private bool canonicizeOnImport = true;
     private bool isImporting;
     private ImportMode importMode = ImportMode.None;
+    private string? importProgressMessage;
     private CatalogImportResultDto? importResult;
     private string? pageError;
     private bool isLoadingCatalog = true;
@@ -440,8 +449,21 @@
     {
         selectedFile = e.File;
         importResult = null;
+        importProgressMessage = null;
         pageError = null;
     }
+
+    private string GetImportButtonLabel(ImportMode mode) =>
+        isImporting && importMode == mode
+            ? (canonicizeOnImport ? "Canonicizing…" : "Importing…")
+            : mode == ImportMode.GSheet ? "Import from Google Sheets" : "Import file";
+
+    private IProgress<string> CreateImportProgress() =>
+        new Progress<string>(message =>
+        {
+            importProgressMessage = message;
+            InvokeAsync(StateHasChanged);
+        });
 
     private async Task ImportFileAsync()
     {
@@ -450,11 +472,16 @@
         importMode = ImportMode.File;
         importResult = null;
         pageError = null;
+        importProgressMessage = null;
 
         try
         {
             await using var stream = selectedFile.OpenReadStream(maxAllowedSize: 20 * 1024 * 1024);
-            var result = await Api.ImportCatalogFileAsync(stream, selectedFile.Name, canonicizeOnImport);
+            var result = await Api.ImportCatalogFileAsync(
+                stream,
+                selectedFile.Name,
+                canonicizeOnImport,
+                CreateImportProgress());
             if (result.Succeeded)
             {
                 importResult = result.Response;
@@ -473,6 +500,7 @@
         {
             isImporting = false;
             importMode = ImportMode.None;
+            importProgressMessage = null;
         }
     }
 
@@ -483,10 +511,14 @@
         importMode = ImportMode.GSheet;
         importResult = null;
         pageError = null;
+        importProgressMessage = null;
 
         try
         {
-            var result = await Api.ImportCatalogFromGSheetAsync(new GSheetImportRequest { SheetUrl = sheetUrl }, canonicizeOnImport);
+            var result = await Api.ImportCatalogFromGSheetAsync(
+                new GSheetImportRequest { SheetUrl = sheetUrl },
+                canonicizeOnImport,
+                CreateImportProgress());
             if (result.Succeeded)
             {
                 importResult = result.Response;
@@ -505,6 +537,7 @@
         {
             isImporting = false;
             importMode = ImportMode.None;
+            importProgressMessage = null;
         }
     }
 
