@@ -1,23 +1,14 @@
 using System.Net.Http.Json;
 using KaraokeList.Api.Services;
 using KaraokeList.Api.Services.Import;
-using KaraokeList.Security;
 using KaraokeList.Shared;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.AspNetCore.TestHost;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace KaraokeList.Api.IntegrationTests;
 
-public sealed class CatalogImportCanonicizeIntegrationTests : IDisposable
+[Collection(KaraokeApiCollection.Name)]
+public sealed class CatalogImportCanonicizeIntegrationTests(KaraokeApiFactory factory)
 {
-    private readonly CatalogImportTestFactory factory = new();
-
-    public void Dispose() => factory.Dispose();
-
     [SkippableFact]
     public async Task ImportFile_WithCanonicize_ProcessesLearningXlsxInChunks()
     {
@@ -106,86 +97,5 @@ public sealed class CatalogImportCanonicizeIntegrationTests : IDisposable
         Assert.False(chunk.HasMore);
         Assert.Equal(1, chunk.ProcessedRows);
         Assert.Equal(1, chunk.Added);
-    }
-
-    private sealed class CatalogImportTestFactory : WebApplicationFactory<Program>
-    {
-        public string ConnectionString { get; } = IntegrationTestConnection.Resolve();
-
-        private readonly Lazy<bool> isDatabaseAvailable = new(IntegrationTestConnection.EnsureDatabaseReady);
-
-        public bool IsDatabaseAvailable => isDatabaseAvailable.Value;
-
-        protected override void ConfigureWebHost(Microsoft.AspNetCore.Hosting.IWebHostBuilder builder)
-        {
-            builder.UseEnvironment("Testing");
-            builder.UseSetting("ConnectionStrings:DefaultConnection", ConnectionString);
-
-            builder.ConfigureAppConfiguration((_, config) =>
-            {
-                config.AddJsonFile(
-                    Path.Combine(AppContext.BaseDirectory, "appsettings.Testing.json"),
-                    optional: false,
-                    reloadOnChange: false);
-
-                config.AddInMemoryCollection(new Dictionary<string, string?>
-                {
-                    ["ConnectionStrings:DefaultConnection"] = ConnectionString,
-                    ["Jwt:Issuer"] = "KaraokeList.Test",
-                    ["Jwt:Audience"] = "KaraokeList.Web.Test",
-                    ["Jwt:Key"] = KaraokeApiFactory.TestJwtKey,
-                    ["Security:Registration:AllowRegistration"] = "true",
-                    ["Security:Registration:RequireInviteCode"] = "false",
-                    ["Security:Registration:AllowPasswordRecovery"] = "true",
-                    ["App:WebBaseUrl"] = "http://localhost:5262"
-                });
-            });
-
-            builder.ConfigureTestServices(services =>
-            {
-                services.RemoveAll<IMusicBrainzService>();
-                services.AddSingleton<IMusicBrainzService, PassthroughMusicBrainzStub>();
-
-                services.RemoveAll<IAuthRateLimiter>();
-                services.AddSingleton<IAuthRateLimiter, UnlimitedAuthRateLimiter>();
-            });
-        }
-    }
-
-    private sealed class PassthroughMusicBrainzStub : IMusicBrainzService
-    {
-        public Task<CanonicalLookupResponse> LookupAsync(string title, string artist, CancellationToken cancellationToken = default) =>
-            Task.FromResult(BuildResponse(title, artist));
-
-        public Task<CanonicalLookupResponse> LookupForImportAsync(string title, string artist, CancellationToken cancellationToken = default) =>
-            Task.FromResult(BuildResponse(title, artist));
-
-        public Task<SongAboutEnrichmentDto?> GetRecordingEnrichmentAsync(string recordingMbid, CancellationToken cancellationToken = default) =>
-            Task.FromResult<SongAboutEnrichmentDto?>(null);
-
-        private static CanonicalLookupResponse BuildResponse(string title, string artist)
-        {
-            var trimmedTitle = title.Trim();
-            var trimmedArtist = artist.Trim();
-            return new CanonicalLookupResponse
-            {
-                Match = new CanonicalMatchDto
-                {
-                    Found = true,
-                    Title = trimmedTitle,
-                    ArtistName = trimmedArtist,
-                    ArtistCreditDisplay = trimmedArtist,
-                    RecordingMbid = Guid.NewGuid().ToString(),
-                    ArtistCredits =
-                    [
-                        new CanonicalArtistCreditDto
-                        {
-                            Name = trimmedArtist,
-                            DisplayOrder = 0
-                        }
-                    ]
-                }
-            };
-        }
     }
 }
