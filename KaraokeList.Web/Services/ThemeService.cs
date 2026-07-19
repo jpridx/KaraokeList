@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Blazored.LocalStorage;
 using KaraokeList.Shared;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -40,8 +41,7 @@ public sealed class ThemeService(
             }
         }
 
-        var stored = await localStorage.GetItemAsync<ThemePreference?>(StorageKey);
-        return stored ?? ThemePreference.System;
+        return await TryGetStoredPreferenceAsync();
     }
 
     public async Task ApplyPreferenceAsync(ThemePreference preference)
@@ -64,5 +64,57 @@ public sealed class ThemeService(
         {
             Preference = preference
         });
+    }
+
+    private async Task<ThemePreference> TryGetStoredPreferenceAsync()
+    {
+        try
+        {
+            var stored = await localStorage.GetItemAsync<ThemePreference?>(StorageKey);
+            if (stored is not null)
+            {
+                return stored.Value;
+            }
+        }
+        catch (JsonException)
+        {
+            // Legacy plain-string values (e.g. "Dark") are not valid JSON for Blazored.
+        }
+
+        var raw = await localStorage.GetItemAsStringAsync(StorageKey);
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return ThemePreference.System;
+        }
+
+        var trimmed = raw.Trim().Trim('"');
+        if (TryParseLegacyPreference(trimmed, out var legacy))
+        {
+            await localStorage.SetItemAsync(StorageKey, legacy);
+            return legacy;
+        }
+
+        await localStorage.RemoveItemAsync(StorageKey);
+        return ThemePreference.System;
+    }
+
+    internal static bool TryParseLegacyPreference(string raw, out ThemePreference preference)
+    {
+        preference = ThemePreference.System;
+
+        if (raw is "0" or "1" or "2")
+        {
+            preference = (ThemePreference)int.Parse(raw);
+            return true;
+        }
+
+        if (Enum.TryParse(raw, ignoreCase: true, out ThemePreference parsed)
+            && ThemePreferenceCatalog.SelectablePreferences.Contains(parsed))
+        {
+            preference = parsed;
+            return true;
+        }
+
+        return false;
     }
 }
