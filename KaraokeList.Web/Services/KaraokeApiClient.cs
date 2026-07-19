@@ -9,6 +9,8 @@ public interface IKaraokeApiClient
     Task<AuthResult> LoginAsync(LoginRequest request);
     Task<AuthResult> RegisterAsync(RegisterRequest request);
     Task<RegistrationInfoDto?> GetRegistrationInfoAsync();
+    Task<ExternalAuthProvidersDto?> GetExternalAuthProvidersAsync();
+    Task<AuthResult> ExchangeExternalAuthCodeAsync(ExternalAuthExchangeRequest request);
     Task<List<VenueDto>> GetVenuesAsync();
     Task CreateVenueAsync(VenueDto dto);
     Task<CatalogMutateResult> TryCreateVenueAsync(VenueDto dto);
@@ -134,6 +136,21 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
             return null;
         }
     }
+
+    public async Task<ExternalAuthProvidersDto?> GetExternalAuthProvidersAsync()
+    {
+        try
+        {
+            return await http.GetFromJsonAsync<ExternalAuthProvidersDto>("api/auth/external/providers", JsonOptions);
+        }
+        catch (HttpRequestException)
+        {
+            return null;
+        }
+    }
+
+    public Task<AuthResult> ExchangeExternalAuthCodeAsync(ExternalAuthExchangeRequest request) =>
+        PostAuthAsync("api/auth/external/exchange", request);
 
     private async Task<AuthResult> PostAuthAsync(string url, object request)
     {

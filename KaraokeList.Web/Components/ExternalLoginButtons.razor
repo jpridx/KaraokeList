@@ -1,0 +1,47 @@
+@if (Providers?.AnyEnabled == true)
+{
+    <div class="external-auth mt-3 mb-3">
+        <p class="text-muted small mb-2">Or continue with</p>
+        <div class="d-grid gap-2">
+            @if (Providers.GoogleEnabled)
+            {
+                <a class="btn btn-outline-secondary" href="@GoogleUrl">Sign in with Google</a>
+            }
+            @if (Providers.MicrosoftEnabled)
+            {
+                <a class="btn btn-outline-secondary" href="@MicrosoftUrl">Sign in with Microsoft</a>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public ExternalAuthProvidersDto? Providers { get; set; }
+
+    [Parameter, EditorRequired]
+    public string ApiBaseUrl { get; set; } = string.Empty;
+
+    [Parameter]
+    public string? ReturnUrl { get; set; }
+
+    [Parameter]
+    public string? Invite { get; set; }
+
+    [Parameter]
+    public bool RememberMe { get; set; }
+
+    private string GoogleUrl => ExternalAuthUrlBuilder.BuildStartUrl(
+        ApiBaseUrl,
+        ExternalAuthProviderNames.Google,
+        ReturnUrl,
+        Invite,
+        RememberMe);
+
+    private string MicrosoftUrl => ExternalAuthUrlBuilder.BuildStartUrl(
+        ApiBaseUrl,
+        ExternalAuthProviderNames.Microsoft,
+        ReturnUrl,
+        Invite,
+        RememberMe);
+}

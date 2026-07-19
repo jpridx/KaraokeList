@@ -83,6 +83,8 @@ Registration and the Register nav link disappear. Existing users keep signing in
 | **Custom domain + don’t publish DNS** | Low | Harder to guess than `*.azurewebsites.net` |
 | **Microsoft social login only** | Medium | No password spray on local accounts (still need invite if registration stays open) |
 
+OAuth (Google / Microsoft) is optional: configure `Authentication__*` settings on the API App Service. New OAuth accounts still require an invite code when `RequireInviteCode` is true. Existing email/password users can link on first OAuth sign-in when the provider email matches.
+
 ## What this does *not* guarantee
 
 - A determined attacker who obtains the URL can still try login spraying; lockout and rate limits slow that down.

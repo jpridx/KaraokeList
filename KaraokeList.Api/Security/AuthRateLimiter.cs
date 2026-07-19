@@ -58,4 +58,7 @@ public static class AuthRateLimitPolicies
 
     public static readonly TimeSpan ResetPasswordWindow = TimeSpan.FromMinutes(15);
     public const int ResetPasswordMaxAttempts = 10;
+
+    public static readonly TimeSpan ExternalLoginWindow = TimeSpan.FromMinutes(15);
+    public const int ExternalLoginMaxAttempts = 15;
 }

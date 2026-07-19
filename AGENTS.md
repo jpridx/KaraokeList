@@ -59,6 +59,7 @@ Details: `docs/mobile-ux.md`. Refactor tiers: `docs/mobile-refactor-roadmap.md`.
 ### Key API endpoints
 
 - `POST api/auth/register`, `api/auth/login`, `GET api/auth/me`, `GET api/auth/invite-share`, `GET/PUT api/auth/tickler-settings`
+- OAuth (optional): `GET api/auth/external/{provider}`, `POST api/auth/external/exchange`, `GET api/auth/external/providers`
 - `GET api/performances/my-repertoire`, `my-repertoire/genres`, `my-song-summary`, `my-stale-songs`, `my-stats`
 - `POST api/performances` (auto-fills singer from JWT; auto-adds song to My repertoire list)
 - `GET api/singers/me/lists`, `GET/POST/DELETE api/singers/me/lists/{listId}/songs`, `POST api/singers/me/lists/import`, `GET api/singers/me/songs/{songId}/list-membership`

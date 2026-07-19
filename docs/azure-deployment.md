@@ -74,6 +74,25 @@ Bicep sets SQL connection string, JWT issuer/audience, and Application Insights 
 | `Security__Registration__InviteCode` | **Required** — share only with friends |
 | `Security__Registration__AllowRegistration` | `true` until everyone has joined |
 | `Cors__Origins__0` | `https://<staticWebAppDefaultHostName>` (no trailing slash) |
+| `App__WebBaseUrl` | `https://<staticWebAppDefaultHostName>` (WASM URL, no trailing slash) |
+
+Optional OAuth (Google / Microsoft) — buttons appear only when ClientId and ClientSecret are set:
+
+| Setting | Value |
+|---------|--------|
+| `Authentication__Google__ClientId` | Google OAuth client ID |
+| `Authentication__Google__ClientSecret` | Google OAuth client secret |
+| `Authentication__Microsoft__ClientId` | Microsoft app (client) ID |
+| `Authentication__Microsoft__ClientSecret` | Microsoft client secret |
+
+Register these **redirect URIs** on each provider (API hostname, not WASM):
+
+| Provider | Redirect URI |
+|----------|----------------|
+| Google | `https://<api-host>/signin-google` |
+| Microsoft | `https://<api-host>/signin-microsoft` |
+
+Example: `https://api-karaokelist.azurewebsites.net/signin-google`
 
 > **Application Insights** is auto-configured by Bicep — no manual steps needed. View telemetry in the Azure portal under `appi-<baseName>` → **Logs** or **Live Metrics**.
 

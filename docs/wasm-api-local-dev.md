@@ -91,7 +91,32 @@ Singer-facing flows (Log, My Songs, copy-for-host): [mobile-ux.md](mobile-ux.md)
 ## Auth
 
 - Register/login call `api/auth/register` and `api/auth/login`
+- Optional OAuth (Google, Microsoft): `GET api/auth/external/{provider}`, `POST api/auth/external/exchange`, `GET api/auth/external/providers` — see [OAuth setup](#oauth-google--microsoft) below
 - `GET api/auth/me` — profile and linked `SingerId`
 - `POST api/auth/link-singer` — link login to an existing or new singer
 - JWT is stored in browser local storage and sent on catalog API calls
 - Development: invite code not required (`KaraokeList.Api/appsettings.Development.json`)
+
+### OAuth (Google / Microsoft)
+
+OAuth runs on the **API** (not WASM). After the provider redirects back, the API issues a short-lived exchange code; WASM completes sign-in at `/auth/callback`.
+
+1. Create OAuth apps in [Google Cloud Console](https://console.cloud.google.com/apis/credentials) and/or [Azure Entra ID](https://entra.microsoft.com/) (App registrations).
+2. Set authorized redirect URIs on the **API** host:
+   - `https://localhost:5299/signin-google`
+   - `https://localhost:5299/signin-microsoft`  
+   (Use `http://localhost:5299/...` if you run the API HTTP-only.)
+3. Store secrets with user secrets (never commit):
+
+```powershell
+dotnet user-secrets set "Authentication:Google:ClientId" "<google-client-id>" --project KaraokeList.Api
+dotnet user-secrets set "Authentication:Google:ClientSecret" "<google-secret>" --project KaraokeList.Api
+dotnet user-secrets set "Authentication:Microsoft:ClientId" "<microsoft-client-id>" --project KaraokeList.Api
+dotnet user-secrets set "Authentication:Microsoft:ClientSecret" "<microsoft-secret>" --project KaraokeList.Api
+```
+
+4. Restart the API. **Sign in with Google/Microsoft** buttons appear on Login/Register when a provider is configured.
+
+New OAuth sign-ups follow the same **invite code** and **registration closed** rules as email/password registration. Pass `?invite=` on the OAuth start URL (Register page and invite links do this automatically).
+
+Apple Sign In is planned as a follow-up; not configured in this release.

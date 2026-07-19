@@ -1,0 +1,78 @@
+@page "/auth/callback"
+
+<PageTitle>Signing in…</PageTitle>
+
+@if (loading)
+{
+    <p class="text-muted">Completing sign-in…</p>
+}
+else if (!string.IsNullOrEmpty(errorMessage))
+{
+    <h3>Sign-in failed</h3>
+    <div class="alert alert-danger">@errorMessage</div>
+    <p class="mb-0"><a href="@LoginHref">Back to sign in</a></p>
+}
+
+@code {
+    [Inject]
+    private IKaraokeApiClient Api { get; set; } = default!;
+
+    [Inject]
+    private JwtAuthenticationStateProvider AuthProvider { get; set; } = default!;
+
+    [Inject]
+    private NavigationManager NavigationManager { get; set; } = default!;
+
+    [SupplyParameterFromQuery]
+    private string? Code { get; set; }
+
+    [SupplyParameterFromQuery]
+    private string? Error { get; set; }
+
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl { get; set; }
+
+    private bool loading = true;
+    private string? errorMessage;
+
+    private string LoginHref
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(ReturnUrl) || ReturnUrl == "/")
+            {
+                return "login";
+            }
+
+            return $"login?returnUrl={Uri.EscapeDataString(ReturnUrl)}";
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!string.IsNullOrWhiteSpace(Error))
+        {
+            errorMessage = Error;
+            loading = false;
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(Code))
+        {
+            errorMessage = "Missing sign-in code. Try signing in again.";
+            loading = false;
+            return;
+        }
+
+        var result = await Api.ExchangeExternalAuthCodeAsync(new ExternalAuthExchangeRequest { Code = Code });
+        if (!result.Succeeded || result.Response is null)
+        {
+            errorMessage = result.ErrorMessage ?? "Sign-in link expired or invalid. Try again.";
+            loading = false;
+            return;
+        }
+
+        await AuthProvider.MarkUserAsAuthenticatedAsync(result.Response.Token);
+        NavigationManager.NavigateTo(string.IsNullOrWhiteSpace(ReturnUrl) ? "/" : ReturnUrl);
+    }
+}
