@@ -151,9 +151,10 @@ Implemented in `ShowHostMessageFormatting` (`KaraokeList.Shared`). Shown on Log 
 | Component | Role |
 |-----------|------|
 | `QuickLogPerformance` | Venue, date, key, host message, save — venue from last log; date defaults to today; key from last time **you sang this song** (or original key); queues offline |
-| `AddSongPanel` | Add catalog song inline — title field + `AddArtistField` + `AddGenreField`; fires `SongAddedEventArgs` on success |
+| `AddSongPanel` | Add catalog song inline — title field + `SongArtistsEditor` (one `AddArtistField` per artist) + `AddGenreField`; fires `SongAddedEventArgs` on success |
 | `AddSongToListPanel` | Want to sing / Working up — **Add from catalog** and **New song** in one step; success message after add |
-| `AddArtistField` | Artist autocomplete (`AllowCustom`) with inline guidance and **Add artist** button when the typed name isn't in the catalog |
+| `AddArtistField` | Artist autocomplete (`AllowCustom`) with inline guidance and **Add artist** button when the typed name isn't in the catalog; used per row inside `SongArtistsEditor` |
+| `SongArtistsEditor` | Multi-artist editor for add-song and admin song grid — composes `AddArtistField` rows plus **+ Add another artist** |
 | `AddGenreField` | Genre autocomplete (`AllowCustom`) with inline **Add genre** button when the typed name isn't in the catalog |
 | `LogCatalogLoader` | Online catalog fetch + offline cache for Log song/venue picker (★ repertoire, 🎯 working up) |
 | `MySongsLoader` | Online list fetch + offline cache for My Songs browse |
