@@ -4,16 +4,18 @@
     @for (var i = 0; i < ArtistNames.Count; i++)
     {
         var index = i;
-        <div class="d-flex gap-2 align-items-center mb-2">
-            <SfAutoComplete TValue="string" TItem="ArtistLookupDto" DataSource="@ArtistLookups"
-                            Value="@ArtistNames[index]"
-                            ValueChanged="@(value => OnArtistNameChanged(index, value))"
-                            Placeholder="Search artist..." Enabled="@(!Disabled)">
-                <AutoCompleteFieldSettings Value="Name" Text="Name" />
-            </SfAutoComplete>
+        <div class="d-flex gap-2 align-items-start mb-2">
+            <div class="flex-grow-1">
+                <AddArtistField ArtistLookups="@ArtistLookups"
+                                ArtistName="@ArtistNames[index]"
+                                ArtistNameChanged="@(value => OnArtistNameChanged(index, value))"
+                                ArtistLookupsChanged="OnArtistLookupsChangedAsync"
+                                Disabled="@Disabled"
+                                ShowGuidance="@(index == 0)" />
+            </div>
             @if (ArtistNames.Count > 1)
             {
-                <button type="button" class="btn btn-outline-danger btn-sm" disabled="@Disabled"
+                <button type="button" class="btn btn-outline-danger btn-sm mt-1" disabled="@Disabled"
                         @onclick="() => RemoveArtist(index)">
                     Remove
                 </button>
@@ -21,7 +23,7 @@
         </div>
     }
     <button type="button" class="btn btn-outline-secondary btn-sm" disabled="@Disabled" @onclick="AddArtist">
-        + Add artist
+        + Add another artist
     </button>
 </div>
 
@@ -36,6 +38,9 @@
     public IReadOnlyList<ArtistLookupDto> ArtistLookups { get; set; } = [];
 
     [Parameter]
+    public EventCallback<IReadOnlyList<ArtistLookupDto>> ArtistLookupsChanged { get; set; }
+
+    [Parameter]
     public bool Disabled { get; set; }
 
     private Task OnArtistNameChanged(int index, string value)
@@ -43,6 +48,9 @@
         ArtistNames[index] = value;
         return ArtistNamesChanged.InvokeAsync(ArtistNames);
     }
+
+    private Task OnArtistLookupsChangedAsync(IReadOnlyList<ArtistLookupDto> refreshed) =>
+        ArtistLookupsChanged.InvokeAsync(refreshed);
 
     private Task AddArtist()
     {

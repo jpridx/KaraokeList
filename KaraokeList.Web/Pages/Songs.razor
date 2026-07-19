@@ -30,7 +30,8 @@
                     }
                     <SongArtistsEditor ArtistNames="@GetEditableArtistNames(song)"
                                        ArtistNamesChanged="@(names => OnArtistNamesChanged(song, names))"
-                                       ArtistLookups="@artistLookups" />
+                                       ArtistLookups="@artistLookups"
+                                       ArtistLookupsChanged="OnArtistLookupsChangedAsync" />
                 </EditTemplate>
             </GridColumn>
             <GridColumn Field="@nameof(SongDisplay.RecordingMbid)" HeaderText="Recording MBID" Width="220" AllowEditing="false" />
@@ -114,6 +115,12 @@
         {
             await catalogGrid.SyncEditingRowAsync(song);
         }
+    }
+
+    private Task OnArtistLookupsChangedAsync(IReadOnlyList<ArtistLookupDto> refreshed)
+    {
+        artistLookups = refreshed.ToList();
+        return Task.CompletedTask;
     }
 
     private Task OnEditingTitleChangedAsync(string value)

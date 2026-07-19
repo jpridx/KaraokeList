@@ -15,6 +15,7 @@
         <SongArtistsEditor ArtistNames="@artistNames"
                            ArtistNamesChanged="OnArtistNamesChangedAsync"
                            ArtistLookups="@artistLookups"
+                           ArtistLookupsChanged="OnArtistLookupsChangedAsync"
                            Disabled="@isBusy" />
 
         <CanonicalNameCheck Title="@title" TitleChanged="OnTitleChangedAsync"
@@ -92,6 +93,12 @@
             if (string.IsNullOrWhiteSpace(PrimaryArtistName))
             {
                 return "Type at least one artist name and pick from the list.";
+            }
+
+            if (artistNames.Any(name => LogArtistPicker.NeedsNewArtist(name, artistLookups)))
+            {
+                var pending = artistNames.First(name => LogArtistPicker.NeedsNewArtist(name, artistLookups)).Trim();
+                return $"Tap Add artist \"{pending}\" above, then Add song.";
             }
 
             if (ResolveArtistCredits().Count == 0)
@@ -190,6 +197,12 @@
     private Task OnArtistNamesChangedAsync(List<string> names)
     {
         artistNames = names.Count == 0 ? [string.Empty] : names;
+        return Task.CompletedTask;
+    }
+
+    private Task OnArtistLookupsChangedAsync(IReadOnlyList<ArtistLookupDto> refreshed)
+    {
+        artistLookups = refreshed;
         return Task.CompletedTask;
     }
 
