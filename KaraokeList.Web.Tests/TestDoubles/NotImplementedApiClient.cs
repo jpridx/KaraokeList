@@ -54,8 +54,8 @@ public class NotImplementedApiClient : IKaraokeApiClient
     public virtual Task DeleteSongAsync(int id) => Throw();
     public virtual Task<CatalogMutateResult> TryDeleteSongAsync(int id) => Throw<CatalogMutateResult>();
     public virtual Task<AppVersionDto?> GetAppVersionAsync() => Throw<AppVersionDto?>();
-    public virtual Task<CatalogImportFileResult> ImportCatalogFileAsync(Stream fileStream, string fileName, bool canonicize = true) => Throw<CatalogImportFileResult>();
-    public virtual Task<CatalogImportFileResult> ImportCatalogFromGSheetAsync(GSheetImportRequest request, bool canonicize = true) => Throw<CatalogImportFileResult>();
+    public virtual Task<CatalogImportFileResult> ImportCatalogFileAsync(Stream fileStream, string fileName, bool canonicize = true, IProgress<string>? progress = null) => Throw<CatalogImportFileResult>();
+    public virtual Task<CatalogImportFileResult> ImportCatalogFromGSheetAsync(GSheetImportRequest request, bool canonicize = true, IProgress<string>? progress = null) => Throw<CatalogImportFileResult>();
     public virtual Task<CatalogMutateResult> MergeSongsAsync(int sourceId, int targetId) => Throw<CatalogMutateResult>();
     public virtual Task<List<PerformanceDto>> GetPerformancesAsync(int? songId = null) => Throw<List<PerformanceDto>>();
     public virtual Task<UserProfileDto?> GetProfileAsync() => Throw<UserProfileDto?>();

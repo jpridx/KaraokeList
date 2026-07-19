@@ -4,6 +4,7 @@ using System.Text.Json;
 using KaraokeList.Data;
 using KaraokeList.Shared;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace KaraokeList.Api.IntegrationTests;
@@ -66,7 +67,7 @@ internal static class IntegrationAuthHelper
         return client;
     }
 
-    public static async Task<(HttpClient Client, string Email)> CreateAdminClientAsync(KaraokeApiFactory factory)
+    public static async Task<(HttpClient Client, string Email)> CreateAdminClientAsync(WebApplicationFactory<Program> factory)
     {
         var registerClient = factory.CreateClient();
         var email = $"admin-{Guid.NewGuid():N}@example.com";
@@ -91,7 +92,7 @@ internal static class IntegrationAuthHelper
         return (email, userId, client);
     }
 
-    public static async Task PromoteToAdminAsync(KaraokeApiFactory factory, string email)
+    public static async Task PromoteToAdminAsync(WebApplicationFactory<Program> factory, string email)
     {
         await using var scope = factory.Services.CreateAsyncScope();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();

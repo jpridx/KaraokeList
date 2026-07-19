@@ -15,6 +15,47 @@ public sealed class CatalogImportService(ApplicationDbContext db, ICanonicalCata
         CancellationToken cancellationToken = default)
     {
         var result = new CatalogImportResultDto { TotalRows = rows.Count };
+        await ImportRowsCoreAsync(rows, canonicize, result, cancellationToken);
+        return result;
+    }
+
+    internal async Task<CatalogImportChunkResultDto> ImportChunkAsync(
+        IReadOnlyList<CatalogImportRow> allRows,
+        int offset,
+        int limit,
+        CatalogImportResultDto cumulative,
+        CancellationToken cancellationToken = default)
+    {
+        var slice = allRows.Skip(offset).Take(limit).ToList();
+        var chunkResult = new CatalogImportResultDto { TotalRows = allRows.Count };
+        await ImportRowsCoreAsync(slice, canonicize: true, chunkResult, cancellationToken);
+
+        cumulative.TotalRows = allRows.Count;
+        cumulative.Added += chunkResult.Added;
+        cumulative.Skipped += chunkResult.Skipped;
+        cumulative.Canonicized += chunkResult.Canonicized;
+        cumulative.Errors.AddRange(chunkResult.Errors);
+
+        var nextOffset = offset + slice.Count;
+        return new CatalogImportChunkResultDto
+        {
+            TotalRows = cumulative.TotalRows,
+            Added = cumulative.Added,
+            Skipped = cumulative.Skipped,
+            Canonicized = cumulative.Canonicized,
+            Errors = cumulative.Errors,
+            ProcessedRows = nextOffset,
+            NextOffset = nextOffset,
+            HasMore = nextOffset < allRows.Count
+        };
+    }
+
+    private async Task ImportRowsCoreAsync(
+        IReadOnlyList<CatalogImportRow> rows,
+        bool canonicize,
+        CatalogImportResultDto result,
+        CancellationToken cancellationToken)
+    {
 
         var artistByName = (await db.Artists.ToListAsync(cancellationToken))
             .ToDictionary(a => a.Name, a => a, StringComparer.OrdinalIgnoreCase);
@@ -32,6 +73,10 @@ public sealed class CatalogImportService(ApplicationDbContext db, ICanonicalCata
             .ToHashSet();
 
         var importRows = rows.Take(MaxImportRows).ToList();
+        if (result.TotalRows == 0)
+        {
+            result.TotalRows = importRows.Count;
+        }
 
         foreach (var row in importRows)
         {
@@ -163,7 +208,7 @@ public sealed class CatalogImportService(ApplicationDbContext db, ICanonicalCata
             {
                 Title = title,
                 Genre = genreId,
-                Year = row.Year,
+                Year = year,
                 RecordingMbid = recordingMbid,
                 ArtistCreditDisplay = artistCreditDisplay
             };
@@ -200,8 +245,6 @@ public sealed class CatalogImportService(ApplicationDbContext db, ICanonicalCata
                 Message = $"File has {rows.Count} rows; only the first {MaxImportRows} were processed."
             });
         }
-
-        return result;
     }
 
     private async Task<int?> ResolveArtistIdAsync(

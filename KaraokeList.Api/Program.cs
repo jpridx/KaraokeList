@@ -36,6 +36,7 @@ builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection(Email
 builder.Services.AddSingleton<IRegistrationGate, RegistrationGate>();
 builder.Services.AddSingleton<IAccountEmailSender, AccountEmailSender>();
 builder.Services.AddMemoryCache();
+builder.Services.AddSingleton<CatalogImportSessionStore>();
 builder.Services.AddSingleton<IAuthRateLimiter, AuthRateLimiter>();
 builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IAdminUserService, AdminUserService>();

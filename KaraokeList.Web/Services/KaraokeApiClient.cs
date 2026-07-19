@@ -50,8 +50,8 @@ public interface IKaraokeApiClient
     Task DeleteSongAsync(int id);
     Task<CatalogMutateResult> TryDeleteSongAsync(int id);
     Task<AppVersionDto?> GetAppVersionAsync();
-    Task<CatalogImportFileResult> ImportCatalogFileAsync(Stream fileStream, string fileName, bool canonicize = true);
-    Task<CatalogImportFileResult> ImportCatalogFromGSheetAsync(GSheetImportRequest request, bool canonicize = true);
+    Task<CatalogImportFileResult> ImportCatalogFileAsync(Stream fileStream, string fileName, bool canonicize = true, IProgress<string>? progress = null);
+    Task<CatalogImportFileResult> ImportCatalogFromGSheetAsync(GSheetImportRequest request, bool canonicize = true, IProgress<string>? progress = null);
     Task<CatalogMutateResult> MergeSongsAsync(int sourceId, int targetId);
     Task<List<PerformanceDto>> GetPerformancesAsync(int? songId = null);
     Task<UserProfileDto?> GetProfileAsync();
@@ -273,22 +273,41 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
         }
     }
 
-    public async Task<CatalogImportFileResult> ImportCatalogFileAsync(Stream fileStream, string fileName, bool canonicize = true)
+    public async Task<CatalogImportFileResult> ImportCatalogFileAsync(
+        Stream fileStream,
+        string fileName,
+        bool canonicize = true,
+        IProgress<string>? progress = null)
     {
         using var content = new MultipartFormDataContent();
         content.Add(new StreamContent(fileStream), "file", fileName);
         try
         {
-            var response = await http.PostAsync($"api/catalog/import/file?canonicize={canonicize.ToString().ToLowerInvariant()}", content);
-            if (response.IsSuccessStatusCode)
+            var response = await http.PostAsync(
+                $"api/catalog/import/file?canonicize={canonicize.ToString().ToLowerInvariant()}",
+                content);
+            if (!response.IsSuccessStatusCode)
+            {
+                var message = await ReadApiErrorMessageAsync(response);
+                return CatalogImportFileResult.Fail(message ?? "Import failed.");
+            }
+
+            if (!canonicize)
             {
                 var body = await response.Content.ReadFromJsonAsync<CatalogImportResultDto>(JsonOptions);
                 return body is null
                     ? CatalogImportFileResult.Fail("Unexpected empty response from the server.")
                     : CatalogImportFileResult.Ok(body);
             }
-            var message = await ReadApiErrorMessageAsync(response);
-            return CatalogImportFileResult.Fail(message ?? "Import failed.");
+
+            return await CompleteCanonicizedImportAsync(
+                await response.Content.ReadFromJsonAsync<CatalogImportSessionDto>(JsonOptions),
+                progress);
+        }
+        catch (TaskCanceledException)
+        {
+            return CatalogImportFileResult.Fail(
+                "Import timed out. Each batch processes up to 25 rows (~30 seconds). Try again or import without MusicBrainz canonicization.");
         }
         catch (Exception ex)
         {
@@ -296,18 +315,88 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
         }
     }
 
-    public async Task<CatalogImportFileResult> ImportCatalogFromGSheetAsync(GSheetImportRequest request, bool canonicize = true)
+    public async Task<CatalogImportFileResult> ImportCatalogFromGSheetAsync(
+        GSheetImportRequest request,
+        bool canonicize = true,
+        IProgress<string>? progress = null)
     {
-        var response = await http.PostAsJsonAsync($"api/catalog/import/gsheet?canonicize={canonicize.ToString().ToLowerInvariant()}", request);
-        if (response.IsSuccessStatusCode)
+        try
         {
-            var body = await response.Content.ReadFromJsonAsync<CatalogImportResultDto>(JsonOptions);
-            return body is null
-                ? CatalogImportFileResult.Fail("Unexpected empty response from the server.")
-                : CatalogImportFileResult.Ok(body);
+            var response = await http.PostAsJsonAsync(
+                $"api/catalog/import/gsheet?canonicize={canonicize.ToString().ToLowerInvariant()}",
+                request);
+            if (!response.IsSuccessStatusCode)
+            {
+                var message = await ReadApiErrorMessageAsync(response);
+                return CatalogImportFileResult.Fail(message ?? "Import from Google Sheets failed.");
+            }
+
+            if (!canonicize)
+            {
+                var body = await response.Content.ReadFromJsonAsync<CatalogImportResultDto>(JsonOptions);
+                return body is null
+                    ? CatalogImportFileResult.Fail("Unexpected empty response from the server.")
+                    : CatalogImportFileResult.Ok(body);
+            }
+
+            return await CompleteCanonicizedImportAsync(
+                await response.Content.ReadFromJsonAsync<CatalogImportSessionDto>(JsonOptions),
+                progress);
         }
-        var message = await ReadApiErrorMessageAsync(response);
-        return CatalogImportFileResult.Fail(message ?? "Import from Google Sheets failed.");
+        catch (TaskCanceledException)
+        {
+            return CatalogImportFileResult.Fail(
+                "Import timed out. Each batch processes up to 25 rows (~30 seconds). Try again or import without MusicBrainz canonicization.");
+        }
+        catch (Exception ex)
+        {
+            return CatalogImportFileResult.Fail(ex.Message);
+        }
+    }
+
+    private async Task<CatalogImportFileResult> CompleteCanonicizedImportAsync(
+        CatalogImportSessionDto? session,
+        IProgress<string>? progress)
+    {
+        if (session is null || string.IsNullOrWhiteSpace(session.SessionId))
+        {
+            return CatalogImportFileResult.Fail("Unexpected empty response from the server.");
+        }
+
+        CatalogImportChunkResultDto? lastChunk = null;
+        var offset = 0;
+        while (true)
+        {
+            var batchEnd = Math.Min(offset + session.ChunkSize, session.TotalRows);
+            progress?.Report(
+                session.TotalRows == 0
+                    ? "Importing…"
+                    : $"Importing rows {offset + 1}–{batchEnd} of {session.TotalRows}…");
+
+            var chunkResponse = await http.PostAsync(
+                $"api/catalog/import/session/{session.SessionId}/chunk?offset={offset}&limit={session.ChunkSize}",
+                content: null);
+            if (!chunkResponse.IsSuccessStatusCode)
+            {
+                var message = await ReadApiErrorMessageAsync(chunkResponse);
+                return CatalogImportFileResult.Fail(message ?? "Import batch failed.");
+            }
+
+            lastChunk = await chunkResponse.Content.ReadFromJsonAsync<CatalogImportChunkResultDto>(JsonOptions);
+            if (lastChunk is null)
+            {
+                return CatalogImportFileResult.Fail("Unexpected empty response from the server.");
+            }
+
+            if (!lastChunk.HasMore)
+            {
+                break;
+            }
+
+            offset = lastChunk.NextOffset;
+        }
+
+        return CatalogImportFileResult.Ok(lastChunk!);
     }
 
     public Task<List<PerformanceDto>> GetPerformancesAsync(int? songId = null)

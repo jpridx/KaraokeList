@@ -1,3 +1,4 @@
+using KaraokeList.Api.IntegrationTests.TestDoubles;
 using KaraokeList.Api.Services;
 using KaraokeList.Security;
 using Microsoft.AspNetCore.Hosting;
@@ -55,6 +56,9 @@ public sealed class KaraokeApiFactory : WebApplicationFactory<Program>
             // All integration tests share one in-memory rate-limit bucket ("unknown" IP).
             services.RemoveAll<IAuthRateLimiter>();
             services.AddSingleton<IAuthRateLimiter, UnlimitedAuthRateLimiter>();
+
+            services.RemoveAll<IMusicBrainzService>();
+            services.AddSingleton<IMusicBrainzService, PassthroughMusicBrainzStub>();
         });
     }
 }

@@ -24,6 +24,29 @@ public class CatalogImportResultDto
     public List<CatalogImportErrorDto> Errors { get; set; } = [];
 }
 
+public class CatalogImportSessionDto
+{
+    public string SessionId { get; set; } = string.Empty;
+    public int TotalRows { get; set; }
+    public int ChunkSize { get; set; } = CatalogImportChunkRequest.DefaultChunkSize;
+}
+
+public class CatalogImportChunkRequest
+{
+    public const int DefaultChunkSize = 25;
+
+    public int Offset { get; set; }
+    public int Limit { get; set; } = DefaultChunkSize;
+}
+
+public class CatalogImportChunkResultDto : CatalogImportResultDto
+{
+    public string SessionId { get; set; } = string.Empty;
+    public int ProcessedRows { get; set; }
+    public int NextOffset { get; set; }
+    public bool HasMore { get; set; }
+}
+
 public class CatalogImportErrorDto
 {
     public int Row { get; set; }

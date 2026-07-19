@@ -8,6 +8,7 @@ namespace KaraokeList.Api.Services;
 public interface IMusicBrainzService
 {
     Task<CanonicalLookupResponse> LookupAsync(string title, string artist, CancellationToken cancellationToken = default);
+    Task<CanonicalLookupResponse> LookupForImportAsync(string title, string artist, CancellationToken cancellationToken = default);
     Task<SongAboutEnrichmentDto?> GetRecordingEnrichmentAsync(string recordingMbid, CancellationToken cancellationToken = default);
 }
 
@@ -19,10 +20,23 @@ public sealed class MusicBrainzService(IHttpClientFactory httpClientFactory, ICo
     private static readonly SemaphoreSlim RateLimiter = new(1, 1);
     private static DateTime _lastRequestUtc = DateTime.MinValue;
 
-    public async Task<CanonicalLookupResponse> LookupAsync(
+    public Task<CanonicalLookupResponse> LookupAsync(
         string title,
         string artist,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) =>
+        LookupCoreAsync(title, artist, includeMetadata: true, cancellationToken);
+
+    public Task<CanonicalLookupResponse> LookupForImportAsync(
+        string title,
+        string artist,
+        CancellationToken cancellationToken = default) =>
+        LookupCoreAsync(title, artist, includeMetadata: false, cancellationToken);
+
+    private async Task<CanonicalLookupResponse> LookupCoreAsync(
+        string title,
+        string artist,
+        bool includeMetadata,
+        CancellationToken cancellationToken)
     {
         if (!configuration.GetValue("MusicBrainz:Enabled", true))
         {
@@ -76,7 +90,8 @@ public sealed class MusicBrainzService(IHttpClientFactory httpClientFactory, ICo
         }
 
         var bestMatch = ordered[0];
-        if (bestMatch.RecordingMbid is { Length: > 0 } bestId
+        if (includeMetadata
+            && bestMatch.RecordingMbid is { Length: > 0 } bestId
             && recordingsById.TryGetValue(bestId, out var bestRecording))
         {
             var searchScore = searchScores.GetValueOrDefault(bestId);

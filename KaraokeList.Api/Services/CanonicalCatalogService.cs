@@ -228,7 +228,7 @@ public sealed class CanonicalCatalogService(
         string artist,
         CancellationToken cancellationToken = default)
     {
-        var lookup = await musicBrainzService.LookupAsync(title, artist, cancellationToken);
+        var lookup = await musicBrainzService.LookupForImportAsync(title, artist, cancellationToken);
         return lookup.Match.Found ? lookup.Match : null;
     }
 
