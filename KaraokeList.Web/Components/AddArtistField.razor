@@ -9,7 +9,7 @@
     <AutoCompleteFieldSettings Value="Name" Text="Name" />
 </SfAutoComplete>
 
-@if (string.IsNullOrWhiteSpace(_name))
+@if (ShowGuidance && string.IsNullOrWhiteSpace(_name))
 {
     <p class="form-text mb-0 mt-2">
         Type the artist name. Pick from the list, or tap <strong>Add artist</strong> below if they're new to the catalog.
@@ -56,6 +56,10 @@ else if (!string.IsNullOrWhiteSpace(_name) && LogArtistPicker.ResolveArtistId(_n
     /// <summary>When true, disables the "Add artist" button (e.g. parent is saving).</summary>
     [Parameter]
     public bool Disabled { get; set; }
+
+    /// <summary>When false, hides the empty-field guidance (e.g. secondary artist rows).</summary>
+    [Parameter]
+    public bool ShowGuidance { get; set; } = true;
 
     private string _name = string.Empty;
     private bool _isBusy;
