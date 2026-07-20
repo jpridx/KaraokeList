@@ -7,6 +7,25 @@ namespace KaraokeList.Web.Tests;
 public sealed class SafeReadRetryHandlerTests
 {
     [Fact]
+    public async Task SendAsync_WhenHeadReturns503ThenSuccess_RetriesOnce()
+    {
+        var attempts = 0;
+        var inner = new StubHandler(_ =>
+        {
+            attempts++;
+            return new HttpResponseMessage(attempts == 1 ? HttpStatusCode.ServiceUnavailable : HttpStatusCode.OK);
+        });
+        var handler = new SafeReadRetryHandler { InnerHandler = inner };
+
+        using var client = new HttpClient(handler) { BaseAddress = new Uri("https://api.test/") };
+        using var request = new HttpRequestMessage(HttpMethod.Head, "api/version");
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(2, attempts);
+    }
+
+    [Fact]
     public async Task SendAsync_WhenGetReturns503ThenSuccess_RetriesOnce()
     {
         var attempts = 0;

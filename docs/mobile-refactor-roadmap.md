@@ -113,6 +113,7 @@ Mark individual 6.x items done in this table when shipped; no tier-wide exit cri
 | Doc | Role |
 |-----|------|
 | [mobile-ux.md](mobile-ux.md) | Routes, flows, shared components |
+| [resilience.md](resilience.md) | Polly retry/rate-limit policies and unit tests (#264) |
 | [Performances.md](Performances.md) | API + performance schema |
 | [e2e-playwright.md](e2e-playwright.md) | Playwright setup |
 | [flexible-search-options.md](flexible-search-options.md) | #92 design options (not implemented) |

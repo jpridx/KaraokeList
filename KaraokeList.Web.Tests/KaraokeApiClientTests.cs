@@ -33,6 +33,54 @@ public sealed class KaraokeApiClientTests
     }
 
     [Fact]
+    public async Task LoginAsync_WhenTransient503ThenSuccess_RetriesOnce()
+    {
+        var attempts = 0;
+        var client = CreateClient(new StubHandler(_ =>
+        {
+            attempts++;
+            return new HttpResponseMessage(attempts == 1 ? HttpStatusCode.ServiceUnavailable : HttpStatusCode.OK)
+            {
+                Content = JsonContent.Create(new AuthResponse
+                {
+                    Token = "jwt-token",
+                    Email = "user@example.com",
+                    ExpiresUtc = DateTime.UtcNow.AddHours(1)
+                })
+            };
+        }));
+
+        var result = await client.LoginAsync(new LoginRequest
+        {
+            Email = "user@example.com",
+            Password = "TestPassw0rd!23"
+        });
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(2, attempts);
+    }
+
+    [Fact]
+    public async Task ExchangeExternalAuthCodeAsync_WhenTransientFailure_DoesNotRetry()
+    {
+        var attempts = 0;
+        var client = CreateClient(new StubHandler(_ =>
+        {
+            attempts++;
+            throw new TaskCanceledException("timeout");
+        }));
+
+        var result = await client.ExchangeExternalAuthCodeAsync(new ExternalAuthExchangeRequest
+        {
+            Code = "one-time-code"
+        });
+
+        Assert.False(result.Succeeded);
+        Assert.True(result.IsTransientFailure);
+        Assert.Equal(1, attempts);
+    }
+
+    [Fact]
     public async Task LoginAsync_WhenTransientFailureThenSuccess_RetriesOnce()
     {
         var attempts = 0;

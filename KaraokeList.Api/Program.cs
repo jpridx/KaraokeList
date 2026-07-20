@@ -2,6 +2,7 @@
 using System.Text;
 using System.Threading.RateLimiting;
 using KaraokeList.Api;
+using KaraokeList.Api.Http;
 using KaraokeList.Api.Services;
 using KaraokeList.Data;
 using KaraokeList.Security;
@@ -9,7 +10,6 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Http.Resilience;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
@@ -52,13 +52,7 @@ builder.Services.AddScoped<IMusicBrainzService, MusicBrainzService>();
 builder.Services.AddScoped<ICanonicalCatalogService, CanonicalCatalogService>();
 builder.Services.AddScoped<ISongAboutService, SongAboutService>();
 
-var musicBrainzRateLimiter = new FixedWindowRateLimiter(new FixedWindowRateLimiterOptions
-{
-    PermitLimit = 1,
-    Window = TimeSpan.FromSeconds(1),
-    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-    QueueLimit = 100
-});
+var musicBrainzRateLimiter = OutboundHttpResilience.CreateMusicBrainzRateLimiter();
 builder.Services.AddSingleton(musicBrainzRateLimiter);
 
 builder.Services.AddHttpClient("GoogleSheets", client =>
@@ -66,11 +60,7 @@ builder.Services.AddHttpClient("GoogleSheets", client =>
     client.DefaultRequestHeaders.UserAgent.ParseAdd("KaraokeList/1.0");
     client.Timeout = TimeSpan.FromSeconds(30);
 })
-.AddStandardResilienceHandler(options =>
-{
-    options.Retry.MaxRetryAttempts = 3;
-    options.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(30);
-});
+.AddGoogleSheetsResilience();
 
 builder.Services.AddHttpClient("MusicBrainz", client =>
 {
@@ -80,15 +70,7 @@ builder.Services.AddHttpClient("MusicBrainz", client =>
     client.DefaultRequestHeaders.Accept.ParseAdd("application/json");
     client.Timeout = TimeSpan.FromSeconds(30);
 })
-.AddStandardResilienceHandler(options =>
-{
-    options.RateLimiter = new HttpRateLimiterStrategyOptions
-    {
-        RateLimiter = args => musicBrainzRateLimiter.AcquireAsync(cancellationToken: args.Context.CancellationToken)
-    };
-    options.Retry.MaxRetryAttempts = 3;
-    options.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(30);
-});
+.AddMusicBrainzResilience(musicBrainzRateLimiter);
 
 builder.Services.AddOptions<JwtSettings>()
     .BindConfiguration(JwtSettings.SectionName)
