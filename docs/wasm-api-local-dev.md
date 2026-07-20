@@ -106,6 +106,8 @@ OAuth runs on the **API** (not WASM). After the provider redirects back, the API
    - `https://localhost:5299/signin-google`
    - `https://localhost:5299/signin-microsoft`  
    (Use `http://localhost:5299/...` if you run the API HTTP-only.)
+
+   Microsoft uses OpenID Connect (not Microsoft Graph). The redirect URI stays `/signin-microsoft`; you do **not** need Microsoft Graph **User.Read** API permissions for sign-in.
 3. Store secrets with user secrets (never commit):
 
 ```powershell
