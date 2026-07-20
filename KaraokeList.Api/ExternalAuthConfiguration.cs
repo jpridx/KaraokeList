@@ -44,6 +44,8 @@ internal static class ExternalAuthConfiguration
                 options.ClientId = authSettings.Google.ClientId;
                 options.ClientSecret = authSettings.Google.ClientSecret;
                 options.SignInScheme = IdentityConstants.ExternalScheme;
+                options.Scope.Add("email");
+                options.ClaimActions.MapJsonKey("email_verified", "email_verified");
             });
         }
 
