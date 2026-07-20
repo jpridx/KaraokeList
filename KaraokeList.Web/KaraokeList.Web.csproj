@@ -18,8 +18,8 @@
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.10" PrivateAssets="all" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.10" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.19.2" />
-    <PackageReference Include="Syncfusion.Blazor.Grid" Version="34.1.29" />
-    <PackageReference Include="Syncfusion.Blazor.DropDowns" Version="34.1.29" />
+    <PackageReference Include="Syncfusion.Blazor.Grid" Version="34.1.31" />
+    <PackageReference Include="Syncfusion.Blazor.DropDowns" Version="34.1.31" />
   </ItemGroup>
 
   <ItemGroup>
