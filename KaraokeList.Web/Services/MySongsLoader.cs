@@ -84,7 +84,7 @@ public sealed class MySongsLoader(
                 FromCache: false,
                 cachedAt);
         }
-        catch (Exception ex) when (IsOfflineFailure(ex))
+        catch (Exception ex) when (ApiTransientFailure.IsTransient(ex))
         {
             return await LoadOfflineOrFailAsync(listKind, sortBy, sortDir, genreId, groupName, null, needsSingerLink: false);
         }
@@ -290,9 +290,6 @@ public sealed class MySongsLoader(
 
         return MySongsGenreFilter.ApplyGroupFilter(songs, groupName, genreGroups);
     }
-
-    private static bool IsOfflineFailure(Exception ex) =>
-        ApiTransientFailure.IsTransient(ex) || ex is HttpRequestException;
 
     public async Task PatchCachedSongGenreAsync(int songId, int? genreId, string genreName)
     {

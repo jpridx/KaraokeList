@@ -82,7 +82,7 @@ My Songs, Log picker, song detail, invite share, `SingerGatedPage` — see PRs [
 
 | # | Item | When to consider |
 |---|------|------------------|
-| **6.1** | Move `IsOfflineFailure` to `ApiTransientFailure` | Anytime — trivial dedup in loaders |
+| **6.1** | Move `IsOfflineFailure` to `ApiTransientFailure` | **Done** — deduped in loaders via shared `ApiTransientFailure` (PR #264) |
 | **6.2** | Segment `IKaraokeApiClient` (admin / singer / auth) | When interface churn breaks test stubs |
 | **6.3** | Generic `ApiResult<T>` instead of many result types | Large refactor; low urgency |
 | **6.4** | UrlAdaptor + server paging for catalog grids | When catalog size outgrows in-memory grids |
@@ -113,6 +113,7 @@ Mark individual 6.x items done in this table when shipped; no tier-wide exit cri
 | Doc | Role |
 |-----|------|
 | [mobile-ux.md](mobile-ux.md) | Routes, flows, shared components |
+| [resilience.md](resilience.md) | Polly retry/rate-limit policies and unit tests (#264) |
 | [Performances.md](Performances.md) | API + performance schema |
 | [e2e-playwright.md](e2e-playwright.md) | Playwright setup |
 | [flexible-search-options.md](flexible-search-options.md) | #92 design options (not implemented) |

@@ -35,7 +35,7 @@ public sealed class MyPerformancesLoader(
 
             return BuildResult(result.Performances, FromCache: false, cachedAt);
         }
-        catch (Exception ex) when (IsOfflineFailure(ex))
+        catch (Exception ex) when (ApiTransientFailure.IsTransient(ex))
         {
             return await LoadOfflineOrFailAsync(null, needsSingerLink: false);
         }
@@ -94,6 +94,4 @@ public sealed class MyPerformancesLoader(
             null,
             false);
 
-    private static bool IsOfflineFailure(Exception ex) =>
-        ApiTransientFailure.IsTransient(ex) || ex is HttpRequestException;
 }

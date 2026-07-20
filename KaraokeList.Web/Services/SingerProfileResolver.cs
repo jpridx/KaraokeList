@@ -1,4 +1,5 @@
 using System.Net.Http;
+using KaraokeList.Shared;
 using Microsoft.AspNetCore.Components.Authorization;
 
 namespace KaraokeList.Web.Services;

@@ -17,8 +17,6 @@ public sealed class MusicBrainzService(IHttpClientFactory httpClientFactory, ICo
     private const int SearchLimit = 50;
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
-    private static readonly SemaphoreSlim RateLimiter = new(1, 1);
-    private static DateTime _lastRequestUtc = DateTime.MinValue;
 
     public Task<CanonicalLookupResponse> LookupAsync(
         string title,
@@ -359,7 +357,6 @@ public sealed class MusicBrainzService(IHttpClientFactory httpClientFactory, ICo
         string query,
         CancellationToken cancellationToken)
     {
-        await EnforceRateLimitAsync(cancellationToken);
         var url =
             $"recording?query={Uri.EscapeDataString(query)}&fmt=json&limit={SearchLimit}&inc=genres+tags+artist-credits+releases";
 
@@ -435,7 +432,6 @@ public sealed class MusicBrainzService(IHttpClientFactory httpClientFactory, ICo
             return recording;
         }
 
-        await EnforceRateLimitAsync(cancellationToken);
         using var response = await client.GetAsync(
             $"recording/{recording.Id}?fmt=json&inc=genres+tags+release-groups+artist-credits+releases",
             cancellationToken);
@@ -667,7 +663,6 @@ public sealed class MusicBrainzService(IHttpClientFactory httpClientFactory, ICo
         string artistMbid,
         CancellationToken cancellationToken)
     {
-        await EnforceRateLimitAsync(cancellationToken);
         using var response = await client.GetAsync($"artist/{artistMbid}?fmt=json", cancellationToken);
         if (!response.IsSuccessStatusCode)
         {
@@ -677,25 +672,6 @@ public sealed class MusicBrainzService(IHttpClientFactory httpClientFactory, ICo
         await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
         var artist = await JsonSerializer.DeserializeAsync<MusicBrainzArtistDetail>(stream, JsonOptions, cancellationToken);
         return string.IsNullOrWhiteSpace(artist?.SortName) ? null : artist.SortName.Trim();
-    }
-
-    private static async Task EnforceRateLimitAsync(CancellationToken cancellationToken)
-    {
-        await RateLimiter.WaitAsync(cancellationToken);
-        try
-        {
-            var elapsed = DateTime.UtcNow - _lastRequestUtc;
-            if (elapsed < TimeSpan.FromSeconds(1))
-            {
-                await Task.Delay(TimeSpan.FromSeconds(1) - elapsed, cancellationToken);
-            }
-
-            _lastRequestUtc = DateTime.UtcNow;
-        }
-        finally
-        {
-            RateLimiter.Release();
-        }
     }
 
     internal sealed class MusicBrainzSearchResponse

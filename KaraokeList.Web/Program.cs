@@ -38,6 +38,7 @@ builder.Services.AddSingleton<AppUpdateNotifier>();
 builder.Services.AddScoped<IAppUpdateService, AppUpdateService>();
 builder.Services.AddScoped<AuthorizationMessageHandler>();
 builder.Services.AddScoped<SlowApiRequestHandler>();
+builder.Services.AddScoped<SafeReadRetryHandler>();
 builder.Services.AddScoped<IKaraokeApiClient, KaraokeApiClient>();
 builder.Services.AddScoped<ICatalogVersionService, CatalogVersionService>();
 builder.Services.AddScoped<ILogPerformanceLocalStore, LogPerformanceLocalStore>();
@@ -59,8 +60,9 @@ builder.Services.AddHttpClient("KaraokeApi", client =>
         client.BaseAddress = new Uri(apiBaseUrl);
         client.Timeout = TimeSpan.FromMinutes(2);
     })
-    .AddHttpMessageHandler<AuthorizationMessageHandler>()
-    .AddHttpMessageHandler<SlowApiRequestHandler>();
+    .AddHttpMessageHandler<SafeReadRetryHandler>()
+    .AddHttpMessageHandler<SlowApiRequestHandler>()
+    .AddHttpMessageHandler<AuthorizationMessageHandler>();
 builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("KaraokeApi"));
 
 await builder.Build().RunAsync();

@@ -8,7 +8,7 @@
     <ServiceWorkerAssetsManifest>service-worker-assets.js</ServiceWorkerAssetsManifest>
     <UserSecretsId>karaokelist-web-local</UserSecretsId>
     <LaunchProfile>https</LaunchProfile>
-    <Version>2.2.9</Version>
+    <Version>2.3.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
@@ -17,6 +17,7 @@
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.10" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.10" PrivateAssets="all" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.10" />
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.1.0" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.19.2" />
     <PackageReference Include="Syncfusion.Blazor.Grid" Version="34.1.29" />
     <PackageReference Include="Syncfusion.Blazor.DropDowns" Version="34.1.29" />

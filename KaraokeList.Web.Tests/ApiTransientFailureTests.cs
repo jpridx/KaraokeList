@@ -1,5 +1,5 @@
 using System.Net;
-using KaraokeList.Web.Services;
+using KaraokeList.Shared;
 
 namespace KaraokeList.Web.Tests;
 

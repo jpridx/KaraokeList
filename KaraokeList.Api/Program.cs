@@ -1,6 +1,8 @@
 // KaraokeList.Api — JSON API only (no Syncfusion; see KaraokeList.Web for UI).
 using System.Text;
+using System.Threading.RateLimiting;
 using KaraokeList.Api;
+using KaraokeList.Api.Http;
 using KaraokeList.Api.Services;
 using KaraokeList.Data;
 using KaraokeList.Security;
@@ -50,11 +52,15 @@ builder.Services.AddScoped<IMusicBrainzService, MusicBrainzService>();
 builder.Services.AddScoped<ICanonicalCatalogService, CanonicalCatalogService>();
 builder.Services.AddScoped<ISongAboutService, SongAboutService>();
 
+var musicBrainzRateLimiter = OutboundHttpResilience.CreateMusicBrainzRateLimiter();
+builder.Services.AddSingleton(musicBrainzRateLimiter);
+
 builder.Services.AddHttpClient("GoogleSheets", client =>
 {
     client.DefaultRequestHeaders.UserAgent.ParseAdd("KaraokeList/1.0");
     client.Timeout = TimeSpan.FromSeconds(30);
-});
+})
+.AddGoogleSheetsResilience();
 
 builder.Services.AddHttpClient("MusicBrainz", client =>
 {
@@ -63,7 +69,8 @@ builder.Services.AddHttpClient("MusicBrainz", client =>
     client.DefaultRequestHeaders.UserAgent.ParseAdd(userAgent);
     client.DefaultRequestHeaders.Accept.ParseAdd("application/json");
     client.Timeout = TimeSpan.FromSeconds(30);
-});
+})
+.AddMusicBrainzResilience(musicBrainzRateLimiter);
 
 builder.Services.AddOptions<JwtSettings>()
     .BindConfiguration(JwtSettings.SectionName)

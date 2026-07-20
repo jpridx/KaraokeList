@@ -94,6 +94,8 @@ Details: `docs/Performances.md`.
 | Run WASM | `dotnet run --project KaraokeList.Web/KaraokeList.Web.csproj` |
 | Publish WASM | `dotnet publish KaraokeList.Web/KaraokeList.Web.csproj -c Release` |
 
+HTTP resilience (Polly retry/rate-limit policies): see [docs/resilience.md](docs/resilience.md).
+
 ### Git workflow
 
 1. Start from updated `master`: `git checkout master && git pull`
