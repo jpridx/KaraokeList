@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
+using Microsoft.IdentityModel.Tokens;
 
 namespace KaraokeList.Api;
 
@@ -76,6 +77,7 @@ internal static class ExternalAuthConfiguration
                 options.Scope.Add("openid");
                 options.Scope.Add("profile");
                 options.Scope.Add("email");
+                options.TokenValidationParameters.IssuerValidator = ValidateMicrosoftIssuer;
                 options.Events = new OpenIdConnectEvents
                 {
                     OnRemoteFailure = context => HandleRemoteFailure(context, webBaseUrl)
@@ -106,4 +108,23 @@ internal static class ExternalAuthConfiguration
 
     private static string BuildOAuthErrorRedirect(string webBaseUrl, string? message) =>
         $"{webBaseUrl.TrimEnd('/')}/auth/callback?error={Uri.EscapeDataString(message ?? "External sign-in failed.")}";
+
+    /// <summary>
+    /// Personal Microsoft accounts (/common) return issuer tenant 9188040d-... instead of "common".
+    /// Accept any login.microsoftonline.com */v2.0 issuer.
+    /// </summary>
+    private static string ValidateMicrosoftIssuer(
+        string issuer,
+        SecurityToken? securityToken,
+        TokenValidationParameters validationParameters)
+    {
+        if (Uri.TryCreate(issuer, UriKind.Absolute, out var uri)
+            && string.Equals(uri.Host, "login.microsoftonline.com", StringComparison.OrdinalIgnoreCase)
+            && uri.AbsolutePath.EndsWith("/v2.0", StringComparison.OrdinalIgnoreCase))
+        {
+            return issuer;
+        }
+
+        throw new SecurityTokenInvalidIssuerException($"Untrusted issuer: {issuer}");
+    }
 }
