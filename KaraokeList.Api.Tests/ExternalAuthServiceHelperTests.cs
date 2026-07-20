@@ -28,6 +28,34 @@ public sealed class ExternalAuthServiceHelperTests
         Assert.False(ExternalAuthService.IsEmailVerified(loginInfo));
     }
 
+    [Fact]
+    public void GetEmail_uses_upn_when_email_claim_missing()
+    {
+        var claims = new List<Claim>
+        {
+            new(ClaimTypes.Upn, "user@outlook.com"),
+            new(ClaimTypes.Name, "Test User")
+        };
+        var principal = new ClaimsPrincipal(new ClaimsIdentity(claims, authenticationType: "Microsoft"));
+        var loginInfo = new ExternalLoginInfo(principal, "Microsoft", "key", "Microsoft");
+
+        Assert.Equal("user@outlook.com", ExternalAuthService.GetEmail(loginInfo));
+    }
+
+    [Fact]
+    public void GetEmail_ignores_preferred_username_without_at_sign()
+    {
+        var claims = new List<Claim>
+        {
+            new("preferred_username", "not-an-email"),
+            new(ClaimTypes.Name, "Test User")
+        };
+        var principal = new ClaimsPrincipal(new ClaimsIdentity(claims, authenticationType: "Microsoft"));
+        var loginInfo = new ExternalLoginInfo(principal, "Microsoft", "key", "Microsoft");
+
+        Assert.Null(ExternalAuthService.GetEmail(loginInfo));
+    }
+
     private static ExternalLoginInfo CreateLoginInfo(
         string provider,
         string email,

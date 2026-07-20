@@ -121,10 +121,26 @@ public sealed class ExternalAuthService(
     internal static string? GetEmail(ExternalLoginInfo loginInfo)
     {
         var principal = loginInfo.Principal;
-        return principal.FindFirstValue(ClaimTypes.Email)
-            ?? principal.FindFirstValue("email")
-            ?? principal.FindFirstValue("preferred_username");
+        foreach (var candidate in new[]
+                 {
+                     principal.FindFirstValue(ClaimTypes.Email),
+                     principal.FindFirstValue("email"),
+                     principal.FindFirstValue(ClaimTypes.Upn),
+                     principal.FindFirstValue("preferred_username"),
+                     principal.FindFirstValue("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/upn")
+                 })
+        {
+            if (LooksLikeEmail(candidate))
+            {
+                return candidate!.Trim();
+            }
+        }
+
+        return null;
     }
+
+    internal static bool LooksLikeEmail(string? value) =>
+        !string.IsNullOrWhiteSpace(value) && value.Contains('@');
 
     internal static bool IsEmailVerified(ExternalLoginInfo loginInfo)
     {

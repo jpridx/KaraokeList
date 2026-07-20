@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authentication.MicrosoftAccount;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
+using System.Security.Claims;
 
 namespace KaraokeList.Api;
 
@@ -56,6 +57,9 @@ internal static class ExternalAuthConfiguration
                 options.ClientId = authSettings.Microsoft.ClientId;
                 options.ClientSecret = authSettings.Microsoft.ClientSecret;
                 options.SignInScheme = IdentityConstants.ExternalScheme;
+                options.ClaimActions.MapJsonKey(ClaimTypes.Email, "email");
+                options.ClaimActions.MapJsonKey(ClaimTypes.Email, "mail");
+                options.ClaimActions.MapJsonKey(ClaimTypes.Upn, "userPrincipalName");
             });
         }
 

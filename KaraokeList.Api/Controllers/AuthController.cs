@@ -29,7 +29,8 @@ public class AuthController(
     IExternalAuthService externalAuthService,
     IExternalAuthCodeStore externalAuthCodeStore,
     IOptions<AppSettings> appSettings,
-    IOptions<AuthenticationSettings> authenticationSettings) : ControllerBase
+    IOptions<AuthenticationSettings> authenticationSettings,
+    ILogger<AuthController> logger) : ControllerBase
 {
     [AllowAnonymous]
     [HttpPost("register")]
@@ -517,31 +518,41 @@ public class AuthController(
     [HttpGet("external/callback")]
     public async Task<IActionResult> ExternalLoginCallback()
     {
-        var info = await signInManager.GetExternalLoginInfoAsync();
-        if (info is null)
+        try
         {
-            return Redirect(BuildExternalErrorRedirect("External sign-in failed. Try again.", GetStoredReturnUrl()));
+            var info = await signInManager.GetExternalLoginInfoAsync();
+            if (info is null)
+            {
+                return Redirect(BuildExternalErrorRedirect("External sign-in failed. Try again.", GetStoredReturnUrl()));
+            }
+
+            var returnUrl = GetStoredReturnUrl(info);
+            var invite = TryGetAuthItem(info, ExternalAuthProviders.InviteItemKey);
+            var rememberMe = string.Equals(
+                TryGetAuthItem(info, ExternalAuthProviders.RememberMeItemKey),
+                "true",
+                StringComparison.OrdinalIgnoreCase);
+
+            await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
+
+            var processResult = await externalAuthService.ProcessExternalLoginAsync(info, invite);
+            if (!processResult.Succeeded || processResult.User is null)
+            {
+                return Redirect(BuildExternalErrorRedirect(
+                    processResult.ErrorMessage ?? "External sign-in failed.",
+                    returnUrl));
+            }
+
+            var code = externalAuthCodeStore.CreateCode(processResult.User.Id, rememberMe);
+            return Redirect(BuildExternalSuccessRedirect(code, returnUrl));
         }
-
-        var returnUrl = GetStoredReturnUrl(info);
-        var invite = info.AuthenticationProperties?.Items.TryGetValue(ExternalAuthProviders.InviteItemKey, out var storedInvite) == true
-            ? storedInvite
-            : null;
-        var rememberMe = info.AuthenticationProperties?.Items.TryGetValue(ExternalAuthProviders.RememberMeItemKey, out var rememberValue) == true
-            && string.Equals(rememberValue, "true", StringComparison.OrdinalIgnoreCase);
-
-        await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
-
-        var processResult = await externalAuthService.ProcessExternalLoginAsync(info, invite);
-        if (!processResult.Succeeded || processResult.User is null)
+        catch (Exception ex)
         {
+            logger.LogError(ex, "External login callback failed.");
             return Redirect(BuildExternalErrorRedirect(
-                processResult.ErrorMessage ?? "External sign-in failed.",
-                returnUrl));
+                "External sign-in failed unexpectedly. Try again or use email/password.",
+                GetStoredReturnUrl()));
         }
-
-        var code = externalAuthCodeStore.CreateCode(processResult.User.Id, rememberMe);
-        return Redirect(BuildExternalSuccessRedirect(code, returnUrl));
     }
 
     [AllowAnonymous]
@@ -621,13 +632,23 @@ public class AuthController(
 
     private static string GetStoredReturnUrl(ExternalLoginInfo? info = null)
     {
-        if (info?.AuthenticationProperties?.Items.TryGetValue(ExternalAuthProviders.ReturnUrlItemKey, out var stored) == true
-            && !string.IsNullOrWhiteSpace(stored))
+        var stored = TryGetAuthItem(info, ExternalAuthProviders.ReturnUrlItemKey);
+        if (!string.IsNullOrWhiteSpace(stored))
         {
             return SanitizeReturnUrl(stored);
         }
 
         return "/";
+    }
+
+    private static string? TryGetAuthItem(ExternalLoginInfo? info, string key)
+    {
+        if (info?.AuthenticationProperties?.Items?.TryGetValue(key, out var value) == true)
+        {
+            return value;
+        }
+
+        return null;
     }
 
     private async Task<(string Token, DateTime ExpiresUtc)> CreateAuthTokenAsync(ApplicationUser user, bool rememberMe = false)
