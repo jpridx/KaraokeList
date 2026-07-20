@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using KaraokeList.Data;
 using KaraokeList.Security;
+using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authentication.MicrosoftAccount;
 using Microsoft.AspNetCore.Identity;
 
@@ -130,7 +131,22 @@ public sealed class ExternalAuthService(
         var verified = loginInfo.Principal.FindFirstValue("email_verified");
         if (!string.IsNullOrWhiteSpace(verified))
         {
-            return string.Equals(verified, "true", StringComparison.OrdinalIgnoreCase);
+            if (string.Equals(verified, "false", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            if (string.Equals(verified, "true", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        // Google OAuth proves control of the account; email_verified is not always mapped into claims.
+        if (string.Equals(loginInfo.LoginProvider, GoogleDefaults.AuthenticationScheme, StringComparison.Ordinal)
+            && !string.IsNullOrWhiteSpace(GetEmail(loginInfo)))
+        {
+            return true;
         }
 
         if (string.Equals(loginInfo.LoginProvider, MicrosoftAccountDefaults.AuthenticationScheme, StringComparison.Ordinal))
