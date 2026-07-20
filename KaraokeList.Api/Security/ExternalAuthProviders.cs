@@ -1,6 +1,5 @@
 using KaraokeList.Shared;
 using Microsoft.AspNetCore.Authentication.Google;
-using Microsoft.AspNetCore.Authentication.MicrosoftAccount;
 
 namespace KaraokeList.Security;
 
@@ -8,6 +7,8 @@ public static class ExternalAuthProviders
 {
     public const string Google = ExternalAuthProviderNames.Google;
     public const string Microsoft = ExternalAuthProviderNames.Microsoft;
+
+    public const string MicrosoftScheme = "Microsoft";
 
     public const string ReturnUrlItemKey = "returnUrl";
     public const string InviteItemKey = "invite";
@@ -18,7 +19,7 @@ public static class ExternalAuthProviders
         scheme = provider.Trim().ToLowerInvariant() switch
         {
             Google => GoogleDefaults.AuthenticationScheme,
-            Microsoft => MicrosoftAccountDefaults.AuthenticationScheme,
+            Microsoft => MicrosoftScheme,
             _ => string.Empty
         };
 

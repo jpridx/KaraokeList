@@ -2,7 +2,6 @@ using System.Security.Claims;
 using KaraokeList.Data;
 using KaraokeList.Security;
 using Microsoft.AspNetCore.Authentication.Google;
-using Microsoft.AspNetCore.Authentication.MicrosoftAccount;
 using Microsoft.AspNetCore.Identity;
 
 namespace KaraokeList.Api.Services;
@@ -165,7 +164,7 @@ public sealed class ExternalAuthService(
             return true;
         }
 
-        if (string.Equals(loginInfo.LoginProvider, MicrosoftAccountDefaults.AuthenticationScheme, StringComparison.Ordinal))
+        if (string.Equals(loginInfo.LoginProvider, ExternalAuthProviders.MicrosoftScheme, StringComparison.Ordinal))
         {
             return !string.IsNullOrWhiteSpace(GetEmail(loginInfo));
         }
