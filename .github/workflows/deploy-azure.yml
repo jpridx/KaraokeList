@@ -126,7 +126,8 @@ jobs:
           echo "Runner IP ${RUNNER_IP} allowed as ${RULE_NAME}"
 
       - name: Install EF tools
-        run: dotnet tool install --global dotnet-ef --version 10.0.8
+        # Keep in sync with Microsoft.EntityFrameworkCore.* package versions in KaraokeList.Api.csproj
+        run: dotnet tool install --global dotnet-ef --version 10.0.10
 
       - name: Restore API project
         run: dotnet restore KaraokeList.Api/KaraokeList.Api.csproj
@@ -151,9 +152,24 @@ jobs:
             echo "ERROR: DefaultConnection not found in app settings or connection strings."
             exit 1
           fi
-          dotnet ef database update \
+          # Azure SQL can return transient 40613 ("not currently available") right after
+          # firewall rules change or during brief service interruptions. Retry with backoff.
+          MAX_ATTEMPTS=5
+          DELAY_SECONDS=15
+          attempt=1
+          until dotnet ef database update \
             --project KaraokeList.Api/KaraokeList.Api.csproj \
             --connection "$CONN"
+          do
+            if [ "$attempt" -ge "$MAX_ATTEMPTS" ]; then
+              echo "ERROR: EF migrations failed after ${MAX_ATTEMPTS} attempts."
+              exit 1
+            fi
+            echo "EF migrations attempt ${attempt}/${MAX_ATTEMPTS} failed; retrying in ${DELAY_SECONDS}s..."
+            sleep "$DELAY_SECONDS"
+            attempt=$((attempt + 1))
+            DELAY_SECONDS=$((DELAY_SECONDS * 2))
+          done
 
       - name: Remove GitHub Actions SQL firewall rule
         if: always() && steps.sqlfw.outputs.rule_name != ''
