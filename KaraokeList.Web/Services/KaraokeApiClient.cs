@@ -150,17 +150,15 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
     }
 
     public Task<AuthResult> ExchangeExternalAuthCodeAsync(ExternalAuthExchangeRequest request) =>
-        PostAuthAsync("api/auth/external/exchange", request);
+        PostAuthAsync("api/auth/external/exchange", request, allowRetry: false);
 
-    private async Task<AuthResult> PostAuthAsync(string url, object request)
+    private async Task<AuthResult> PostAuthAsync(string url, object request, bool allowRetry = true)
     {
-        const int maxAttempts = 2;
-
-        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        async ValueTask<AuthResult> AttemptAsync(CancellationToken cancellationToken)
         {
             try
             {
-                var response = await http.PostAsJsonAsync(url, request);
+                var response = await http.PostAsJsonAsync(url, request, cancellationToken);
                 if (response.IsSuccessStatusCode)
                 {
                     var auth = await response.Content.ReadFromJsonAsync<AuthResponse>();
@@ -169,10 +167,9 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
                         : AuthResult.Ok(auth);
                 }
 
-                if (ApiTransientFailure.IsTransient(response.StatusCode) && attempt < maxAttempts)
+                if (allowRetry && ApiTransientFailure.IsTransient(response.StatusCode))
                 {
-                    await Task.Delay(TimeSpan.FromSeconds(2));
-                    continue;
+                    throw new TransientHttpResponseException(response.StatusCode);
                 }
 
                 var message = await ReadApiErrorMessageAsync(response);
@@ -187,9 +184,9 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
 
                 return AuthResult.Fail(message, ApiTransientFailure.IsTransient(response.StatusCode));
             }
-            catch (Exception ex) when (ApiTransientFailure.IsTransient(ex) && attempt < maxAttempts)
+            catch (Exception ex) when (allowRetry && ApiTransientFailure.IsTransient(ex))
             {
-                await Task.Delay(TimeSpan.FromSeconds(2));
+                throw;
             }
             catch (Exception ex) when (ApiTransientFailure.IsTransient(ex))
             {
@@ -202,7 +199,20 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
             }
         }
 
-        return AuthResult.Fail(ApiTransientFailure.ColdStartMessage, transient: true);
+        if (!allowRetry)
+        {
+            return await AttemptAsync(CancellationToken.None);
+        }
+
+        try
+        {
+            return await ApiResiliencePolicies.CreateAuthPostRetryPipeline()
+                .ExecuteAsync(AttemptAsync, CancellationToken.None);
+        }
+        catch (Exception ex) when (ApiTransientFailure.IsTransient(ex))
+        {
+            return AuthResult.Fail(ApiTransientFailure.ColdStartMessage, transient: true);
+        }
     }
 
     public Task<List<VenueDto>> GetVenuesAsync() => GetListAsync<VenueDto>("api/venues");

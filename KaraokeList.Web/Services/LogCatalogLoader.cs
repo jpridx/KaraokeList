@@ -82,7 +82,7 @@ public sealed class LogCatalogLoader(
 
             return new LogCatalogSnapshot(pickItems, repertoireIds, workingUpIds, FromCache: false, HasCatalog: pickItems.Count > 0, cachedAt);
         }
-        catch (Exception ex) when (IsOfflineFailure(ex))
+        catch (Exception ex) when (ApiTransientFailure.IsTransient(ex))
         {
             return await LoadFromCacheAsync();
         }
@@ -144,7 +144,7 @@ public sealed class LogCatalogLoader(
             await PatchCachedVenuesAsync(venues);
             return new VenueLoadResult(venues, FromCache: false);
         }
-        catch (Exception ex) when (IsOfflineFailure(ex))
+        catch (Exception ex) when (ApiTransientFailure.IsTransient(ex))
         {
             var cached = await store.GetCachedCatalogAsync();
             if (cached?.Venues is { Count: > 0 } cachedVenues)
@@ -165,7 +165,7 @@ public sealed class LogCatalogLoader(
             await SaveLookupsAsync(artists, genres);
             return new LookupsLoadResult(artists, genres, FromCache: false);
         }
-        catch (Exception ex) when (IsOfflineFailure(ex))
+        catch (Exception ex) when (ApiTransientFailure.IsTransient(ex))
         {
             return await LoadLookupsFromCacheAsync();
         }
@@ -316,6 +316,4 @@ public sealed class LogCatalogLoader(
     private static List<CachedGenreEntry> MapGenreEntries(IReadOnlyList<GenreDto> genres) =>
         genres.Select(g => new CachedGenreEntry(g.Id, g.GenreName)).ToList();
 
-    private static bool IsOfflineFailure(Exception ex) =>
-        ApiTransientFailure.IsTransient(ex) || ex is HttpRequestException;
 }

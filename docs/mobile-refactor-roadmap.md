@@ -82,7 +82,7 @@ My Songs, Log picker, song detail, invite share, `SingerGatedPage` — see PRs [
 
 | # | Item | When to consider |
 |---|------|------------------|
-| **6.1** | Move `IsOfflineFailure` to `ApiTransientFailure` | Anytime — trivial dedup in loaders |
+| **6.1** | Move `IsOfflineFailure` to `ApiTransientFailure` | **Done** — deduped in loaders via shared `ApiTransientFailure` (PR #264) |
 | **6.2** | Segment `IKaraokeApiClient` (admin / singer / auth) | When interface churn breaks test stubs |
 | **6.3** | Generic `ApiResult<T>` instead of many result types | Large refactor; low urgency |
 | **6.4** | UrlAdaptor + server paging for catalog grids | When catalog size outgrows in-memory grids |

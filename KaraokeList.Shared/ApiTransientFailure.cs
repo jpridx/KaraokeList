@@ -1,6 +1,6 @@
 using System.Net;
 
-namespace KaraokeList.Web.Services;
+namespace KaraokeList.Shared;
 
 public static class ApiTransientFailure
 {
