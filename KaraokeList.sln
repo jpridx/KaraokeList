@@ -20,6 +20,21 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{23A61FFC-5
 		docs\winhost-deployment.md = docs\winhost-deployment.md
 	EndProjectSection
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Learning", "Learning", "{D9FD0B62-FD69-4CB0-BED0-8F55515CF646}"
+	ProjectSection(SolutionItems) = preProject
+		docs\Learning\01-blazor-wasm-api.md = docs\Learning\01-blazor-wasm-api.md
+		docs\Learning\02-comprehensive-testing.md = docs\Learning\02-comprehensive-testing.md
+		docs\Learning\03-ci-cd.md = docs\Learning\03-ci-cd.md
+		docs\Learning\04-ms-azure.md = docs\Learning\04-ms-azure.md
+		docs\Learning\05-pwa-resiliency-caching.md = docs\Learning\05-pwa-resiliency-caching.md
+		docs\Learning\06-llm-as-a-service.md = docs\Learning\06-llm-as-a-service.md
+		docs\Learning\07-rate-limited-api.md = docs\Learning\07-rate-limited-api.md
+		docs\Learning\08-community-data-uncertainty.md = docs\Learning\08-community-data-uncertainty.md
+		docs\Learning\09-jwt-authentication.md = docs\Learning\09-jwt-authentication.md
+		docs\Learning\10-oauth-authentication.md = docs\Learning\10-oauth-authentication.md
+		docs\Learning\Learning.md = docs\Learning\Learning.md
+	EndProjectSection
+EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KaraokeList.Shared", "KaraokeList.Shared\KaraokeList.Shared.csproj", "{C568B767-CC9A-4489-BE2E-13B179997755}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KaraokeList.Api", "KaraokeList.Api\KaraokeList.Api.csproj", "{7B8C9EE8-38F4-47DA-A431-14158B115A33}"
@@ -131,6 +146,9 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{D9FD0B62-FD69-4CB0-BED0-8F55515CF646} = {23A61FFC-5070-464C-A26B-A8B8A8B27ADA}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {F879DEBB-3FF3-4492-B053-3D368AA7C585}
