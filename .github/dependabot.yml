@@ -31,6 +31,9 @@ updates:
           - "System.*"
           - "Azure.*"
 
+  ignore:
+    - dependency-name: "Syncfusion.*"
+    
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
