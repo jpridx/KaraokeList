@@ -175,6 +175,43 @@ public sealed class MySongsLoaderTests
     }
 
     [Fact]
+    public async Task TryGetCachedAsync_with_active_genre_filter_still_returns_filter_genres()
+    {
+        var store = new MySongsLocalStore(new InMemoryLocalStorage());
+        var genreGroups = CreateSampleGenreGroups();
+        await store.SaveCachedListsAsync(new CachedMySongsLists(
+            [new SingerListDto { Id = 1, Kind = SingerListKind.MyRepertoire, DisplayName = "My repertoire" }],
+            [new CachedListSongsEntry(
+                SingerListKind.MyRepertoire,
+                [
+                    new RepertoireSongDto { SongId = 1, Title = "Rock Song", ArtistName = "A", GenreId = 10, GenreName = "Classic Rock" },
+                    new RepertoireSongDto { SongId = 2, Title = "Metal Song", ArtistName = "B", GenreId = 11, GenreName = "Hair Metal" },
+                    new RepertoireSongDto { SongId = 3, Title = "Pop Song", ArtistName = "C", GenreId = 20, GenreName = "Pop Rock" }
+                ])],
+            DateTime.UtcNow,
+            CacheTag: "tag",
+            SchemaVersion: 2,
+            genreGroups));
+
+        var loader = new MySongsLoader(new ListsApiStub(), store, new NullVersion());
+        var result = await loader.TryGetCachedAsync(
+            SingerListKind.MyRepertoire,
+            "title",
+            "asc",
+            genreId: 11,
+            groupName: null);
+
+        Assert.NotNull(result);
+        Assert.Single(result.Songs);
+        Assert.Equal("Metal Song", result.Songs[0].Title);
+        Assert.Equal(["Rock", "Pop"], result.FilterGroups);
+        Assert.Equal(3, result.FilterGenres.Count);
+        Assert.Contains(result.FilterGenres, g => g.Id == 10 && g.GenreName == "Classic Rock");
+        Assert.Contains(result.FilterGenres, g => g.Id == 11 && g.GenreName == "Hair Metal");
+        Assert.Contains(result.FilterGenres, g => g.Id == 20 && g.GenreName == "Pop Rock");
+    }
+
+    [Fact]
     public async Task PatchCachedSongGenreAsync_updates_genre_across_all_cached_lists()
     {
         var store = new MySongsLocalStore(new InMemoryLocalStorage());
