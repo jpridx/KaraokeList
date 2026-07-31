@@ -152,11 +152,8 @@ public partial class MySongs
         songs = result.Songs.ToList();
         genreGroups = result.GenreGroups.ToList();
 
-        if (filterGenreId is null && filterGroupName is null)
-        {
-            filterGenres = result.FilterGenres.ToList();
-            filterGroups = result.FilterGroups.ToList();
-        }
+        filterGenres = result.FilterGenres.ToList();
+        filterGroups = result.FilterGroups.ToList();
 
         loadError = null;
 
@@ -207,6 +204,22 @@ public partial class MySongs
         {
             // Background refresh failures are silent.
         }
+    }
+
+    private async Task ReapplyFiltersAsync()
+    {
+        var cached = await MySongsLoader.TryGetCachedAsync(
+            listKind, sortBy, sortDir, filterGenreId, filterGroupName);
+        if (cached is not null)
+        {
+            ApplyLoadResult(cached);
+            isLoading = false;
+            loadingStep = null;
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
+        await ReloadListsAsync();
     }
 
     #endregion
@@ -260,7 +273,7 @@ public partial class MySongs
 
             filterGenreId = null;
             await PersistFilterStateAsync();
-            await ReloadListsAsync();
+            await ReapplyFiltersAsync();
         }
         else
         {
@@ -291,7 +304,7 @@ public partial class MySongs
     {
         filterGenreId = genreId;
         await PersistFilterStateAsync();
-        await ReloadListsAsync();
+        await ReapplyFiltersAsync();
     }
 
     private async Task SetGroupFilterAsync(string? groupName)
@@ -299,7 +312,7 @@ public partial class MySongs
         filterGroupName = groupName;
         filterGenreId = null;
         await PersistFilterStateAsync();
-        await ReloadListsAsync();
+        await ReapplyFiltersAsync();
     }
 
     private async Task SetListKindAsync(SingerListKind newKind)
