@@ -15,6 +15,21 @@ public class SongsController(
     CatalogIntegrityService integrity,
     CatalogMergeService mergeService) : ControllerBase
 {
+    [HttpGet("search")]
+    public async Task<ActionResult<List<SongDto>>> Search(
+        [FromQuery] string? q,
+        [FromQuery] int? artistId,
+        [FromQuery] int? genreId,
+        [FromQuery] int take = 20,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(q) && artistId is null && genreId is null)
+            return BadRequest(new ApiErrorResponse { Message = "Provide q, artistId, and/or genreId." });
+        take = Math.Clamp(take, 1, 50);
+        var songs = await songCatalogService.SearchSongsAsync(q, artistId, genreId, take, cancellationToken);
+        return Ok(songs);
+    }
+
     [HttpGet("{id:int}/about")]
     public async Task<ActionResult<SongAboutDto>> GetAbout(
         int id,

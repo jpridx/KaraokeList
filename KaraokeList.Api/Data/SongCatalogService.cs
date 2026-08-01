@@ -135,6 +135,39 @@ public sealed class SongCatalogService(ApplicationDbContext db, CatalogIntegrity
                 }).ToList());
     }
 
+    public async Task<List<SongDto>> SearchSongsAsync(
+        string? q,
+        int? artistId,
+        int? genreId,
+        int take,
+        CancellationToken cancellationToken = default)
+    {
+        var query = db.Songs.AsNoTracking().AsQueryable();
+    
+        if (artistId is int aid)
+            query = query.Where(s => db.SongArtists.Any(sa => sa.SongId == s.Id && sa.ArtistId == aid));
+        if (genreId is int gid)
+            query = query.Where(s => s.Genre == gid);
+
+        if (!string.IsNullOrWhiteSpace(q))
+        {
+            var term = q.Trim();
+            query = query.Where(s =>
+                s.Title.Contains(term) ||
+                (s.ArtistCreditDisplay != null && s.ArtistCreditDisplay.Contains(term)) ||
+                db.SongArtists.Any(sa => sa.SongId == s.Id &&
+                    db.Artists.Any(a => a.Id == sa.ArtistId && a.Name.Contains(term))));
+        }
+
+        var songs = await query
+            .OrderBy(s => s.Title)
+            .Take(take)
+            .ToListAsync(cancellationToken);
+        var songIds = songs.Select(s => s.Id).ToList();
+        var credits = await LoadArtistCreditsAsync(songIds, cancellationToken);
+        return songs.Select(s => ToDto(s, credits.GetValueOrDefault(s.Id, []))).ToList();
+    }
+
     public static SongDto ToDto(Song entity, IReadOnlyList<SongArtistDto> artists) => new()
     {
         Id = entity.Id,
