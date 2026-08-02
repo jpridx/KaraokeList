@@ -10,6 +10,14 @@ public sealed record CachedArtistEntry(int Id, string Name);
 
 public sealed record CachedGenreEntry(int Id, string GenreName);
 
+public sealed record CachedRepertoireStatsEntry(
+    int SongId,
+    string Title,
+    string ArtistName,
+    string ArtistDisplay,
+    DateTime? LastPerformedOn,
+    int PerformanceCount);
+
 public sealed record CachedLogCatalog(
     IReadOnlyList<CachedSongEntry> Songs,
     IReadOnlyList<int> RepertoireSongIds,
@@ -18,7 +26,8 @@ public sealed record CachedLogCatalog(
     IReadOnlyList<int>? WorkingUpSongIds = null,
     string? CacheTag = null,
     IReadOnlyList<CachedArtistEntry>? Artists = null,
-    IReadOnlyList<CachedGenreEntry>? Genres = null);
+    IReadOnlyList<CachedGenreEntry>? Genres = null,
+    IReadOnlyList<CachedRepertoireStatsEntry>? RepertoireStats = null);
 
 public sealed record LogSongPickItem(int Id, string Title, string ArtistName, bool InRepertoire, bool InWorkingUp = false)
 {

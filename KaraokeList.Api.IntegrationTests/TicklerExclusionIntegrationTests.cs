@@ -96,6 +96,30 @@ public sealed class TicklerExclusionIntegrationTests(KaraokeApiFactory factory)
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
+    [SkippableFact]
+    public async Task GetTicklerExclusions_ReturnsExcludedSongIds()
+    {
+        Skip.IfNot(factory.IsDatabaseAvailable, IntegrationTestConnection.SkipReason);
+
+        var client = await CreateAuthedClientAsync();
+        var (songId, _) = await PerformanceTestDataHelper.CreateCatalogAsync(client);
+
+        var empty = await client.GetFromJsonAsync<TicklerExclusionListDto>(
+            "/api/singers/me/tickler-exclusions");
+        Assert.NotNull(empty);
+        Assert.DoesNotContain(songId, empty.SongIds);
+
+        var put = await client.PutAsJsonAsync(
+            $"/api/singers/me/songs/{songId}/tickler-exclusion",
+            new UpdateSongTicklerExclusionRequest { Reason = "test" });
+        Assert.Equal(HttpStatusCode.NoContent, put.StatusCode);
+
+        var after = await client.GetFromJsonAsync<TicklerExclusionListDto>(
+            "/api/singers/me/tickler-exclusions");
+        Assert.NotNull(after);
+        Assert.Contains(songId, after.SongIds);
+    }
+
     private async Task<HttpClient> CreateAuthedClientAsync()
     {
         var client = factory.CreateClient();

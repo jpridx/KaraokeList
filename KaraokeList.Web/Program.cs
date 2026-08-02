@@ -52,8 +52,10 @@ builder.Services.AddScoped<MySongsScrollRestoreState>();
 builder.Services.AddScoped<IScrollRestoreJs, ScrollRestoreJs>();
 builder.Services.AddScoped<IMyPerformancesLocalStore, MyPerformancesLocalStore>();
 builder.Services.AddScoped<IMyPerformancesLoader, MyPerformancesLoader>();
-builder.Services.AddScoped<IStaleSongsLocalStore, StaleSongsLocalStore>();
-builder.Services.AddScoped<IStaleSongsLoader, StaleSongsLoader>();
+builder.Services.AddScoped<ITicklerSettingsLocalStore, TicklerSettingsLocalStore>();
+builder.Services.AddScoped<ITicklerExclusionsLocalStore, TicklerExclusionsLocalStore>();
+builder.Services.AddScoped<ILocalStaleSongsProvider, LocalStaleSongsProvider>();
+builder.Services.AddScoped<ICatalogSyncService, CatalogSyncService>();
 builder.Services.AddScoped<IThemeService, ThemeService>();
 builder.Services.AddHttpClient("KaraokeApi", client =>
     {

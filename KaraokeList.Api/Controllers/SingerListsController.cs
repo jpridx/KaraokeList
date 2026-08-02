@@ -104,6 +104,19 @@ public class SingerListsController(
         return Ok(exclusion);
     }
 
+    [HttpGet("~/api/singers/me/tickler-exclusions")]
+    public async Task<ActionResult<TicklerExclusionListDto>> GetTicklerExclusions()
+    {
+        var singerId = await RequireSingerIdAsync();
+        if (singerId.Result is not null)
+        {
+            return singerId.Result;
+        }
+
+        var songIds = await ticklerExclusionService.GetExcludedSongIdsAsync(singerId.Value!.Value);
+        return Ok(new TicklerExclusionListDto { SongIds = songIds });
+    }
+
     [HttpPut("~/api/singers/me/songs/{songId:int}/tickler-exclusion")]
     public async Task<IActionResult> SetSongTicklerExclusion(
         int songId,

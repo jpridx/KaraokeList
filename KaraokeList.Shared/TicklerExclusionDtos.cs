@@ -11,6 +11,11 @@ public class UpdateSongTicklerExclusionRequest
     public string? Reason { get; set; }
 }
 
+public class TicklerExclusionListDto
+{
+    public List<int> SongIds { get; set; } = [];
+}
+
 public static class TicklerExclusionValidation
 {
     public const int MaxReasonLength = 25;

@@ -21,6 +21,12 @@ public interface IMySongsLoader
 
     Task<bool> NeedsRefreshAsync();
     Task PatchCachedSongGenreAsync(int songId, int? genreId, string genreName);
+    Task PatchSongPerformanceAsync(
+        int songId,
+        string title,
+        string artistName,
+        string artistDisplay,
+        DateTime performedOn);
 }
 
 public sealed class MySongsLoader(
@@ -28,8 +34,6 @@ public sealed class MySongsLoader(
     IMySongsLocalStore store,
     ICatalogVersionService versionService) : IMySongsLoader
 {
-    private static readonly TimeSpan RefreshThreshold = TimeSpan.FromHours(2);
-
     // Bump this when the shape of cached data changes in a way that requires a fresh load.
     // Old cached JSON deserializes SchemaVersion to 0, so any value >= 1 triggers invalidation.
     private const int CurrentCacheSchemaVersion = 2;
@@ -139,7 +143,7 @@ public sealed class MySongsLoader(
             return true;
         }
 
-        var isStaleByAge = DateTime.UtcNow - cached.CachedAtUtc >= RefreshThreshold;
+        var isStaleByAge = DateTime.UtcNow - cached.CachedAtUtc >= CatalogCachePolicy.RefreshThreshold;
 
         try
         {
@@ -320,5 +324,68 @@ public sealed class MySongsLoader(
             .ToList();
 
         await store.SaveCachedListsAsync(cached with { ListsSongs = updatedListsSongs });
+    }
+
+    public async Task PatchSongPerformanceAsync(
+        int songId,
+        string title,
+        string artistName,
+        string artistDisplay,
+        DateTime performedOn)
+    {
+        var cached = await store.GetCachedListsAsync();
+        if (cached is null || cached.ListsSongs.Count == 0)
+        {
+            return;
+        }
+
+        var performedDate = performedOn.Date;
+        var updatedListsSongs = cached.ListsSongs
+            .Select(entry =>
+            {
+                if (entry.Kind != SingerListKind.MyRepertoire)
+                {
+                    return entry;
+                }
+
+                var songs = entry.Songs.ToList();
+                var index = songs.FindIndex(s => s.SongId == songId);
+                if (index >= 0)
+                {
+                    var existing = songs[index];
+                    songs[index] = new RepertoireSongDto
+                    {
+                        SongId = existing.SongId,
+                        Title = title,
+                        ArtistName = artistName,
+                        ArtistDisplay = artistDisplay,
+                        GenreId = existing.GenreId,
+                        GenreName = existing.GenreName,
+                        LastPerformedOn = performedDate,
+                        PerformanceCount = existing.PerformanceCount + 1
+                    };
+                }
+                else
+                {
+                    songs.Add(new RepertoireSongDto
+                    {
+                        SongId = songId,
+                        Title = title,
+                        ArtistName = artistName,
+                        ArtistDisplay = artistDisplay,
+                        LastPerformedOn = performedDate,
+                        PerformanceCount = 1
+                    });
+                }
+
+                return new CachedListSongsEntry(entry.Kind, songs);
+            })
+            .ToList();
+
+        await store.SaveCachedListsAsync(cached with
+        {
+            ListsSongs = updatedListsSongs,
+            CachedAtUtc = DateTime.UtcNow
+        });
     }
 }

@@ -1,4 +1,5 @@
 @inject IKaraokeApiClient Api
+@inject ITicklerExclusionsLocalStore ExclusionsStore
 
 <section class="mobile-panel tickler-exclusion-panel">
     <h2 class="h6 mb-2">Haven't sung in a while</h2>
@@ -104,6 +105,7 @@
         }
 
         statusMessage = "Excluded from tickler.";
+        await ExclusionsStore.AddExcludedSongIdAsync(SongId);
         await LoadAsync();
         await OnExclusionChanged.InvokeAsync();
         isBusy = false;
@@ -125,6 +127,7 @@
 
         statusMessage = "Included in tickler again.";
         reasonInput = string.Empty;
+        await ExclusionsStore.RemoveExcludedSongIdAsync(SongId);
         await LoadAsync();
         await OnExclusionChanged.InvokeAsync();
         isBusy = false;

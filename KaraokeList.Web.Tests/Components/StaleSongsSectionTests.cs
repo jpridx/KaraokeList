@@ -8,22 +8,22 @@ namespace KaraokeList.Web.Tests.Components;
 
 public sealed class StaleSongsSectionTests : BunitTestContext
 {
-    private readonly Mock<IStaleSongsLoader> loader = new();
+    private readonly Mock<ILocalStaleSongsProvider> provider = new();
 
     protected override void ConfigureServices(IServiceCollection services)
     {
-        services.AddSingleton(loader.Object);
+        services.AddSingleton(provider.Object);
     }
 
     [Fact]
     public void Renders_nothing_when_no_stale_songs()
     {
-        loader.Setup(l => l.LoadAsync())
-            .ReturnsAsync(StaleSongsLoadResult.Live(new StaleSongsResponseDto
-            {
-                StaleAfterDays = 90,
-                Songs = []
-            }));
+        provider.Setup(p => p.ComputeAsync(null, null))
+            .ReturnsAsync(new LocalStaleSongsResult(
+                new StaleSongsResponseDto { StaleAfterDays = 90, Songs = [] },
+                true,
+                DateTime.UtcNow,
+                true));
 
         var cut = Render<StaleSongsSection>();
 
@@ -35,23 +35,27 @@ public sealed class StaleSongsSectionTests : BunitTestContext
     public void Shows_stale_songs_with_log_links()
     {
         var lastOn = new DateTime(2024, 1, 15);
-        loader.Setup(l => l.LoadAsync())
-            .ReturnsAsync(StaleSongsLoadResult.Live(new StaleSongsResponseDto
-            {
-                StaleAfterDays = 90,
-                Songs =
-                [
-                    new StaleSongDto
-                    {
-                        SongId = 42,
-                        Title = "Footloose",
-                        ArtistName = "Kenny Loggins",
-                        LastPerformedOn = lastOn,
-                        PerformanceCount = 3,
-                        DaysSinceLastPerformed = 999
-                    }
-                ]
-            }));
+        provider.Setup(p => p.ComputeAsync(null, null))
+            .ReturnsAsync(new LocalStaleSongsResult(
+                new StaleSongsResponseDto
+                {
+                    StaleAfterDays = 90,
+                    Songs =
+                    [
+                        new StaleSongDto
+                        {
+                            SongId = 42,
+                            Title = "Footloose",
+                            ArtistName = "Kenny Loggins",
+                            LastPerformedOn = lastOn,
+                            PerformanceCount = 3,
+                            DaysSinceLastPerformed = 999
+                        }
+                    ]
+                },
+                true,
+                DateTime.UtcNow,
+                true));
 
         var cut = Render<StaleSongsSection>();
 
@@ -71,23 +75,27 @@ public sealed class StaleSongsSectionTests : BunitTestContext
     [Fact]
     public void Shows_never_performed_repertoire_song()
     {
-        loader.Setup(l => l.LoadAsync())
-            .ReturnsAsync(StaleSongsLoadResult.Live(new StaleSongsResponseDto
-            {
-                StaleAfterDays = 90,
-                Songs =
-                [
-                    new StaleSongDto
-                    {
-                        SongId = 7,
-                        Title = "New Song",
-                        ArtistName = "Test Artist",
-                        LastPerformedOn = null,
-                        PerformanceCount = 0,
-                        DaysSinceLastPerformed = 0
-                    }
-                ]
-            }));
+        provider.Setup(p => p.ComputeAsync(null, null))
+            .ReturnsAsync(new LocalStaleSongsResult(
+                new StaleSongsResponseDto
+                {
+                    StaleAfterDays = 90,
+                    Songs =
+                    [
+                        new StaleSongDto
+                        {
+                            SongId = 7,
+                            Title = "New Song",
+                            ArtistName = "Test Artist",
+                            LastPerformedOn = null,
+                            PerformanceCount = 0,
+                            DaysSinceLastPerformed = 0
+                        }
+                    ]
+                },
+                true,
+                DateTime.UtcNow,
+                true));
 
         var cut = Render<StaleSongsSection>();
 
@@ -99,46 +107,95 @@ public sealed class StaleSongsSectionTests : BunitTestContext
     }
 
     [Fact]
-    public void Shows_offline_notice_when_using_cached_data()
+    public void Shows_cached_repertoire_notice()
     {
         var cachedAt = new DateTime(2026, 6, 1, 10, 0, 0, DateTimeKind.Utc);
-        loader.Setup(l => l.LoadAsync())
-            .ReturnsAsync(StaleSongsLoadResult.Cached(new StaleSongsResponseDto
-            {
-                StaleAfterDays = 90,
-                Songs =
-                [
-                    new StaleSongDto
-                    {
-                        SongId = 5,
-                        Title = "Livin' on a Prayer",
-                        ArtistName = "Bon Jovi",
-                        LastPerformedOn = null,
-                        PerformanceCount = 0,
-                        DaysSinceLastPerformed = 0
-                    }
-                ]
-            }, cachedAt));
+        provider.Setup(p => p.ComputeAsync(null, null))
+            .ReturnsAsync(new LocalStaleSongsResult(
+                new StaleSongsResponseDto
+                {
+                    StaleAfterDays = 90,
+                    Songs =
+                    [
+                        new StaleSongDto
+                        {
+                            SongId = 5,
+                            Title = "Livin' on a Prayer",
+                            ArtistName = "Bon Jovi",
+                            LastPerformedOn = null,
+                            PerformanceCount = 0,
+                            DaysSinceLastPerformed = 0
+                        }
+                    ]
+                },
+                true,
+                cachedAt,
+                true));
 
         var cut = Render<StaleSongsSection>();
 
         cut.WaitForAssertion(() =>
         {
             Assert.Contains("Haven't sung in a while", cut.Markup);
-            Assert.Contains("Using cached suggestions", cut.Markup);
+            Assert.Contains("Using cached repertoire data", cut.Markup);
         });
     }
 
     [Fact]
-    public void Renders_nothing_when_api_fails_and_no_cache()
+    public void Renders_nothing_when_no_source_data()
     {
-        loader.Setup(l => l.LoadAsync())
-            .ReturnsAsync(StaleSongsLoadResult.Failed("API unreachable."));
+        provider.Setup(p => p.ComputeAsync(null, null))
+            .ReturnsAsync(new LocalStaleSongsResult(null, false, null, false));
 
         var cut = Render<StaleSongsSection>();
 
         cut.WaitForAssertion(() =>
             Assert.DoesNotContain("Haven't sung in a while", cut.Markup));
     }
-}
 
+    [Fact]
+    public void Refresh_suggestions_recomputes_with_new_random()
+    {
+        provider.Setup(p => p.ComputeAsync(null, null))
+            .ReturnsAsync(new LocalStaleSongsResult(
+                new StaleSongsResponseDto
+                {
+                    StaleAfterDays = 90,
+                    Songs =
+                    [
+                        new StaleSongDto { SongId = 1, Title = "A", ArtistName = "X" }
+                    ]
+                },
+                true,
+                DateTime.UtcNow,
+                true));
+
+        var cut = Render<StaleSongsSection>();
+        cut.WaitForAssertion(() => Assert.Contains("Refresh suggestions", cut.Markup));
+
+        provider.Setup(p => p.ComputeAsync(null, It.IsAny<Random>()))
+            .ReturnsAsync(new LocalStaleSongsResult(
+                new StaleSongsResponseDto
+                {
+                    StaleAfterDays = 90,
+                    Songs =
+                    [
+                        new StaleSongDto { SongId = 2, Title = "B", ArtistName = "Y" }
+                    ]
+                },
+                true,
+                DateTime.UtcNow,
+                true));
+
+        cut.Find("button").Click();
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Contains("B", cut.Markup);
+        });
+
+        provider.Verify(
+            p => p.ComputeAsync(null, It.IsAny<Random>()),
+            Times.AtLeastOnce);
+    }
+}

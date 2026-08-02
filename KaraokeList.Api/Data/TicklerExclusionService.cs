@@ -68,4 +68,11 @@ public sealed class TicklerExclusionService(ApplicationDbContext db, CatalogInte
         await db.SaveChangesAsync();
         return true;
     }
+
+    public async Task<List<int>> GetExcludedSongIdsAsync(int singerId) =>
+        await db.SingerSongTicklerExclusions
+            .AsNoTracking()
+            .Where(e => e.SingerId == singerId)
+            .Select(e => e.SongId)
+            .ToListAsync();
 }

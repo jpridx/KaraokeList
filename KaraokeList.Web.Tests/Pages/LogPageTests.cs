@@ -12,6 +12,7 @@ public sealed class LogPageTests : AuthPageTestContext
 {
     private readonly Mock<ILogCatalogLoader> catalogLoader = new();
     private readonly Mock<ILogPerformanceLocalStore> logStore = new();
+    private readonly Mock<IMySongsLoader> mySongsLoader = new();
 
     public LogPageTests()
     {
@@ -19,6 +20,9 @@ public sealed class LogPageTests : AuthPageTestContext
 
         Api.Setup(client => client.GetProfileAsync())
             .ReturnsAsync(new UserProfileDto { SingerId = 1 });
+
+        catalogLoader.Setup(loader => loader.TryGetCachedAsync())
+            .ReturnsAsync((LogCatalogSnapshot?)null);
 
         catalogLoader.Setup(loader => loader.LoadAsync(It.IsAny<Action<string>?>()))
             .ReturnsAsync(new LogCatalogSnapshot(
@@ -56,6 +60,7 @@ public sealed class LogPageTests : AuthPageTestContext
         AddSyncfusionServices(services);
         services.AddSingleton(catalogLoader.Object);
         services.AddSingleton(logStore.Object);
+        services.AddSingleton(mySongsLoader.Object);
     }
 
     [Fact]
