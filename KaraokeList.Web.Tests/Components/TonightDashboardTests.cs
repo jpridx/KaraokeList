@@ -3,6 +3,7 @@ using KaraokeList.Web.Components;
 using KaraokeList.Web.Services;
 using KaraokeList.Web.Tests.Pages;
 using KaraokeList.Web.Tests.TestDoubles;
+using KaraokeList.Web.Tests.TestDoubles;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 
@@ -25,6 +26,7 @@ public sealed class TonightDashboardTests : AuthPageTestContext
             .ReturnsAsync((MyPerformancesLoadResult?)null);
         performancesLoader.Setup(loader => loader.LoadAsync())
             .ReturnsAsync(new MyPerformancesLoadResult([], false, false, null, null, false));
+        services.AddSingleton<IBackgroundWorkScheduler, SynchronousBackgroundWorkScheduler>();
         services.AddSingleton(performancesLoader.Object);
         services.AddSingleton(catalogLoader.Object);
         services.AddSingleton<ILogPerformanceLocalStore>(new LogPerformanceLocalStore(localStorage));

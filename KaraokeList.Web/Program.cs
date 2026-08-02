@@ -56,6 +56,7 @@ builder.Services.AddScoped<ITicklerSettingsLocalStore, TicklerSettingsLocalStore
 builder.Services.AddScoped<ITicklerExclusionsLocalStore, TicklerExclusionsLocalStore>();
 builder.Services.AddScoped<ILocalStaleSongsProvider, LocalStaleSongsProvider>();
 builder.Services.AddScoped<ICatalogSyncService, CatalogSyncService>();
+builder.Services.AddSingleton<IBackgroundWorkScheduler, BackgroundWorkScheduler>();
 builder.Services.AddScoped<IThemeService, ThemeService>();
 builder.Services.AddHttpClient("KaraokeApi", client =>
     {
