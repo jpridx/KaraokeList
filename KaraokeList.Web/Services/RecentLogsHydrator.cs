@@ -15,6 +15,7 @@ public static class RecentLogsHydrator
         now ??= DateTime.Now;
         hydratedAt ??= now;
         var localByKey = IndexLocalLogsByKey(localLogs);
+        var dedupedLocalLogs = localByKey.Values;
 
         var apiEntries = apiPerformances
             .Select(performance => FromApi(performance, hydratedAt.Value))
@@ -28,12 +29,12 @@ public static class RecentLogsHydrator
             .Select(entry => (entry.SongId, entry.PerformedOn.Date, entry.VenueName))
             .ToHashSet();
 
-        var pendingLocals = localLogs
+        var pendingLocals = dedupedLocalLogs
             .Where(log => pendingKeys.Contains((log.SongId, log.PerformedOn.Date, log.VenueName)))
             .Where(log => !apiKeys.Contains(Key(log)))
             .ToList();
 
-        var freshLocalOnly = localLogs
+        var freshLocalOnly = dedupedLocalLogs
             .Where(log => !apiKeys.Contains(Key(log)))
             .Where(log => !pendingKeys.Contains((log.SongId, log.PerformedOn.Date, log.VenueName)))
             .Where(log => RecentLogsRefreshPolicy.ShouldUseLocalRecentLogs(log.LoggedAt, now))

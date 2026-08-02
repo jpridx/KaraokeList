@@ -194,6 +194,58 @@ public sealed class RecentLogsHydratorTests
         Assert.False(RecentLogsRefreshPolicy.ShouldUseLocalRecentLogs(cacheHydratedAt, now.AddHours(2)));
     }
 
+    [Fact]
+    public void Merge_dedupes_duplicate_pending_local_entries_by_key()
+    {
+        var now = new DateTime(2026, 8, 2, 21, 0, 0);
+        var performedOn = new DateTime(2026, 7, 10);
+        var olderLoggedAt = now.AddMinutes(-20);
+        var newerLoggedAt = now.AddMinutes(-5);
+        var local = new List<RecentLoggedPerformance>
+        {
+            new(2, "Offline Song", "Artist", "Offline Venue", performedOn, null, olderLoggedAt),
+            new(2, "Offline Song", "Artist", "Offline Venue", performedOn, null, newerLoggedAt)
+        };
+        var pending = new List<PendingPerformanceEntry>
+        {
+            new(
+                Guid.NewGuid(),
+                SingerId: 1,
+                SongId: 2,
+                VenueId: 9,
+                PerformedOn: performedOn,
+                KeyChangeSemitones: null,
+                Title: "Offline Song",
+                ArtistName: "Artist",
+                VenueName: "Offline Venue",
+                QueuedAt: now)
+        };
+
+        var merged = RecentLogsHydrator.Merge([], local, pending, now: now);
+
+        Assert.Single(merged);
+        Assert.Equal(newerLoggedAt, merged[0].LoggedAt);
+    }
+
+    [Fact]
+    public void Merge_dedupes_duplicate_fresh_local_entries_by_key()
+    {
+        var now = new DateTime(2026, 8, 2, 21, 0, 0);
+        var performedOn = now.Date;
+        var olderLoggedAt = now.AddMinutes(-20);
+        var newerLoggedAt = now.AddMinutes(-5);
+        var local = new List<RecentLoggedPerformance>
+        {
+            new(2, "Just Logged", "Artist", "Main Stage", performedOn, null, olderLoggedAt),
+            new(2, "Just Logged", "Artist", "Main Stage", performedOn, null, newerLoggedAt)
+        };
+
+        var merged = RecentLogsHydrator.Merge([], local, [], now: now);
+
+        Assert.Single(merged);
+        Assert.Equal(newerLoggedAt, merged[0].LoggedAt);
+    }
+
     private static MyPerformanceEntryDto CreateApiEntry(int songId, string title, DateTime performedOn) =>
         new()
         {
