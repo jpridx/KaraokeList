@@ -3,7 +3,6 @@ using KaraokeList.Web.Components;
 using KaraokeList.Web.Services;
 using KaraokeList.Web.Tests.Pages;
 using KaraokeList.Web.Tests.TestDoubles;
-using KaraokeList.Web.Tests.TestDoubles;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 
@@ -112,6 +111,58 @@ public sealed class TonightDashboardTests : AuthPageTestContext
         Assert.DoesNotContain("Stale June Song", cut.Markup);
         Assert.Contains(new DateTime(2026, 7, 9).ToString("d"), cut.Markup);
         performancesLoader.Verify(loader => loader.LoadAsync(), Times.Once);
+    }
+
+    [Fact]
+    public async Task Recently_logged_keeps_local_entry_added_during_background_refresh()
+    {
+        var store = (LogPerformanceLocalStore)Services.GetRequiredService<ILogPerformanceLocalStore>();
+        await store.AddRecentLogAsync(new RecentLoggedPerformance(
+            SongId: 99,
+            Title: "Stale June Song",
+            ArtistName: "Artist",
+            VenueName: "Old Venue",
+            PerformedOn: new DateTime(2026, 6, 11),
+            KeyChangeSemitones: null,
+            LoggedAt: new DateTime(2026, 6, 11)));
+
+        var loggedDuringRefresh = DateTime.Now.AddMinutes(-5);
+        performancesLoader.Setup(loader => loader.LoadAsync())
+            .Returns(async () =>
+            {
+                await store.AddRecentLogAsync(new RecentLoggedPerformance(
+                    SongId: 2,
+                    Title: "Just Logged",
+                    ArtistName: "Artist",
+                    VenueName: "Main Stage",
+                    PerformedOn: loggedDuringRefresh.Date,
+                    KeyChangeSemitones: null,
+                    LoggedAt: loggedDuringRefresh));
+                return new MyPerformancesLoadResult(
+                [
+                    new MyPerformanceEntryDto
+                    {
+                        SongId = 1,
+                        Title = "Fresh July Song",
+                        ArtistName = "Artist",
+                        VenueName = "Main Stage",
+                        PerformedOn = new DateTime(2026, 7, 9)
+                    }
+                ],
+                FromCache: false,
+                HasCache: true,
+                FixedLoadTimeUtc,
+                null,
+                false);
+            });
+
+        var cut = Render<TonightDashboard>();
+
+        Assert.Contains("Just Logged", cut.Markup);
+        Assert.DoesNotContain("Fresh July Song", cut.Markup);
+
+        var saved = await store.GetRecentLogsAsync();
+        Assert.Equal("Just Logged", saved[0].Title);
     }
 
     [Fact]

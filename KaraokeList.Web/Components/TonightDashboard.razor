@@ -88,6 +88,16 @@
                 return;
             }
 
+            localLogs = await LogStore.GetRecentLogsAsync();
+            newestLoggedAt = localLogs.Count > 0 ? localLogs.Max(l => l.LoggedAt) : null;
+            if (RecentLogsRefreshPolicy.ShouldUseLocalRecentLogs(newestLoggedAt))
+            {
+                recentLogs = localLogs;
+                await InvokeAsync(StateHasChanged);
+                return;
+            }
+
+            pending = await LogStore.GetPendingPerformancesAsync();
             var merged = RecentLogsHydrator.Merge(
                 source.Performances,
                 localLogs,
