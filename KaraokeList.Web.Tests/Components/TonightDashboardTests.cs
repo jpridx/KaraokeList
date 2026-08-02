@@ -10,7 +10,7 @@ namespace KaraokeList.Web.Tests.Components;
 
 public sealed class TonightDashboardTests : AuthPageTestContext
 {
-    private readonly Mock<IKaraokeApiClient> api = new();
+    private readonly Mock<IMyPerformancesLoader> performancesLoader = new();
     private readonly Mock<ILogCatalogLoader> catalogLoader = new();
     private readonly InMemoryLocalStorage localStorage = new();
 
@@ -19,9 +19,11 @@ public sealed class TonightDashboardTests : AuthPageTestContext
         base.ConfigureServices(services);
         catalogLoader.Setup(loader => loader.LoadVenuesAsync())
             .ReturnsAsync(new VenueLoadResult([], false));
-        api.Setup(client => client.GetMyPerformancesAsync(null, "desc"))
-            .ReturnsAsync(MyPerformancesResult.Ok([]));
-        services.AddSingleton<IKaraokeApiClient>(api.Object);
+        performancesLoader.Setup(loader => loader.TryGetCachedAsync())
+            .ReturnsAsync((MyPerformancesLoadResult?)null);
+        performancesLoader.Setup(loader => loader.LoadAsync())
+            .ReturnsAsync(new MyPerformancesLoadResult([], false, false, null, null, false));
+        services.AddSingleton(performancesLoader.Object);
         services.AddSingleton(catalogLoader.Object);
         services.AddSingleton<ILogPerformanceLocalStore>(new LogPerformanceLocalStore(localStorage));
     }
@@ -38,7 +40,7 @@ public sealed class TonightDashboardTests : AuthPageTestContext
             VenueName: "Main Stage",
             PerformedOn: performedOn,
             KeyChangeSemitones: null,
-            LoggedAt: new DateTime(2026, 6, 27, 21, 30, 0)));
+            LoggedAt: DateTime.Now));
 
         var cut = Render<TonightDashboard>();
         cut.WaitForAssertion(() => Assert.Contains("Recently logged", cut.Markup));
@@ -46,6 +48,26 @@ public sealed class TonightDashboardTests : AuthPageTestContext
         Assert.Contains(performedOn.ToString("d"), cut.Markup);
         Assert.DoesNotContain(performedOn.ToString("t"), cut.Markup);
         Assert.Contains("Main Stage", cut.Markup);
+    }
+
+    [Fact]
+    public async Task Recently_logged_skips_my_history_when_local_logs_are_fresh()
+    {
+        var store = (LogPerformanceLocalStore)Services.GetRequiredService<ILogPerformanceLocalStore>();
+        await store.AddRecentLogAsync(new RecentLoggedPerformance(
+            SongId: 1,
+            Title: "Tonight Song",
+            ArtistName: "Artist",
+            VenueName: "Main Stage",
+            PerformedOn: DateTime.Today,
+            KeyChangeSemitones: null,
+            LoggedAt: DateTime.Now));
+
+        var cut = Render<TonightDashboard>();
+        cut.WaitForAssertion(() => Assert.Contains("Tonight Song", cut.Markup));
+
+        performancesLoader.Verify(loader => loader.LoadAsync(), Times.Never);
+        performancesLoader.Verify(loader => loader.TryGetCachedAsync(), Times.Never);
     }
 
     [Fact]
@@ -61,8 +83,8 @@ public sealed class TonightDashboardTests : AuthPageTestContext
             KeyChangeSemitones: null,
             LoggedAt: new DateTime(2026, 6, 11)));
 
-        api.Setup(client => client.GetMyPerformancesAsync(null, "desc"))
-            .ReturnsAsync(MyPerformancesResult.Ok(
+        performancesLoader.Setup(loader => loader.LoadAsync())
+            .ReturnsAsync(new MyPerformancesLoadResult(
             [
                 new MyPerformanceEntryDto
                 {
@@ -72,12 +94,18 @@ public sealed class TonightDashboardTests : AuthPageTestContext
                     VenueName = "Main Stage",
                     PerformedOn = new DateTime(2026, 7, 9)
                 }
-            ]));
+            ],
+            FromCache: false,
+            HasCache: true,
+            DateTime.UtcNow,
+            null,
+            false));
 
         var cut = Render<TonightDashboard>();
         cut.WaitForAssertion(() => Assert.Contains("Fresh July Song", cut.Markup));
 
         Assert.DoesNotContain("Stale June Song", cut.Markup);
         Assert.Contains(new DateTime(2026, 7, 9).ToString("d"), cut.Markup);
+        performancesLoader.Verify(loader => loader.LoadAsync(), Times.Once);
     }
 }

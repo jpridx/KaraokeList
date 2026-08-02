@@ -1,6 +1,7 @@
 @inject ILogPerformanceLocalStore LogStore
 @inject ILogCatalogLoader CatalogLoader
-@inject IKaraokeApiClient Api
+@inject IMyPerformancesLoader PerformancesLoader
+@using KaraokeList.Shared
 
 <section class="tonight-dashboard mobile-panel">
     <header class="tonight-dashboard-header">
@@ -52,22 +53,28 @@
             _ = LoadVenueNameAsync(venueId);
         }
 
-        _ = RefreshRecentLogsFromApiAsync();
+        _ = RefreshRecentLogsIfNeededAsync();
     }
 
-    private async Task RefreshRecentLogsFromApiAsync()
+    private async Task RefreshRecentLogsIfNeededAsync()
     {
         try
         {
             var localLogs = await LogStore.GetRecentLogsAsync();
-            var pending = await LogStore.GetPendingPerformancesAsync();
-            var result = await Api.GetMyPerformancesAsync(sortDir: "desc");
-            if (!result.Succeeded || result.Performances.Count == 0)
+            var newestLoggedAt = localLogs.Count > 0 ? localLogs.Max(l => l.LoggedAt) : (DateTime?)null;
+            if (RecentLogsRefreshPolicy.ShouldUseLocalRecentLogs(newestLoggedAt))
             {
                 return;
             }
 
-            var merged = RecentLogsHydrator.Merge(result.Performances, localLogs, pending);
+            var pending = await LogStore.GetPendingPerformancesAsync();
+            var performances = await GetPerformancesForHydrationAsync();
+            if (performances is null || performances.Count == 0)
+            {
+                return;
+            }
+
+            var merged = RecentLogsHydrator.Merge(performances, localLogs, pending);
             if (merged.Count == 0)
             {
                 return;
@@ -81,6 +88,26 @@
         {
             // Non-fatal; stale local recent logs remain until the next successful refresh.
         }
+    }
+
+    private async Task<IReadOnlyList<MyPerformanceEntryDto>?> GetPerformancesForHydrationAsync()
+    {
+        var cached = await PerformancesLoader.TryGetCachedAsync();
+        if (cached is not null
+            && cached.Performances.Count > 0
+            && cached.CachedAtUtc is DateTime cachedAt
+            && DateTime.UtcNow - cachedAt < CatalogCachePolicy.RefreshThreshold)
+        {
+            return cached.Performances;
+        }
+
+        var loaded = await PerformancesLoader.LoadAsync();
+        if (loaded.Performances.Count == 0)
+        {
+            return cached?.Performances;
+        }
+
+        return loaded.Performances;
     }
 
     private async Task LoadVenueNameAsync(int venueId)
