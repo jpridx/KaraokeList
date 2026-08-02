@@ -81,7 +81,6 @@
                 return;
             }
 
-            var pending = await LogStore.GetPendingPerformancesAsync();
             var source = await GetPerformancesForHydrationAsync();
             if (source is null || source.Performances.Count == 0)
             {
@@ -89,6 +88,7 @@
             }
 
             localLogs = await LogStore.GetRecentLogsAsync();
+            var pending = await LogStore.GetPendingPerformancesAsync();
             newestLoggedAt = localLogs.Count > 0 ? localLogs.Max(l => l.LoggedAt) : null;
             if (RecentLogsRefreshPolicy.ShouldUseLocalRecentLogs(newestLoggedAt))
             {
@@ -97,7 +97,6 @@
                 return;
             }
 
-            pending = await LogStore.GetPendingPerformancesAsync();
             var merged = RecentLogsHydrator.Merge(
                 source.Performances,
                 localLogs,
@@ -108,8 +107,7 @@
                 return;
             }
 
-            await LogStore.ReplaceRecentLogsAsync(merged);
-            recentLogs = merged;
+            recentLogs = await LogStore.ReplaceRecentLogsIfBaselineAsync(merged, newestLoggedAt);
             await InvokeAsync(StateHasChanged);
         }
         catch

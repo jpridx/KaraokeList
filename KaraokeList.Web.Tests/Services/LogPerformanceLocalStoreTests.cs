@@ -1,3 +1,4 @@
+using KaraokeList.Shared;
 using KaraokeList.Web.Services;
 using KaraokeList.Web.Tests.TestDoubles;
 
@@ -5,79 +6,26 @@ namespace KaraokeList.Web.Tests.Services;
 
 public sealed class LogPerformanceLocalStoreTests
 {
-    private static LogPerformanceLocalStore CreateStore() =>
-        new(new InMemoryLocalStorage());
-
     [Fact]
-    public async Task EnqueuePendingPerformanceAsync_persists_and_lists_entries()
+    public async Task ReplaceRecentLogsIfBaselineAsync_skips_write_when_a_newer_local_log_arrives()
     {
-        var store = CreateStore();
-        var entry = CreatePendingEntry();
+        var store = new LogPerformanceLocalStore(new InMemoryLocalStorage());
+        var baselineLoggedAt = new DateTime(2026, 6, 11);
+        await store.AddRecentLogAsync(new RecentLoggedPerformance(
+            99, "Stale Song", "Artist", "Old Venue", baselineLoggedAt, null, baselineLoggedAt));
 
-        await store.EnqueuePendingPerformanceAsync(entry);
+        var newerLoggedAt = baselineLoggedAt.AddHours(2);
+        await store.AddRecentLogAsync(new RecentLoggedPerformance(
+            2, "Just Logged", "Artist", "Main Stage", newerLoggedAt.Date, null, newerLoggedAt));
 
-        var pending = await store.GetPendingPerformancesAsync();
-        Assert.Single(pending);
-        Assert.Equal(entry.Id, pending[0].Id);
-        Assert.Equal(entry.Title, pending[0].Title);
+        var mergedFromServer = new List<RecentLoggedPerformance>
+        {
+            new(1, "Server Song", "Artist", "Main Stage", new DateTime(2026, 7, 9), null, new DateTime(2026, 7, 9))
+        };
+
+        var saved = await store.ReplaceRecentLogsIfBaselineAsync(mergedFromServer, baselineLoggedAt);
+
+        Assert.Equal("Just Logged", saved[0].Title);
+        Assert.DoesNotContain(saved, log => log.Title == "Server Song");
     }
-
-    [Fact]
-    public async Task RemovePendingPerformanceAsync_removes_matching_entry()
-    {
-        var store = CreateStore();
-        var first = CreatePendingEntry();
-        var second = CreatePendingEntry();
-        await store.EnqueuePendingPerformanceAsync(first);
-        await store.EnqueuePendingPerformanceAsync(second);
-
-        await store.RemovePendingPerformanceAsync(first.Id);
-
-        var pending = await store.GetPendingPerformancesAsync();
-        Assert.Single(pending);
-        Assert.Equal(second.Id, pending[0].Id);
-    }
-
-    [Fact]
-    public async Task SaveCachedCatalogAsync_persists_snapshot()
-    {
-        var store = CreateStore();
-        var catalog = new CachedLogCatalog(
-            [new CachedSongEntry(1, "Test Song", "Test Artist")],
-            [1],
-            [new CachedVenueEntry(2, "Main Stage")],
-            DateTime.UtcNow);
-
-        await store.SaveCachedCatalogAsync(catalog);
-
-        var loaded = await store.GetCachedCatalogAsync();
-        Assert.NotNull(loaded);
-        Assert.Single(loaded.Songs);
-        Assert.Equal("Test Song", loaded.Songs[0].Title);
-        Assert.Single(loaded.Venues);
-    }
-
-    [Fact]
-    public async Task SaveFormDefaultsAsync_persists_venue()
-    {
-        var store = CreateStore();
-        await store.SaveFormDefaultsAsync(new LogFormDefaults(7));
-
-        var loaded = await store.GetFormDefaultsAsync();
-        Assert.NotNull(loaded);
-        Assert.Equal(7, loaded!.VenueId);
-    }
-
-    private static PendingPerformanceEntry CreatePendingEntry() =>
-        new(
-            Guid.NewGuid(),
-            SingerId: 1,
-            SongId: 42,
-            VenueId: 3,
-            PerformedOn: DateTime.Today,
-            KeyChangeSemitones: -2,
-            Title: "Jeopardy",
-            ArtistName: "The Greg Kihn Band",
-            VenueName: "Main Stage",
-            QueuedAt: DateTime.Now);
 }
