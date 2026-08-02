@@ -107,7 +107,7 @@ public sealed class StaleSongsSectionTests : BunitTestContext
     }
 
     [Fact]
-    public void Shows_cached_repertoire_notice()
+    public void Shows_songs_from_cached_repertoire()
     {
         var cachedAt = new DateTime(2026, 6, 1, 10, 0, 0, DateTimeKind.Utc);
         provider.Setup(p => p.ComputeAsync(null, null))
@@ -137,7 +137,8 @@ public sealed class StaleSongsSectionTests : BunitTestContext
         cut.WaitForAssertion(() =>
         {
             Assert.Contains("Haven't sung in a while", cut.Markup);
-            Assert.Contains("Using cached repertoire data", cut.Markup);
+            Assert.Contains("Livin' on a Prayer", cut.Markup);
+            Assert.DoesNotContain("Using cached repertoire data", cut.Markup);
         });
     }
 

@@ -12,9 +12,6 @@
             </p>
         </header>
 
-        <OfflineCacheNotice UsingOffline="true" HasCachedData="true" CachedAt="@sourceCachedAt"
-                            ResourceName="repertoire data"
-                            RefreshHint="Use More → Sync from server to refresh dates." />
         <SongLinkList Items="@linkItems" ListClass="recent-log-list mt-3 mb-0" />
         <button type="button" class="btn btn-outline-primary btn-sm mt-3" @onclick="RefreshSuggestionsAsync">
             Refresh suggestions
@@ -24,7 +21,6 @@
 
 @code {
     private bool loading = true;
-    private DateTime? sourceCachedAt;
     private int staleAfterDays = TicklerSettingsLimits.DefaultStaleAfterDays;
     private List<StaleSongDto> songs = [];
     private readonly DateTime localToday = DateTime.Today;
@@ -57,12 +53,10 @@
         {
             staleAfterDays = result.Response.StaleAfterDays;
             songs = result.Response.Songs;
-            sourceCachedAt = result.SourceCachedAtUtc;
         }
         else
         {
             songs = [];
-            sourceCachedAt = result.SourceCachedAtUtc;
         }
 
         await InvokeAsync(StateHasChanged);
