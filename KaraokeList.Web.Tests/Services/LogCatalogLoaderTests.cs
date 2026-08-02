@@ -7,6 +7,17 @@ namespace KaraokeList.Web.Tests.Services;
 
 public sealed class LogCatalogLoaderTests
 {
+    private static LogCatalogLoader CreateLoader(
+        IKaraokeApiClient api,
+        LogPerformanceLocalStore store,
+        ICatalogVersionService? versionService = null,
+        ITicklerExclusionsLocalStore? exclusionsStore = null) =>
+        new(
+            api,
+            store,
+            versionService ?? new NullVersion(),
+            exclusionsStore ?? new TicklerExclusionsLocalStore(new InMemoryLocalStorage()));
+
     [Fact]
     public async Task LoadAsync_when_online_saves_catalog_and_returns_fresh_data()
     {
@@ -42,7 +53,7 @@ public sealed class LogCatalogLoaderTests
             RepertoireSongIds = [1],
             WorkingUpSongIds = [2]
         };
-        var loader = new LogCatalogLoader(api, store, new NullVersion());
+        var loader = CreateLoader(api, store);
 
         var snapshot = await loader.LoadAsync();
 
@@ -71,7 +82,7 @@ public sealed class LogCatalogLoaderTests
             Artists = [new ArtistLookupDto { Id = 10, Name = "Queen" }],
             Genres = [new GenreDto { Id = 5, GenreName = "Rock" }]
         };
-        var loader = new LogCatalogLoader(api, store, new NullVersion());
+        var loader = CreateLoader(api, store);
 
         var result = await loader.LoadLookupsAsync();
 
@@ -98,7 +109,7 @@ public sealed class LogCatalogLoaderTests
             Artists: [new CachedArtistEntry(10, "Queen")],
             Genres: [new CachedGenreEntry(5, "Rock")]));
 
-        var loader = new LogCatalogLoader(new CatalogApiStub { ThrowOffline = true }, store, new NullVersion());
+        var loader = CreateLoader(new CatalogApiStub { ThrowOffline = true }, store);
         var result = await loader.TryGetCachedLookupsAsync();
 
         Assert.NotNull(result);
@@ -120,7 +131,7 @@ public sealed class LogCatalogLoaderTests
             Artists: [new CachedArtistEntry(10, "Queen")],
             Genres: [new CachedGenreEntry(5, "Rock")]));
 
-        var loader = new LogCatalogLoader(new CatalogApiStub { ThrowOffline = true }, store, new NullVersion());
+        var loader = CreateLoader(new CatalogApiStub { ThrowOffline = true }, store);
         var result = await loader.LoadLookupsAsync();
 
         Assert.True(result.FromCache);
@@ -142,7 +153,7 @@ public sealed class LogCatalogLoaderTests
             DateTime.UtcNow.AddHours(-1),
             [5]));
 
-        var loader = new LogCatalogLoader(new CatalogApiStub { ThrowOffline = true }, store, new NullVersion());
+        var loader = CreateLoader(new CatalogApiStub { ThrowOffline = true }, store);
         var snapshot = await loader.LoadAsync();
 
         Assert.True(snapshot.FromCache);
@@ -162,7 +173,7 @@ public sealed class LogCatalogLoaderTests
             [new CachedVenueEntry(9, "Side Room")],
             DateTime.UtcNow.AddHours(-1)));
 
-        var loader = new LogCatalogLoader(new CatalogApiStub { ThrowOffline = true }, store, new NullVersion());
+        var loader = CreateLoader(new CatalogApiStub { ThrowOffline = true }, store);
         var snapshot = await loader.LoadAsync();
 
         Assert.True(snapshot.FromCache);
@@ -184,7 +195,7 @@ public sealed class LogCatalogLoaderTests
             "old-tag"));
 
         var versionService = new FixedCatalogVersionService("new-tag");
-        var loader = new LogCatalogLoader(new CatalogApiStub(), store, versionService);
+        var loader = CreateLoader(new CatalogApiStub(), store, versionService);
 
         var snapshot = await loader.PatchCachedSongAsync(99, "Brand New", "New Artist");
 
@@ -214,7 +225,7 @@ public sealed class LogCatalogLoaderTests
             [new CachedVenueEntry(9, "Side Room")],
             DateTime.UtcNow));
 
-        var loader = new LogCatalogLoader(new CatalogApiStub { ThrowOffline = true }, store, new NullVersion());
+        var loader = CreateLoader(new CatalogApiStub { ThrowOffline = true }, store);
         var result = await loader.LoadVenuesAsync();
 
         Assert.True(result.FromCache);
@@ -304,6 +315,12 @@ public sealed class LogCatalogLoaderTests
 
             return Task.FromResult(RepertoireResult.Ok(
                 RepertoireSongIds.Select(id => new RepertoireSongDto { SongId = id }).ToList()));
+        }
+
+        public override Task<TicklerExclusionsResult> GetMyTicklerExclusionsAsync()
+        {
+            ThrowIfOffline();
+            return Task.FromResult(TicklerExclusionsResult.Ok([]));
         }
     }
 }

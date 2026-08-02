@@ -12,14 +12,20 @@ public interface ILogCatalogLoader
     Task<LookupsLoadResult?> TryGetCachedLookupsAsync();
     Task SaveLookupsAsync(IReadOnlyList<ArtistLookupDto> artists, IReadOnlyList<GenreDto> genres);
     Task<LogCatalogSnapshot> PatchCachedSongAsync(int songId, string title, string artistName);
+    Task PatchRepertoireStatsAfterLogAsync(
+        int songId,
+        string title,
+        string artistName,
+        string artistDisplay,
+        DateTime performedOn);
 }
 
 public sealed class LogCatalogLoader(
     IKaraokeApiClient api,
     ILogPerformanceLocalStore store,
-    ICatalogVersionService versionService) : ILogCatalogLoader
+    ICatalogVersionService versionService,
+    ITicklerExclusionsLocalStore exclusionsStore) : ILogCatalogLoader
 {
-    private static readonly TimeSpan RefreshThreshold = TimeSpan.FromHours(2);
 
     public async Task<LogCatalogSnapshot> LoadAsync(Action<string>? onProgress = null)
     {
@@ -51,6 +57,9 @@ public sealed class LogCatalogLoader(
             var repertoireIds = repertoire.Succeeded
                 ? repertoire.Songs.Select(s => s.SongId).ToHashSet()
                 : [];
+            var repertoireStats = repertoire.Succeeded
+                ? repertoire.Songs.Select(MapRepertoireStatsEntry).ToList()
+                : [];
 
             var workingUpList = lists.Succeeded
                 ? SingerListResolver.FindList(lists.Lists, SingerListKind.WorkingUp)
@@ -67,6 +76,9 @@ public sealed class LogCatalogLoader(
             var artistNames = artists.ToDictionary(a => a.Id, a => a.Name);
             var pickItems = CatalogSongMapper.ToPickItems(songs, artistNames, repertoireIds, workingUpIds);
 
+            onProgress?.Invoke("Loading tickler exclusions...");
+            await RefreshTicklerExclusionsAsync();
+
             onProgress?.Invoke("Saving for offline use...");
             var cachedAt = DateTime.UtcNow;
             var cacheTag = await versionService.GetCacheTagAsync();
@@ -78,7 +90,8 @@ public sealed class LogCatalogLoader(
                 workingUpIds.ToList(),
                 cacheTag,
                 MapArtistEntries(artists),
-                MapGenreEntries(genres)));
+                MapGenreEntries(genres),
+                repertoireStats));
 
             return new LogCatalogSnapshot(pickItems, repertoireIds, workingUpIds, FromCache: false, HasCatalog: pickItems.Count > 0, cachedAt);
         }
@@ -107,7 +120,7 @@ public sealed class LogCatalogLoader(
             return true;
         }
 
-        var isStaleByAge = DateTime.UtcNow - cached.CachedAtUtc >= RefreshThreshold;
+        var isStaleByAge = DateTime.UtcNow - cached.CachedAtUtc >= CatalogCachePolicy.RefreshThreshold;
 
         try
         {
@@ -242,6 +255,75 @@ public sealed class LogCatalogLoader(
         await store.SaveCachedCatalogAsync(cached);
         return MapCacheToSnapshot(cached);
     }
+
+    public async Task PatchRepertoireStatsAfterLogAsync(
+        int songId,
+        string title,
+        string artistName,
+        string artistDisplay,
+        DateTime performedOn)
+    {
+        var cached = await store.GetCachedCatalogAsync();
+        if (cached is null)
+        {
+            return;
+        }
+
+        var performedDate = performedOn.Date;
+        var stats = cached.RepertoireStats?.ToList() ?? [];
+        var existingIndex = stats.FindIndex(s => s.SongId == songId);
+        if (existingIndex >= 0)
+        {
+            var existing = stats[existingIndex];
+            stats[existingIndex] = existing with
+            {
+                Title = title,
+                ArtistName = artistName,
+                ArtistDisplay = artistDisplay,
+                LastPerformedOn = performedDate,
+                PerformanceCount = existing.PerformanceCount + 1
+            };
+        }
+        else
+        {
+            stats.Add(new CachedRepertoireStatsEntry(
+                songId,
+                title,
+                artistName,
+                artistDisplay,
+                performedDate,
+                PerformanceCount: 1));
+        }
+
+        var repertoireIds = cached.RepertoireSongIds.ToHashSet();
+        repertoireIds.Add(songId);
+
+        cached = cached with
+        {
+            RepertoireStats = stats,
+            RepertoireSongIds = repertoireIds.ToList(),
+            CachedAtUtc = DateTime.UtcNow
+        };
+        await store.SaveCachedCatalogAsync(cached);
+    }
+
+    private async Task RefreshTicklerExclusionsAsync()
+    {
+        var result = await api.GetMyTicklerExclusionsAsync();
+        if (result.Succeeded && result.SongIds is not null)
+        {
+            await exclusionsStore.SaveExcludedSongIdsAsync(result.SongIds);
+        }
+    }
+
+    private static CachedRepertoireStatsEntry MapRepertoireStatsEntry(RepertoireSongDto song) =>
+        new(
+            song.SongId,
+            song.Title,
+            song.ArtistName,
+            string.IsNullOrWhiteSpace(song.ArtistDisplay) ? song.ArtistName : song.ArtistDisplay,
+            song.LastPerformedOn,
+            song.PerformanceCount);
 
     private async Task<LookupsLoadResult> LoadLookupsFromCacheAsync()
     {

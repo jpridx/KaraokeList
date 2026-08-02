@@ -88,6 +88,9 @@
     [Inject]
     private IThemeService ThemeService { get; set; } = default!;
 
+    [Inject]
+    private ITicklerSettingsLocalStore TicklerSettingsStore { get; set; } = default!;
+
     private UpdateTicklerSettingsRequest TicklerInput { get; set; } = new();
     private UpdateMusicServicePreferenceRequest MusicServiceInput { get; set; } = new();
     private UpdateThemePreferenceRequest ThemeInput { get; set; } = new();
@@ -115,6 +118,7 @@
                 StaleAfterDays = ticklerResult.Settings.StaleAfterDays,
                 SongLimit = ticklerResult.Settings.SongLimit
             };
+            await TicklerSettingsStore.SaveAsync(ticklerResult.Settings);
         }
         else
         {
@@ -169,6 +173,12 @@
                 errorMessage = ticklerResult.ErrorMessage ?? "Could not save tickler settings.";
                 return;
             }
+
+            await TicklerSettingsStore.SaveAsync(new TicklerSettingsDto
+            {
+                StaleAfterDays = TicklerInput.StaleAfterDays,
+                SongLimit = TicklerInput.SongLimit
+            });
 
             var musicResult = await Api.UpdateMusicServicePreferenceAsync(MusicServiceInput);
             if (!musicResult.Succeeded)

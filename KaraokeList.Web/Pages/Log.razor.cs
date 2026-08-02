@@ -10,6 +10,7 @@ public partial class Log
     [Inject] private IKaraokeApiClient Api { get; set; } = default!;
     [Inject] private ILogPerformanceLocalStore LogStore { get; set; } = default!;
     [Inject] private ILogCatalogLoader CatalogLoader { get; set; } = default!;
+    [Inject] private IMySongsLoader MySongsLoader { get; set; } = default!;
 
     #region Data loader / orchestration
 
@@ -147,11 +148,6 @@ public partial class Log
         }
     }
 
-    private async Task ApplyCatalogSnapshotAsync()
-    {
-        catalogState.Apply(await CatalogLoader.LoadAsync());
-    }
-
     #endregion
 
     #region Song selection state
@@ -225,15 +221,38 @@ public partial class Log
 
     private async Task OnPerformanceSavedAsync(string? message)
     {
+        var savedSong = SelectedSong;
+        var savedSongId = selectedSongId;
+        var recentEntry = (await LogStore.GetRecentLogsAsync()).FirstOrDefault();
+
         selectedSongId = null;
         songHint = null;
         saveMessage = message;
         saveError = null;
         recentLogs = await LogStore.GetRecentLogsAsync();
 
-        if (!catalogState.UsingOfflineCatalog)
+        if (savedSongId is int songId && savedSong is not null && recentEntry?.SongId == songId)
         {
-            await ApplyCatalogSnapshotAsync();
+            await CatalogLoader.PatchRepertoireStatsAfterLogAsync(
+                songId,
+                savedSong.Title,
+                savedSong.ArtistName,
+                savedSong.ArtistName,
+                recentEntry.PerformedOn);
+            await MySongsLoader.PatchSongPerformanceAsync(
+                songId,
+                savedSong.Title,
+                savedSong.ArtistName,
+                savedSong.ArtistName,
+                recentEntry.PerformedOn);
+
+            catalogState.RepertoireSongIds.Add(songId);
+            var cached = await CatalogLoader.TryGetCachedAsync();
+            if (cached is not null && selectedSongId is null)
+            {
+                catalogState.Apply(cached);
+                catalogState.MarkOnline();
+            }
         }
     }
 

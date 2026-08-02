@@ -271,6 +271,7 @@ After Azure resources exist, configure OIDC and secrets per [github-actions.md](
 - **Static Web Apps Free** — sufficient for a friends group.
 - **App Service B1** — modest always-on API (~$13/mo region-dependent).
 - **Azure SQL serverless** — pauses after 60 min idle; `minCapacity` 0.5 vCore keeps cost low.
+- **Catalog cache TTL** — Log and My Songs background refresh is skipped for 4 hours when the server catalog version tag is unchanged (`CatalogCachePolicy.RefreshThreshold`).
 
 ## Troubleshooting
 

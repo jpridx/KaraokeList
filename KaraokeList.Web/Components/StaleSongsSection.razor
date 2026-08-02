@@ -1,4 +1,4 @@
-@inject IStaleSongsLoader Loader
+@inject ILocalStaleSongsProvider Provider
 @using KaraokeList.Web.Services
 
 @if (!loading && songs.Count > 0)
@@ -12,15 +12,15 @@
             </p>
         </header>
 
-        <OfflineCacheNotice UsingOffline="@fromCache" HasCachedData="true" CachedAt="@cachedAt" ResourceName="suggestions" />
         <SongLinkList Items="@linkItems" ListClass="recent-log-list mt-3 mb-0" />
+        <button type="button" class="btn btn-outline-primary btn-sm mt-3" @onclick="RefreshSuggestionsAsync">
+            Refresh suggestions
+        </button>
     </section>
 }
 
 @code {
     private bool loading = true;
-    private bool fromCache;
-    private DateTime? cachedAt;
     private int staleAfterDays = TicklerSettingsLimits.DefaultStaleAfterDays;
     private List<StaleSongDto> songs = [];
     private readonly DateTime localToday = DateTime.Today;
@@ -40,64 +40,25 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // Fast path: render cached suggestions immediately, then refresh in the background.
-        var cached = await Loader.TryGetCachedAsync();
-        if (cached is not null)
-        {
-            ApplyResult(cached);
-            loading = false;
-            StateHasChanged();
-            _ = RefreshInBackgroundAsync();
-            return;
-        }
-
-        // No cache — don't block Home while the DB wakes; show nothing until data arrives.
-        var loadTask = Loader.LoadAsync();
-        if (await Task.WhenAny(loadTask, Task.Delay(ApiSlowRequestNotifier.PageLoadTimeout)) != loadTask)
-        {
-            loading = false;
-            _ = loadTask.ContinueWith(async t =>
-            {
-                if (t.IsCompletedSuccessfully)
-                {
-                    ApplyResult(t.Result);
-                    await InvokeAsync(() =>
-                    {
-                        loading = false;
-                        StateHasChanged();
-                    });
-                }
-            });
-            return;
-        }
-
-        ApplyResult(await loadTask);
+        await LoadSuggestionsAsync();
         loading = false;
     }
 
-    private async Task RefreshInBackgroundAsync()
-    {
-        try
-        {
-            var fresh = await Loader.LoadAsync();
-            ApplyResult(fresh);
-            await InvokeAsync(StateHasChanged);
-        }
-        catch
-        {
-            // Background refresh failures are silent.
-        }
-    }
+    private async Task RefreshSuggestionsAsync() => await LoadSuggestionsAsync(new Random());
 
-    private void ApplyResult(StaleSongsLoadResult result)
+    private async Task LoadSuggestionsAsync(Random? random = null)
     {
-        if (result.Succeeded && result.Response is not null)
+        var result = await Provider.ComputeAsync(random: random);
+        if (result.Response is not null && result.Response.Songs.Count > 0)
         {
             staleAfterDays = result.Response.StaleAfterDays;
             songs = result.Response.Songs;
-            fromCache = result.FromCache;
-            cachedAt = result.CachedAtUtc;
         }
-    }
+        else
+        {
+            songs = [];
+        }
 
+        await InvokeAsync(StateHasChanged);
+    }
 }

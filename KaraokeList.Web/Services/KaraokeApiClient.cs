@@ -83,6 +83,7 @@ public interface IKaraokeApiClient
     Task<SongTicklerExclusionResult> GetSongTicklerExclusionAsync(int songId);
     Task<TicklerExclusionActionResult> SetSongTicklerExclusionAsync(int songId, UpdateSongTicklerExclusionRequest request);
     Task<TicklerExclusionActionResult> RemoveSongTicklerExclusionAsync(int songId);
+    Task<TicklerExclusionsResult> GetMyTicklerExclusionsAsync();
     Task<SongGenreUpdateResult> UpdateSongGenreAsync(int songId, UpdateSongGenreRequest request);
     Task<StaleSongsResult> GetMyStaleSongsAsync(int? days = null, int? limit = null);
     Task<TicklerSettingsResult> GetTicklerSettingsAsync();
@@ -784,6 +785,29 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
 
         var message = await ReadApiErrorMessageAsync(response);
         return TicklerExclusionActionResult.Fail(message ?? "Could not include song in tickler again.");
+    }
+
+    public async Task<TicklerExclusionsResult> GetMyTicklerExclusionsAsync()
+    {
+        try
+        {
+            var response = await http.GetAsync("api/singers/me/tickler-exclusions");
+            if (response.IsSuccessStatusCode)
+            {
+                var payload = await response.Content.ReadFromJsonAsync<TicklerExclusionListDto>(JsonOptions);
+                return payload is null
+                    ? TicklerExclusionsResult.Fail("Unexpected empty response from the server.")
+                    : TicklerExclusionsResult.Ok(payload.SongIds);
+            }
+
+            var message = await ReadApiErrorMessageAsync(response);
+            return TicklerExclusionsResult.Fail(message ?? "Could not load tickler exclusions.");
+        }
+        catch (Exception ex) when (ApiTransientFailure.IsTransient(ex) || ex is HttpRequestException)
+        {
+            return TicklerExclusionsResult.Fail(
+                ex is HttpRequestException ? ApiTransientFailure.ColdStartMessage : ex.Message);
+        }
     }
 
     public async Task<SongGenreUpdateResult> UpdateSongGenreAsync(int songId, UpdateSongGenreRequest request)
