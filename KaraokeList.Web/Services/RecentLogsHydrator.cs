@@ -40,8 +40,8 @@ public static class RecentLogsHydrator
         return pendingLocals
             .Concat(freshLocalOnly)
             .Concat(apiEntries)
-            .OrderByDescending(log => log.PerformedOn)
-            .ThenByDescending(log => log.LoggedAt)
+            .OrderByDescending(log => log.LoggedAt)
+            .ThenByDescending(log => log.PerformedOn)
             .Take(maxCount)
             .ToList();
     }

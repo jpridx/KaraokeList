@@ -29,6 +29,7 @@ public sealed class RecentLogsHydratorTests
     [Fact]
     public void Merge_keeps_pending_local_logs_not_yet_on_server()
     {
+        var now = new DateTime(2026, 8, 2, 21, 0, 0);
         var api = new List<MyPerformanceEntryDto>
         {
             CreateApiEntry(1, "Older Song", new DateTime(2026, 6, 1))
@@ -36,7 +37,7 @@ public sealed class RecentLogsHydratorTests
 
         var local = new List<RecentLoggedPerformance>
         {
-            CreateLocalEntry(2, "Offline Song", new DateTime(2026, 7, 10), "Offline Venue")
+            new(2, "Offline Song", "Artist", "Offline Venue", new DateTime(2026, 7, 10), null, now)
         };
 
         var pending = new List<PendingPerformanceEntry>
@@ -51,10 +52,10 @@ public sealed class RecentLogsHydratorTests
                 Title: "Offline Song",
                 ArtistName: "Artist",
                 VenueName: "Offline Venue",
-                QueuedAt: DateTime.UtcNow)
+                QueuedAt: now)
         };
 
-        var merged = RecentLogsHydrator.Merge(api, local, pending);
+        var merged = RecentLogsHydrator.Merge(api, local, pending, hydratedAt: now.AddMinutes(-5));
 
         Assert.Equal(2, merged.Count);
         Assert.Equal("Offline Song", merged[0].Title);
@@ -64,11 +65,12 @@ public sealed class RecentLogsHydratorTests
     [Fact]
     public void Merge_limits_to_max_recent_logs()
     {
+        var hydratedAt = new DateTime(2026, 8, 2, 21, 0, 0);
         var api = Enumerable.Range(1, 6)
             .Select(i => CreateApiEntry(i, $"Song {i}", new DateTime(2026, 7, i)))
             .ToList();
 
-        var merged = RecentLogsHydrator.Merge(api, [], []);
+        var merged = RecentLogsHydrator.Merge(api, [], [], hydratedAt: hydratedAt);
 
         Assert.Equal(LogPerformanceLocalStore.MaxRecentLogs, merged.Count);
         Assert.Equal("Song 6", merged[0].Title);
@@ -109,7 +111,7 @@ public sealed class RecentLogsHydratorTests
             new(2, "Just Logged", "Artist", "Main Stage", now.Date, null, freshLoggedAt)
         };
 
-        var merged = RecentLogsHydrator.Merge(api, local, [], hydratedAt: now);
+        var merged = RecentLogsHydrator.Merge(api, local, [], hydratedAt: now.AddHours(-1));
 
         Assert.Equal(2, merged.Count);
         Assert.Equal("Just Logged", merged[0].Title);
@@ -151,6 +153,27 @@ public sealed class RecentLogsHydratorTests
 
         Assert.Single(merged);
         Assert.Equal(newerLoggedAt, merged[0].LoggedAt);
+    }
+
+    [Fact]
+    public void Merge_ranks_by_loggedAt_so_backfilled_entries_surface_in_top_three()
+    {
+        var now = new DateTime(2026, 8, 2, 21, 0, 0);
+        var api = new List<MyPerformanceEntryDto>
+        {
+            CreateApiEntry(1, "Recent Performance", new DateTime(2026, 8, 1)),
+            CreateApiEntry(2, "Another Recent", new DateTime(2026, 7, 30)),
+            CreateApiEntry(3, "Third Recent", new DateTime(2026, 7, 29)),
+        };
+        var local = new List<RecentLoggedPerformance>
+        {
+            new(4, "Backfilled Old Date", "Artist", "Main Stage", new DateTime(2026, 5, 1), null, now)
+        };
+
+        var merged = RecentLogsHydrator.Merge(api, local, [], hydratedAt: now.AddHours(-1));
+
+        Assert.Equal(LogPerformanceLocalStore.MaxRecentLogs, merged.Count);
+        Assert.Equal("Backfilled Old Date", merged[0].Title);
     }
 
     private static MyPerformanceEntryDto CreateApiEntry(int songId, string title, DateTime performedOn) =>
