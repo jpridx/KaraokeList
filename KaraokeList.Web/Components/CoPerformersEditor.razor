@@ -47,6 +47,9 @@
     [Parameter]
     public EventCallback<List<CoPerformerInputDto>> OtherPerformersChanged { get; set; }
 
+    [Parameter]
+    public IReadOnlyList<SingerDto>? SharedSingers { get; set; }
+
     private List<SingerDto> singers = [];
     private List<SingerDto> availableSingers => singers
         .Where(s => s.Id != PrimarySingerId && otherPerformers.All(p => p.SingerId != s.Id))
@@ -58,6 +61,12 @@
 
     protected override async Task OnInitializedAsync()
     {
+        if (SharedSingers is not null)
+        {
+            singers = SharedSingers.ToList();
+            return;
+        }
+
         singers = await Api.GetSingersAsync();
     }
 

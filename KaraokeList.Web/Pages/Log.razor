@@ -40,6 +40,10 @@
 
                     <QuickLogPerformance SongId="@SelectedSong.Id" Title="@SelectedSong.Title"
                                          ArtistName="@SelectedSong.ArtistName" SingerId="@singerId"
+                                         SharedVenues="@logVenues" SharedSingers="@logSingers"
+                                         SharedUsingOfflineCatalog="@logFormUsingOfflineCatalog"
+                                         SongSummary="@selectedSongSummary"
+                                         OnSharedVenuesChanged="HandleSharedVenuesChangedAsync"
                                          OnPerformanceSaved="OnPerformanceSavedAsync" />
                 }
 
