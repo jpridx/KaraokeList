@@ -131,6 +131,28 @@ public sealed class RecentLogsHydratorTests
         Assert.Equal(hydratedAt, merged[0].LoggedAt);
     }
 
+    [Fact]
+    public void Merge_handles_duplicate_local_keys_without_throwing()
+    {
+        var performedOn = new DateTime(2026, 8, 2);
+        var olderLoggedAt = new DateTime(2026, 8, 2, 20, 0, 0);
+        var newerLoggedAt = new DateTime(2026, 8, 2, 21, 0, 0);
+        var api = new List<MyPerformanceEntryDto>
+        {
+            CreateApiEntry(1, "Repeat Song", performedOn)
+        };
+        var local = new List<RecentLoggedPerformance>
+        {
+            new(1, "Repeat Song", "Artist", "Main Stage", performedOn, null, olderLoggedAt),
+            new(1, "Repeat Song", "Artist", "Main Stage", performedOn, null, newerLoggedAt)
+        };
+
+        var merged = RecentLogsHydrator.Merge(api, local, [], hydratedAt: newerLoggedAt.AddMinutes(5));
+
+        Assert.Single(merged);
+        Assert.Equal(newerLoggedAt, merged[0].LoggedAt);
+    }
+
     private static MyPerformanceEntryDto CreateApiEntry(int songId, string title, DateTime performedOn) =>
         new()
         {

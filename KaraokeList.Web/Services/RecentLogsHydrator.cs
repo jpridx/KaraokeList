@@ -12,7 +12,7 @@ public static class RecentLogsHydrator
         DateTime? hydratedAt = null)
     {
         hydratedAt ??= DateTime.Now;
-        var localByKey = localLogs.ToDictionary(Key, log => log);
+        var localByKey = IndexLocalLogsByKey(localLogs);
 
         var apiEntries = apiPerformances
             .Select(performance => FromApi(performance, hydratedAt.Value))
@@ -58,4 +58,10 @@ public static class RecentLogsHydrator
 
     private static (int SongId, DateTime Date, string VenueName) Key(RecentLoggedPerformance log) =>
         (log.SongId, log.PerformedOn.Date, log.VenueName);
+
+    private static Dictionary<(int SongId, DateTime Date, string VenueName), RecentLoggedPerformance> IndexLocalLogsByKey(
+        IReadOnlyList<RecentLoggedPerformance> localLogs) =>
+        localLogs
+            .GroupBy(Key)
+            .ToDictionary(group => group.Key, group => group.MaxBy(log => log.LoggedAt)!);
 }
