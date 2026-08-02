@@ -57,7 +57,7 @@
             _ = LoadVenueNameAsync(venueId);
         }
 
-        _ = RefreshRecentLogsIfNeededAsync();
+        await RefreshRecentLogsIfNeededAsync();
     }
 
     private async Task RefreshRecentLogsIfNeededAsync()

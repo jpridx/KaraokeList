@@ -10,6 +10,8 @@ namespace KaraokeList.Web.Tests.Components;
 
 public sealed class TonightDashboardTests : AuthPageTestContext
 {
+    private static readonly DateTime FixedLoadTimeUtc = new(2026, 8, 2, 18, 0, 0, DateTimeKind.Utc);
+
     private readonly Mock<IMyPerformancesLoader> performancesLoader = new();
     private readonly Mock<ILogCatalogLoader> catalogLoader = new();
     private readonly InMemoryLocalStorage localStorage = new();
@@ -40,11 +42,11 @@ public sealed class TonightDashboardTests : AuthPageTestContext
             VenueName: "Main Stage",
             PerformedOn: performedOn,
             KeyChangeSemitones: null,
-            LoggedAt: DateTime.Now));
+            LoggedAt: new DateTime(2026, 6, 15, 12, 0, 0)));
 
         var cut = Render<TonightDashboard>();
-        cut.WaitForAssertion(() => Assert.Contains("Recently logged", cut.Markup));
 
+        Assert.Contains("Recently logged", cut.Markup);
         Assert.Contains(performedOn.ToString("d"), cut.Markup);
         Assert.DoesNotContain(performedOn.ToString("t"), cut.Markup);
         Assert.Contains("Main Stage", cut.Markup);
@@ -54,18 +56,19 @@ public sealed class TonightDashboardTests : AuthPageTestContext
     public async Task Recently_logged_skips_my_history_when_local_logs_are_fresh()
     {
         var store = (LogPerformanceLocalStore)Services.GetRequiredService<ILogPerformanceLocalStore>();
+        var loggedAt = DateTime.Now.AddMinutes(-30);
         await store.AddRecentLogAsync(new RecentLoggedPerformance(
             SongId: 1,
             Title: "Tonight Song",
             ArtistName: "Artist",
             VenueName: "Main Stage",
-            PerformedOn: DateTime.Today,
+            PerformedOn: loggedAt.Date,
             KeyChangeSemitones: null,
-            LoggedAt: DateTime.Now));
+            LoggedAt: loggedAt));
 
         var cut = Render<TonightDashboard>();
-        cut.WaitForAssertion(() => Assert.Contains("Tonight Song", cut.Markup));
 
+        Assert.Contains("Tonight Song", cut.Markup);
         performancesLoader.Verify(loader => loader.LoadAsync(), Times.Never);
         performancesLoader.Verify(loader => loader.TryGetCachedAsync(), Times.Never);
     }
@@ -97,20 +100,20 @@ public sealed class TonightDashboardTests : AuthPageTestContext
             ],
             FromCache: false,
             HasCache: true,
-            DateTime.UtcNow,
+            FixedLoadTimeUtc,
             null,
             false));
 
         var cut = Render<TonightDashboard>();
-        cut.WaitForAssertion(() => Assert.Contains("Fresh July Song", cut.Markup));
 
+        Assert.Contains("Fresh July Song", cut.Markup);
         Assert.DoesNotContain("Stale June Song", cut.Markup);
         Assert.Contains(new DateTime(2026, 7, 9).ToString("d"), cut.Markup);
         performancesLoader.Verify(loader => loader.LoadAsync(), Times.Once);
     }
 
     [Fact]
-    public async Task Recently_logged_hydrates_from_cache_without_stamping_loggedAt_as_now()
+    public async Task Recently_logged_hydrates_from_cache_using_cache_timestamp()
     {
         var store = (LogPerformanceLocalStore)Services.GetRequiredService<ILogPerformanceLocalStore>();
         await store.AddRecentLogAsync(new RecentLoggedPerformance(
@@ -122,7 +125,8 @@ public sealed class TonightDashboardTests : AuthPageTestContext
             KeyChangeSemitones: null,
             LoggedAt: new DateTime(2026, 6, 11)));
 
-        var cacheTimeUtc = DateTime.UtcNow.AddHours(-3);
+        var cacheTimeUtc = DateTime.UtcNow.AddHours(-1);
+        var expectedLoggedAt = cacheTimeUtc.ToLocalTime();
         performancesLoader.Setup(loader => loader.TryGetCachedAsync())
             .ReturnsAsync(new MyPerformancesLoadResult(
             [
@@ -142,11 +146,11 @@ public sealed class TonightDashboardTests : AuthPageTestContext
             false));
 
         var cut = Render<TonightDashboard>();
-        cut.WaitForAssertion(() => Assert.Contains("Cached July Song", cut.Markup));
 
+        Assert.Contains("Cached July Song", cut.Markup);
         performancesLoader.Verify(loader => loader.LoadAsync(), Times.Never);
+
         var saved = await store.GetRecentLogsAsync();
-        Assert.Equal(cacheTimeUtc.ToLocalTime(), saved[0].LoggedAt);
-        Assert.True(DateTime.Now - saved[0].LoggedAt > TimeSpan.FromHours(2));
+        Assert.Equal(expectedLoggedAt, saved[0].LoggedAt);
     }
 }
