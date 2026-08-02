@@ -41,6 +41,10 @@
     private string? defaultVenueName;
     private IReadOnlyList<RecentLoggedPerformance> recentLogs = [];
 
+    private sealed record PerformancesHydrationSource(
+        IReadOnlyList<MyPerformanceEntryDto> Performances,
+        DateTime HydratedAtLocal);
+
     protected override async Task OnInitializedAsync()
     {
         // Load from localStorage immediately — no API call needed for the core content.
@@ -68,13 +72,17 @@
             }
 
             var pending = await LogStore.GetPendingPerformancesAsync();
-            var performances = await GetPerformancesForHydrationAsync();
-            if (performances is null || performances.Count == 0)
+            var source = await GetPerformancesForHydrationAsync();
+            if (source is null || source.Performances.Count == 0)
             {
                 return;
             }
 
-            var merged = RecentLogsHydrator.Merge(performances, localLogs, pending);
+            var merged = RecentLogsHydrator.Merge(
+                source.Performances,
+                localLogs,
+                pending,
+                hydratedAt: source.HydratedAtLocal);
             if (merged.Count == 0)
             {
                 return;
@@ -90,25 +98,34 @@
         }
     }
 
-    private async Task<IReadOnlyList<MyPerformanceEntryDto>?> GetPerformancesForHydrationAsync()
+    private async Task<PerformancesHydrationSource?> GetPerformancesForHydrationAsync()
     {
         var cached = await PerformancesLoader.TryGetCachedAsync();
         if (cached is not null
             && cached.Performances.Count > 0
-            && cached.CachedAtUtc is DateTime cachedAt
-            && DateTime.UtcNow - cachedAt < CatalogCachePolicy.RefreshThreshold)
+            && cached.CachedAtUtc is DateTime cachedAtUtc
+            && DateTime.UtcNow - cachedAtUtc < CatalogCachePolicy.RefreshThreshold)
         {
-            return cached.Performances;
+            return new PerformancesHydrationSource(cached.Performances, ToLocalTime(cachedAtUtc));
         }
 
         var loaded = await PerformancesLoader.LoadAsync();
-        if (loaded.Performances.Count == 0)
+        if (loaded.Performances.Count > 0)
         {
-            return cached?.Performances;
+            var hydratedAtUtc = loaded.CachedAtUtc ?? DateTime.UtcNow;
+            return new PerformancesHydrationSource(loaded.Performances, ToLocalTime(hydratedAtUtc));
         }
 
-        return loaded.Performances;
+        if (cached is not null && cached.Performances.Count > 0 && cached.CachedAtUtc is DateTime staleCachedAtUtc)
+        {
+            return new PerformancesHydrationSource(cached.Performances, ToLocalTime(staleCachedAtUtc));
+        }
+
+        return null;
     }
+
+    private static DateTime ToLocalTime(DateTime timestamp) =>
+        timestamp.Kind == DateTimeKind.Utc ? timestamp.ToLocalTime() : timestamp;
 
     private async Task LoadVenueNameAsync(int venueId)
     {

@@ -55,7 +55,7 @@ public sealed class RecentLogsHydratorTests
                 QueuedAt: now)
         };
 
-        var merged = RecentLogsHydrator.Merge(api, local, pending, hydratedAt: now.AddMinutes(-5));
+        var merged = RecentLogsHydrator.Merge(api, local, pending, hydratedAt: now.AddMinutes(-5), now: now);
 
         Assert.Equal(2, merged.Count);
         Assert.Equal("Offline Song", merged[0].Title);
@@ -111,7 +111,7 @@ public sealed class RecentLogsHydratorTests
             new(2, "Just Logged", "Artist", "Main Stage", now.Date, null, freshLoggedAt)
         };
 
-        var merged = RecentLogsHydrator.Merge(api, local, [], hydratedAt: now.AddHours(-1));
+        var merged = RecentLogsHydrator.Merge(api, local, [], hydratedAt: now.AddHours(-1), now: now);
 
         Assert.Equal(2, merged.Count);
         Assert.Equal("Just Logged", merged[0].Title);
@@ -170,10 +170,28 @@ public sealed class RecentLogsHydratorTests
             new(4, "Backfilled Old Date", "Artist", "Main Stage", new DateTime(2026, 5, 1), null, now)
         };
 
-        var merged = RecentLogsHydrator.Merge(api, local, [], hydratedAt: now.AddHours(-1));
+        var merged = RecentLogsHydrator.Merge(api, local, [], hydratedAt: now.AddHours(-1), now: now);
 
         Assert.Equal(LogPerformanceLocalStore.MaxRecentLogs, merged.Count);
         Assert.Equal("Backfilled Old Date", merged[0].Title);
+    }
+
+    [Fact]
+    public void Merge_uses_hydratedAt_without_extending_freshness_to_now()
+    {
+        var now = new DateTime(2026, 8, 2, 21, 0, 0);
+        var cacheHydratedAt = now.AddHours(-3);
+        var api = new List<MyPerformanceEntryDto>
+        {
+            CreateApiEntry(1, "Cached Song", new DateTime(2026, 7, 9))
+        };
+
+        var merged = RecentLogsHydrator.Merge(api, [], [], hydratedAt: cacheHydratedAt, now: now);
+
+        Assert.Single(merged);
+        Assert.Equal(cacheHydratedAt, merged[0].LoggedAt);
+        Assert.True(RecentLogsRefreshPolicy.ShouldUseLocalRecentLogs(cacheHydratedAt, now));
+        Assert.False(RecentLogsRefreshPolicy.ShouldUseLocalRecentLogs(cacheHydratedAt, now.AddHours(2)));
     }
 
     private static MyPerformanceEntryDto CreateApiEntry(int songId, string title, DateTime performedOn) =>

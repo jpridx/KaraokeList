@@ -9,9 +9,11 @@ public static class RecentLogsHydrator
         IReadOnlyList<RecentLoggedPerformance> localLogs,
         IReadOnlyList<PendingPerformanceEntry> pending,
         int maxCount = LogPerformanceLocalStore.MaxRecentLogs,
-        DateTime? hydratedAt = null)
+        DateTime? hydratedAt = null,
+        DateTime? now = null)
     {
-        hydratedAt ??= DateTime.Now;
+        now ??= DateTime.Now;
+        hydratedAt ??= now;
         var localByKey = IndexLocalLogsByKey(localLogs);
 
         var apiEntries = apiPerformances
@@ -34,7 +36,7 @@ public static class RecentLogsHydrator
         var freshLocalOnly = localLogs
             .Where(log => !apiKeys.Contains(Key(log)))
             .Where(log => !pendingKeys.Contains((log.SongId, log.PerformedOn.Date, log.VenueName)))
-            .Where(log => RecentLogsRefreshPolicy.ShouldUseLocalRecentLogs(log.LoggedAt, hydratedAt))
+            .Where(log => RecentLogsRefreshPolicy.ShouldUseLocalRecentLogs(log.LoggedAt, now))
             .ToList();
 
         return pendingLocals
