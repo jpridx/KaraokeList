@@ -90,7 +90,18 @@ public partial class Log
             recentLogs = await LogStore.GetRecentLogsAsync();
             loadingStep = null;
             isLoading = false;
-            _ = EnsureLogFormResourcesAsync();
+            _ = InvokeAsync(async () =>
+            {
+                try
+                {
+                    await EnsureLogFormResourcesAsync();
+                    StateHasChanged();
+                }
+                catch
+                {
+                    // Background refresh failures are silent.
+                }
+            });
             StateHasChanged();
 
             // Auto-update when the DB eventually wakes and the load completes.
