@@ -24,9 +24,7 @@ public static class StaleSongsComputer
     {
         var candidates = GetCandidates(repertoire, excludedSongIds, settings, asOfDate);
         var rng = random ?? Random.Shared;
-        var sampled = candidates
-            .OrderBy(_ => rng.Next())
-            .Take(settings.SongLimit)
+        var sampled = PartialShuffle(candidates, settings.SongLimit, rng)
             .Select(song => ToStaleSongDto(song, asOfDate))
             .ToList();
 
@@ -35,6 +33,21 @@ public static class StaleSongsComputer
             StaleAfterDays = settings.StaleAfterDays,
             Songs = sampled
         };
+    }
+
+    private static IEnumerable<RepertoireSongDto> PartialShuffle(
+        IReadOnlyList<RepertoireSongDto> source,
+        int count,
+        Random rng)
+    {
+        var pool = source.ToArray();
+        int take = Math.Min(count, pool.Length);
+        for (int i = 0; i < take; i++)
+        {
+            int j = rng.Next(i, pool.Length);
+            (pool[i], pool[j]) = (pool[j], pool[i]);
+            yield return pool[i];
+        }
     }
 
     private static StaleSongDto ToStaleSongDto(RepertoireSongDto song, DateTime asOfDate)

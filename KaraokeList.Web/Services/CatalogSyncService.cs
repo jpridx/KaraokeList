@@ -10,7 +10,7 @@ public sealed record CatalogSyncResult(bool Succeeded, string? ErrorMessage)
 
 public interface ICatalogSyncService
 {
-    Task<CatalogSyncResult> SyncFromServerAsync(CancellationToken cancellationToken = default);
+    Task<CatalogSyncResult> SyncFromServerAsync();
 }
 
 /// <summary>
@@ -24,26 +24,19 @@ public sealed class CatalogSyncService(
     ITicklerSettingsLocalStore ticklerSettingsStore,
     ICatalogVersionService versionService) : ICatalogSyncService
 {
-    public async Task<CatalogSyncResult> SyncFromServerAsync(CancellationToken cancellationToken = default)
+    public async Task<CatalogSyncResult> SyncFromServerAsync()
     {
-        cancellationToken.ThrowIfCancellationRequested();
-
         try
         {
             versionService.Invalidate();
 
             await logCatalogLoader.LoadAsync();
-            cancellationToken.ThrowIfCancellationRequested();
-
             await mySongsLoader.LoadAsync(
                 SingerListKind.MyRepertoire,
                 sortBy: "lastPerformed",
                 sortDir: "desc",
                 genreId: null);
-            cancellationToken.ThrowIfCancellationRequested();
-
             await performancesLoader.LoadAsync();
-            cancellationToken.ThrowIfCancellationRequested();
 
             var settingsResult = await api.GetTicklerSettingsAsync();
             if (settingsResult.Succeeded && settingsResult.Settings is not null)
@@ -53,13 +46,8 @@ public sealed class CatalogSyncService(
 
             return CatalogSyncResult.Ok();
         }
-        catch (Exception ex) when (ApiTransientFailure.IsTransient(ex) || ex is OperationCanceledException)
+        catch (Exception ex) when (ApiTransientFailure.IsTransient(ex))
         {
-            if (ex is OperationCanceledException)
-            {
-                throw;
-            }
-
             return CatalogSyncResult.Fail(ApiTransientFailure.ColdStartMessage);
         }
         catch (Exception ex)
