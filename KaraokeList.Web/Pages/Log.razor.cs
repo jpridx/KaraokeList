@@ -19,6 +19,11 @@ public partial class Log
     private string? loadingStep;
     private List<SingerListDto> singerLists = [];
     private IReadOnlyList<RecentLoggedPerformance> recentLogs = [];
+    private List<VenueDto> logVenues = [];
+    private List<SingerDto> logSingers = [];
+    private bool logFormResourcesLoaded;
+    private bool logFormUsingOfflineCatalog;
+    private SongPerformanceSummaryDto? selectedSongSummary;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -43,6 +48,8 @@ public partial class Log
 
             recentLogs = await LogStore.GetRecentLogsAsync();
             isLoading = false;
+
+            await EnsureLogFormResourcesAsync();
 
             if (SongId is int querySongId)
             {
@@ -83,6 +90,18 @@ public partial class Log
             recentLogs = await LogStore.GetRecentLogsAsync();
             loadingStep = null;
             isLoading = false;
+            _ = InvokeAsync(async () =>
+            {
+                try
+                {
+                    await EnsureLogFormResourcesAsync();
+                    StateHasChanged();
+                }
+                catch
+                {
+                    // Background refresh failures are silent.
+                }
+            });
             StateHasChanged();
 
             // Auto-update when the DB eventually wakes and the load completes.
@@ -117,6 +136,37 @@ public partial class Log
         recentLogs = await LogStore.GetRecentLogsAsync();
         loadingStep = null;
         isLoading = false;
+
+        await EnsureLogFormResourcesAsync();
+    }
+
+    private async Task EnsureLogFormResourcesAsync()
+    {
+        if (logFormResourcesLoaded)
+        {
+            return;
+        }
+
+        var venueResult = await CatalogLoader.LoadVenuesAsync();
+        logVenues = venueResult.Venues.ToList();
+        logFormUsingOfflineCatalog = venueResult.FromCache;
+
+        try
+        {
+            logSingers = await Api.GetSingersAsync();
+        }
+        catch (Exception ex) when (ApiTransientFailure.IsTransient(ex) || ex is HttpRequestException)
+        {
+            logFormUsingOfflineCatalog = true;
+        }
+
+        logFormResourcesLoaded = true;
+    }
+
+    private Task HandleSharedVenuesChangedAsync(IReadOnlyList<VenueDto> venues)
+    {
+        logVenues = venues.ToList();
+        return Task.CompletedTask;
     }
 
     private async Task RefreshCatalogInBackgroundAsync()
@@ -190,6 +240,7 @@ public partial class Log
     private async Task OnSongChangedAsync(int? songId)
     {
         songHint = null;
+        selectedSongSummary = null;
         if (songId is null)
         {
             return;
@@ -203,7 +254,23 @@ public partial class Log
             return;
         }
 
-        songHint = await SongSummaryHints.LoadForSongAsync(Api, songId.Value);
+        try
+        {
+            var result = await Api.GetMySongSummaryAsync(songId.Value);
+            if (result.Succeeded && result.Summary is not null)
+            {
+                selectedSongSummary = result.Summary;
+                songHint = SongSummaryHints.Format(result.Summary);
+            }
+            else
+            {
+                songHint = "Ready to log.";
+            }
+        }
+        catch (Exception ex) when (ApiTransientFailure.IsTransient(ex) || ex is HttpRequestException)
+        {
+            songHint = "Ready to log (offline).";
+        }
     }
 
     private async Task SelectSongAsync(int songId)
@@ -227,6 +294,7 @@ public partial class Log
 
         selectedSongId = null;
         songHint = null;
+        selectedSongSummary = null;
         saveMessage = message;
         saveError = null;
         recentLogs = await LogStore.GetRecentLogsAsync();
