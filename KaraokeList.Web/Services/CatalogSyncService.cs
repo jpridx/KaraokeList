@@ -22,8 +22,7 @@ public sealed class CatalogSyncService(
     IMyPerformancesLoader performancesLoader,
     IKaraokeApiClient api,
     ITicklerSettingsLocalStore ticklerSettingsStore,
-    ICatalogVersionService versionService,
-    ILogPerformanceLocalStore logStore) : ICatalogSyncService
+    ICatalogVersionService versionService) : ICatalogSyncService
 {
     public async Task<CatalogSyncResult> SyncFromServerAsync()
     {
@@ -37,8 +36,7 @@ public sealed class CatalogSyncService(
                 sortBy: "lastPerformed",
                 sortDir: "desc",
                 genreId: null);
-            var performances = await performancesLoader.LoadAsync();
-            await HydrateRecentLogsAsync(performances.Performances);
+            await performancesLoader.LoadAsync();
 
             var settingsResult = await api.GetTicklerSettingsAsync();
             if (settingsResult.Succeeded && settingsResult.Settings is not null)
@@ -56,23 +54,5 @@ public sealed class CatalogSyncService(
         {
             return CatalogSyncResult.Fail(ex.Message);
         }
-    }
-
-    private async Task HydrateRecentLogsAsync(IReadOnlyList<MyPerformanceEntryDto> performances)
-    {
-        if (performances.Count == 0)
-        {
-            return;
-        }
-
-        var localLogs = await logStore.GetRecentLogsAsync();
-        var pending = await logStore.GetPendingPerformancesAsync();
-        var merged = RecentLogsHydrator.Merge(performances, localLogs, pending);
-        if (merged.Count == 0)
-        {
-            return;
-        }
-
-        await logStore.ReplaceRecentLogsAsync(merged);
     }
 }
