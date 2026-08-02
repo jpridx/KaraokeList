@@ -45,6 +45,9 @@ public interface ILogPerformanceLocalStore
     Task<IReadOnlyList<RecentLoggedPerformance>> GetRecentLogsAsync();
     Task AddRecentLogAsync(RecentLoggedPerformance entry);
     Task ReplaceRecentLogsAsync(IReadOnlyList<RecentLoggedPerformance> entries);
+    Task<IReadOnlyList<RecentLoggedPerformance>> ReplaceRecentLogsIfBaselineAsync(
+        IReadOnlyList<RecentLoggedPerformance> entries,
+        DateTime? baselineNewestLoggedAt);
     Task<IReadOnlyList<PendingPerformanceEntry>> GetPendingPerformancesAsync();
     Task EnqueuePendingPerformanceAsync(PendingPerformanceEntry entry);
     Task RemovePendingPerformanceAsync(Guid id);
@@ -89,6 +92,32 @@ public sealed class LogPerformanceLocalStore(ILocalStorageService localStorage) 
     {
         var logs = entries.Take(MaxRecentLogs).ToList();
         await localStorage.SetItemAsync(RecentLogsKey, logs);
+    }
+
+    public async Task<IReadOnlyList<RecentLoggedPerformance>> ReplaceRecentLogsIfBaselineAsync(
+        IReadOnlyList<RecentLoggedPerformance> entries,
+        DateTime? baselineNewestLoggedAt)
+    {
+        var current = await localStorage.GetItemAsync<List<RecentLoggedPerformance>>(RecentLogsKey) ?? [];
+        var currentLogs = current.Take(MaxRecentLogs).ToList();
+        var currentNewest = currentLogs.Count > 0 ? currentLogs.Max(l => l.LoggedAt) : (DateTime?)null;
+
+        if (RecentLogsRefreshPolicy.ShouldUseLocalRecentLogs(currentNewest)
+            && !RecentLogsRefreshPolicy.ShouldUseLocalRecentLogs(baselineNewestLoggedAt))
+        {
+            return currentLogs;
+        }
+
+        if (baselineNewestLoggedAt is not null
+            && currentNewest is not null
+            && currentNewest > baselineNewestLoggedAt)
+        {
+            return currentLogs;
+        }
+
+        var logs = entries.Take(MaxRecentLogs).ToList();
+        await localStorage.SetItemAsync(RecentLogsKey, logs);
+        return logs;
     }
 
     public async Task<IReadOnlyList<PendingPerformanceEntry>> GetPendingPerformancesAsync()

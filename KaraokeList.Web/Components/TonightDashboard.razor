@@ -1,6 +1,8 @@
 @inject ILogPerformanceLocalStore LogStore
 @inject ILogCatalogLoader CatalogLoader
-@inject IKaraokeApiClient Api
+@inject IMyPerformancesLoader PerformancesLoader
+@inject IBackgroundWorkScheduler BackgroundWork
+@using KaraokeList.Shared
 
 <section class="tonight-dashboard mobile-panel">
     <header class="tonight-dashboard-header">
@@ -40,6 +42,10 @@
     private string? defaultVenueName;
     private IReadOnlyList<RecentLoggedPerformance> recentLogs = [];
 
+    private sealed record PerformancesHydrationSource(
+        IReadOnlyList<MyPerformanceEntryDto> Performances,
+        DateTime HydratedAtLocal);
+
     protected override async Task OnInitializedAsync()
     {
         // Load from localStorage immediately — no API call needed for the core content.
@@ -51,30 +57,57 @@
             // Resolve the venue name in the background so the dashboard renders instantly.
             _ = LoadVenueNameAsync(venueId);
         }
-
-        _ = RefreshRecentLogsFromApiAsync();
     }
 
-    private async Task RefreshRecentLogsFromApiAsync()
+    protected override Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Hydrate after the first paint so local recent logs render immediately.
+            BackgroundWork.Schedule(RefreshRecentLogsIfNeededAsync);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private async Task RefreshRecentLogsIfNeededAsync()
     {
         try
         {
             var localLogs = await LogStore.GetRecentLogsAsync();
-            var pending = await LogStore.GetPendingPerformancesAsync();
-            var result = await Api.GetMyPerformancesAsync(sortDir: "desc");
-            if (!result.Succeeded || result.Performances.Count == 0)
+            var newestLoggedAt = localLogs.Count > 0 ? localLogs.Max(l => l.LoggedAt) : (DateTime?)null;
+            if (RecentLogsRefreshPolicy.ShouldUseLocalRecentLogs(newestLoggedAt))
             {
                 return;
             }
 
-            var merged = RecentLogsHydrator.Merge(result.Performances, localLogs, pending);
+            var source = await GetPerformancesForHydrationAsync();
+            if (source is null || source.Performances.Count == 0)
+            {
+                return;
+            }
+
+            localLogs = await LogStore.GetRecentLogsAsync();
+            var pending = await LogStore.GetPendingPerformancesAsync();
+            newestLoggedAt = localLogs.Count > 0 ? localLogs.Max(l => l.LoggedAt) : null;
+            if (RecentLogsRefreshPolicy.ShouldUseLocalRecentLogs(newestLoggedAt))
+            {
+                recentLogs = localLogs;
+                await InvokeAsync(StateHasChanged);
+                return;
+            }
+
+            var merged = RecentLogsHydrator.Merge(
+                source.Performances,
+                localLogs,
+                pending,
+                hydratedAt: source.HydratedAtLocal);
             if (merged.Count == 0)
             {
                 return;
             }
 
-            await LogStore.ReplaceRecentLogsAsync(merged);
-            recentLogs = merged;
+            recentLogs = await LogStore.ReplaceRecentLogsIfBaselineAsync(merged, newestLoggedAt);
             await InvokeAsync(StateHasChanged);
         }
         catch
@@ -82,6 +115,35 @@
             // Non-fatal; stale local recent logs remain until the next successful refresh.
         }
     }
+
+    private async Task<PerformancesHydrationSource?> GetPerformancesForHydrationAsync()
+    {
+        var cached = await PerformancesLoader.TryGetCachedAsync();
+        if (cached is not null
+            && cached.Performances.Count > 0
+            && cached.CachedAtUtc is DateTime cachedAtUtc
+            && DateTime.UtcNow - cachedAtUtc < CatalogCachePolicy.RefreshThreshold)
+        {
+            return new PerformancesHydrationSource(cached.Performances, ToLocalTime(cachedAtUtc));
+        }
+
+        var loaded = await PerformancesLoader.LoadAsync();
+        if (loaded.Performances.Count > 0)
+        {
+            var hydratedAtUtc = loaded.CachedAtUtc ?? DateTime.UtcNow;
+            return new PerformancesHydrationSource(loaded.Performances, ToLocalTime(hydratedAtUtc));
+        }
+
+        if (cached is not null && cached.Performances.Count > 0 && cached.CachedAtUtc is DateTime staleCachedAtUtc)
+        {
+            return new PerformancesHydrationSource(cached.Performances, ToLocalTime(staleCachedAtUtc));
+        }
+
+        return null;
+    }
+
+    private static DateTime ToLocalTime(DateTime timestamp) =>
+        timestamp.Kind == DateTimeKind.Utc ? timestamp.ToLocalTime() : timestamp;
 
     private async Task LoadVenueNameAsync(int venueId)
     {

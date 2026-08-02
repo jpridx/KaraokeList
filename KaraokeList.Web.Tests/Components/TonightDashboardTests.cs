@@ -10,7 +10,9 @@ namespace KaraokeList.Web.Tests.Components;
 
 public sealed class TonightDashboardTests : AuthPageTestContext
 {
-    private readonly Mock<IKaraokeApiClient> api = new();
+    private static readonly DateTime FixedLoadTimeUtc = new(2026, 8, 2, 18, 0, 0, DateTimeKind.Utc);
+
+    private readonly Mock<IMyPerformancesLoader> performancesLoader = new();
     private readonly Mock<ILogCatalogLoader> catalogLoader = new();
     private readonly InMemoryLocalStorage localStorage = new();
 
@@ -19,9 +21,12 @@ public sealed class TonightDashboardTests : AuthPageTestContext
         base.ConfigureServices(services);
         catalogLoader.Setup(loader => loader.LoadVenuesAsync())
             .ReturnsAsync(new VenueLoadResult([], false));
-        api.Setup(client => client.GetMyPerformancesAsync(null, "desc"))
-            .ReturnsAsync(MyPerformancesResult.Ok([]));
-        services.AddSingleton<IKaraokeApiClient>(api.Object);
+        performancesLoader.Setup(loader => loader.TryGetCachedAsync())
+            .ReturnsAsync((MyPerformancesLoadResult?)null);
+        performancesLoader.Setup(loader => loader.LoadAsync())
+            .ReturnsAsync(new MyPerformancesLoadResult([], false, false, null, null, false));
+        services.AddSingleton<IBackgroundWorkScheduler, SynchronousBackgroundWorkScheduler>();
+        services.AddSingleton(performancesLoader.Object);
         services.AddSingleton(catalogLoader.Object);
         services.AddSingleton<ILogPerformanceLocalStore>(new LogPerformanceLocalStore(localStorage));
     }
@@ -38,14 +43,35 @@ public sealed class TonightDashboardTests : AuthPageTestContext
             VenueName: "Main Stage",
             PerformedOn: performedOn,
             KeyChangeSemitones: null,
-            LoggedAt: new DateTime(2026, 6, 27, 21, 30, 0)));
+            LoggedAt: new DateTime(2026, 6, 15, 12, 0, 0)));
 
         var cut = Render<TonightDashboard>();
-        cut.WaitForAssertion(() => Assert.Contains("Recently logged", cut.Markup));
 
+        Assert.Contains("Recently logged", cut.Markup);
         Assert.Contains(performedOn.ToString("d"), cut.Markup);
         Assert.DoesNotContain(performedOn.ToString("t"), cut.Markup);
         Assert.Contains("Main Stage", cut.Markup);
+    }
+
+    [Fact]
+    public async Task Recently_logged_skips_my_history_when_local_logs_are_fresh()
+    {
+        var store = (LogPerformanceLocalStore)Services.GetRequiredService<ILogPerformanceLocalStore>();
+        var loggedAt = DateTime.Now.AddMinutes(-30);
+        await store.AddRecentLogAsync(new RecentLoggedPerformance(
+            SongId: 1,
+            Title: "Tonight Song",
+            ArtistName: "Artist",
+            VenueName: "Main Stage",
+            PerformedOn: loggedAt.Date,
+            KeyChangeSemitones: null,
+            LoggedAt: loggedAt));
+
+        var cut = Render<TonightDashboard>();
+
+        Assert.Contains("Tonight Song", cut.Markup);
+        performancesLoader.Verify(loader => loader.LoadAsync(), Times.Never);
+        performancesLoader.Verify(loader => loader.TryGetCachedAsync(), Times.Never);
     }
 
     [Fact]
@@ -61,8 +87,8 @@ public sealed class TonightDashboardTests : AuthPageTestContext
             KeyChangeSemitones: null,
             LoggedAt: new DateTime(2026, 6, 11)));
 
-        api.Setup(client => client.GetMyPerformancesAsync(null, "desc"))
-            .ReturnsAsync(MyPerformancesResult.Ok(
+        performancesLoader.Setup(loader => loader.LoadAsync())
+            .ReturnsAsync(new MyPerformancesLoadResult(
             [
                 new MyPerformanceEntryDto
                 {
@@ -72,12 +98,112 @@ public sealed class TonightDashboardTests : AuthPageTestContext
                     VenueName = "Main Stage",
                     PerformedOn = new DateTime(2026, 7, 9)
                 }
-            ]));
+            ],
+            FromCache: false,
+            HasCache: true,
+            FixedLoadTimeUtc,
+            null,
+            false));
 
         var cut = Render<TonightDashboard>();
-        cut.WaitForAssertion(() => Assert.Contains("Fresh July Song", cut.Markup));
 
+        Assert.Contains("Fresh July Song", cut.Markup);
         Assert.DoesNotContain("Stale June Song", cut.Markup);
         Assert.Contains(new DateTime(2026, 7, 9).ToString("d"), cut.Markup);
+        performancesLoader.Verify(loader => loader.LoadAsync(), Times.Once);
+    }
+
+    [Fact]
+    public async Task Recently_logged_keeps_local_entry_added_during_background_refresh()
+    {
+        var store = (LogPerformanceLocalStore)Services.GetRequiredService<ILogPerformanceLocalStore>();
+        await store.AddRecentLogAsync(new RecentLoggedPerformance(
+            SongId: 99,
+            Title: "Stale June Song",
+            ArtistName: "Artist",
+            VenueName: "Old Venue",
+            PerformedOn: new DateTime(2026, 6, 11),
+            KeyChangeSemitones: null,
+            LoggedAt: new DateTime(2026, 6, 11)));
+
+        var loggedDuringRefresh = DateTime.Now.AddMinutes(-5);
+        performancesLoader.Setup(loader => loader.LoadAsync())
+            .Returns(async () =>
+            {
+                await store.AddRecentLogAsync(new RecentLoggedPerformance(
+                    SongId: 2,
+                    Title: "Just Logged",
+                    ArtistName: "Artist",
+                    VenueName: "Main Stage",
+                    PerformedOn: loggedDuringRefresh.Date,
+                    KeyChangeSemitones: null,
+                    LoggedAt: loggedDuringRefresh));
+                return new MyPerformancesLoadResult(
+                [
+                    new MyPerformanceEntryDto
+                    {
+                        SongId = 1,
+                        Title = "Fresh July Song",
+                        ArtistName = "Artist",
+                        VenueName = "Main Stage",
+                        PerformedOn = new DateTime(2026, 7, 9)
+                    }
+                ],
+                FromCache: false,
+                HasCache: true,
+                FixedLoadTimeUtc,
+                null,
+                false);
+            });
+
+        var cut = Render<TonightDashboard>();
+
+        Assert.Contains("Just Logged", cut.Markup);
+        Assert.DoesNotContain("Fresh July Song", cut.Markup);
+
+        var saved = await store.GetRecentLogsAsync();
+        Assert.Equal("Just Logged", saved[0].Title);
+    }
+
+    [Fact]
+    public async Task Recently_logged_hydrates_from_cache_using_cache_timestamp()
+    {
+        var store = (LogPerformanceLocalStore)Services.GetRequiredService<ILogPerformanceLocalStore>();
+        await store.AddRecentLogAsync(new RecentLoggedPerformance(
+            SongId: 99,
+            Title: "Stale June Song",
+            ArtistName: "Artist",
+            VenueName: "Old Venue",
+            PerformedOn: new DateTime(2026, 6, 11),
+            KeyChangeSemitones: null,
+            LoggedAt: new DateTime(2026, 6, 11)));
+
+        var cacheTimeUtc = DateTime.UtcNow.AddHours(-1);
+        var expectedLoggedAt = cacheTimeUtc.ToLocalTime();
+        performancesLoader.Setup(loader => loader.TryGetCachedAsync())
+            .ReturnsAsync(new MyPerformancesLoadResult(
+            [
+                new MyPerformanceEntryDto
+                {
+                    SongId = 1,
+                    Title = "Cached July Song",
+                    ArtistName = "Artist",
+                    VenueName = "Main Stage",
+                    PerformedOn = new DateTime(2026, 7, 9)
+                }
+            ],
+            FromCache: true,
+            HasCache: true,
+            cacheTimeUtc,
+            null,
+            false));
+
+        var cut = Render<TonightDashboard>();
+
+        Assert.Contains("Cached July Song", cut.Markup);
+        performancesLoader.Verify(loader => loader.LoadAsync(), Times.Never);
+
+        var saved = await store.GetRecentLogsAsync();
+        Assert.Equal(expectedLoggedAt, saved[0].LoggedAt);
     }
 }
