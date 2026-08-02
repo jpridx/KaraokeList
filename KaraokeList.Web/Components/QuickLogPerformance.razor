@@ -55,7 +55,8 @@
 
 @if (ShowCoPerformersEditor)
 {
-    <CoPerformersEditor PrimarySingerId="@(SingerId ?? 0)" @bind-OtherPerformers="localOtherPerformers" />
+    <CoPerformersEditor PrimarySingerId="@(SingerId ?? 0)" @bind-OtherPerformers="localOtherPerformers"
+                        SharedSingers="@SharedSingers" />
 }
 
 @if (ShowHostMessagePanel)
@@ -104,6 +105,24 @@
     [Parameter]
     public EventCallback<int?> KeyChangeSemitonesChanged { get; set; }
 
+    /// <summary>When set, venues are supplied by the parent (Log page) and not re-fetched on remount.</summary>
+    [Parameter]
+    public IReadOnlyList<VenueDto>? SharedVenues { get; set; }
+
+    /// <summary>When set with <see cref="SharedVenues"/>, singers are supplied by the parent.</summary>
+    [Parameter]
+    public IReadOnlyList<SingerDto>? SharedSingers { get; set; }
+
+    [Parameter]
+    public bool? SharedUsingOfflineCatalog { get; set; }
+
+    /// <summary>When set, defaults/hint use this summary instead of calling my-song-summary again.</summary>
+    [Parameter]
+    public SongPerformanceSummaryDto? SongSummary { get; set; }
+
+    [Parameter]
+    public EventCallback<IReadOnlyList<VenueDto>> OnSharedVenuesChanged { get; set; }
+
     private List<VenueDto> venues = [];
     private List<SingerDto> singers = [];
     private IReadOnlyList<PerformanceKeyOption> keyOptions = PerformanceKeyOption.Choices;
@@ -132,9 +151,22 @@
 
     private bool CanSave => selectedVenueId is not null && SingerId is not null;
 
+    private bool UsesSharedFormResources => SharedVenues is not null;
+
     protected override async Task OnParametersSetAsync()
     {
-        if (!venuesLoaded)
+        if (UsesSharedFormResources)
+        {
+            venues = SharedVenues!.ToList();
+            usingOfflineCatalog = SharedUsingOfflineCatalog ?? false;
+            if (SharedSingers is not null)
+            {
+                singers = SharedSingers.ToList();
+            }
+
+            venuesLoaded = true;
+        }
+        else if (!venuesLoaded)
         {
             var venueResult = await CatalogLoader.LoadVenuesAsync();
             venues = venueResult.Venues.ToList();
@@ -171,15 +203,18 @@
         }
 
         var stored = await LogStore.GetFormDefaultsAsync();
-        SongPerformanceSummaryDto? summary = null;
-        try
+        SongPerformanceSummaryDto? summary = SongSummary;
+        if (summary is null)
         {
-            var result = await Api.GetMySongSummaryAsync(SongId);
-            summary = result.Succeeded ? result.Summary : null;
-        }
-        catch (Exception ex) when (ApiTransientFailure.IsTransient(ex) || ex is HttpRequestException)
-        {
-            usingOfflineCatalog = true;
+            try
+            {
+                var result = await Api.GetMySongSummaryAsync(SongId);
+                summary = result.Succeeded ? result.Summary : null;
+            }
+            catch (Exception ex) when (ApiTransientFailure.IsTransient(ex) || ex is HttpRequestException)
+            {
+                usingOfflineCatalog = true;
+            }
         }
 
         performedOn = DateTime.Today;
@@ -311,6 +346,11 @@
             await Api.CreateVenueAsync(new VenueDto { VenueName = newVenueName.Trim() });
             var venueResult = await CatalogLoader.LoadVenuesAsync();
             venues = venueResult.Venues.ToList();
+            if (UsesSharedFormResources && OnSharedVenuesChanged.HasDelegate)
+            {
+                await OnSharedVenuesChanged.InvokeAsync(venues);
+            }
+
             var created = venues.FirstOrDefault(v =>
                 v.VenueName.Equals(newVenueName.Trim(), StringComparison.OrdinalIgnoreCase));
             if (created is not null)
