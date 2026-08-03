@@ -32,32 +32,67 @@ public sealed class MyListsLoader(
     // Bump when cached list shape changes. Old JSON deserializes SchemaVersion to 0.
     internal const int CurrentCacheSchemaVersion = 2;
 
+    private readonly SemaphoreSlim loadGate = new(1, 1);
     private Task<MyListsBundle>? inFlightLoad;
 
     public async Task<MyListsBundle> LoadAsync(Action<string>? onProgress = null, bool forceRefresh = false)
     {
-        if (inFlightLoad is not null)
+        var existing = inFlightLoad;
+        if (existing is not null)
         {
-            return await inFlightLoad;
+            return await existing;
         }
 
-        if (!forceRefresh && !await NeedsRefreshAsync())
-        {
-            var cached = await TryGetCachedAsync();
-            if (cached is not null)
-            {
-                return cached;
-            }
-        }
+        Task<MyListsBundle>? taskToAwait = null;
+        MyListsBundle? cachedResult = null;
 
-        inFlightLoad = LoadCoreAsync(onProgress);
+        await loadGate.WaitAsync();
         try
         {
-            return await inFlightLoad;
+            existing = inFlightLoad;
+            if (existing is not null)
+            {
+                taskToAwait = existing;
+            }
+            else if (!forceRefresh && !await NeedsRefreshAsync())
+            {
+                cachedResult = await TryGetCachedAsync();
+            }
+
+            if (taskToAwait is null && cachedResult is null)
+            {
+                existing = inFlightLoad;
+                if (existing is not null)
+                {
+                    taskToAwait = existing;
+                }
+                else
+                {
+                    taskToAwait = LoadCoreAsync(onProgress);
+                    inFlightLoad = taskToAwait;
+                }
+            }
         }
         finally
         {
-            inFlightLoad = null;
+            loadGate.Release();
+        }
+
+        if (cachedResult is not null)
+        {
+            return cachedResult;
+        }
+
+        try
+        {
+            return await taskToAwait!;
+        }
+        finally
+        {
+            if (ReferenceEquals(inFlightLoad, taskToAwait))
+            {
+                inFlightLoad = null;
+            }
         }
     }
 

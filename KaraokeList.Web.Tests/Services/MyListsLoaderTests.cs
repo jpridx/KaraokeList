@@ -1,3 +1,4 @@
+using System.Reflection;
 using KaraokeList.Shared;
 using KaraokeList.Web.Services;
 using KaraokeList.Web.Tests.TestDoubles;
@@ -60,6 +61,23 @@ public sealed class MyListsLoaderTests
     }
 
     [Fact]
+    public async Task LoadAsync_clears_in_flight_task_after_completion()
+    {
+        var loader = new MyListsLoader(
+            new ListsApiStub(),
+            new MySongsLocalStore(new InMemoryLocalStorage()),
+            new LogPerformanceLocalStore(new InMemoryLocalStorage()),
+            new NullVersion());
+
+        await loader.LoadAsync();
+
+        var inFlight = typeof(MyListsLoader)
+            .GetField("inFlightLoad", BindingFlags.NonPublic | BindingFlags.Instance)!
+            .GetValue(loader);
+        Assert.Null(inFlight);
+    }
+
+    [Fact]
     public async Task LoadAsync_when_cache_fresh_skips_api()
     {
         var mySongsStore = new MySongsLocalStore(new InMemoryLocalStorage());
@@ -67,7 +85,10 @@ public sealed class MyListsLoaderTests
         var api = new CountingListsApiStub();
         var loader = new MyListsLoader(api, mySongsStore, logStore, new NullVersion());
 
-        _ = await loader.LoadAsync();
+        var first = await loader.LoadAsync();
+        Assert.False(first.FromCache);
+        Assert.False(await loader.NeedsRefreshAsync());
+        Assert.NotNull(await loader.TryGetCachedAsync());
         api.ResetCounts();
 
         var second = await loader.LoadAsync();
@@ -87,6 +108,24 @@ public sealed class MyListsLoaderTests
 
         var first = loader.LoadAsync(forceRefresh: true);
         var second = loader.LoadAsync(forceRefresh: true);
+        await Task.Delay(50);
+        api.ReleaseGate();
+        await Task.WhenAll(first, second);
+
+        Assert.Equal(1, api.MyListsCallCount);
+        Assert.Equal(3, api.ListSongsCallCount);
+    }
+
+    [Fact]
+    public async Task LoadAsync_concurrent_calls_without_force_refresh_share_one_fetch()
+    {
+        var mySongsStore = new MySongsLocalStore(new InMemoryLocalStorage());
+        var logStore = new LogPerformanceLocalStore(new InMemoryLocalStorage());
+        var api = new GatedListsApiStub();
+        var loader = new MyListsLoader(api, mySongsStore, logStore, new NullVersion());
+
+        var first = loader.LoadAsync();
+        var second = loader.LoadAsync();
         await Task.Delay(50);
         api.ReleaseGate();
         await Task.WhenAll(first, second);
