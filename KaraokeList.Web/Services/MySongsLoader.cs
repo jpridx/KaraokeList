@@ -30,14 +30,9 @@ public interface IMySongsLoader
 }
 
 public sealed class MySongsLoader(
-    IKaraokeApiClient api,
-    IMySongsLocalStore store,
-    ICatalogVersionService versionService) : IMySongsLoader
+    IMyListsLoader myListsLoader,
+    IMySongsLocalStore store) : IMySongsLoader
 {
-    // Bump this when the shape of cached data changes in a way that requires a fresh load.
-    // Old cached JSON deserializes SchemaVersion to 0, so any value >= 1 triggers invalidation.
-    private const int CurrentCacheSchemaVersion = 2;
-
     public async Task<MySongsLoadResult> LoadAsync(
         SingerListKind listKind,
         string sortBy,
@@ -46,52 +41,33 @@ public sealed class MySongsLoader(
         string? groupName = null,
         Action<string>? onProgress = null)
     {
-        try
+        var bundle = await myListsLoader.LoadAsync(onProgress);
+        if (!bundle.Succeeded)
         {
-            onProgress?.Invoke("Loading your playlists...");
-            var listsResult = await api.GetMyListsAsync();
-            if (!listsResult.Succeeded)
-            {
-                return await LoadOfflineOrFailAsync(
-                    listKind,
-                    sortBy,
-                    sortDir,
-                    genreId,
-                    groupName,
-                    listsResult.ErrorMessage,
-                    listsResult.ErrorMessage?.Contains("not linked", StringComparison.OrdinalIgnoreCase) == true);
-            }
-
-            var songsByKind = await LoadAllListSongsAsync(listsResult.Lists, onProgress);
-            onProgress?.Invoke("Loading genre groups...");
-            var genreGroups = await api.GetGenreGroupsAsync();
-            onProgress?.Invoke("Saving for offline use...");
-            var cachedAt = DateTime.UtcNow;
-            var cacheTag = await versionService.GetCacheTagAsync();
-            await store.SaveCachedListsAsync(new CachedMySongsLists(
-                listsResult.Lists,
-                songsByKind.Select(kv => new CachedListSongsEntry(kv.Key, kv.Value)).ToList(),
-                cachedAt,
-                cacheTag,
-                CurrentCacheSchemaVersion,
-                genreGroups));
-
-            return BuildResult(
-                listsResult.Lists,
-                songsByKind,
+            return ToLoadResult(
+                bundle,
                 listKind,
                 sortBy,
                 sortDir,
                 genreId,
                 groupName,
-                genreGroups,
-                FromCache: false,
-                cachedAt);
+                bundle.FromCache,
+                bundle.NeedsSingerLink
+                    ? bundle.ErrorMessage
+                    : bundle.ErrorMessage ?? "Could not load lists. Open My Songs once while online to cache them.");
         }
-        catch (Exception ex) when (ApiTransientFailure.IsTransient(ex))
-        {
-            return await LoadOfflineOrFailAsync(listKind, sortBy, sortDir, genreId, groupName, null, needsSingerLink: false);
-        }
+
+        return BuildResult(
+            bundle.Lists,
+            bundle.SongsByKind,
+            listKind,
+            sortBy,
+            sortDir,
+            genreId,
+            groupName,
+            bundle.GenreGroups,
+            bundle.FromCache,
+            bundle.CachedAtUtc);
     }
 
     public async Task<MySongsLoadResult?> TryGetCachedAsync(
@@ -101,154 +77,51 @@ public sealed class MySongsLoader(
         int? genreId,
         string? groupName = null)
     {
-        var cached = await store.GetCachedListsAsync();
-        if (cached is null || cached.ListsSongs.Count == 0)
+        var bundle = await myListsLoader.TryGetCachedAsync();
+        if (bundle is null)
         {
             return null;
         }
 
-        // Old cache (SchemaVersion < CurrentCacheSchemaVersion) may have missing or incorrect
-        // GenreId values, but the song and list data itself is still usable. Serve it so the
-        // fast path can show content immediately rather than blocking on a cold DB.
-        // NeedsRefreshAsync() returns true for old schema, so a background refresh will fetch
-        // fresh data (with correct GenreId) once the API is reachable.
-
-        var songsByKind = cached.ListsSongs.ToDictionary(
-            entry => entry.Kind,
-            entry => entry.Songs.ToList());
-
         return BuildResult(
-            cached.Lists,
-            songsByKind,
+            bundle.Lists,
+            bundle.SongsByKind,
             listKind,
             sortBy,
             sortDir,
             genreId,
             groupName,
-            cached.GenreGroups ?? [],
+            bundle.GenreGroups,
             FromCache: true,
-            cached.CachedAtUtc);
+            bundle.CachedAtUtc);
     }
 
-    public async Task<bool> NeedsRefreshAsync()
-    {
-        var cached = await store.GetCachedListsAsync();
-        if (cached is null || cached.ListsSongs.Count == 0)
-        {
-            return true;
-        }
+    public Task<bool> NeedsRefreshAsync() => myListsLoader.NeedsRefreshAsync();
 
-        if (cached.SchemaVersion < CurrentCacheSchemaVersion)
-        {
-            return true;
-        }
-
-        var isStaleByAge = DateTime.UtcNow - cached.CachedAtUtc >= CatalogCachePolicy.RefreshThreshold;
-
-        try
-        {
-            var serverTag = await versionService.GetCacheTagAsync(forceRefresh: true);
-            if (serverTag is null)
-            {
-                return isStaleByAge;
-            }
-
-            if (!string.Equals(cached.CacheTag, serverTag, StringComparison.Ordinal))
-            {
-                return true;
-            }
-
-            if (isStaleByAge)
-            {
-                await store.SaveCachedListsAsync(cached with { CachedAtUtc = DateTime.UtcNow });
-            }
-
-            return false;
-        }
-        catch
-        {
-            return isStaleByAge;
-        }
-    }
-
-    private async Task<Dictionary<SingerListKind, List<RepertoireSongDto>>> LoadAllListSongsAsync(
-        IReadOnlyList<SingerListDto> lists,
-        Action<string>? onProgress = null)
-    {
-        var songsByKind = new Dictionary<SingerListKind, List<RepertoireSongDto>>();
-        foreach (var list in lists)
-        {
-            onProgress?.Invoke($"Loading {list.DisplayName} songs...");
-            var songsResult = await api.GetListSongsAsync(list.Id);
-            if (songsResult.Succeeded)
-            {
-                songsByKind[list.Kind] = songsResult.Songs.ToList();
-            }
-        }
-
-        return songsByKind;
-    }
-
-    private async Task<MySongsLoadResult> LoadOfflineOrFailAsync(
+    private static MySongsLoadResult ToLoadResult(
+        MyListsBundle bundle,
         SingerListKind listKind,
         string sortBy,
         string sortDir,
         int? genreId,
         string? groupName,
-        string? errorMessage,
-        bool needsSingerLink)
-    {
-        var cached = await store.GetCachedListsAsync();
-        if (cached is null || cached.ListsSongs.Count == 0)
-        {
-            if (needsSingerLink)
-            {
-                return new MySongsLoadResult(
-                    [],
-                    [],
-                    [],
-                    [],
-                    [],
-                    FromCache: false,
-                    HasCache: false,
-                    null,
-                    errorMessage,
-                    true);
-            }
-
-            return new MySongsLoadResult(
-                [],
-                [],
-                [],
-                [],
-                [],
-                FromCache: true,
-                HasCache: false,
-                null,
-                errorMessage ?? "Could not load lists. Open My Songs once while online to cache them.",
-                false);
-        }
-
-        var songsByKind = cached.ListsSongs.ToDictionary(
-            entry => entry.Kind,
-            entry => entry.Songs.ToList());
-
-        return BuildResult(
-            cached.Lists,
-            songsByKind,
-            listKind,
-            sortBy,
-            sortDir,
-            genreId,
-            groupName,
-            cached.GenreGroups ?? [],
-            FromCache: true,
-            cached.CachedAtUtc);
-    }
+        bool fromCache,
+        string? errorMessage) =>
+        new(
+            [],
+            [],
+            [],
+            [],
+            [],
+            fromCache,
+            HasCache: false,
+            bundle.CachedAtUtc,
+            errorMessage,
+            bundle.NeedsSingerLink);
 
     private static MySongsLoadResult BuildResult(
         IReadOnlyList<SingerListDto> lists,
-        IReadOnlyDictionary<SingerListKind, List<RepertoireSongDto>> songsByKind,
+        IReadOnlyDictionary<SingerListKind, IReadOnlyList<RepertoireSongDto>> songsByKind,
         SingerListKind listKind,
         string sortBy,
         string sortDir,
@@ -297,8 +170,6 @@ public sealed class MySongsLoader(
 
     public async Task PatchCachedSongGenreAsync(int songId, int? genreId, string genreName)
     {
-        versionService.Invalidate();
-
         var cached = await store.GetCachedListsAsync();
         if (cached is null || cached.ListsSongs.Count == 0)
         {

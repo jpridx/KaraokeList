@@ -24,7 +24,8 @@ public sealed class LogCatalogLoader(
     IKaraokeApiClient api,
     ILogPerformanceLocalStore store,
     ICatalogVersionService versionService,
-    ITicklerExclusionsLocalStore exclusionsStore) : ILogCatalogLoader
+    ITicklerExclusionsLocalStore exclusionsStore,
+    IMyListsLoader myListsLoader) : ILogCatalogLoader
 {
 
     public async Task<LogCatalogSnapshot> LoadAsync(Action<string>? onProgress = null)
@@ -43,35 +44,12 @@ public sealed class LogCatalogLoader(
             onProgress?.Invoke("Loading venues...");
             var venues = await api.GetVenuesAsync();
 
-            onProgress?.Invoke("Loading your playlists...");
-            var lists = await api.GetMyListsAsync();
-
-            var repertoireList = lists.Succeeded
-                ? SingerListResolver.FindList(lists.Lists, SingerListKind.MyRepertoire)
-                : null;
-
-            onProgress?.Invoke("Loading My Repertoire songs...");
-            var repertoire = repertoireList is not null
-                ? await api.GetListSongsAsync(repertoireList.Id)
-                : RepertoireResult.Fail("Could not load My repertoire list.");
-            var repertoireIds = repertoire.Succeeded
-                ? repertoire.Songs.Select(s => s.SongId).ToHashSet()
-                : [];
-            var repertoireStats = repertoire.Succeeded
-                ? repertoire.Songs.Select(MapRepertoireStatsEntry).ToList()
-                : [];
-
-            var workingUpList = lists.Succeeded
-                ? SingerListResolver.FindList(lists.Lists, SingerListKind.WorkingUp)
-                : null;
-
-            onProgress?.Invoke("Loading Working Up songs...");
-            var workingUp = workingUpList is not null
-                ? await api.GetListSongsAsync(workingUpList.Id)
-                : RepertoireResult.Fail("Could not load Working up list.");
-            var workingUpIds = workingUp.Succeeded
-                ? workingUp.Songs.Select(s => s.SongId).ToHashSet()
-                : [];
+            var listsBundle = await myListsLoader.LoadAsync(onProgress);
+            var repertoire = listsBundle.SongsByKind.GetValueOrDefault(SingerListKind.MyRepertoire) ?? [];
+            var workingUp = listsBundle.SongsByKind.GetValueOrDefault(SingerListKind.WorkingUp) ?? [];
+            var repertoireIds = repertoire.Select(s => s.SongId).ToHashSet();
+            var repertoireStats = repertoire.Select(MyListsLoader.MapRepertoireStatsEntry).ToList();
+            var workingUpIds = workingUp.Select(s => s.SongId).ToHashSet();
 
             var artistNames = artists.ToDictionary(a => a.Id, a => a.Name);
             var pickItems = CatalogSongMapper.ToPickItems(songs, artistNames, repertoireIds, workingUpIds);
@@ -315,15 +293,6 @@ public sealed class LogCatalogLoader(
             await exclusionsStore.SaveExcludedSongIdsAsync(result.SongIds);
         }
     }
-
-    private static CachedRepertoireStatsEntry MapRepertoireStatsEntry(RepertoireSongDto song) =>
-        new(
-            song.SongId,
-            song.Title,
-            song.ArtistName,
-            string.IsNullOrWhiteSpace(song.ArtistDisplay) ? song.ArtistName : song.ArtistDisplay,
-            song.LastPerformedOn,
-            song.PerformanceCount);
 
     private async Task<LookupsLoadResult> LoadLookupsFromCacheAsync()
     {

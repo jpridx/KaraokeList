@@ -12,6 +12,7 @@ public sealed class LogPageApiBudgetTests : AuthPageTestContext
 {
     private readonly Mock<ILogCatalogLoader> catalogLoader = new();
     private readonly Mock<ILogPerformanceLocalStore> logStore = new();
+    private readonly Mock<IMyListsLoader> myListsLoader = new();
     private readonly Mock<IMySongsLoader> mySongsLoader = new();
 
     public LogPageApiBudgetTests()
@@ -42,8 +43,15 @@ public sealed class LogPageApiBudgetTests : AuthPageTestContext
         logStore.Setup(store => store.GetFormDefaultsAsync())
             .ReturnsAsync(new LogFormDefaults(3));
 
-        Api.Setup(client => client.GetMyListsAsync())
-            .ReturnsAsync(SingerListsResult.Ok([]));
+        myListsLoader.Setup(loader => loader.NeedsRefreshAsync()).ReturnsAsync(false);
+        myListsLoader.Setup(loader => loader.TryGetCachedAsync())
+            .ReturnsAsync(new MyListsBundle(
+                [],
+                new Dictionary<SingerListKind, IReadOnlyList<RepertoireSongDto>>(),
+                [],
+                Succeeded: true,
+                FromCache: true,
+                CachedAtUtc: DateTime.UtcNow));
 
         Api.Setup(client => client.GetMySongSummaryAsync(42))
             .ReturnsAsync(SongSummaryResult.Ok(new SongPerformanceSummaryDto
@@ -64,6 +72,7 @@ public sealed class LogPageApiBudgetTests : AuthPageTestContext
         AddSyncfusionServices(services);
         services.AddSingleton(catalogLoader.Object);
         services.AddSingleton(logStore.Object);
+        services.AddSingleton(myListsLoader.Object);
         services.AddSingleton(mySongsLoader.Object);
     }
 
