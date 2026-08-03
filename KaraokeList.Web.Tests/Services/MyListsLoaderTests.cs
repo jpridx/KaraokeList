@@ -39,6 +39,27 @@ public sealed class MyListsLoaderTests
     }
 
     [Fact]
+    public async Task LoadAsync_preserves_log_catalog_cached_at_when_syncing_list_fields()
+    {
+        var mySongsStore = new MySongsLocalStore(new InMemoryLocalStorage());
+        var logStore = new LogPerformanceLocalStore(new InMemoryLocalStorage());
+        var catalogCachedAt = DateTime.UtcNow.AddHours(-6);
+        await logStore.SaveCachedCatalogAsync(new CachedLogCatalog(
+            [new CachedSongEntry(1, "Jeopardy", "The Greg Kihn Band")],
+            [],
+            [],
+            catalogCachedAt));
+
+        var loader = new MyListsLoader(new ListsApiStub(), mySongsStore, logStore, new NullVersion());
+
+        _ = await loader.LoadAsync();
+
+        var logCache = await logStore.GetCachedCatalogAsync();
+        Assert.NotNull(logCache);
+        Assert.Equal(catalogCachedAt, logCache!.CachedAtUtc);
+    }
+
+    [Fact]
     public async Task LoadAsync_when_cache_fresh_skips_api()
     {
         var mySongsStore = new MySongsLocalStore(new InMemoryLocalStorage());

@@ -140,7 +140,7 @@ public sealed class MyListsLoader(
                 CurrentCacheSchemaVersion,
                 genreGroups));
 
-            await SyncListFieldsToLogCatalogAsync(songsByKind, cachedAt);
+            await SyncListFieldsToLogCatalogAsync(songsByKind);
 
             return new MyListsBundle(
                 listsResult.Lists,
@@ -194,8 +194,7 @@ public sealed class MyListsLoader(
     }
 
     private async Task SyncListFieldsToLogCatalogAsync(
-        IReadOnlyDictionary<SingerListKind, List<RepertoireSongDto>> songsByKind,
-        DateTime cachedAt)
+        IReadOnlyDictionary<SingerListKind, List<RepertoireSongDto>> songsByKind)
     {
         var logCached = await logStore.GetCachedCatalogAsync();
         if (logCached is null)
@@ -206,12 +205,13 @@ public sealed class MyListsLoader(
         var repertoire = songsByKind.GetValueOrDefault(SingerListKind.MyRepertoire) ?? [];
         var workingUp = songsByKind.GetValueOrDefault(SingerListKind.WorkingUp) ?? [];
 
+        // Patch list membership only — preserve CachedAtUtc so catalog TTL still reflects
+        // when songs/venues/lookups were last fetched, not when lists were synced.
         await logStore.SaveCachedCatalogAsync(logCached with
         {
             RepertoireSongIds = repertoire.Select(s => s.SongId).ToList(),
             WorkingUpSongIds = workingUp.Select(s => s.SongId).ToList(),
-            RepertoireStats = repertoire.Select(MapRepertoireStatsEntry).ToList(),
-            CachedAtUtc = cachedAt
+            RepertoireStats = repertoire.Select(MapRepertoireStatsEntry).ToList()
         });
     }
 
