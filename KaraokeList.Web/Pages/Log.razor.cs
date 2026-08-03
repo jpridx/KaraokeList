@@ -10,6 +10,7 @@ public partial class Log
     [Inject] private IKaraokeApiClient Api { get; set; } = default!;
     [Inject] private ILogPerformanceLocalStore LogStore { get; set; } = default!;
     [Inject] private ILogCatalogLoader CatalogLoader { get; set; } = default!;
+    [Inject] private IMyListsLoader MyListsLoader { get; set; } = default!;
     [Inject] private IMySongsLoader MySongsLoader { get; set; } = default!;
 
     #region Data loader / orchestration
@@ -114,8 +115,12 @@ public partial class Log
 
                     if (!catalogState.UsingOfflineCatalog)
                     {
-                        var listsResult = await SingerListResolver.LoadListsAsync(Api);
-                        if (listsResult.Succeeded) singerLists = listsResult.Lists;
+                        var listsBundle = await MyListsLoader.TryGetCachedAsync()
+                            ?? await MyListsLoader.LoadAsync();
+                        if (listsBundle.Succeeded)
+                        {
+                            singerLists = listsBundle.Lists.ToList();
+                        }
                     }
 
                     recentLogs = await LogStore.GetRecentLogsAsync();
@@ -129,8 +134,12 @@ public partial class Log
 
         if (!catalogState.UsingOfflineCatalog)
         {
-            var listsResult = await SingerListResolver.LoadListsAsync(Api);
-            if (listsResult.Succeeded) singerLists = listsResult.Lists;
+            var listsBundle = await MyListsLoader.TryGetCachedAsync()
+                ?? await MyListsLoader.LoadAsync();
+            if (listsBundle.Succeeded)
+            {
+                singerLists = listsBundle.Lists.ToList();
+            }
         }
 
         recentLogs = await LogStore.GetRecentLogsAsync();
@@ -183,11 +192,17 @@ public partial class Log
                     catalogState.Apply(refreshed);
                 }
             }
+            else if (await MyListsLoader.NeedsRefreshAsync())
+            {
+                await MyListsLoader.LoadAsync();
+            }
 
-            // Singer lists were skipped in the fast-path initial render.
-            // Always load them here so the add-to-list dropdown populates.
-            var listsResult = await SingerListResolver.LoadListsAsync(Api);
-            if (listsResult.Succeeded) singerLists = listsResult.Lists;
+            // Lists are loaded with the catalog via IMyListsLoader (shared My Songs cache).
+            var listsBundle = await MyListsLoader.TryGetCachedAsync();
+            if (listsBundle is not null)
+            {
+                singerLists = listsBundle.Lists.ToList();
+            }
 
             recentLogs = await LogStore.GetRecentLogsAsync();
             await InvokeAsync(StateHasChanged);

@@ -11,12 +11,18 @@ public sealed class LogCatalogLoaderTests
         IKaraokeApiClient api,
         LogPerformanceLocalStore store,
         ICatalogVersionService? versionService = null,
-        ITicklerExclusionsLocalStore? exclusionsStore = null) =>
+        ITicklerExclusionsLocalStore? exclusionsStore = null,
+        IMyListsLoader? myListsLoader = null) =>
         new(
             api,
             store,
             versionService ?? new NullVersion(),
-            exclusionsStore ?? new TicklerExclusionsLocalStore(new InMemoryLocalStorage()));
+            exclusionsStore ?? new TicklerExclusionsLocalStore(new InMemoryLocalStorage()),
+            myListsLoader ?? new MyListsLoader(
+                api,
+                new MySongsLocalStore(new InMemoryLocalStorage()),
+                store,
+                versionService ?? new NullVersion()));
 
     [Fact]
     public async Task LoadAsync_when_online_saves_catalog_and_returns_fresh_data()
@@ -321,6 +327,12 @@ public sealed class LogCatalogLoaderTests
         {
             ThrowIfOffline();
             return Task.FromResult(TicklerExclusionsResult.Ok([]));
+        }
+
+        public override Task<List<GenreGroupDto>> GetGenreGroupsAsync()
+        {
+            ThrowIfOffline();
+            return Task.FromResult(new List<GenreGroupDto>());
         }
     }
 }

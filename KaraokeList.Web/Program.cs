@@ -44,6 +44,7 @@ builder.Services.AddScoped<ICatalogVersionService, CatalogVersionService>();
 builder.Services.AddScoped<ILogPerformanceLocalStore, LogPerformanceLocalStore>();
 builder.Services.AddScoped<ISingerProfileLocalStore, SingerProfileLocalStore>();
 builder.Services.AddScoped<ISingerProfileResolver, SingerProfileResolver>();
+builder.Services.AddScoped<IMyListsLoader, MyListsLoader>();
 builder.Services.AddScoped<ILogCatalogLoader, LogCatalogLoader>();
 builder.Services.AddScoped<IPendingPerformanceSyncService, PendingPerformanceSyncService>();
 builder.Services.AddScoped<IMySongsLocalStore, MySongsLocalStore>();

@@ -7,12 +7,23 @@ namespace KaraokeList.Web.Tests.Services;
 
 public sealed class MySongsLoaderTests
 {
+    private static MySongsLoader CreateLoader(
+        IKaraokeApiClient api,
+        MySongsLocalStore store,
+        LogPerformanceLocalStore? logStore = null,
+        ICatalogVersionService? versionService = null)
+    {
+        var log = logStore ?? new LogPerformanceLocalStore(new InMemoryLocalStorage());
+        var myListsLoader = new MyListsLoader(api, store, log, versionService ?? new NullVersion());
+        return new MySongsLoader(myListsLoader, store);
+    }
+
     [Fact]
     public async Task LoadAsync_when_online_saves_lists_and_returns_sorted_songs()
     {
         var store = new MySongsLocalStore(new InMemoryLocalStorage());
         var api = new ListsApiStub();
-        var loader = new MySongsLoader(api, store, new NullVersion());
+        var loader = CreateLoader(api, store);
 
         var result = await loader.LoadAsync(SingerListKind.WorkingUp, "title", "asc", genreId: null);
 
@@ -37,7 +48,7 @@ public sealed class MySongsLoaderTests
                 [new RepertoireSongDto { SongId = 9, Title = "Bohemian Rhapsody", ArtistName = "Queen" }])],
             DateTime.UtcNow.AddHours(-2)));
 
-        var loader = new MySongsLoader(new ListsApiStub { ThrowOffline = true }, store, new NullVersion());
+        var loader = CreateLoader(new ListsApiStub { ThrowOffline = true }, store);
         var result = await loader.LoadAsync(SingerListKind.WorkingUp, "title", "asc", genreId: null);
 
         Assert.True(result.FromCache);
@@ -49,10 +60,9 @@ public sealed class MySongsLoaderTests
     [Fact]
     public async Task LoadAsync_when_offline_without_cache_returns_error()
     {
-        var loader = new MySongsLoader(
+        var loader = CreateLoader(
             new ListsApiStub { ThrowOffline = true },
-            new MySongsLocalStore(new InMemoryLocalStorage()),
-            new NullVersion());
+            new MySongsLocalStore(new InMemoryLocalStorage()));
 
         var result = await loader.LoadAsync(SingerListKind.MyRepertoire, "title", "asc", genreId: null);
 
@@ -78,7 +88,7 @@ public sealed class MySongsLoaderTests
             CacheTag: null,
             SchemaVersion: 0));
 
-        var loader = new MySongsLoader(new ListsApiStub(), store, new NullVersion());
+        var loader = CreateLoader(new ListsApiStub(), store);
         var result = await loader.TryGetCachedAsync(SingerListKind.MyRepertoire, "title", "asc", genreId: null);
 
         Assert.NotNull(result);
@@ -105,7 +115,7 @@ public sealed class MySongsLoaderTests
             CacheTag: null,
             SchemaVersion: 0));
 
-        var loader = new MySongsLoader(new ListsApiStub(), store, new NullVersion());
+        var loader = CreateLoader(new ListsApiStub(), store);
         var needsRefresh = await loader.NeedsRefreshAsync();
 
         Assert.True(needsRefresh);
@@ -129,7 +139,7 @@ public sealed class MySongsLoaderTests
             SchemaVersion: 2,
             genreGroups));
 
-        var loader = new MySongsLoader(new ListsApiStub(), store, new NullVersion());
+        var loader = CreateLoader(new ListsApiStub(), store);
         var result = await loader.TryGetCachedAsync(
             SingerListKind.MyRepertoire,
             "title",
@@ -161,7 +171,7 @@ public sealed class MySongsLoaderTests
             SchemaVersion: 2,
             genreGroups));
 
-        var loader = new MySongsLoader(new ListsApiStub(), store, new NullVersion());
+        var loader = CreateLoader(new ListsApiStub(), store);
         var result = await loader.TryGetCachedAsync(
             SingerListKind.MyRepertoire,
             "title",
@@ -193,7 +203,7 @@ public sealed class MySongsLoaderTests
             SchemaVersion: 2,
             genreGroups));
 
-        var loader = new MySongsLoader(new ListsApiStub(), store, new NullVersion());
+        var loader = CreateLoader(new ListsApiStub(), store);
         var result = await loader.TryGetCachedAsync(
             SingerListKind.MyRepertoire,
             "title",
@@ -232,7 +242,7 @@ public sealed class MySongsLoaderTests
             CacheTag: "tag",
             SchemaVersion: 2));
 
-        var loader = new MySongsLoader(new ListsApiStub(), store, new NullVersion());
+        var loader = CreateLoader(new ListsApiStub(), store);
         await loader.PatchCachedSongGenreAsync(5, 10, "Classic Rock");
 
         var cached = await store.GetCachedListsAsync();
