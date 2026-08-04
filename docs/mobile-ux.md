@@ -229,7 +229,7 @@ See [Performances.md](Performances.md) for schema and endpoints. Key calls:
 - `GET api/performances/my-stale-songs` — server-side stale sample (retained for integration tests; Home no longer calls this in normal use)
 - `GET api/singers/me/tickler-exclusions` — bulk excluded song IDs (loaded during Log cache refresh / Sync from server)
 - `GET api/performances/my-stats?topVenues=&topSongs=&topArtists=&newRepertoireDays=` — singer totals, recency, ranked lists (0 = omit a section; optional `asOfDate=yyyy-MM-dd`; WASM sends browser-local today)
-- `GET api/auth/tickler-settings`, `PUT api/auth/tickler-settings` — per-user stale-song days and limit (cached locally during Log / My Songs refresh and on the Preferences page)
+- `GET api/auth/tickler-settings`, `PUT api/auth/tickler-settings` — per-user stale-song days and limit (cached locally during Log / My Songs refresh, on the Preferences page, and explicitly on **Sync from server**)
 - `POST api/performances` — save (singer from JWT if omitted)
 - `GET api/auth/me` — singer link status
 - `GET api/auth/invite-share` — invite link/message payload for signed-in users (when invite-only registration is configured)

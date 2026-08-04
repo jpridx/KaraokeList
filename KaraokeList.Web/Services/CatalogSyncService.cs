@@ -14,13 +14,15 @@ public interface ICatalogSyncService
 }
 
 /// <summary>
-/// Standard sync: log catalog (repertoire stats + exclusions), My Songs lists, My Performances.
-/// Tickler settings are cached during list refresh inside <see cref="MyListsLoader"/>.
+/// Standard sync: log catalog (repertoire stats + exclusions), My Songs lists, My Performances,
+/// and tickler settings (explicit fetch ensures settings refresh even when list caches are fresh).
 /// </summary>
 public sealed class CatalogSyncService(
     ILogCatalogLoader logCatalogLoader,
     IMySongsLoader mySongsLoader,
     IMyPerformancesLoader performancesLoader,
+    IKaraokeApiClient api,
+    ITicklerSettingsLocalStore ticklerSettingsStore,
     ICatalogVersionService versionService) : ICatalogSyncService
 {
     public async Task<CatalogSyncResult> SyncFromServerAsync()
@@ -36,6 +38,12 @@ public sealed class CatalogSyncService(
                 sortDir: "desc",
                 genreId: null);
             await performancesLoader.LoadAsync();
+
+            var settingsResult = await api.GetTicklerSettingsAsync();
+            if (settingsResult.Succeeded && settingsResult.Settings is not null)
+            {
+                await ticklerSettingsStore.SaveAsync(settingsResult.Settings);
+            }
 
             return CatalogSyncResult.Ok();
         }

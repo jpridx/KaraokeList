@@ -81,7 +81,15 @@ public sealed class MyListsLoader(
 
         if (cachedResult is not null)
         {
-            // Fresh online cache hit — not an offline fallback.
+            // Fresh online cache hit — still refresh tickler settings best-effort.
+            try
+            {
+                await RefreshTicklerSettingsAsync();
+            }
+            catch (Exception ex) when (ApiTransientFailure.IsTransient(ex))
+            {
+            }
+
             return cachedResult with { FromCache = false };
         }
 

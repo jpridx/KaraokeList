@@ -90,12 +90,16 @@ public sealed class MyListsLoaderTests
     }
 
     [Fact]
-    public async Task LoadAsync_when_cache_fresh_skips_api()
+    public async Task LoadAsync_when_cache_fresh_skips_list_api_but_refreshes_tickler_settings()
     {
         var mySongsStore = new MySongsLocalStore(new InMemoryLocalStorage());
         var logStore = new LogPerformanceLocalStore(new InMemoryLocalStorage());
-        var api = new CountingListsApiStub();
-        var loader = CreateLoader(api, mySongsStore, logStore);
+        var ticklerSettingsStore = new TicklerSettingsLocalStore(new InMemoryLocalStorage());
+        var api = new CountingListsApiStub
+        {
+            TicklerSettings = new TicklerSettingsDto { StaleAfterDays = 45, SongLimit = 4 }
+        };
+        var loader = CreateLoader(api, mySongsStore, logStore, ticklerSettingsStore: ticklerSettingsStore);
 
         var first = await loader.LoadAsync();
         Assert.False(first.FromCache);
@@ -108,6 +112,30 @@ public sealed class MyListsLoaderTests
         Assert.False(second.FromCache);
         Assert.Equal(0, api.MyListsCallCount);
         Assert.Equal(0, api.ListSongsCallCount);
+        Assert.Equal(1, api.TicklerSettingsCallCount);
+
+        var cached = await ticklerSettingsStore.GetAsync();
+        Assert.Equal(45, cached.StaleAfterDays);
+        Assert.Equal(4, cached.SongLimit);
+    }
+
+    [Fact]
+    public async Task LoadAsync_when_cache_fresh_and_tickler_settings_fail_still_returns_lists()
+    {
+        var mySongsStore = new MySongsLocalStore(new InMemoryLocalStorage());
+        var logStore = new LogPerformanceLocalStore(new InMemoryLocalStorage());
+        var api = new CountingListsApiStub { ThrowOnTicklerSettings = true };
+        var loader = CreateLoader(api, mySongsStore, logStore);
+
+        _ = await loader.LoadAsync();
+        Assert.False(await loader.NeedsRefreshAsync());
+        api.ResetCounts();
+
+        var second = await loader.LoadAsync();
+
+        Assert.True(second.Succeeded);
+        Assert.Equal(3, second.Lists.Count);
+        Assert.Equal(0, api.MyListsCallCount);
     }
 
     [Fact]
@@ -211,11 +239,14 @@ public sealed class MyListsLoaderTests
     {
         public int MyListsCallCount { get; private set; }
         public int ListSongsCallCount { get; private set; }
+        public int TicklerSettingsCallCount { get; private set; }
+        public bool ThrowOnTicklerSettings { get; init; }
 
         public void ResetCounts()
         {
             MyListsCallCount = 0;
             ListSongsCallCount = 0;
+            TicklerSettingsCallCount = 0;
         }
 
         public override Task<SingerListsResult> GetMyListsAsync()
@@ -232,6 +263,17 @@ public sealed class MyListsLoaderTests
         {
             ListSongsCallCount++;
             return base.GetListSongsAsync(listId, sortBy, sortDir, genreId);
+        }
+
+        public override Task<TicklerSettingsResult> GetTicklerSettingsAsync()
+        {
+            TicklerSettingsCallCount++;
+            if (ThrowOnTicklerSettings)
+            {
+                throw new HttpRequestException("offline");
+            }
+
+            return base.GetTicklerSettingsAsync();
         }
     }
 
