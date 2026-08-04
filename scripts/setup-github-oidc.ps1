@@ -251,5 +251,5 @@ if ($SetGitHubSecrets) {
 Write-Host 'Next steps:'
 Write-Host '  1. Add secrets above to GitHub (or re-run with -SetGitHubSecrets after gh auth login).'
 Write-Host '  2. Commit and push .github/workflows/ to master.'
-Write-Host '  3. Actions - Deploy Azure - Run workflow (or push to master).'
+Write-Host '  3. Actions - Deploy Azure - Run workflow (weekly schedule also deploys automatically).'
 Write-Host '  4. Docs: docs/github-actions.md'
