@@ -1,9 +1,20 @@
 name: Deploy Azure
 
 on:
-  push:
-    branches: [master]
+  # Weekly batch CD — Sundays 06:00 UTC. Merges to master run CI only (ci.yml).
+  schedule:
+    - cron: '0 6 * * 0'
   workflow_dispatch:
+    inputs:
+      deploy_target:
+        description: 'Deploy API, WASM, or both'
+        required: true
+        default: both
+        type: choice
+        options:
+          - both
+          - api
+          - wasm
 
 permissions:
   id-token: write   # OIDC token for azure/login
@@ -21,30 +32,6 @@ env:
   WASM_PUBLIC_ORIGIN: https://karaoke.johnprideaux.net
 
 jobs:
-  # ── Detect what changed ──────────────────────────────────────────────────────
-  # deploy-api and deploy-wasm each skip unless their paths are touched.
-  # On workflow_dispatch there is no diff, so both deploy jobs fall back to
-  # their own `github.event_name == 'workflow_dispatch'` guard instead.
-  changes:
-    runs-on: ubuntu-latest
-    outputs:
-      api: ${{ steps.filter.outputs.api }}
-      wasm: ${{ steps.filter.outputs.wasm }}
-    steps:
-      - uses: actions/checkout@v7
-      - uses: dorny/paths-filter@v4
-        id: filter
-        with:
-          filters: |
-            api:
-              - 'KaraokeList.Api/**'
-              - 'KaraokeList.Shared/**'
-              - '.github/workflows/deploy-azure.yml'
-            wasm:
-              - 'KaraokeList.Web/**'
-              - 'KaraokeList.Shared/**'
-              - '.github/workflows/deploy-azure.yml'
-
   # ── Build + test gate ────────────────────────────────────────────────────────
   # Runs unconditionally — never skip tests before a deploy.
   test:
@@ -74,11 +61,13 @@ jobs:
         run: dotnet test KaraokeList.Api.IntegrationTests/KaraokeList.Api.IntegrationTests.csproj -c Release --no-build --verbosity minimal
 
   # ── Deploy API ───────────────────────────────────────────────────────────────
-  # Runs only when KaraokeList.Api/**, KaraokeList.Shared/**, or this workflow
-  # file changed — or when triggered manually.
+  # Runs on weekly schedule (both) or manual dispatch when deploy_target is api/both.
   deploy-api:
-    needs: [test, changes]
-    if: needs.changes.outputs.api == 'true' || github.event_name == 'workflow_dispatch'
+    needs: [test]
+    if: >-
+      github.event_name == 'schedule' ||
+      (github.event_name == 'workflow_dispatch' &&
+       (github.event.inputs.deploy_target == 'both' || github.event.inputs.deploy_target == 'api'))
     runs-on: ubuntu-latest
     environment: production
 
@@ -272,11 +261,13 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
   # ── Deploy WASM ──────────────────────────────────────────────────────────────
-  # Runs only when KaraokeList.Web/**, KaraokeList.Shared/**, or this workflow
-  # file changed — or when triggered manually.
+  # Runs on weekly schedule (both) or manual dispatch when deploy_target is wasm/both.
   deploy-wasm:
-    needs: [test, changes]
-    if: needs.changes.outputs.wasm == 'true' || github.event_name == 'workflow_dispatch'
+    needs: [test]
+    if: >-
+      github.event_name == 'schedule' ||
+      (github.event_name == 'workflow_dispatch' &&
+       (github.event.inputs.deploy_target == 'both' || github.event.inputs.deploy_target == 'wasm'))
     runs-on: ubuntu-latest
     environment: production
 

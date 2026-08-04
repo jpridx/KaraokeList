@@ -227,7 +227,7 @@ swa deploy ./publish/web/wwwroot `
 
 ### 5. CI/CD (GitHub Actions)
 
-After Azure resources exist, configure OIDC and secrets per [github-actions.md](github-actions.md). Pushes to `master` run **Deploy Azure** (build, test, deploy API + WASM).
+After Azure resources exist, configure OIDC and secrets per [github-actions.md](github-actions.md). Production deploys on the **weekly schedule** or **Run workflow** (manual); merges to `master` run CI tests only.
 
 ## 6. Smoke test
 

@@ -12,11 +12,14 @@ Provision Azure once with [azure-deployment.md](azure-deployment.md) before the 
 
 ## How it works
 
+CI and CD are **decoupled**: every merge to `master` runs tests, but production deploys only on the **weekly schedule** or when you **Run workflow** manually.
+
 ```mermaid
 flowchart LR
   subgraph triggers [Triggers]
     PR[PR to master]
     Push[Push to master]
+    Schedule[Weekly schedule\nSundays 06:00 UTC]
     Manual[Run workflow]
   end
 
@@ -26,39 +29,31 @@ flowchart LR
   end
 
   subgraph deploy [Deploy Azure workflow]
-    Changes[Detect changed paths]
     Gate[Tests — always run]
-    ApiDeploy[deploy-api\nAPI changed or manual]
-    WasmDeploy[deploy-wasm\nWASM changed or manual]
+    ApiDeploy[deploy-api]
+    WasmDeploy[deploy-wasm]
   end
 
   PR --> Build
   Push --> Build
   Build --> Tests
-  Push --> Changes
-  Push --> Gate
-  Manual --> Changes
+  Schedule --> Gate
   Manual --> Gate
-  Changes --> ApiDeploy
   Gate --> ApiDeploy
-  Changes --> WasmDeploy
   Gate --> WasmDeploy
 ```
 
-### Selective deployment
+### Deploy targets
 
-The `deploy-azure.yml` workflow detects which project paths changed (using `dorny/paths-filter`) and only deploys the affected artifact:
-
-| What changed | `deploy-api` runs | `deploy-wasm` runs |
+| Trigger | `deploy-api` | `deploy-wasm` |
 |---|---|---|
-| `KaraokeList.Api/**` only | yes | no |
-| `KaraokeList.Web/**` only | no | yes |
-| `KaraokeList.Shared/**` | yes | yes |
-| `.github/workflows/deploy-azure.yml` | yes | yes |
-| `docs/**`, `infra/**`, scripts | no | no |
-| Manual (`workflow_dispatch`) | yes | yes |
+| Weekly schedule | yes | yes |
+| Manual — `both` (default) | yes | yes |
+| Manual — `api` | yes | no |
+| Manual — `wasm` | no | yes |
+| Push to `master` | no — CI only | no — CI only |
 
-Both jobs always wait for the `test` job to pass first.
+Both deploy jobs always wait for the `test` job to pass first.
 
 ### What the pipeline does *not* touch
 
@@ -77,7 +72,7 @@ Both jobs always wait for the `test` job to pass first.
 | File | Trigger | Purpose |
 |------|---------|---------|
 | `.github/workflows/ci.yml` | PR + push to `master` | Build + all test projects |
-| `.github/workflows/deploy-azure.yml` | Push to `master`, manual | Detect changes → test → deploy only changed artifact(s) → smoke test |
+| `.github/workflows/deploy-azure.yml` | Weekly schedule (Sundays 06:00 UTC), manual | Test → deploy API and/or WASM → smoke test |
 
 Integration tests use `[SkippableFact]` and **skip** on `ubuntu-latest` when LocalDB is unavailable. Unit tests must pass for deploy to proceed.
 
@@ -85,10 +80,9 @@ Integration tests use `[SkippableFact]` and **skip** on `ubuntu-latest` when Loc
 
 | Job | Runs when | What it does |
 |-----|-----------|--------------|
-| `changes` | Always | Detects which paths changed (dorny/paths-filter) |
 | `test` | Always | Full build + unit + integration tests |
-| `deploy-api` | API paths changed or manual | EF `database update` → publish + zip → `az webapp deploy` → CORS sync → smoke test |
-| `deploy-wasm` | WASM paths changed or manual | Patch `ApiBaseUrl` → `dotnet publish` → `swa deploy` → smoke test |
+| `deploy-api` | Weekly schedule, or manual with `api` / `both` | EF `database update` → publish + zip → `az webapp deploy` → CORS sync → smoke test |
+| `deploy-wasm` | Weekly schedule, or manual with `wasm` / `both` | Patch `ApiBaseUrl` → `dotnet publish` → `swa deploy` → smoke test |
 
 The deploy job uses GitHub environment **`production`**. That affects the OIDC token subject (see setup below).
 
@@ -150,7 +144,7 @@ gh secret set SYNCFUSION_KEY   # prompts for value
 
 ### Step 4 — Push workflows
 
-Commit and push `.github/workflows/` to `master`. That triggers **CI** and **Deploy Azure**.
+Commit and push `.github/workflows/` to `master`. That triggers **CI** only (tests). Production deploys on the weekly schedule or when you run **Deploy Azure** manually.
 
 Or trigger the first deploy manually: **Actions** → **Deploy Azure** → **Run workflow**.
 
@@ -168,11 +162,11 @@ On first API start, EF Core runs `MigrateAsync()`. Seed catalog if the grid is e
 
 ---
 
-## Manual deploy (without pushing code)
+## Manual deploy (without waiting for schedule)
 
-**Actions** → **Deploy Azure** → **Run workflow** → branch `master`.
+**Actions** → **Deploy Azure** → **Run workflow** → branch `master` → choose **deploy target** (`both`, `api`, or `wasm`).
 
-Same steps as a push-triggered deploy.
+Same pipeline steps as a scheduled deploy. Use **`both`** after WASM-only manual deploys if API CORS may be out of sync (see troubleshooting).
 
 ## Optional: approval gate
 
