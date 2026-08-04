@@ -12,6 +12,7 @@ public partial class MySongs
 
     [Inject] private IMySongsLocalStore MySongsStore { get; set; } = default!;
     [Inject] private IMySongsLoader MySongsLoader { get; set; } = default!;
+    [Inject] private ILogCatalogLoader CatalogLoader { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;
     [Inject] private MySongsScrollRestoreState ScrollRestoreState { get; set; } = default!;
     [Inject] private IScrollRestoreJs ScrollRestoreJs { get; set; } = default!;
@@ -28,6 +29,7 @@ public partial class MySongs
     private List<RepertoireSongDto> songs = [];
     private List<SingerListDto> singerLists = [];
     private SingerListKind listKind = SingerListKind.MyRepertoire;
+    private readonly LogCatalogState catalogState = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -60,11 +62,13 @@ public partial class MySongs
             isLoading = false;
             StateHasChanged();
             _ = RefreshListsInBackgroundAsync();
+            _ = LoadCatalogAsync();
             return;
         }
 
         // No cache — full foreground load.
         await ReloadListsAsync();
+        await LoadCatalogAsync();
     }
 
     private async Task ReloadListsAsync()
@@ -198,6 +202,49 @@ public partial class MySongs
 
             var refreshed = await MySongsLoader.LoadAsync(listKind, sortBy, sortDir, filterGenreId, filterGroupName);
             ApplyLoadResult(refreshed, offlineFallback: refreshed.FromCache);
+            await InvokeAsync(StateHasChanged);
+        }
+        catch
+        {
+            // Background refresh failures are silent.
+        }
+    }
+
+    private async Task LoadCatalogAsync()
+    {
+        try
+        {
+            var cached = await CatalogLoader.TryGetCachedAsync();
+            if (cached is not null)
+            {
+                catalogState.Apply(cached);
+                catalogState.MarkOnline();
+                await InvokeAsync(StateHasChanged);
+                _ = RefreshCatalogInBackgroundAsync();
+                return;
+            }
+
+            var snapshot = await CatalogLoader.LoadAsync();
+            catalogState.Apply(snapshot);
+            await InvokeAsync(StateHasChanged);
+        }
+        catch
+        {
+            // Catalog load failures are silent — add panel stays disabled when empty.
+        }
+    }
+
+    private async Task RefreshCatalogInBackgroundAsync()
+    {
+        try
+        {
+            if (!await CatalogLoader.NeedsRefreshAsync())
+            {
+                return;
+            }
+
+            var refreshed = await CatalogLoader.LoadAsync();
+            catalogState.Apply(refreshed);
             await InvokeAsync(StateHasChanged);
         }
         catch
@@ -343,11 +390,7 @@ public partial class MySongs
 
     private bool UseNestedGenreHeadings => genreGroups.Count > 0;
 
-    private bool SupportsCatalogAdd =>
-        listKind is SingerListKind.WantToSing or SingerListKind.WorkingUp;
-
-    private SingerListDto? CurrentList =>
-        singerLists.FirstOrDefault(l => l.Kind == listKind);
+    private bool canAddSong => !usingOfflineLists;
 
     private string EmptyListMessage => listKind switch
     {
@@ -406,15 +449,54 @@ public partial class MySongs
     private void GoToLogAsync(RepertoireSongDto song) =>
         Navigation.NavigateTo($"log?songId={song.SongId}");
 
-    private Task OpenAddFromCatalogAsync() =>
-        addSongPanel?.OpenCatalogAsync() ?? Task.CompletedTask;
+    private Task OpenAddSongPanelAsync()
+    {
+        addSongPanel?.Expand();
+        return Task.CompletedTask;
+    }
 
-    private void OpenAddNewSongAsync() => addSongPanel?.OpenNewSong();
+    private Task OnAddPanelCatalogUpdatedAsync(SongAddedEventArgs args)
+    {
+        catalogState.Apply(args.CatalogSnapshot);
+        catalogState.MarkOnline();
+        return Task.CompletedTask;
+    }
 
     private async Task OnSongAddedToListAsync(SongAddedToListEventArgs args)
     {
         addSongMessage = args.Message;
+
+        foreach (var kind in args.AddedLists)
+        {
+            if (kind == SingerListKind.MyRepertoire)
+            {
+                catalogState.RepertoireSongIds.Add(args.SongId);
+            }
+
+            if (kind == SingerListKind.WorkingUp)
+            {
+                catalogState.WorkingUpSongIds.Add(args.SongId);
+            }
+        }
+
+        PatchCatalogPickItemMarkers(args.SongId);
         await ReloadListsAsync();
+    }
+
+    private void PatchCatalogPickItemMarkers(int songId)
+    {
+        var index = catalogState.SongPickerItems.FindIndex(s => s.Id == songId);
+        if (index < 0)
+        {
+            return;
+        }
+
+        var existing = catalogState.SongPickerItems[index];
+        catalogState.SongPickerItems[index] = existing with
+        {
+            InRepertoire = catalogState.RepertoireSongIds.Contains(songId),
+            InWorkingUp = catalogState.WorkingUpSongIds.Contains(songId)
+        };
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
