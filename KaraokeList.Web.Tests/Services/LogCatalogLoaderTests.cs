@@ -22,7 +22,8 @@ public sealed class LogCatalogLoaderTests
                 api,
                 new MySongsLocalStore(new InMemoryLocalStorage()),
                 store,
-                versionService ?? new NullVersion()));
+                versionService ?? new NullVersion(),
+                new TicklerSettingsLocalStore(new InMemoryLocalStorage())));
 
     [Fact]
     public async Task LoadAsync_when_online_saves_catalog_and_returns_fresh_data()
@@ -327,6 +328,12 @@ public sealed class LogCatalogLoaderTests
         {
             ThrowIfOffline();
             return Task.FromResult(TicklerExclusionsResult.Ok([]));
+        }
+
+        public override Task<TicklerSettingsResult> GetTicklerSettingsAsync()
+        {
+            ThrowIfOffline();
+            return Task.FromResult(TicklerSettingsResult.Ok(new TicklerSettingsDto()));
         }
 
         public override Task<List<GenreGroupDto>> GetGenreGroupsAsync()

@@ -14,7 +14,8 @@ public interface ICatalogSyncService
 }
 
 /// <summary>
-/// Standard sync: log catalog (repertoire stats + exclusions), My Songs lists, My Performances, tickler settings.
+/// Standard sync: log catalog (repertoire stats + exclusions), My Songs lists, My Performances,
+/// and tickler settings (explicit fetch ensures settings refresh even when list caches are fresh).
 /// </summary>
 public sealed class CatalogSyncService(
     ILogCatalogLoader logCatalogLoader,

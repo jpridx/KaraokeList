@@ -14,7 +14,12 @@ public sealed class MySongsLoaderTests
         ICatalogVersionService? versionService = null)
     {
         var log = logStore ?? new LogPerformanceLocalStore(new InMemoryLocalStorage());
-        var myListsLoader = new MyListsLoader(api, store, log, versionService ?? new NullVersion());
+        var myListsLoader = new MyListsLoader(
+            api,
+            store,
+            log,
+            versionService ?? new NullVersion(),
+            new TicklerSettingsLocalStore(new InMemoryLocalStorage()));
         return new MySongsLoader(myListsLoader, store);
     }
 
@@ -326,6 +331,12 @@ public sealed class MySongsLoaderTests
         {
             ThrowIfOffline();
             return Task.FromResult(new List<GenreGroupDto>());
+        }
+
+        public override Task<TicklerSettingsResult> GetTicklerSettingsAsync()
+        {
+            ThrowIfOffline();
+            return Task.FromResult(TicklerSettingsResult.Ok(new TicklerSettingsDto()));
         }
     }
 }
