@@ -40,7 +40,7 @@ public sealed class MySongsPageTests : AuthPageTestContext
     {
         var cachedAt = DateTime.UtcNow;
         var initial = CreateLoadResult(fromCache: true, cachedAt);
-        var reloaded = CreateLoadResult(fromCache: true, cachedAt);
+        var reloaded = CreateLoadResult(fromCache: false, cachedAt);
 
         mySongsLoader.Setup(loader => loader.TryGetCachedAsync(
                 It.IsAny<SingerListKind>(),
@@ -110,6 +110,39 @@ public sealed class MySongsPageTests : AuthPageTestContext
         cut.WaitForAssertion(() =>
         {
             Assert.DoesNotContain("Using cached", cut.Markup);
+            Assert.Contains("Jeopardy", cut.Markup);
+        });
+    }
+
+    [Fact]
+    public void Fast_offline_fallback_shows_offline_cache_banner()
+    {
+        var cachedAt = DateTime.UtcNow.AddHours(-2);
+        var offlineResult = CreateLoadResult(fromCache: true, cachedAt);
+
+        mySongsLoader.Setup(loader => loader.TryGetCachedAsync(
+                It.IsAny<SingerListKind>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<int?>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync((MySongsLoadResult?)null);
+
+        mySongsLoader.Setup(loader => loader.LoadAsync(
+                It.IsAny<SingerListKind>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<int?>(),
+                It.IsAny<string?>(),
+                It.IsAny<Action<string>?>()))
+            .ReturnsAsync(offlineResult);
+
+        var cut = Render<MySongs>();
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Contains("Using cached lists", cut.Markup);
+            Assert.Contains(cachedAt.ToLocalTime().ToString("g"), cut.Markup);
             Assert.Contains("Jeopardy", cut.Markup);
         });
     }
