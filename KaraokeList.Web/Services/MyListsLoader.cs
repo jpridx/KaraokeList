@@ -80,7 +80,8 @@ public sealed class MyListsLoader(
 
         if (cachedResult is not null)
         {
-            return cachedResult;
+            // Fresh online cache hit — not an offline fallback.
+            return cachedResult with { FromCache = false };
         }
 
         try

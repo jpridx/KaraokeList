@@ -86,7 +86,7 @@ public partial class MySongs
             var cached = await MySongsLoader.TryGetCachedAsync(listKind, sortBy, sortDir, filterGenreId, filterGroupName);
             if (cached is not null)
             {
-                ApplyLoadResult(cached);
+                ApplyLoadResult(cached, offlineFallback: true);
             }
             else
             {
@@ -104,7 +104,7 @@ public partial class MySongs
                 {
                     await InvokeAsync(() =>
                     {
-                        ApplyLoadResult(t.Result);
+                        ApplyLoadResult(t.Result, offlineFallback: t.Result.FromCache);
                         loadingStep = null;
                         isLoading = false;
                         StateHasChanged();
@@ -120,9 +120,9 @@ public partial class MySongs
         isLoading = false;
     }
 
-    private void ApplyLoadResult(MySongsLoadResult result)
+    private void ApplyLoadResult(MySongsLoadResult result, bool offlineFallback = false)
     {
-        usingOfflineLists = result.FromCache;
+        usingOfflineLists = offlineFallback && result.FromCache;
         hasCachedLists = result.HasCache;
         listsCachedAt = result.CachedAtUtc;
 
