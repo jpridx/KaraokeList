@@ -390,7 +390,7 @@ public partial class MySongs
 
     private bool UseNestedGenreHeadings => genreGroups.Count > 0;
 
-    private bool canAddSong => !usingOfflineLists;
+    private bool CanAddSong => !usingOfflineLists && !catalogState.UsingOfflineCatalog;
 
     private string EmptyListMessage => listKind switch
     {

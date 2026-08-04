@@ -24,7 +24,7 @@
 
                 <ChipFilterBar Label="List" Items="@listChipItems" />
 
-                @if (canAddSong && singerLists.Count > 0)
+                @if (CanAddSong && singerLists.Count > 0)
                 {
                     <div class="mobile-toolbar">
                         <AddSongToListPanel @ref="addSongPanel" @key="listKind"
@@ -85,7 +85,7 @@
                                     {
                                         <a class="btn btn-outline-primary btn-sm" href="import-repertoire">Import from spreadsheet</a>
                                     }
-                                    @if (canAddSong)
+                                    @if (CanAddSong)
                                     {
                                         <button type="button" class="btn btn-outline-primary btn-sm" @onclick="OpenAddSongPanelAsync">
                                             + Add song

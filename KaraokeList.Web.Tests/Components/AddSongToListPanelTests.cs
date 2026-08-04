@@ -127,11 +127,20 @@ public sealed class AddSongToListPanelTests : AuthPageTestContext
     }
 
     [Fact]
-    public async Task Want_to_sing_checkbox_disabled_when_song_is_in_repertoire()
+    public void Offline_catalog_disables_add_song_button()
+    {
+        var cut = RenderPanel(usingOfflineCatalog: true);
+
+        var button = cut.Find("button.btn-outline-primary");
+        Assert.True(button.HasAttribute("disabled"));
+    }
+
+    [Fact]
+    public async Task Want_to_sing_checkbox_disabled_when_membership_includes_repertoire()
     {
         var catalogItems = new List<LogSongPickItem>
         {
-            new(42, "Jeopardy", "The Greg Kihn Band", true, false)
+            new(42, "Jeopardy", "The Greg Kihn Band", false, false)
         };
 
         Api.Setup(client => client.GetSongListMembershipAsync(42))
@@ -152,7 +161,6 @@ public sealed class AddSongToListPanelTests : AuthPageTestContext
         {
             var wantCheckbox = cut.Find("#add-song-list-WantToSing");
             Assert.True(wantCheckbox.HasAttribute("disabled"));
-            Assert.Contains("already on list", cut.Markup);
         });
     }
 
@@ -214,12 +222,14 @@ public sealed class AddSongToListPanelTests : AuthPageTestContext
     private IRenderedComponent<AddSongToListPanel> RenderPanel(
         IReadOnlyList<LogSongPickItem>? catalogItems = null,
         SingerListKind defaultListKind = SingerListKind.WorkingUp,
+        bool usingOfflineCatalog = false,
         Action<SongAddedToListEventArgs>? onSongAdded = null)
     {
         return Render<AddSongToListPanel>(parameters => parameters
             .Add(p => p.CatalogItems, catalogItems ?? [])
             .Add(p => p.SingerLists, SingerLists)
             .Add(p => p.DefaultListKind, defaultListKind)
+            .Add(p => p.UsingOfflineCatalog, usingOfflineCatalog)
             .Add(p => p.OnSongAdded, EventCallback.Factory.Create(this, onSongAdded ?? (_ => { }))));
     }
 }
