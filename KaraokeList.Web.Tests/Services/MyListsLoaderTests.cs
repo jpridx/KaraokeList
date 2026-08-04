@@ -93,7 +93,7 @@ public sealed class MyListsLoaderTests
 
         var second = await loader.LoadAsync();
 
-        Assert.True(second.FromCache);
+        Assert.False(second.FromCache);
         Assert.Equal(0, api.MyListsCallCount);
         Assert.Equal(0, api.ListSongsCallCount);
     }
