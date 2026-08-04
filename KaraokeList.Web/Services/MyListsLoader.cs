@@ -27,7 +27,8 @@ public sealed class MyListsLoader(
     IKaraokeApiClient api,
     IMySongsLocalStore mySongsStore,
     ILogPerformanceLocalStore logStore,
-    ICatalogVersionService versionService) : IMyListsLoader
+    ICatalogVersionService versionService,
+    ITicklerSettingsLocalStore ticklerSettingsStore) : IMyListsLoader
 {
     // Bump when cached list shape changes. Old JSON deserializes SchemaVersion to 0.
     internal const int CurrentCacheSchemaVersion = 2;
@@ -177,6 +178,7 @@ public sealed class MyListsLoader(
                 genreGroups));
 
             await SyncListFieldsToLogCatalogAsync(songsByKind);
+            await RefreshTicklerSettingsAsync();
 
             return new MyListsBundle(
                 listsResult.Lists,
@@ -227,6 +229,15 @@ public sealed class MyListsLoader(
         }
 
         return songsByKind;
+    }
+
+    private async Task RefreshTicklerSettingsAsync()
+    {
+        var result = await api.GetTicklerSettingsAsync();
+        if (result.Succeeded && result.Settings is not null)
+        {
+            await ticklerSettingsStore.SaveAsync(result.Settings);
+        }
     }
 
     private async Task SyncListFieldsToLogCatalogAsync(

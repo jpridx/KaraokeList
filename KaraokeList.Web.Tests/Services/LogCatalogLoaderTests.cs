@@ -22,7 +22,8 @@ public sealed class LogCatalogLoaderTests
                 api,
                 new MySongsLocalStore(new InMemoryLocalStorage()),
                 store,
-                versionService ?? new NullVersion()));
+                versionService ?? new NullVersion(),
+                new TicklerSettingsLocalStore(new InMemoryLocalStorage())));
 
     [Fact]
     public async Task LoadAsync_when_online_saves_catalog_and_returns_fresh_data()

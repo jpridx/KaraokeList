@@ -14,7 +14,12 @@ public sealed class MySongsLoaderTests
         ICatalogVersionService? versionService = null)
     {
         var log = logStore ?? new LogPerformanceLocalStore(new InMemoryLocalStorage());
-        var myListsLoader = new MyListsLoader(api, store, log, versionService ?? new NullVersion());
+        var myListsLoader = new MyListsLoader(
+            api,
+            store,
+            log,
+            versionService ?? new NullVersion(),
+            new TicklerSettingsLocalStore(new InMemoryLocalStorage()));
         return new MySongsLoader(myListsLoader, store);
     }
 

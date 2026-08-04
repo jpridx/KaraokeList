@@ -8,6 +8,19 @@ namespace KaraokeList.Web.Tests.Services;
 
 public sealed class MyListsLoaderTests
 {
+    private static MyListsLoader CreateLoader(
+        IKaraokeApiClient api,
+        MySongsLocalStore mySongsStore,
+        LogPerformanceLocalStore logStore,
+        ICatalogVersionService? versionService = null,
+        ITicklerSettingsLocalStore? ticklerSettingsStore = null) =>
+        new(
+            api,
+            mySongsStore,
+            logStore,
+            versionService ?? new NullVersion(),
+            ticklerSettingsStore ?? new TicklerSettingsLocalStore(new InMemoryLocalStorage()));
+
     [Fact]
     public async Task LoadAsync_populates_both_my_songs_and_log_catalog_list_fields()
     {
@@ -20,7 +33,7 @@ public sealed class MyListsLoaderTests
             DateTime.UtcNow.AddHours(-1)));
 
         var api = new ListsApiStub();
-        var loader = new MyListsLoader(api, mySongsStore, logStore, new NullVersion());
+        var loader = CreateLoader(api, mySongsStore, logStore);
 
         var bundle = await loader.LoadAsync();
 
@@ -51,7 +64,7 @@ public sealed class MyListsLoaderTests
             [],
             catalogCachedAt));
 
-        var loader = new MyListsLoader(new ListsApiStub(), mySongsStore, logStore, new NullVersion());
+        var loader = CreateLoader(new ListsApiStub(), mySongsStore, logStore);
 
         _ = await loader.LoadAsync();
 
@@ -63,11 +76,10 @@ public sealed class MyListsLoaderTests
     [Fact]
     public async Task LoadAsync_clears_in_flight_task_after_completion()
     {
-        var loader = new MyListsLoader(
+        var loader = CreateLoader(
             new ListsApiStub(),
             new MySongsLocalStore(new InMemoryLocalStorage()),
-            new LogPerformanceLocalStore(new InMemoryLocalStorage()),
-            new NullVersion());
+            new LogPerformanceLocalStore(new InMemoryLocalStorage()));
 
         await loader.LoadAsync();
 
@@ -83,7 +95,7 @@ public sealed class MyListsLoaderTests
         var mySongsStore = new MySongsLocalStore(new InMemoryLocalStorage());
         var logStore = new LogPerformanceLocalStore(new InMemoryLocalStorage());
         var api = new CountingListsApiStub();
-        var loader = new MyListsLoader(api, mySongsStore, logStore, new NullVersion());
+        var loader = CreateLoader(api, mySongsStore, logStore);
 
         var first = await loader.LoadAsync();
         Assert.False(first.FromCache);
@@ -104,7 +116,7 @@ public sealed class MyListsLoaderTests
         var mySongsStore = new MySongsLocalStore(new InMemoryLocalStorage());
         var logStore = new LogPerformanceLocalStore(new InMemoryLocalStorage());
         var api = new GatedListsApiStub();
-        var loader = new MyListsLoader(api, mySongsStore, logStore, new NullVersion());
+        var loader = CreateLoader(api, mySongsStore, logStore);
 
         var first = loader.LoadAsync(forceRefresh: true);
         var second = loader.LoadAsync(forceRefresh: true);
@@ -122,7 +134,7 @@ public sealed class MyListsLoaderTests
         var mySongsStore = new MySongsLocalStore(new InMemoryLocalStorage());
         var logStore = new LogPerformanceLocalStore(new InMemoryLocalStorage());
         var api = new GatedListsApiStub();
-        var loader = new MyListsLoader(api, mySongsStore, logStore, new NullVersion());
+        var loader = CreateLoader(api, mySongsStore, logStore);
 
         var first = loader.LoadAsync();
         var second = loader.LoadAsync();
@@ -134,8 +146,29 @@ public sealed class MyListsLoaderTests
         Assert.Equal(3, api.ListSongsCallCount);
     }
 
+    [Fact]
+    public async Task LoadAsync_caches_tickler_settings_from_api()
+    {
+        var mySongsStore = new MySongsLocalStore(new InMemoryLocalStorage());
+        var logStore = new LogPerformanceLocalStore(new InMemoryLocalStorage());
+        var ticklerSettingsStore = new TicklerSettingsLocalStore(new InMemoryLocalStorage());
+        var api = new ListsApiStub
+        {
+            TicklerSettings = new TicklerSettingsDto { StaleAfterDays = 30, SongLimit = 3 }
+        };
+        var loader = CreateLoader(api, mySongsStore, logStore, ticklerSettingsStore: ticklerSettingsStore);
+
+        await loader.LoadAsync();
+
+        var cached = await ticklerSettingsStore.GetAsync();
+        Assert.Equal(30, cached.StaleAfterDays);
+        Assert.Equal(3, cached.SongLimit);
+    }
+
     private class ListsApiStub : NotImplementedApiClient
     {
+        public TicklerSettingsDto TicklerSettings { get; init; } = new();
+
         public override Task<SingerListsResult> GetMyListsAsync() =>
             Task.FromResult(SingerListsResult.Ok(
             [
@@ -169,6 +202,9 @@ public sealed class MyListsLoaderTests
 
         public override Task<List<GenreGroupDto>> GetGenreGroupsAsync() =>
             Task.FromResult(new List<GenreGroupDto>());
+
+        public override Task<TicklerSettingsResult> GetTicklerSettingsAsync() =>
+            Task.FromResult(TicklerSettingsResult.Ok(TicklerSettings));
     }
 
     private class CountingListsApiStub : ListsApiStub
