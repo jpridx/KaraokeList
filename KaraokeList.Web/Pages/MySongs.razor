@@ -24,12 +24,16 @@
 
                 <ChipFilterBar Label="List" Items="@listChipItems" />
 
-                @if (SupportsCatalogAdd && !usingOfflineLists && CurrentList is not null)
+                @if (CanAddSong && singerLists.Count > 0)
                 {
                     <div class="mobile-toolbar">
                         <AddSongToListPanel @ref="addSongPanel" @key="listKind"
-                                            ListId="@CurrentList.Id" ListDisplayName="@CurrentList.DisplayName"
-                                            OnSongAdded="OnSongAddedToListAsync" />
+                                            CatalogItems="@catalogState.SongPickerItems"
+                                            SingerLists="@singerLists"
+                                            DefaultListKind="@listKind"
+                                            UsingOfflineCatalog="@catalogState.UsingOfflineCatalog"
+                                            OnSongAdded="OnSongAddedToListAsync"
+                                            OnCatalogUpdated="OnAddPanelCatalogUpdatedAsync" />
                     </div>
                 }
 
@@ -81,13 +85,10 @@
                                     {
                                         <a class="btn btn-outline-primary btn-sm" href="import-repertoire">Import from spreadsheet</a>
                                     }
-                                    @if (SupportsCatalogAdd)
+                                    @if (CanAddSong)
                                     {
-                                        <button type="button" class="btn btn-outline-primary btn-sm" @onclick="OpenAddFromCatalogAsync">
-                                            + Add from catalog
-                                        </button>
-                                        <button type="button" class="btn btn-outline-primary btn-sm" @onclick="OpenAddNewSongAsync">
-                                            + New song
+                                        <button type="button" class="btn btn-outline-primary btn-sm" @onclick="OpenAddSongPanelAsync">
+                                            + Add song
                                         </button>
                                     }
                                 </div>

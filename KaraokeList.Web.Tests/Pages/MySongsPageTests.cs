@@ -10,6 +10,7 @@ namespace KaraokeList.Web.Tests.Pages;
 public sealed class MySongsPageTests : AuthPageTestContext
 {
     private readonly Mock<IMySongsLoader> mySongsLoader = new();
+    private readonly Mock<ILogCatalogLoader> catalogLoader = new();
     private readonly Mock<IScrollRestoreJs> scrollRestoreJs = new();
     private readonly InMemoryLocalStorage localStorage = new();
 
@@ -21,6 +22,9 @@ public sealed class MySongsPageTests : AuthPageTestContext
             .ReturnsAsync(new UserProfileDto { SingerId = 1 });
 
         mySongsLoader.Setup(loader => loader.NeedsRefreshAsync()).ReturnsAsync(false);
+        catalogLoader.Setup(loader => loader.TryGetCachedAsync())
+            .ReturnsAsync(new LogCatalogSnapshot([], [], [], false, false, null));
+        catalogLoader.Setup(loader => loader.NeedsRefreshAsync()).ReturnsAsync(false);
 
         scrollRestoreJs.Setup(js => js.ConsumeBackNavigationAsync()).ReturnsAsync(false);
     }
@@ -30,9 +34,33 @@ public sealed class MySongsPageTests : AuthPageTestContext
         base.ConfigureServices(services);
         AddSyncfusionServices(services);
         services.AddSingleton(mySongsLoader.Object);
+        services.AddSingleton(catalogLoader.Object);
         services.AddSingleton<IMySongsLocalStore>(new MySongsLocalStore(localStorage));
         services.AddSingleton<MySongsScrollRestoreState>();
         services.AddSingleton(scrollRestoreJs.Object);
+    }
+
+    [Fact]
+    public void My_repertoire_tab_shows_add_song_button_when_online()
+    {
+        var cachedAt = DateTime.UtcNow;
+        var initial = CreateLoadResult(fromCache: true, cachedAt);
+
+        mySongsLoader.Setup(loader => loader.TryGetCachedAsync(
+                It.IsAny<SingerListKind>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<int?>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(initial);
+
+        var cut = Render<MySongs>();
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Contains("Jeopardy", cut.Markup);
+            Assert.Contains("+ Add song", cut.Markup);
+        });
     }
 
     [Fact]

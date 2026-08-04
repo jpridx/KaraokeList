@@ -154,6 +154,36 @@ internal static class E2eCatalogHelper
         }
     }
 
+    public static async Task AssertSongOnListAsync(
+        HttpClient apiClient,
+        string token,
+        SingerListKind listKind,
+        int songId)
+    {
+        apiClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var lists = await apiClient.GetFromJsonAsync<List<SingerListDto>>("/api/singers/me/lists")
+            ?? throw new InvalidOperationException("Singer lists returned null.");
+        var list = lists.FirstOrDefault(l => l.Kind == listKind)
+            ?? throw new InvalidOperationException($"List kind '{listKind}' was not found.");
+
+        for (var attempt = 0; attempt < 30; attempt++)
+        {
+            var songs = await apiClient.GetFromJsonAsync<List<RepertoireSongDto>>(
+                $"/api/singers/me/lists/{list.Id}/songs")
+                ?? throw new InvalidOperationException("List songs returned null.");
+
+            if (songs.Any(s => s.SongId == songId))
+            {
+                return;
+            }
+
+            await Task.Delay(TimeSpan.FromSeconds(1));
+        }
+
+        throw new InvalidOperationException($"Song {songId} was not on {listKind} within 30 seconds.");
+    }
+
     public static async Task<int> FindSongIdByTitleAsync(
         HttpClient apiClient,
         string token,
