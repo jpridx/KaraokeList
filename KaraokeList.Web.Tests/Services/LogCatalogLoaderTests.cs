@@ -330,6 +330,12 @@ public sealed class LogCatalogLoaderTests
             return Task.FromResult(TicklerExclusionsResult.Ok([]));
         }
 
+        public override Task<TicklerSettingsResult> GetTicklerSettingsAsync()
+        {
+            ThrowIfOffline();
+            return Task.FromResult(TicklerSettingsResult.Ok(new TicklerSettingsDto()));
+        }
+
         public override Task<List<GenreGroupDto>> GetGenreGroupsAsync()
         {
             ThrowIfOffline();

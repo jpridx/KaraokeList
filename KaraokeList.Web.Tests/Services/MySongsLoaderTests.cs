@@ -332,5 +332,11 @@ public sealed class MySongsLoaderTests
             ThrowIfOffline();
             return Task.FromResult(new List<GenreGroupDto>());
         }
+
+        public override Task<TicklerSettingsResult> GetTicklerSettingsAsync()
+        {
+            ThrowIfOffline();
+            return Task.FromResult(TicklerSettingsResult.Ok(new TicklerSettingsDto()));
+        }
     }
 }
