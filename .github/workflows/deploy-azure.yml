@@ -1,9 +1,9 @@
 name: Deploy Azure
 
 on:
-  # Weekly batch CD — Sundays 06:00 UTC. Merges to master run CI only (ci.yml).
+  # Weekly batch CD — Sundays 12:00 UTC. Merges to master run CI only (ci.yml).
   schedule:
-    - cron: '0 6 * * 0'
+    - cron: '0 12 * * 0'
   workflow_dispatch:
     inputs:
       deploy_target:

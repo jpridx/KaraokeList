@@ -19,7 +19,7 @@ flowchart LR
   subgraph triggers [Triggers]
     PR[PR to master]
     Push[Push to master]
-    Schedule[Weekly schedule\nSundays 06:00 UTC]
+    Schedule[Weekly schedule\nSundays 12:00 UTC]
     Manual[Run workflow]
   end
 
@@ -72,7 +72,7 @@ Both deploy jobs always wait for the `test` job to pass first.
 | File | Trigger | Purpose |
 |------|---------|---------|
 | `.github/workflows/ci.yml` | PR + push to `master` | Build + all test projects |
-| `.github/workflows/deploy-azure.yml` | Weekly schedule (Sundays 06:00 UTC), manual | Test → deploy API and/or WASM → smoke test |
+| `.github/workflows/deploy-azure.yml` | Weekly schedule (Sundays 12:00 UTC), manual | Test → deploy API and/or WASM → smoke test |
 
 Integration tests use `[SkippableFact]` and **skip** on `ubuntu-latest` when LocalDB is unavailable. Unit tests must pass for deploy to proceed.
 
