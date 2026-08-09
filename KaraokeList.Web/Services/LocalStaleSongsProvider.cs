@@ -19,29 +19,83 @@ public sealed class LocalStaleSongsProvider(
     ITicklerSettingsLocalStore settingsStore,
     ITicklerExclusionsLocalStore exclusionsStore) : ILocalStaleSongsProvider
 {
+    private sealed record RepertoireSource(
+        List<RepertoireSongDto> Songs,
+        DateTime? CachedAtUtc,
+        bool FromLogCache);
+
     public async Task<LocalStaleSongsResult> ComputeAsync(DateTime? asOfDate = null, Random? random = null)
     {
         var today = PerformanceRelativeDate.ResolveAsOfDate(asOfDate);
-        var repertoire = await TryGetRepertoireAsync();
-        if (repertoire.Songs.Count == 0)
+        var logSource = await TryGetLogRepertoireAsync();
+        var mySongsSource = await TryGetMySongsRepertoireAsync();
+
+        if (logSource.Songs.Count == 0 && mySongsSource.Songs.Count == 0)
         {
-            return new LocalStaleSongsResult(null, false, repertoire.CachedAtUtc, repertoire.FromLogCache);
+            return new LocalStaleSongsResult(null, false, null, false);
         }
 
-        var settings = await settingsStore.GetAsync();
+        var settings = TicklerSettingsNormalizer.Normalize(await settingsStore.GetAsync());
         var exclusions = await exclusionsStore.GetExcludedSongIdsAsync();
-        var response = StaleSongsComputer.Compute(repertoire.Songs, exclusions, settings, today, random);
-        return new LocalStaleSongsResult(response, true, repertoire.CachedAtUtc, repertoire.FromLogCache);
+
+        var primary = PickPrimarySource(logSource, mySongsSource);
+        var alternate = primary.FromLogCache ? mySongsSource : logSource;
+
+        var response = ComputeFromSource(primary, exclusions, settings, today, random);
+        if (response.Songs.Count == 0 && alternate.Songs.Count > 0)
+        {
+            var alternateResponse = ComputeFromSource(alternate, exclusions, settings, today, random);
+            if (alternateResponse.Songs.Count > 0)
+            {
+                return new LocalStaleSongsResult(
+                    alternateResponse,
+                    true,
+                    alternate.CachedAtUtc,
+                    alternate.FromLogCache);
+            }
+        }
+
+        return new LocalStaleSongsResult(response, true, primary.CachedAtUtc, primary.FromLogCache);
     }
 
-    private async Task<(List<RepertoireSongDto> Songs, DateTime? CachedAtUtc, bool FromLogCache)> TryGetRepertoireAsync()
+    private static RepertoireSource PickPrimarySource(RepertoireSource logSource, RepertoireSource mySongsSource)
+    {
+        if (logSource.Songs.Count == 0)
+        {
+            return mySongsSource;
+        }
+
+        if (mySongsSource.Songs.Count == 0)
+        {
+            return logSource;
+        }
+
+        var logCachedAt = logSource.CachedAtUtc ?? DateTime.MinValue;
+        var mySongsCachedAt = mySongsSource.CachedAtUtc ?? DateTime.MinValue;
+        return mySongsCachedAt > logCachedAt ? mySongsSource : logSource;
+    }
+
+    private static StaleSongsResponseDto ComputeFromSource(
+        RepertoireSource source,
+        IReadOnlySet<int> exclusions,
+        TicklerSettingsDto settings,
+        DateTime today,
+        Random? random) =>
+        StaleSongsComputer.Compute(source.Songs, exclusions, settings, today, random);
+
+    private async Task<RepertoireSource> TryGetLogRepertoireAsync()
     {
         var logCache = await logStore.GetCachedCatalogAsync();
         if (logCache?.RepertoireStats is { Count: > 0 } stats)
         {
-            return (MapStatsToRepertoire(stats), logCache.CachedAtUtc, true);
+            return new RepertoireSource(MapStatsToRepertoire(stats), logCache.CachedAtUtc, true);
         }
 
+        return new RepertoireSource([], null, true);
+    }
+
+    private async Task<RepertoireSource> TryGetMySongsRepertoireAsync()
+    {
         var mySongsCache = await mySongsStore.GetCachedListsAsync();
         if (mySongsCache is not null)
         {
@@ -49,11 +103,14 @@ public sealed class LocalStaleSongsProvider(
                 .FirstOrDefault(entry => entry.Kind == SingerListKind.MyRepertoire);
             if (repertoireEntry is not null && repertoireEntry.Songs.Count > 0)
             {
-                return (repertoireEntry.Songs.ToList(), mySongsCache.CachedAtUtc, false);
+                return new RepertoireSource(
+                    repertoireEntry.Songs.ToList(),
+                    mySongsCache.CachedAtUtc,
+                    false);
             }
         }
 
-        return ([], null, false);
+        return new RepertoireSource([], null, false);
     }
 
     private static List<RepertoireSongDto> MapStatsToRepertoire(IReadOnlyList<CachedRepertoireStatsEntry> stats) =>

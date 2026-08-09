@@ -260,6 +260,85 @@ public sealed class MySongsLoaderTests
         });
     }
 
+    [Fact]
+    public async Task SetSongPerformanceStatsAsync_updates_exact_stats_without_incrementing()
+    {
+        var store = new MySongsLocalStore(new InMemoryLocalStorage());
+        await store.SaveCachedListsAsync(new CachedMySongsLists(
+            [new SingerListDto { Id = 1, Kind = SingerListKind.MyRepertoire, DisplayName = "My repertoire" }],
+            [new CachedListSongsEntry(
+                SingerListKind.MyRepertoire,
+                [
+                    new RepertoireSongDto
+                    {
+                        SongId = 5,
+                        Title = "Old Song",
+                        ArtistName = "Old Artist",
+                        ArtistDisplay = "Old Artist",
+                        LastPerformedOn = new DateTime(2025, 1, 1),
+                        PerformanceCount = 7
+                    }
+                ])],
+            DateTime.UtcNow));
+
+        var loader = CreateLoader(new ListsApiStub(), store);
+        var lastPerformedOn = new DateTime(2026, 8, 1);
+
+        await loader.SetSongPerformanceStatsAsync(
+            5,
+            "New Song",
+            "New Artist",
+            "New Artist",
+            lastPerformedOn,
+            2);
+
+        var cached = await store.GetCachedListsAsync();
+        var song = Assert.Single(cached!.ListsSongs.Single().Songs);
+        Assert.Equal(2, song.PerformanceCount);
+        Assert.Equal(lastPerformedOn.Date, song.LastPerformedOn);
+        Assert.Equal("New Song", song.Title);
+        Assert.Equal("New Artist", song.ArtistName);
+    }
+
+    [Fact]
+    public async Task SetSongPerformanceStatsAsync_sets_zero_and_clears_last_performed_on()
+    {
+        var store = new MySongsLocalStore(new InMemoryLocalStorage());
+        await store.SaveCachedListsAsync(new CachedMySongsLists(
+            [new SingerListDto { Id = 1, Kind = SingerListKind.MyRepertoire, DisplayName = "My repertoire" }],
+            [new CachedListSongsEntry(
+                SingerListKind.MyRepertoire,
+                [
+                    new RepertoireSongDto
+                    {
+                        SongId = 5,
+                        Title = "Old Song",
+                        ArtistName = "Old Artist",
+                        ArtistDisplay = "Old Artist",
+                        LastPerformedOn = new DateTime(2025, 1, 1),
+                        PerformanceCount = 3
+                    }
+                ])],
+            DateTime.UtcNow));
+
+        var loader = CreateLoader(new ListsApiStub(), store);
+
+        await loader.SetSongPerformanceStatsAsync(
+            5,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            null,
+            0);
+
+        var cached = await store.GetCachedListsAsync();
+        var song = Assert.Single(cached!.ListsSongs.Single().Songs);
+        Assert.Equal(0, song.PerformanceCount);
+        Assert.Null(song.LastPerformedOn);
+        Assert.Equal("Old Song", song.Title);
+        Assert.Equal("Old Artist", song.ArtistName);
+    }
+
     private static IReadOnlyList<GenreGroupDto> CreateSampleGenreGroups() =>
     [
         new()

@@ -26,3 +26,29 @@ public class UpdateTicklerSettingsRequest
     [Range(TicklerSettingsLimits.MinSongLimit, TicklerSettingsLimits.MaxSongLimit)]
     public int SongLimit { get; set; } = TicklerSettingsLimits.DefaultSongLimit;
 }
+
+public static class TicklerSettingsNormalizer
+{
+    public static TicklerSettingsDto Normalize(TicklerSettingsDto? settings)
+    {
+        settings ??= new TicklerSettingsDto();
+
+        var days = settings.StaleAfterDays;
+        if (days is < TicklerSettingsLimits.MinStaleAfterDays or > TicklerSettingsLimits.MaxStaleAfterDays)
+        {
+            days = TicklerSettingsLimits.DefaultStaleAfterDays;
+        }
+
+        var limit = settings.SongLimit;
+        if (limit is < TicklerSettingsLimits.MinSongLimit or > TicklerSettingsLimits.MaxSongLimit)
+        {
+            limit = TicklerSettingsLimits.DefaultSongLimit;
+        }
+
+        return new TicklerSettingsDto
+        {
+            StaleAfterDays = days,
+            SongLimit = limit
+        };
+    }
+}
