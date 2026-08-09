@@ -159,12 +159,7 @@ public sealed class PerformanceCacheCoordinator(
             await SyncMySongsPerformanceForSongAsync(before.SongId);
         }
 
-        await mySongsLoader.PatchSongPerformanceAsync(
-            after.SongId,
-            after.Title,
-            after.ArtistName,
-            after.ArtistDisplay ?? after.ArtistName,
-            after.PerformedOn);
+        await SyncMySongsPerformanceForSongAsync(after.SongId);
     }
 
     private async Task SyncMySongsPerformanceForSongAsync(int songId)
@@ -182,16 +177,24 @@ public sealed class PerformanceCacheCoordinator(
 
         if (remaining.Count == 0)
         {
+            await mySongsLoader.SetSongPerformanceStatsAsync(
+                songId,
+                string.Empty,
+                string.Empty,
+                string.Empty,
+                null,
+                0);
             return;
         }
 
         var latest = remaining[0];
-        await mySongsLoader.PatchSongPerformanceAsync(
+        await mySongsLoader.SetSongPerformanceStatsAsync(
             songId,
             latest.Title,
             latest.ArtistName,
             latest.ArtistDisplay ?? latest.ArtistName,
-            latest.PerformedOn);
+            latest.PerformedOn,
+            remaining.Count);
     }
 
     private async Task SyncRepertoireStatsForSongAsync(int songId)

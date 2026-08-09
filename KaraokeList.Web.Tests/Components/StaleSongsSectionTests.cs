@@ -249,6 +249,32 @@ public sealed class StaleSongsSectionTests : BunitTestContext
         provider.Verify(p => p.ComputeAsync(null, null), Times.Exactly(2));
     }
 
+    [Fact]
+    public void Repertoire_stats_change_does_not_throw_when_reload_fails()
+    {
+        provider.Setup(p => p.ComputeAsync(null, null))
+            .ReturnsAsync(new LocalStaleSongsResult(
+                new StaleSongsResponseDto
+                {
+                    StaleAfterDays = 90,
+                    Songs =
+                    [
+                        new StaleSongDto { SongId = 1, Title = "First", ArtistName = "Artist" }
+                    ]
+                },
+                true,
+                DateTime.UtcNow,
+                true));
+
+        Render<StaleSongsSection>();
+
+        provider.Setup(p => p.ComputeAsync(null, null))
+            .ThrowsAsync(new InvalidOperationException("reload failed"));
+
+        var exception = Record.Exception(() => performanceCache.RaiseRepertoireStatsChanged());
+        Assert.Null(exception);
+    }
+
     private sealed class TestPerformanceCacheCoordinator : IPerformanceCacheCoordinator
     {
         public event Action? RecentLogsChanged;

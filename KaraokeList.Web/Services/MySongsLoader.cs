@@ -27,6 +27,14 @@ public interface IMySongsLoader
         string artistName,
         string artistDisplay,
         DateTime performedOn);
+
+    Task SetSongPerformanceStatsAsync(
+        int songId,
+        string title,
+        string artistName,
+        string artistDisplay,
+        DateTime? lastPerformedOn,
+        int performanceCount);
 }
 
 public sealed class MySongsLoader(
@@ -246,6 +254,71 @@ public sealed class MySongsLoader(
                         ArtistDisplay = artistDisplay,
                         LastPerformedOn = performedDate,
                         PerformanceCount = 1
+                    });
+                }
+
+                return new CachedListSongsEntry(entry.Kind, songs);
+            })
+            .ToList();
+
+        await store.SaveCachedListsAsync(cached with
+        {
+            ListsSongs = updatedListsSongs,
+            CachedAtUtc = DateTime.UtcNow
+        });
+    }
+
+    public async Task SetSongPerformanceStatsAsync(
+        int songId,
+        string title,
+        string artistName,
+        string artistDisplay,
+        DateTime? lastPerformedOn,
+        int performanceCount)
+    {
+        var cached = await store.GetCachedListsAsync();
+        if (cached is null || cached.ListsSongs.Count == 0)
+        {
+            return;
+        }
+
+        var safeCount = Math.Max(0, performanceCount);
+        var performedDate = lastPerformedOn?.Date;
+        var updatedListsSongs = cached.ListsSongs
+            .Select(entry =>
+            {
+                if (entry.Kind != SingerListKind.MyRepertoire)
+                {
+                    return entry;
+                }
+
+                var songs = entry.Songs.ToList();
+                var index = songs.FindIndex(s => s.SongId == songId);
+                if (index >= 0)
+                {
+                    var existing = songs[index];
+                    songs[index] = new RepertoireSongDto
+                    {
+                        SongId = existing.SongId,
+                        Title = safeCount > 0 ? title : existing.Title,
+                        ArtistName = safeCount > 0 ? artistName : existing.ArtistName,
+                        ArtistDisplay = safeCount > 0 ? artistDisplay : existing.ArtistDisplay,
+                        GenreId = existing.GenreId,
+                        GenreName = existing.GenreName,
+                        LastPerformedOn = safeCount > 0 ? performedDate : null,
+                        PerformanceCount = safeCount
+                    };
+                }
+                else if (safeCount > 0)
+                {
+                    songs.Add(new RepertoireSongDto
+                    {
+                        SongId = songId,
+                        Title = title,
+                        ArtistName = artistName,
+                        ArtistDisplay = artistDisplay,
+                        LastPerformedOn = performedDate,
+                        PerformanceCount = safeCount
                     });
                 }
 

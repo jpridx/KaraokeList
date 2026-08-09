@@ -1,6 +1,7 @@
 @inject ILocalStaleSongsProvider Provider
 @inject IPerformanceCacheCoordinator PerformanceCache
 @inject NavigationManager NavigationManager
+@inject ILogger<StaleSongsSection> Logger
 @implements IDisposable
 @using KaraokeList.Web.Services
 
@@ -51,17 +52,14 @@
         loading = false;
     }
 
-    private async void OnCacheChanged()
-    {
-        await ReloadSuggestionsAsync();
-    }
+    private void OnCacheChanged() => _ = ReloadSuggestionsAsync();
 
-    private async void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
     {
         var relativePath = NavigationManager.ToBaseRelativePath(e.Location);
         if (string.IsNullOrEmpty(relativePath) || relativePath == "/")
         {
-            await ReloadSuggestionsAsync();
+            _ = ReloadSuggestionsAsync();
         }
     }
 
@@ -69,8 +67,15 @@
 
     private async Task ReloadSuggestionsAsync()
     {
-        await LoadSuggestionsAsync();
-        await InvokeAsync(StateHasChanged);
+        try
+        {
+            await LoadSuggestionsAsync();
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Failed to reload stale song suggestions.");
+        }
     }
 
     private async Task LoadSuggestionsAsync(Random? random = null)

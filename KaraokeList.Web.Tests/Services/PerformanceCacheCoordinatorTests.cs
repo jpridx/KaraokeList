@@ -183,4 +183,78 @@ public sealed class PerformanceCacheCoordinatorTests
         Assert.Null(stat.LastPerformedOn);
         Assert.Equal(0, stat.PerformanceCount);
     }
+
+    [Fact]
+    public async Task PatchAfterUpdateAsync_song_change_syncs_exact_my_songs_stats()
+    {
+        var localStorage = new InMemoryLocalStorage();
+        var performancesStore = new MyPerformancesLocalStore(localStorage);
+        await performancesStore.SaveCachedAsync(new CachedMyPerformances(
+        [
+            new MyPerformanceEntryDto
+            {
+                Id = 10,
+                SongId = 5,
+                Title = "Old Song",
+                ArtistName = "Old Artist",
+                ArtistDisplay = "Old Artist",
+                VenueName = "Venue",
+                PerformedOn = new DateTime(2026, 8, 2)
+            },
+            new MyPerformanceEntryDto
+            {
+                Id = 11,
+                SongId = 6,
+                Title = "New Song",
+                ArtistName = "New Artist",
+                ArtistDisplay = "New Artist",
+                VenueName = "Venue",
+                PerformedOn = new DateTime(2026, 7, 20)
+            }
+        ],
+            DateTime.UtcNow));
+
+        var mySongsLoader = new Mock<IMySongsLoader>();
+        var coordinator = new PerformanceCacheCoordinator(
+            new MyPerformancesLoader(new NotImplementedApiClient(), performancesStore),
+            new LogPerformanceLocalStore(localStorage),
+            mySongsLoader.Object);
+
+        var before = new PerformanceEditSnapshot(
+            10, 5, "Old Song", "Old Artist", "Old Artist", new DateTime(2026, 8, 2), 1, "Venue", null);
+        var after = before with
+        {
+            SongId = 6,
+            Title = "New Song",
+            ArtistName = "New Artist",
+            ArtistDisplay = "New Artist",
+            PerformedOn = new DateTime(2026, 8, 10)
+        };
+
+        await coordinator.PatchAfterUpdateAsync(before, after);
+
+        mySongsLoader.Verify(m => m.SetSongPerformanceStatsAsync(
+                5,
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                null,
+                0),
+            Times.Once);
+        mySongsLoader.Verify(m => m.SetSongPerformanceStatsAsync(
+                6,
+                "New Song",
+                "New Artist",
+                "New Artist",
+                after.PerformedOn,
+                2),
+            Times.Once);
+        mySongsLoader.Verify(m => m.PatchSongPerformanceAsync(
+                It.IsAny<int>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<DateTime>()),
+            Times.Never);
+    }
 }
