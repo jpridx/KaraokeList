@@ -37,39 +37,83 @@ public partial class Log
 
     private async Task LoadCatalogAsync(int singerId)
     {
-        var cached = await CatalogLoader.TryGetCachedAsync();
-
-        if (cached is not null)
+        try
         {
-            // Fast path: render immediately from cache, then refresh in the background.
-            // MarkOnline() suppresses the offline banner — cached data is shown for
-            // performance, not because the API is unreachable.
-            catalogState.Apply(cached);
-            catalogState.MarkOnline();
+            var cached = await CatalogLoader.TryGetCachedAsync();
+            if (cached is not null)
+            {
+                await ApplyCachedCatalogAsync(cached);
+                return;
+            }
 
-            recentLogs = await LogStore.GetRecentLogsAsync();
-            isLoading = false;
-
-            await EnsureLogFormResourcesAsync();
+            await FullLoadCatalogAsync();
 
             if (SongId is int querySongId)
             {
                 selectedSongId = querySongId;
                 await OnSongChangedAsync(querySongId);
             }
+        }
+        catch (Exception ex) when (ApiTransientFailure.IsTransient(ex) || ex is HttpRequestException)
+        {
+            await ApplyOfflineFallbackAsync();
+        }
+        catch
+        {
+            await ApplyOfflineFallbackAsync();
+        }
+        finally
+        {
+            isLoading = false;
+            loadingStep = null;
+        }
+    }
 
-            StateHasChanged();
-            _ = RefreshCatalogInBackgroundAsync();
-            return;
+    private async Task ApplyCachedCatalogAsync(LogCatalogSnapshot cached)
+    {
+        catalogState.Apply(cached);
+        catalogState.MarkOnline();
+        recentLogs = await LogStore.GetRecentLogsAsync();
+
+        try
+        {
+            await EnsureLogFormResourcesAsync();
+        }
+        catch
+        {
+            // Venues and singers are optional for the first paint.
         }
 
-        // No cache — full foreground load.
-        await FullLoadCatalogAsync();
-
-        if (SongId is int querySongId2)
+        if (SongId is int querySongId)
         {
-            selectedSongId = querySongId2;
-            await OnSongChangedAsync(querySongId2);
+            selectedSongId = querySongId;
+            await OnSongChangedAsync(querySongId);
+        }
+
+        _ = RefreshCatalogInBackgroundAsync();
+    }
+
+    private async Task ApplyOfflineFallbackAsync()
+    {
+        var cached = await CatalogLoader.TryGetCachedAsync();
+        if (cached is not null)
+        {
+            catalogState.Apply(cached);
+        }
+        else
+        {
+            catalogState.Apply(new LogCatalogSnapshot([], [], [], FromCache: true, HasCatalog: false, null));
+        }
+
+        recentLogs = await LogStore.GetRecentLogsAsync();
+
+        try
+        {
+            await EnsureLogFormResourcesAsync();
+        }
+        catch
+        {
+            // Best-effort offline form resources.
         }
     }
 
@@ -115,11 +159,18 @@ public partial class Log
 
                     if (!catalogState.UsingOfflineCatalog)
                     {
-                        var listsBundle = await MyListsLoader.TryGetCachedAsync()
-                            ?? await MyListsLoader.LoadAsync();
-                        if (listsBundle.Succeeded)
+                        try
                         {
-                            singerLists = listsBundle.Lists.ToList();
+                            var listsBundle = await MyListsLoader.TryGetCachedAsync()
+                                ?? await MyListsLoader.LoadAsync();
+                            if (listsBundle.Succeeded)
+                            {
+                                singerLists = listsBundle.Lists.ToList();
+                            }
+                        }
+                        catch
+                        {
+                            // Background playlist refresh is optional.
                         }
                     }
 
@@ -131,8 +182,30 @@ public partial class Log
         }
 
         catalogState.Apply(await loadTask);
+        recentLogs = await LogStore.GetRecentLogsAsync();
+        isLoading = false;
+        loadingStep = null;
 
-        if (!catalogState.UsingOfflineCatalog)
+        await LoadSingerListsBestEffortAsync();
+
+        try
+        {
+            await EnsureLogFormResourcesAsync();
+        }
+        catch
+        {
+            // Best-effort; the catalog picker can render without venues loaded yet.
+        }
+    }
+
+    private async Task LoadSingerListsBestEffortAsync()
+    {
+        if (catalogState.UsingOfflineCatalog)
+        {
+            return;
+        }
+
+        try
         {
             var listsBundle = await MyListsLoader.TryGetCachedAsync()
                 ?? await MyListsLoader.LoadAsync();
@@ -141,12 +214,10 @@ public partial class Log
                 singerLists = listsBundle.Lists.ToList();
             }
         }
-
-        recentLogs = await LogStore.GetRecentLogsAsync();
-        loadingStep = null;
-        isLoading = false;
-
-        await EnsureLogFormResourcesAsync();
+        catch
+        {
+            // Playlist metadata is optional for logging a performance.
+        }
     }
 
     private async Task EnsureLogFormResourcesAsync()
