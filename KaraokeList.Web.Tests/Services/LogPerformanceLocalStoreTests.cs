@@ -28,4 +28,39 @@ public sealed class LogPerformanceLocalStoreTests
         Assert.Equal("Just Logged", saved[0].Title);
         Assert.DoesNotContain(saved, log => log.Title == "Server Song");
     }
+
+    [Fact]
+    public async Task PatchRecentLogAsync_updates_matching_entry_and_preserves_loggedAt()
+    {
+        var store = new LogPerformanceLocalStore(new InMemoryLocalStorage());
+        var performedOn = new DateTime(2026, 8, 2);
+        var loggedAt = new DateTime(2026, 8, 2, 20, 0, 0);
+        await store.AddRecentLogAsync(new RecentLoggedPerformance(
+            1, "Song", "Artist", "Old Venue", performedOn, null, loggedAt));
+
+        await store.PatchRecentLogAsync(
+            1,
+            performedOn,
+            new RecentLoggedPerformance(
+                1, "Song", "Artist", "New Venue", performedOn, -2, loggedAt));
+
+        var saved = await store.GetRecentLogsAsync();
+        Assert.Single(saved);
+        Assert.Equal("New Venue", saved[0].VenueName);
+        Assert.Equal(-2, saved[0].KeyChangeSemitones);
+        Assert.Equal(loggedAt, saved[0].LoggedAt);
+    }
+
+    [Fact]
+    public async Task RemoveRecentLogAsync_removes_matching_entry()
+    {
+        var store = new LogPerformanceLocalStore(new InMemoryLocalStorage());
+        var performedOn = new DateTime(2026, 8, 2);
+        await store.AddRecentLogAsync(new RecentLoggedPerformance(
+            1, "Song", "Artist", "Venue", performedOn, null, performedOn));
+
+        await store.RemoveRecentLogAsync(1, performedOn);
+
+        Assert.Empty(await store.GetRecentLogsAsync());
+    }
 }

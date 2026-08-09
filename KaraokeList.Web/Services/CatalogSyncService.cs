@@ -21,6 +21,7 @@ public sealed class CatalogSyncService(
     ILogCatalogLoader logCatalogLoader,
     IMySongsLoader mySongsLoader,
     IMyPerformancesLoader performancesLoader,
+    IPerformanceCacheCoordinator performanceCacheCoordinator,
     IKaraokeApiClient api,
     ITicklerSettingsLocalStore ticklerSettingsStore,
     ICatalogVersionService versionService) : ICatalogSyncService
@@ -38,6 +39,7 @@ public sealed class CatalogSyncService(
                 sortDir: "desc",
                 genreId: null);
             await performancesLoader.LoadAsync();
+            await performanceCacheCoordinator.RebuildRecentLogsFromPerformancesAsync();
 
             var settingsResult = await api.GetTicklerSettingsAsync();
             if (settingsResult.Succeeded && settingsResult.Settings is not null)

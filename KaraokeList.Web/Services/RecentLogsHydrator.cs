@@ -24,6 +24,9 @@ public static class RecentLogsHydrator
                 : entry)
             .ToList();
         var apiKeys = apiEntries.Select(Key).ToHashSet();
+        var apiSongDates = apiPerformances
+            .Select(p => (p.SongId, p.PerformedOn.Date))
+            .ToHashSet();
 
         var pendingKeys = pending
             .Select(entry => (entry.SongId, entry.PerformedOn.Date, entry.VenueName))
@@ -36,6 +39,7 @@ public static class RecentLogsHydrator
 
         var freshLocalOnly = dedupedLocalLogs
             .Where(log => !apiKeys.Contains(Key(log)))
+            .Where(log => !apiSongDates.Contains((log.SongId, log.PerformedOn.Date)))
             .Where(log => !pendingKeys.Contains((log.SongId, log.PerformedOn.Date, log.VenueName)))
             .Where(log => RecentLogsRefreshPolicy.ShouldUseLocalRecentLogs(log.LoggedAt, now))
             .ToList();

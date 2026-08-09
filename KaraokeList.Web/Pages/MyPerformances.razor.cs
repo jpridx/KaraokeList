@@ -60,6 +60,19 @@ public partial class MyPerformances
         await ReloadPerformancesAsync();
     }
 
+    private async Task RefreshPerformancesAfterEditAsync()
+    {
+        var cached = await PerformancesLoader.TryGetCachedAsync();
+        if (cached is not null)
+        {
+            ApplyLoadResult(cached);
+            usingOfflinePerformances = false;
+            await InvokeAsync(StateHasChanged);
+        }
+
+        _ = RefreshPerformancesInBackgroundAsync();
+    }
+
     private async Task ReloadPerformancesAsync()
     {
         isLoading = true;

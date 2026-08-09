@@ -48,6 +48,8 @@ public interface ILogPerformanceLocalStore
     Task<IReadOnlyList<RecentLoggedPerformance>> ReplaceRecentLogsIfBaselineAsync(
         IReadOnlyList<RecentLoggedPerformance> entries,
         DateTime? baselineNewestLoggedAt);
+    Task PatchRecentLogAsync(int songId, DateTime oldPerformedOnDate, RecentLoggedPerformance updated);
+    Task RemoveRecentLogAsync(int songId, DateTime performedOnDate);
     Task<IReadOnlyList<PendingPerformanceEntry>> GetPendingPerformancesAsync();
     Task EnqueuePendingPerformanceAsync(PendingPerformanceEntry entry);
     Task RemovePendingPerformanceAsync(Guid id);
@@ -91,6 +93,37 @@ public sealed class LogPerformanceLocalStore(ILocalStorageService localStorage) 
     public async Task ReplaceRecentLogsAsync(IReadOnlyList<RecentLoggedPerformance> entries)
     {
         var logs = entries.Take(MaxRecentLogs).ToList();
+        await localStorage.SetItemAsync(RecentLogsKey, logs);
+    }
+
+    public async Task PatchRecentLogAsync(
+        int songId,
+        DateTime oldPerformedOnDate,
+        RecentLoggedPerformance updated)
+    {
+        var logs = await localStorage.GetItemAsync<List<RecentLoggedPerformance>>(RecentLogsKey) ?? [];
+        var index = logs.FindIndex(l =>
+            l.SongId == songId && l.PerformedOn.Date == oldPerformedOnDate.Date);
+        if (index < 0)
+        {
+            return;
+        }
+
+        var existing = logs[index];
+        logs[index] = updated with { LoggedAt = existing.LoggedAt };
+        await localStorage.SetItemAsync(RecentLogsKey, logs);
+    }
+
+    public async Task RemoveRecentLogAsync(int songId, DateTime performedOnDate)
+    {
+        var logs = await localStorage.GetItemAsync<List<RecentLoggedPerformance>>(RecentLogsKey) ?? [];
+        var removed = logs.RemoveAll(l =>
+            l.SongId == songId && l.PerformedOn.Date == performedOnDate.Date);
+        if (removed == 0)
+        {
+            return;
+        }
+
         await localStorage.SetItemAsync(RecentLogsKey, logs);
     }
 

@@ -1,5 +1,6 @@
 @inject IKaraokeApiClient Api
 @inject NavigationManager Navigation
+@inject IPerformanceCacheCoordinator PerformanceCache
 
 @if (!string.IsNullOrEmpty(statusMessage) || !string.IsNullOrEmpty(errorMessage))
 {
@@ -109,6 +110,7 @@
     private IReadOnlyList<PerformanceKeyOption> keyOptions = PerformanceKeyOption.Choices;
     private int? editingId;
     private int? deleteConfirmId;
+    private PerformanceEditSnapshot? editBeforeSnapshot;
     private DateTime editPerformedOn = DateTime.Today;
     private int? editVenueId;
     private int? editKeyChangeSemitones;
@@ -161,13 +163,18 @@
         statusMessage = null;
         errorMessage = null;
         editingId = entry.Id;
+        editBeforeSnapshot = ToSnapshot(entry);
         editPerformedOn = entry.PerformedOn;
         editVenueId = entry.VenueId;
         editKeyChangeSemitones = entry.KeyChangeSemitones;
         editOtherPerformers = PerformanceEditOperations.ToCoPerformerInputs(entry.OtherPerformers);
     }
 
-    private void CancelEdit() => editingId = null;
+    private void CancelEdit()
+    {
+        editingId = null;
+        editBeforeSnapshot = null;
+    }
 
     private void BeginDelete(int performanceId)
     {
@@ -197,7 +204,15 @@
 
         if (result.Succeeded)
         {
+            if (editBeforeSnapshot is not null)
+            {
+                await PerformanceCache.PatchAfterUpdateAsync(
+                    editBeforeSnapshot,
+                    BuildAfterSnapshot(entry, editBeforeSnapshot));
+            }
+
             editingId = null;
+            editBeforeSnapshot = null;
             statusMessage = "Performance updated.";
             await OnChanged.InvokeAsync();
         }
@@ -218,6 +233,12 @@
         var result = await PerformanceEditOperations.DeleteAsync(Api, performanceId);
         if (result.Succeeded)
         {
+            var deletedEntry = Entries.FirstOrDefault(e => e.Id == performanceId);
+            if (deletedEntry is not null)
+            {
+                await PerformanceCache.PatchAfterDeleteAsync(ToSnapshot(deletedEntry));
+            }
+
             deleteConfirmId = null;
             statusMessage = "Performance deleted.";
             await OnChanged.InvokeAsync();
@@ -228,5 +249,33 @@
         }
 
         isSaving = false;
+    }
+
+    private static PerformanceEditSnapshot ToSnapshot(EditablePerformanceEntry entry) =>
+        new(
+            entry.Id,
+            entry.SongId,
+            entry.Title ?? string.Empty,
+            entry.ArtistName ?? string.Empty,
+            entry.ArtistName,
+            entry.PerformedOn,
+            entry.VenueId,
+            entry.VenueName,
+            entry.KeyChangeSemitones);
+
+    private PerformanceEditSnapshot BuildAfterSnapshot(
+        EditablePerformanceEntry entry,
+        PerformanceEditSnapshot before)
+    {
+        var venueName = venues.FirstOrDefault(v => v.Id == editVenueId)?.VenueName
+            ?? before.VenueName;
+
+        return before with
+        {
+            PerformedOn = editPerformedOn,
+            VenueId = editVenueId,
+            VenueName = venueName,
+            KeyChangeSemitones = editKeyChangeSemitones
+        };
     }
 }
