@@ -37,41 +37,112 @@ public partial class Log
 
     private async Task LoadCatalogAsync(int singerId)
     {
-        var cached = await CatalogLoader.TryGetCachedAsync();
-
-        if (cached is not null)
+        try
         {
-            // Fast path: render immediately from cache, then refresh in the background.
-            // MarkOnline() suppresses the offline banner — cached data is shown for
-            // performance, not because the API is unreachable.
-            catalogState.Apply(cached);
-            catalogState.MarkOnline();
+            var cached = await CatalogLoader.TryGetCachedAsync();
+            if (cached is not null)
+            {
+                await ApplyCachedCatalogAsync(cached);
+                return;
+            }
 
-            recentLogs = await LogStore.GetRecentLogsAsync();
-            isLoading = false;
-
-            await EnsureLogFormResourcesAsync();
+            await FullLoadCatalogAsync();
 
             if (SongId is int querySongId)
             {
                 selectedSongId = querySongId;
                 await OnSongChangedAsync(querySongId);
             }
-
-            StateHasChanged();
-            _ = RefreshCatalogInBackgroundAsync();
-            return;
         }
-
-        // No cache — full foreground load.
-        await FullLoadCatalogAsync();
-
-        if (SongId is int querySongId2)
+        catch (OperationCanceledException)
         {
-            selectedSongId = querySongId2;
-            await OnSongChangedAsync(querySongId2);
+            throw;
+        }
+        catch (Exception ex) when (ApiTransientFailure.IsTransient(ex) || ex is HttpRequestException)
+        {
+            await ApplyOfflineFallbackAsync();
+        }
+        catch
+        {
+            await ApplyOfflineFallbackAsync();
+        }
+        finally
+        {
+            isLoading = false;
+            loadingStep = null;
         }
     }
+
+    private async Task ApplyCachedCatalogAsync(LogCatalogSnapshot cached)
+    {
+        catalogState.Apply(cached);
+        catalogState.MarkOnline();
+        recentLogs = await LogStore.GetRecentLogsAsync();
+
+        if (SongId is int querySongId)
+        {
+            selectedSongId = querySongId;
+            _ = InvokeAsync(async () =>
+            {
+                await OnSongChangedAsync(querySongId);
+                StateHasChanged();
+            });
+        }
+
+        LoadLogFormResourcesInBackground();
+        _ = RefreshCatalogInBackgroundAsync();
+    }
+
+    private async Task ApplyOfflineFallbackAsync()
+    {
+        var cached = await CatalogLoader.TryGetCachedAsync();
+        if (cached is not null)
+        {
+            catalogState.Apply(cached);
+        }
+        else
+        {
+            catalogState.Apply(new LogCatalogSnapshot(
+                [],
+                [],
+                [],
+                FromCache: true,
+                HasCatalog: false,
+                CachedAtUtc: null));
+        }
+
+        recentLogs = await LogStore.GetRecentLogsAsync();
+        LoadLogFormResourcesInBackground();
+    }
+
+    private void LoadLogFormResourcesInBackground() =>
+        _ = InvokeAsync(async () =>
+        {
+            try
+            {
+                await EnsureLogFormResourcesAsync();
+                StateHasChanged();
+            }
+            catch
+            {
+                // Venues and singers are optional for the first paint.
+            }
+        });
+
+    private void LoadDeferredCatalogExtrasInBackground() =>
+        _ = InvokeAsync(async () =>
+        {
+            try
+            {
+                await LoadSingerListsBestEffortAsync();
+                await EnsureLogFormResourcesAsync();
+                StateHasChanged();
+            }
+            catch
+            {
+                // Playlist metadata and form resources are optional after the catalog renders.
+            }
+        });
 
     private async Task FullLoadCatalogAsync()
     {
@@ -87,7 +158,13 @@ public partial class Log
             // FullLoadCatalogAsync is only reached when LoadCatalogAsync already confirmed there
             // is no cache, so there is nothing to fall back to here. Show an empty state and
             // let the background task auto-update the UI when the DB eventually wakes.
-            catalogState.Apply(new LogCatalogSnapshot([], [], [], FromCache: true, HasCatalog: false, null));
+            catalogState.Apply(new LogCatalogSnapshot(
+                [],
+                [],
+                [],
+                FromCache: true,
+                HasCatalog: false,
+                CachedAtUtc: null));
             recentLogs = await LogStore.GetRecentLogsAsync();
             loadingStep = null;
             isLoading = false;
@@ -115,11 +192,18 @@ public partial class Log
 
                     if (!catalogState.UsingOfflineCatalog)
                     {
-                        var listsBundle = await MyListsLoader.TryGetCachedAsync()
-                            ?? await MyListsLoader.LoadAsync();
-                        if (listsBundle.Succeeded)
+                        try
                         {
-                            singerLists = listsBundle.Lists.ToList();
+                            var listsBundle = await MyListsLoader.TryGetCachedAsync()
+                                ?? await MyListsLoader.LoadAsync();
+                            if (listsBundle.Succeeded)
+                            {
+                                singerLists = listsBundle.Lists.ToList();
+                            }
+                        }
+                        catch
+                        {
+                            // Background playlist refresh is optional.
                         }
                     }
 
@@ -131,8 +215,20 @@ public partial class Log
         }
 
         catalogState.Apply(await loadTask);
+        recentLogs = await LogStore.GetRecentLogsAsync();
+        isLoading = false;
+        loadingStep = null;
+        LoadDeferredCatalogExtrasInBackground();
+    }
 
-        if (!catalogState.UsingOfflineCatalog)
+    private async Task LoadSingerListsBestEffortAsync()
+    {
+        if (catalogState.UsingOfflineCatalog)
+        {
+            return;
+        }
+
+        try
         {
             var listsBundle = await MyListsLoader.TryGetCachedAsync()
                 ?? await MyListsLoader.LoadAsync();
@@ -141,12 +237,10 @@ public partial class Log
                 singerLists = listsBundle.Lists.ToList();
             }
         }
-
-        recentLogs = await LogStore.GetRecentLogsAsync();
-        loadingStep = null;
-        isLoading = false;
-
-        await EnsureLogFormResourcesAsync();
+        catch
+        {
+            // Playlist metadata is optional for logging a performance.
+        }
     }
 
     private async Task EnsureLogFormResourcesAsync()

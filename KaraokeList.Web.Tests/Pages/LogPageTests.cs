@@ -96,4 +96,17 @@ public sealed class LogPageTests : AuthPageTestContext
             Assert.Contains("Save performance", cut.Markup);
         });
     }
+
+    [Fact]
+    public void Clears_loading_spinner_when_playlist_loader_fails()
+    {
+        myListsLoader.Setup(loader => loader.TryGetCachedAsync())
+            .ReturnsAsync((MyListsBundle?)null);
+        myListsLoader.Setup(loader => loader.LoadAsync(It.IsAny<Action<string>?>(), It.IsAny<bool>()))
+            .ThrowsAsync(new InvalidOperationException("lists unavailable"));
+
+        var cut = Render<Log>();
+
+        cut.WaitForAssertion(() => Assert.DoesNotContain("Loading...", cut.Markup));
+    }
 }
