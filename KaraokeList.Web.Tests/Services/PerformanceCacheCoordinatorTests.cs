@@ -84,4 +84,103 @@ public sealed class PerformanceCacheCoordinatorTests
         Assert.Equal("Fresh Song", recentLogs[0].Title);
         Assert.Equal("Main Stage", recentLogs[0].VenueName);
     }
+
+    [Fact]
+    public async Task PatchAfterUpdateAsync_syncs_repertoire_stats_when_performed_date_changes()
+    {
+        var localStorage = new InMemoryLocalStorage();
+        var performancesStore = new MyPerformancesLocalStore(localStorage);
+        var oldDate = new DateTime(2026, 1, 1);
+        var newDate = new DateTime(2026, 8, 2);
+        await performancesStore.SaveCachedAsync(new CachedMyPerformances(
+        [
+            new MyPerformanceEntryDto
+            {
+                Id = 10,
+                SongId = 5,
+                Title = "Song",
+                ArtistName = "Artist",
+                ArtistDisplay = "Artist",
+                VenueName = "Venue",
+                PerformedOn = newDate
+            }
+        ],
+            DateTime.UtcNow));
+
+        var logStore = new LogPerformanceLocalStore(localStorage);
+        await logStore.SaveCachedCatalogAsync(new CachedLogCatalog(
+            [],
+            [5],
+            [],
+            DateTime.UtcNow,
+            [],
+            RepertoireStats:
+            [
+                new CachedRepertoireStatsEntry(5, "Song", "Artist", "Artist", oldDate, 1)
+            ]));
+
+        var coordinator = new PerformanceCacheCoordinator(
+            new MyPerformancesLoader(new NotImplementedApiClient(), performancesStore),
+            logStore,
+            new Mock<IMySongsLoader>().Object);
+
+        var before = new PerformanceEditSnapshot(
+            10, 5, "Song", "Artist", "Artist", oldDate, 1, "Venue", null);
+        var after = before with { PerformedOn = newDate };
+
+        await coordinator.PatchAfterUpdateAsync(before, after);
+
+        var logCached = await logStore.GetCachedCatalogAsync();
+        var stat = logCached!.RepertoireStats!.Single(s => s.SongId == 5);
+        Assert.Equal(newDate.Date, stat.LastPerformedOn);
+        Assert.Equal(1, stat.PerformanceCount);
+    }
+
+    [Fact]
+    public async Task PatchAfterDeleteAsync_clears_repertoire_stats_when_last_performance_removed()
+    {
+        var localStorage = new InMemoryLocalStorage();
+        var performancesStore = new MyPerformancesLocalStore(localStorage);
+        await performancesStore.SaveCachedAsync(new CachedMyPerformances(
+        [
+            new MyPerformanceEntryDto
+            {
+                Id = 10,
+                SongId = 5,
+                Title = "Song",
+                ArtistName = "Artist",
+                VenueName = "Venue",
+                PerformedOn = new DateTime(2026, 8, 2)
+            }
+        ],
+            DateTime.UtcNow));
+
+        var logStore = new LogPerformanceLocalStore(localStorage);
+        var performedOn = new DateTime(2026, 8, 2);
+        await logStore.SaveCachedCatalogAsync(new CachedLogCatalog(
+            [],
+            [5],
+            [],
+            DateTime.UtcNow,
+            [],
+            RepertoireStats:
+            [
+                new CachedRepertoireStatsEntry(5, "Song", "Artist", "Artist", performedOn, 1)
+            ]));
+
+        var coordinator = new PerformanceCacheCoordinator(
+            new MyPerformancesLoader(new NotImplementedApiClient(), performancesStore),
+            logStore,
+            new Mock<IMySongsLoader>().Object);
+
+        var deleted = new PerformanceEditSnapshot(
+            10, 5, "Song", "Artist", "Artist", performedOn, 1, "Venue", null);
+
+        await coordinator.PatchAfterDeleteAsync(deleted);
+
+        var logCached = await logStore.GetCachedCatalogAsync();
+        var stat = logCached!.RepertoireStats!.Single(s => s.SongId == 5);
+        Assert.Null(stat.LastPerformedOn);
+        Assert.Equal(0, stat.PerformanceCount);
+    }
 }

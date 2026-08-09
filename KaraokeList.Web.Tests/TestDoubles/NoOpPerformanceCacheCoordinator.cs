@@ -6,6 +6,8 @@ public sealed class NoOpPerformanceCacheCoordinator : IPerformanceCacheCoordinat
 {
     public event Action? RecentLogsChanged;
 
+    public event Action? RepertoireStatsChanged;
+
     public Task PatchAfterUpdateAsync(PerformanceEditSnapshot before, PerformanceEditSnapshot after) =>
         Task.CompletedTask;
 

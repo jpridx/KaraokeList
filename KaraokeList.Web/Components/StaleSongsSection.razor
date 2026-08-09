@@ -1,4 +1,7 @@
 @inject ILocalStaleSongsProvider Provider
+@inject IPerformanceCacheCoordinator PerformanceCache
+@inject NavigationManager NavigationManager
+@implements IDisposable
 @using KaraokeList.Web.Services
 
 @if (!loading && songs.Count > 0)
@@ -40,11 +43,35 @@
 
     protected override async Task OnInitializedAsync()
     {
+        PerformanceCache.RecentLogsChanged += OnCacheChanged;
+        PerformanceCache.RepertoireStatsChanged += OnCacheChanged;
+        NavigationManager.LocationChanged += OnLocationChanged;
+
         await LoadSuggestionsAsync();
         loading = false;
     }
 
+    private async void OnCacheChanged()
+    {
+        await ReloadSuggestionsAsync();
+    }
+
+    private async void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        var relativePath = NavigationManager.ToBaseRelativePath(e.Location);
+        if (string.IsNullOrEmpty(relativePath) || relativePath == "/")
+        {
+            await ReloadSuggestionsAsync();
+        }
+    }
+
     private async Task RefreshSuggestionsAsync() => await LoadSuggestionsAsync(new Random());
+
+    private async Task ReloadSuggestionsAsync()
+    {
+        await LoadSuggestionsAsync();
+        await InvokeAsync(StateHasChanged);
+    }
 
     private async Task LoadSuggestionsAsync(Random? random = null)
     {
@@ -58,7 +85,12 @@
         {
             songs = [];
         }
+    }
 
-        await InvokeAsync(StateHasChanged);
+    public void Dispose()
+    {
+        PerformanceCache.RecentLogsChanged -= OnCacheChanged;
+        PerformanceCache.RepertoireStatsChanged -= OnCacheChanged;
+        NavigationManager.LocationChanged -= OnLocationChanged;
     }
 }

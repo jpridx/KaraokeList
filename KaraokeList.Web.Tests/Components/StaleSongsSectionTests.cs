@@ -9,10 +9,13 @@ namespace KaraokeList.Web.Tests.Components;
 public sealed class StaleSongsSectionTests : BunitTestContext
 {
     private readonly Mock<ILocalStaleSongsProvider> provider = new();
+    private readonly TestPerformanceCacheCoordinator performanceCache = new();
 
     protected override void ConfigureServices(IServiceCollection services)
     {
+        base.ConfigureServices(services);
         services.AddSingleton(provider.Object);
+        services.AddSingleton<IPerformanceCacheCoordinator>(performanceCache);
     }
 
     [Fact]
@@ -198,5 +201,69 @@ public sealed class StaleSongsSectionTests : BunitTestContext
         provider.Verify(
             p => p.ComputeAsync(null, It.IsAny<Random>()),
             Times.AtLeastOnce);
+    }
+
+    [Fact]
+    public void Recomputes_when_repertoire_stats_change()
+    {
+        provider.Setup(p => p.ComputeAsync(null, null))
+            .ReturnsAsync(new LocalStaleSongsResult(
+                new StaleSongsResponseDto
+                {
+                    StaleAfterDays = 90,
+                    Songs =
+                    [
+                        new StaleSongDto { SongId = 1, Title = "First", ArtistName = "Artist" }
+                    ]
+                },
+                true,
+                DateTime.UtcNow,
+                true));
+
+        var cut = Render<StaleSongsSection>();
+        cut.WaitForAssertion(() => Assert.Contains("First", cut.Markup));
+
+        provider.Setup(p => p.ComputeAsync(null, null))
+            .ReturnsAsync(new LocalStaleSongsResult(
+                new StaleSongsResponseDto
+                {
+                    StaleAfterDays = 90,
+                    Songs =
+                    [
+                        new StaleSongDto { SongId = 2, Title = "Updated", ArtistName = "Artist" }
+                    ]
+                },
+                true,
+                DateTime.UtcNow,
+                true));
+
+        performanceCache.RaiseRepertoireStatsChanged();
+        cut.Render();
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Contains("Updated", cut.Markup);
+            Assert.DoesNotContain("First", cut.Markup);
+        });
+
+        provider.Verify(p => p.ComputeAsync(null, null), Times.Exactly(2));
+    }
+
+    private sealed class TestPerformanceCacheCoordinator : IPerformanceCacheCoordinator
+    {
+        public event Action? RecentLogsChanged;
+
+        public event Action? RepertoireStatsChanged;
+
+        public Task PatchAfterUpdateAsync(PerformanceEditSnapshot before, PerformanceEditSnapshot after) =>
+            Task.CompletedTask;
+
+        public Task PatchAfterDeleteAsync(PerformanceEditSnapshot deleted) =>
+            Task.CompletedTask;
+
+        public Task RebuildRecentLogsFromPerformancesAsync() =>
+            Task.CompletedTask;
+
+        public void RaiseRepertoireStatsChanged() => RepertoireStatsChanged?.Invoke();
     }
 }

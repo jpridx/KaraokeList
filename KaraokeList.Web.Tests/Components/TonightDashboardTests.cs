@@ -243,6 +243,8 @@ public sealed class TonightDashboardTests : AuthPageTestContext
     {
         public event Action? RecentLogsChanged;
 
+        public event Action? RepertoireStatsChanged;
+
         public Task PatchAfterUpdateAsync(PerformanceEditSnapshot before, PerformanceEditSnapshot after) =>
             Task.CompletedTask;
 

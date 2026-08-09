@@ -17,6 +17,8 @@ public interface IPerformanceCacheCoordinator
 {
     event Action? RecentLogsChanged;
 
+    event Action? RepertoireStatsChanged;
+
     Task PatchAfterUpdateAsync(PerformanceEditSnapshot before, PerformanceEditSnapshot after);
 
     Task PatchAfterDeleteAsync(PerformanceEditSnapshot deleted);
@@ -31,11 +33,25 @@ public sealed class PerformanceCacheCoordinator(
 {
     public event Action? RecentLogsChanged;
 
+    public event Action? RepertoireStatsChanged;
+
     public async Task PatchAfterUpdateAsync(PerformanceEditSnapshot before, PerformanceEditSnapshot after)
     {
         await PatchMyPerformancesCacheAsync(before, after);
         await PatchRecentLogAsync(before, after);
         await PatchMySongsIfNeededAsync(before, after);
+
+        if (before.SongId != after.SongId || before.PerformedOn.Date != after.PerformedOn.Date)
+        {
+            await SyncRepertoireStatsForSongAsync(before.SongId);
+            if (after.SongId != before.SongId)
+            {
+                await SyncRepertoireStatsForSongAsync(after.SongId);
+            }
+
+            NotifyRepertoireStatsChanged();
+        }
+
         NotifyRecentLogsChanged();
     }
 
@@ -43,6 +59,8 @@ public sealed class PerformanceCacheCoordinator(
     {
         await performancesLoader.RemovePerformanceAsync(deleted.PerformanceId);
         await logStore.RemoveRecentLogAsync(deleted.SongId, deleted.PerformedOn);
+        await SyncRepertoireStatsForSongAsync(deleted.SongId);
+        NotifyRepertoireStatsChanged();
         NotifyRecentLogsChanged();
     }
 
@@ -131,9 +149,14 @@ public sealed class PerformanceCacheCoordinator(
         PerformanceEditSnapshot before,
         PerformanceEditSnapshot after)
     {
-        if (before.PerformedOn.Date == after.PerformedOn.Date)
+        if (before.PerformedOn.Date == after.PerformedOn.Date && before.SongId == after.SongId)
         {
             return;
+        }
+
+        if (before.SongId != after.SongId)
+        {
+            await SyncMySongsPerformanceForSongAsync(before.SongId);
         }
 
         await mySongsLoader.PatchSongPerformanceAsync(
@@ -144,5 +167,84 @@ public sealed class PerformanceCacheCoordinator(
             after.PerformedOn);
     }
 
+    private async Task SyncMySongsPerformanceForSongAsync(int songId)
+    {
+        var cached = await performancesLoader.TryGetCachedAsync();
+        if (cached is null)
+        {
+            return;
+        }
+
+        var remaining = cached.Performances
+            .Where(p => p.SongId == songId)
+            .OrderByDescending(p => p.PerformedOn)
+            .ToList();
+
+        if (remaining.Count == 0)
+        {
+            return;
+        }
+
+        var latest = remaining[0];
+        await mySongsLoader.PatchSongPerformanceAsync(
+            songId,
+            latest.Title,
+            latest.ArtistName,
+            latest.ArtistDisplay ?? latest.ArtistName,
+            latest.PerformedOn);
+    }
+
+    private async Task SyncRepertoireStatsForSongAsync(int songId)
+    {
+        var logCached = await logStore.GetCachedCatalogAsync();
+        if (logCached?.RepertoireStats is not { Count: > 0 } stats)
+        {
+            return;
+        }
+
+        var statsList = stats.ToList();
+        var existingIndex = statsList.FindIndex(s => s.SongId == songId);
+        if (existingIndex < 0)
+        {
+            return;
+        }
+
+        var performancesCached = await performancesLoader.TryGetCachedAsync();
+        var songPerformances = performancesCached?.Performances
+            .Where(p => p.SongId == songId)
+            .OrderByDescending(p => p.PerformedOn)
+            .ToList() ?? [];
+
+        var existing = statsList[existingIndex];
+        if (songPerformances.Count == 0)
+        {
+            statsList[existingIndex] = existing with
+            {
+                LastPerformedOn = null,
+                PerformanceCount = 0
+            };
+        }
+        else
+        {
+            var latest = songPerformances[0];
+            statsList[existingIndex] = existing with
+            {
+                Title = latest.Title,
+                ArtistName = latest.ArtistName,
+                ArtistDisplay = latest.ArtistDisplay ?? latest.ArtistName,
+                LastPerformedOn = latest.PerformedOn.Date,
+                PerformanceCount = songPerformances.Count
+            };
+        }
+
+        await logStore.SaveCachedCatalogAsync(logCached with
+        {
+            RepertoireStats = statsList,
+            CachedAtUtc = DateTime.UtcNow
+        });
+    }
+
     private void NotifyRecentLogsChanged() => RecentLogsChanged?.Invoke();
+
+    private void NotifyRepertoireStatsChanged() => RepertoireStatsChanged?.Invoke();
 }

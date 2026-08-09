@@ -16,7 +16,7 @@ public sealed class TicklerSettingsLocalStore(ILocalStorageService localStorage)
     public async Task<TicklerSettingsDto> GetAsync()
     {
         var stored = await localStorage.GetItemAsync<TicklerSettingsDto?>(Key);
-        return stored ?? new TicklerSettingsDto();
+        return TicklerSettingsNormalizer.Normalize(stored);
     }
 
     public Task SaveAsync(TicklerSettingsDto settings) =>
