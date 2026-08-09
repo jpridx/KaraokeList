@@ -73,6 +73,58 @@ public sealed class MyPerformancesLoaderTests
         Assert.Equal("Stored Song", result.Performances[0].Title);
     }
 
+    [Fact]
+    public async Task PatchPerformanceAsync_updates_matching_entry_in_cache()
+    {
+        var store = new MyPerformancesLocalStore(new InMemoryLocalStorage());
+        await store.SaveCachedAsync(new CachedMyPerformances(
+        [
+            new MyPerformanceEntryDto
+            {
+                Id = 3,
+                SongId = 7,
+                Title = "Stored Song",
+                VenueName = "Old Venue",
+                PerformedOn = DateTime.Today
+            }
+        ],
+            DateTime.UtcNow));
+
+        var loader = new MyPerformancesLoader(new PerformancesApiStub(), store);
+        await loader.PatchPerformanceAsync(new MyPerformanceEntryDto
+        {
+            Id = 3,
+            SongId = 7,
+            Title = "Stored Song",
+            VenueName = "New Venue",
+            PerformedOn = DateTime.Today
+        });
+
+        var cached = await loader.TryGetCachedAsync();
+        Assert.NotNull(cached);
+        Assert.Equal("New Venue", cached.Performances[0].VenueName);
+    }
+
+    [Fact]
+    public async Task RemovePerformanceAsync_removes_matching_entry_from_cache()
+    {
+        var store = new MyPerformancesLocalStore(new InMemoryLocalStorage());
+        await store.SaveCachedAsync(new CachedMyPerformances(
+        [
+            new MyPerformanceEntryDto { Id = 3, SongId = 7, Title = "Stored Song", PerformedOn = DateTime.Today },
+            new MyPerformanceEntryDto { Id = 4, SongId = 8, Title = "Other Song", PerformedOn = DateTime.Today }
+        ],
+            DateTime.UtcNow));
+
+        var loader = new MyPerformancesLoader(new PerformancesApiStub(), store);
+        await loader.RemovePerformanceAsync(3);
+
+        var cached = await loader.TryGetCachedAsync();
+        Assert.NotNull(cached);
+        Assert.Single(cached.Performances);
+        Assert.Equal(4, cached.Performances[0].Id);
+    }
+
     private sealed class PerformancesApiStub : NotImplementedApiClient
     {
         public bool ThrowOffline { get; init; }

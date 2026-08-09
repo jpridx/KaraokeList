@@ -14,6 +14,7 @@ public sealed class TonightDashboardTests : AuthPageTestContext
 
     private readonly Mock<IMyPerformancesLoader> performancesLoader = new();
     private readonly Mock<ILogCatalogLoader> catalogLoader = new();
+    private readonly TestPerformanceCacheCoordinator performanceCache = new();
     private readonly InMemoryLocalStorage localStorage = new();
 
     protected override void ConfigureServices(IServiceCollection services)
@@ -28,6 +29,7 @@ public sealed class TonightDashboardTests : AuthPageTestContext
         services.AddSingleton<IBackgroundWorkScheduler, SynchronousBackgroundWorkScheduler>();
         services.AddSingleton(performancesLoader.Object);
         services.AddSingleton(catalogLoader.Object);
+        services.AddSingleton<IPerformanceCacheCoordinator>(performanceCache);
         services.AddSingleton<ILogPerformanceLocalStore>(new LogPerformanceLocalStore(localStorage));
     }
 
@@ -205,5 +207,51 @@ public sealed class TonightDashboardTests : AuthPageTestContext
 
         var saved = await store.GetRecentLogsAsync();
         Assert.Equal(expectedLoggedAt, saved[0].LoggedAt);
+    }
+
+    [Fact]
+    public async Task Recently_logged_refreshes_when_cache_coordinator_signals_change()
+    {
+        var store = (LogPerformanceLocalStore)Services.GetRequiredService<ILogPerformanceLocalStore>();
+        var performedOn = new DateTime(2026, 8, 2);
+        var loggedAt = DateTime.Now.AddMinutes(-30);
+        await store.AddRecentLogAsync(new RecentLoggedPerformance(
+            SongId: 1,
+            Title: "Tonight Song",
+            ArtistName: "Artist",
+            VenueName: "Old Venue",
+            PerformedOn: performedOn,
+            KeyChangeSemitones: null,
+            LoggedAt: loggedAt));
+
+        var cut = Render<TonightDashboard>();
+        Assert.Contains("Old Venue", cut.Markup);
+
+        await store.PatchRecentLogAsync(
+            1,
+            performedOn,
+            new RecentLoggedPerformance(
+                1, "Tonight Song", "Artist", "New Venue", performedOn, null, loggedAt));
+        performanceCache.RaiseRecentLogsChanged();
+        cut.Render();
+
+        Assert.Contains("New Venue", cut.Markup);
+        Assert.DoesNotContain("Old Venue", cut.Markup);
+    }
+
+    private sealed class TestPerformanceCacheCoordinator : IPerformanceCacheCoordinator
+    {
+        public event Action? RecentLogsChanged;
+
+        public Task PatchAfterUpdateAsync(PerformanceEditSnapshot before, PerformanceEditSnapshot after) =>
+            Task.CompletedTask;
+
+        public Task PatchAfterDeleteAsync(PerformanceEditSnapshot deleted) =>
+            Task.CompletedTask;
+
+        public Task RebuildRecentLogsFromPerformancesAsync() =>
+            Task.CompletedTask;
+
+        public void RaiseRecentLogsChanged() => RecentLogsChanged?.Invoke();
     }
 }

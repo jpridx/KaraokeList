@@ -1,4 +1,6 @@
 using Bunit;
+using KaraokeList.Web.Services;
+using KaraokeList.Web.Tests.TestDoubles;
 using Microsoft.Extensions.DependencyInjection;
 using Syncfusion.Blazor;
 
@@ -17,6 +19,7 @@ public abstract class BunitTestContext : BunitContext
 
     protected virtual void ConfigureServices(IServiceCollection services)
     {
+        services.AddSingleton<IPerformanceCacheCoordinator, NoOpPerformanceCacheCoordinator>();
     }
 
     protected void AddSyncfusionServices(IServiceCollection services)

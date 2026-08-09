@@ -52,7 +52,7 @@
                                                  Variant="EditablePerformanceListVariant.Browse"
                                                  Entries="@browseEntries"
                                                  AllowMutations="@(!usingOfflinePerformances)"
-                                                 OnChanged="ReloadPerformancesAsync" />
+                                                 OnChanged="RefreshPerformancesAfterEditAsync" />
                         @if (HasMorePerformances)
                         {
                             <LoadMoreButton Visible="@HasMorePerformances"

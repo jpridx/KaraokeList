@@ -53,6 +53,11 @@ public sealed class CatalogSyncServiceTests
                 ErrorMessage: null,
                 NeedsSingerLink: false));
 
+        var performanceCacheCoordinator = new Mock<IPerformanceCacheCoordinator>();
+        performanceCacheCoordinator
+            .Setup(c => c.RebuildRecentLogsFromPerformancesAsync())
+            .Returns(Task.CompletedTask);
+
         var api = new Mock<IKaraokeApiClient>();
         api.Setup(a => a.GetTicklerSettingsAsync())
             .ReturnsAsync(TicklerSettingsResult.Ok(new TicklerSettingsDto { StaleAfterDays = 30, SongLimit = 3 }));
@@ -64,6 +69,7 @@ public sealed class CatalogSyncServiceTests
             logCatalogLoader.Object,
             mySongsLoader.Object,
             performancesLoader.Object,
+            performanceCacheCoordinator.Object,
             api.Object,
             ticklerSettingsStore,
             versionService.Object);
@@ -72,6 +78,7 @@ public sealed class CatalogSyncServiceTests
 
         Assert.True(result.Succeeded);
         api.Verify(a => a.GetTicklerSettingsAsync(), Times.Once);
+        performanceCacheCoordinator.Verify(c => c.RebuildRecentLogsFromPerformancesAsync(), Times.Once);
 
         var cached = await ticklerSettingsStore.GetAsync();
         Assert.Equal(30, cached.StaleAfterDays);

@@ -1,7 +1,10 @@
 @inject ILogPerformanceLocalStore LogStore
 @inject ILogCatalogLoader CatalogLoader
 @inject IMyPerformancesLoader PerformancesLoader
+@inject IPerformanceCacheCoordinator PerformanceCache
 @inject IBackgroundWorkScheduler BackgroundWork
+@inject NavigationManager NavigationManager
+@implements IDisposable
 @using KaraokeList.Shared
 
 <section class="tonight-dashboard mobile-panel">
@@ -52,11 +55,40 @@
         var defaults = await LogStore.GetFormDefaultsAsync();
         recentLogs = await LogStore.GetRecentLogsAsync();
 
+        PerformanceCache.RecentLogsChanged += OnRecentLogsChanged;
+        NavigationManager.LocationChanged += OnLocationChanged;
+
         if (defaults?.VenueId is int venueId)
         {
             // Resolve the venue name in the background so the dashboard renders instantly.
             _ = LoadVenueNameAsync(venueId);
         }
+    }
+
+    private async void OnRecentLogsChanged()
+    {
+        await RefreshRecentLogsFromStoreAsync();
+    }
+
+    private async void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        var relativePath = NavigationManager.ToBaseRelativePath(e.Location);
+        if (string.IsNullOrEmpty(relativePath) || relativePath == "/")
+        {
+            await RefreshRecentLogsFromStoreAsync();
+        }
+    }
+
+    private async Task RefreshRecentLogsFromStoreAsync()
+    {
+        recentLogs = await LogStore.GetRecentLogsAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        PerformanceCache.RecentLogsChanged -= OnRecentLogsChanged;
+        NavigationManager.LocationChanged -= OnLocationChanged;
     }
 
     protected override Task OnAfterRenderAsync(bool firstRender)

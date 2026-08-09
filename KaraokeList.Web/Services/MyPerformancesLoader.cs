@@ -7,6 +7,10 @@ public interface IMyPerformancesLoader
     Task<MyPerformancesLoadResult> LoadAsync();
 
     Task<MyPerformancesLoadResult?> TryGetCachedAsync();
+
+    Task PatchPerformanceAsync(MyPerformanceEntryDto updated);
+
+    Task RemovePerformanceAsync(int performanceId);
 }
 
 public sealed class MyPerformancesLoader(
@@ -80,6 +84,48 @@ public sealed class MyPerformancesLoader(
         }
 
         return BuildResult(cached.Performances, FromCache: true, cached.CachedAtUtc);
+    }
+
+    public async Task PatchPerformanceAsync(MyPerformanceEntryDto updated)
+    {
+        var cached = await store.GetCachedAsync();
+        if (cached is null)
+        {
+            return;
+        }
+
+        var performances = cached.Performances.ToList();
+        var index = performances.FindIndex(p => p.Id == updated.Id);
+        if (index < 0)
+        {
+            return;
+        }
+
+        performances[index] = updated;
+        await store.SaveCachedAsync(new CachedMyPerformances(
+            performances,
+            DateTime.UtcNow,
+            cached.SchemaVersion));
+    }
+
+    public async Task RemovePerformanceAsync(int performanceId)
+    {
+        var cached = await store.GetCachedAsync();
+        if (cached is null)
+        {
+            return;
+        }
+
+        var performances = cached.Performances.Where(p => p.Id != performanceId).ToList();
+        if (performances.Count == cached.Performances.Count)
+        {
+            return;
+        }
+
+        await store.SaveCachedAsync(new CachedMyPerformances(
+            performances,
+            DateTime.UtcNow,
+            cached.SchemaVersion));
     }
 
     private static MyPerformancesLoadResult BuildResult(

@@ -53,6 +53,7 @@ builder.Services.AddScoped<MySongsScrollRestoreState>();
 builder.Services.AddScoped<IScrollRestoreJs, ScrollRestoreJs>();
 builder.Services.AddScoped<IMyPerformancesLocalStore, MyPerformancesLocalStore>();
 builder.Services.AddScoped<IMyPerformancesLoader, MyPerformancesLoader>();
+builder.Services.AddScoped<IPerformanceCacheCoordinator, PerformanceCacheCoordinator>();
 builder.Services.AddScoped<ITicklerSettingsLocalStore, TicklerSettingsLocalStore>();
 builder.Services.AddScoped<ITicklerExclusionsLocalStore, TicklerExclusionsLocalStore>();
 builder.Services.AddScoped<ILocalStaleSongsProvider, LocalStaleSongsProvider>();

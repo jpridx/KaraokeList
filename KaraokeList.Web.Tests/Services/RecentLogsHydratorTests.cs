@@ -246,6 +246,35 @@ public sealed class RecentLogsHydratorTests
         Assert.Equal(newerLoggedAt, merged[0].LoggedAt);
     }
 
+    [Fact]
+    public void Merge_prefers_api_venue_when_local_has_same_song_and_date()
+    {
+        var performedOn = new DateTime(2026, 8, 2);
+        var freshLoggedAt = new DateTime(2026, 8, 2, 21, 0, 0);
+        var api = new List<MyPerformanceEntryDto>
+        {
+            new()
+            {
+                SongId = 1,
+                Title = "Tonight Song",
+                ArtistName = "Artist",
+                VenueName = "Corrected Venue",
+                PerformedOn = performedOn
+            }
+        };
+        var local = new List<RecentLoggedPerformance>
+        {
+            new(1, "Tonight Song", "Artist", "Wrong Venue", performedOn, null, freshLoggedAt)
+        };
+
+        var hydratedAt = freshLoggedAt.AddMinutes(5);
+        var merged = RecentLogsHydrator.Merge(api, local, [], hydratedAt: hydratedAt);
+
+        Assert.Single(merged);
+        Assert.Equal("Corrected Venue", merged[0].VenueName);
+        Assert.Equal(hydratedAt, merged[0].LoggedAt);
+    }
+
     private static MyPerformanceEntryDto CreateApiEntry(int songId, string title, DateTime performedOn) =>
         new()
         {
