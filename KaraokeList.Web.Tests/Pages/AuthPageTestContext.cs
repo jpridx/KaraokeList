@@ -29,6 +29,7 @@ public abstract class AuthPageTestContext : BunitTestContext
 
     protected override void ConfigureServices(IServiceCollection services)
     {
+        base.ConfigureServices(services);
         services.AddSingleton(Api.Object);
         services.AddSingleton<ILocalStorageService>(localStorage);
         services.AddSingleton<ISingerProfileLocalStore>(new SingerProfileLocalStore(localStorage));
