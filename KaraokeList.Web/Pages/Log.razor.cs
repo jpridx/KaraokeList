@@ -54,6 +54,10 @@ public partial class Log
                 await OnSongChangedAsync(querySongId);
             }
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex) when (ApiTransientFailure.IsTransient(ex) || ex is HttpRequestException)
         {
             await ApplyOfflineFallbackAsync();
@@ -75,21 +79,17 @@ public partial class Log
         catalogState.MarkOnline();
         recentLogs = await LogStore.GetRecentLogsAsync();
 
-        try
-        {
-            await EnsureLogFormResourcesAsync();
-        }
-        catch
-        {
-            // Venues and singers are optional for the first paint.
-        }
-
         if (SongId is int querySongId)
         {
             selectedSongId = querySongId;
-            await OnSongChangedAsync(querySongId);
+            _ = InvokeAsync(async () =>
+            {
+                await OnSongChangedAsync(querySongId);
+                StateHasChanged();
+            });
         }
 
+        LoadLogFormResourcesInBackground();
         _ = RefreshCatalogInBackgroundAsync();
     }
 
@@ -102,20 +102,47 @@ public partial class Log
         }
         else
         {
-            catalogState.Apply(new LogCatalogSnapshot([], [], [], FromCache: true, HasCatalog: false, null));
+            catalogState.Apply(new LogCatalogSnapshot(
+                [],
+                [],
+                [],
+                FromCache: true,
+                HasCatalog: false,
+                CachedAtUtc: null));
         }
 
         recentLogs = await LogStore.GetRecentLogsAsync();
-
-        try
-        {
-            await EnsureLogFormResourcesAsync();
-        }
-        catch
-        {
-            // Best-effort offline form resources.
-        }
+        LoadLogFormResourcesInBackground();
     }
+
+    private void LoadLogFormResourcesInBackground() =>
+        _ = InvokeAsync(async () =>
+        {
+            try
+            {
+                await EnsureLogFormResourcesAsync();
+                StateHasChanged();
+            }
+            catch
+            {
+                // Venues and singers are optional for the first paint.
+            }
+        });
+
+    private void LoadDeferredCatalogExtrasInBackground() =>
+        _ = InvokeAsync(async () =>
+        {
+            try
+            {
+                await LoadSingerListsBestEffortAsync();
+                await EnsureLogFormResourcesAsync();
+                StateHasChanged();
+            }
+            catch
+            {
+                // Playlist metadata and form resources are optional after the catalog renders.
+            }
+        });
 
     private async Task FullLoadCatalogAsync()
     {
@@ -131,7 +158,13 @@ public partial class Log
             // FullLoadCatalogAsync is only reached when LoadCatalogAsync already confirmed there
             // is no cache, so there is nothing to fall back to here. Show an empty state and
             // let the background task auto-update the UI when the DB eventually wakes.
-            catalogState.Apply(new LogCatalogSnapshot([], [], [], FromCache: true, HasCatalog: false, null));
+            catalogState.Apply(new LogCatalogSnapshot(
+                [],
+                [],
+                [],
+                FromCache: true,
+                HasCatalog: false,
+                CachedAtUtc: null));
             recentLogs = await LogStore.GetRecentLogsAsync();
             loadingStep = null;
             isLoading = false;
@@ -185,17 +218,7 @@ public partial class Log
         recentLogs = await LogStore.GetRecentLogsAsync();
         isLoading = false;
         loadingStep = null;
-
-        await LoadSingerListsBestEffortAsync();
-
-        try
-        {
-            await EnsureLogFormResourcesAsync();
-        }
-        catch
-        {
-            // Best-effort; the catalog picker can render without venues loaded yet.
-        }
+        LoadDeferredCatalogExtrasInBackground();
     }
 
     private async Task LoadSingerListsBestEffortAsync()
