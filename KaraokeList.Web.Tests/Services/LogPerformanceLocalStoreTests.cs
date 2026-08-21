@@ -63,4 +63,41 @@ public sealed class LogPerformanceLocalStoreTests
 
         Assert.Empty(await store.GetRecentLogsAsync());
     }
+
+    [Fact]
+    public void EffectiveVenueIdToday_returns_venue_when_saved_today()
+    {
+        var defaults = LogFormDefaults.ForToday(3);
+
+        Assert.Equal(3, defaults.EffectiveVenueIdToday());
+    }
+
+    [Fact]
+    public void EffectiveVenueIdToday_returns_null_when_saved_yesterday()
+    {
+        var yesterday = DateOnly.FromDateTime(DateTime.Today.AddDays(-1));
+        var defaults = new LogFormDefaults(3, yesterday);
+
+        Assert.Null(defaults.EffectiveVenueIdToday());
+    }
+
+    [Fact]
+    public void EffectiveVenueIdToday_returns_legacy_venue_without_saved_date()
+    {
+        var defaults = new LogFormDefaults(3);
+
+        Assert.Equal(3, defaults.EffectiveVenueIdToday());
+    }
+
+    [Fact]
+    public async Task SaveFormDefaultsAsync_persists_todays_date()
+    {
+        var store = new LogPerformanceLocalStore(new InMemoryLocalStorage());
+
+        await store.SaveFormDefaultsAsync(LogFormDefaults.ForToday(5));
+
+        var saved = await store.GetFormDefaultsAsync();
+        Assert.Equal(5, saved?.VenueId);
+        Assert.Equal(DateOnly.FromDateTime(DateTime.Today), saved?.SavedOnLocalDate);
+    }
 }

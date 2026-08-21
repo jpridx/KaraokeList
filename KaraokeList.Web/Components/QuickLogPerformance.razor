@@ -136,6 +136,8 @@
     private bool defaultsLoaded;
     private bool usingOfflineCatalog;
     private bool venuesLoaded;
+    private bool _storedVenueApplied;
+    private SongPerformanceSummaryDto? _summaryForVenueDefault;
     private List<CoPerformerInputDto> localOtherPerformers = [];
     private int? formKeyChangeSemitones;
 
@@ -186,6 +188,10 @@
         {
             await LoadDefaultsAsync();
         }
+        else if (!_storedVenueApplied && venues.Count > 0 && selectedVenueId is null)
+        {
+            await ApplyStoredVenueDefaultAsync();
+        }
     }
 
     private int _loadedSongId;
@@ -194,6 +200,7 @@
     {
         defaultsLoaded = true;
         _loadedSongId = SongId;
+        _storedVenueApplied = false;
         saveMessage = null;
         saveWarning = null;
         saveError = null;
@@ -202,14 +209,13 @@
             localOtherPerformers = [];
         }
 
-        var stored = await LogStore.GetFormDefaultsAsync();
-        SongPerformanceSummaryDto? summary = SongSummary;
-        if (summary is null)
+        _summaryForVenueDefault = SongSummary;
+        if (_summaryForVenueDefault is null)
         {
             try
             {
                 var result = await Api.GetMySongSummaryAsync(SongId);
-                summary = result.Succeeded ? result.Summary : null;
+                _summaryForVenueDefault = result.Succeeded ? result.Summary : null;
             }
             catch (Exception ex) when (ApiTransientFailure.IsTransient(ex) || ex is HttpRequestException)
             {
@@ -222,7 +228,7 @@
         var recentKeyForSong = (await LogStore.GetRecentLogsAsync())
             .FirstOrDefault(r => r.SongId == SongId)
             ?.KeyChangeSemitones;
-        var key = LogKeyChangeDefaults.ForSong(summary, recentKeyForSong);
+        var key = LogKeyChangeDefaults.ForSong(_summaryForVenueDefault, recentKeyForSong);
         if (KeyIsParentBound)
         {
             await KeyChangeSemitonesChanged.InvokeAsync(key);
@@ -232,19 +238,39 @@
             formKeyChangeSemitones = key;
         }
 
-        if (stored?.VenueId is int storedVenueId && venues.Any(v => v.Id == storedVenueId))
+        await ApplyStoredVenueDefaultAsync();
+    }
+
+    private async Task ApplyStoredVenueDefaultAsync()
+    {
+        if (selectedVenueId is not null)
+        {
+            _storedVenueApplied = true;
+            return;
+        }
+
+        if (venues.Count == 0)
+        {
+            return;
+        }
+
+        var stored = await LogStore.GetFormDefaultsAsync();
+        if (stored?.EffectiveVenueIdToday() is int storedVenueId
+            && venues.Any(v => v.Id == storedVenueId))
         {
             selectedVenueId = storedVenueId;
+            _storedVenueApplied = true;
+            return;
         }
-        else if (!string.IsNullOrWhiteSpace(summary?.LastVenueName))
+
+        var summary = _summaryForVenueDefault ?? SongSummary;
+        if (!string.IsNullOrWhiteSpace(summary?.LastVenueName))
         {
             selectedVenueId = venues.FirstOrDefault(v =>
                 v.VenueName.Equals(summary.LastVenueName, StringComparison.OrdinalIgnoreCase))?.Id;
         }
-        else
-        {
-            selectedVenueId = null;
-        }
+
+        _storedVenueApplied = true;
     }
 
     private async Task SavePerformanceAsync()
@@ -300,7 +326,7 @@
 
     private async Task SaveLocallyAsync(string venueName, bool queuedOffline)
     {
-        await LogStore.SaveFormDefaultsAsync(new LogFormDefaults(selectedVenueId));
+        await LogStore.SaveFormDefaultsAsync(LogFormDefaults.ForToday(selectedVenueId));
         await LogStore.AddRecentLogAsync(new RecentLoggedPerformance(
             SongId, Title, ArtistName, venueName, performedOn, ActiveKeyChangeSemitones, DateTime.Now));
 

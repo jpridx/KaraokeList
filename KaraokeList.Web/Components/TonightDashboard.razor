@@ -58,7 +58,7 @@
         PerformanceCache.RecentLogsChanged += OnRecentLogsChanged;
         NavigationManager.LocationChanged += OnLocationChanged;
 
-        if (defaults?.VenueId is int venueId)
+        if (defaults?.EffectiveVenueIdToday() is int venueId)
         {
             // Resolve the venue name in the background so the dashboard renders instantly.
             _ = LoadVenueNameAsync(venueId);

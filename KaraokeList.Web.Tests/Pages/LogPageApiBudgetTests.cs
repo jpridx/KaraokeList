@@ -88,6 +88,7 @@ public sealed class LogPageApiBudgetTests : AuthPageTestContext
         {
             Assert.Contains("Save performance", cut.Markup);
             Assert.Contains("you've sung this 2 time", cut.Markup, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("Main Stage", cut.Markup);
         });
 
         Api.Verify(client => client.GetMySongSummaryAsync(42), Times.Once);

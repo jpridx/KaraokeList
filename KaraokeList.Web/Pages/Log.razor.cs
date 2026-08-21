@@ -78,6 +78,7 @@ public partial class Log
         catalogState.Apply(cached);
         catalogState.MarkOnline();
         recentLogs = await LogStore.GetRecentLogsAsync();
+        await SeedLogVenuesFromCacheAsync();
 
         if (SongId is int querySongId)
         {
@@ -112,7 +113,22 @@ public partial class Log
         }
 
         recentLogs = await LogStore.GetRecentLogsAsync();
+        await SeedLogVenuesFromCacheAsync();
         LoadLogFormResourcesInBackground();
+    }
+
+    private async Task SeedLogVenuesFromCacheAsync()
+    {
+        var cached = await LogStore.GetCachedCatalogAsync();
+        if (cached?.Venues is not { Count: > 0 } cachedVenues)
+        {
+            return;
+        }
+
+        logVenues = cachedVenues
+            .Select(v => new VenueDto { Id = v.Id, VenueName = v.VenueName })
+            .ToList();
+        logFormUsingOfflineCatalog = true;
     }
 
     private void LoadLogFormResourcesInBackground() =>

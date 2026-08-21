@@ -109,4 +109,49 @@ public sealed class LogPageTests : AuthPageTestContext
 
         cut.WaitForAssertion(() => Assert.DoesNotContain("Loading...", cut.Markup));
     }
+
+    [Fact]
+    public void Cached_catalog_pre_seeds_venues_before_async_load_completes()
+    {
+        var venuesLoaded = new TaskCompletionSource<VenueLoadResult>();
+
+        catalogLoader.Setup(loader => loader.TryGetCachedAsync())
+            .ReturnsAsync(new LogCatalogSnapshot(
+                Songs: [new LogSongPickItem(42, "Jeopardy", "The Greg Kihn Band", true, false)],
+                RepertoireSongIds: [42],
+                WorkingUpSongIds: [],
+                FromCache: true,
+                HasCatalog: true,
+                CachedAtUtc: DateTime.UtcNow));
+
+        catalogLoader.Setup(loader => loader.NeedsRefreshAsync()).ReturnsAsync(false);
+
+        logStore.Setup(store => store.GetCachedCatalogAsync())
+            .ReturnsAsync(new CachedLogCatalog(
+                [],
+                [],
+                [new CachedVenueEntry(3, "Main Stage")],
+                DateTime.UtcNow));
+
+        logStore.Setup(store => store.GetFormDefaultsAsync())
+            .ReturnsAsync(LogFormDefaults.ForToday(3));
+
+        catalogLoader.Setup(loader => loader.LoadVenuesAsync())
+            .Returns(venuesLoaded.Task);
+
+        var nav = Services.GetRequiredService<NavigationManager>();
+        nav.NavigateTo("/log?songId=42");
+
+        var cut = Render<Log>();
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Contains("Save performance", cut.Markup);
+            Assert.DoesNotContain("Venue list isn't cached yet", cut.Markup);
+        });
+
+        venuesLoaded.SetResult(new VenueLoadResult(
+            [new VenueDto { Id = 3, VenueName = "Main Stage" }],
+            FromCache: false));
+    }
 }
