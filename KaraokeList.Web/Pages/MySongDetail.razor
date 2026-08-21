@@ -44,6 +44,7 @@
                                     OnGenreChanged="OnGenreChangedAsync" />
 
                     <SongListMembershipPanel SongId="@SongId" PerformanceCount="@summary.PerformanceCount"
+                                             SongMeta="@songMeta"
                                              OnMembershipChanged="ReloadSongDetailAsync" />
 
                     <TicklerExclusionPanel SongId="@SongId" OnExclusionChanged="ReloadSongDetailAsync" />

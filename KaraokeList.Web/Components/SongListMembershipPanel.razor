@@ -65,11 +65,17 @@
     [Parameter]
     public int PerformanceCount { get; set; }
 
+    [Parameter]
+    public RepertoireSongDto? SongMeta { get; set; }
+
     [Parameter, EditorRequired]
     public EventCallback OnMembershipChanged { get; set; }
 
     [Inject]
     private IKaraokeApiClient Api { get; set; } = default!;
+
+    [Inject]
+    private IMySongsLoader MySongsLoader { get; set; } = default!;
 
     private readonly HashSet<SingerListKind> membership = [];
     private List<SingerListDto> singerLists = [];
@@ -130,6 +136,7 @@
 
         statusMessage = result.SuccessMessage;
         await LoadAsync();
+        await PatchCachedListAsync(kind, added: true);
         await OnMembershipChanged.InvokeAsync();
         isBusy = false;
     }
@@ -150,7 +157,21 @@
 
         statusMessage = result.SuccessMessage;
         await LoadAsync();
+        await PatchCachedListAsync(kind, added: false);
         await OnMembershipChanged.InvokeAsync();
         isBusy = false;
+    }
+
+    private async Task PatchCachedListAsync(SingerListKind kind, bool added)
+    {
+        if (added)
+        {
+            var song = SongMeta ?? new RepertoireSongDto { SongId = SongId };
+            await MySongsLoader.AddSongToCachedListAsync(kind, song);
+        }
+        else
+        {
+            await MySongsLoader.RemoveSongFromCachedListAsync(kind, SongId);
+        }
     }
 }

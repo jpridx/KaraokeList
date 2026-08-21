@@ -35,11 +35,16 @@ public interface IMySongsLoader
         string artistDisplay,
         DateTime? lastPerformedOn,
         int performanceCount);
+
+    Task AddSongToCachedListAsync(SingerListKind kind, RepertoireSongDto song);
+
+    Task RemoveSongFromCachedListAsync(SingerListKind kind, int songId);
 }
 
 public sealed class MySongsLoader(
     IMyListsLoader myListsLoader,
-    IMySongsLocalStore store) : IMySongsLoader
+    IMySongsLocalStore store,
+    ILogPerformanceLocalStore logStore) : IMySongsLoader
 {
     public async Task<MySongsLoadResult> LoadAsync(
         SingerListKind listKind,
@@ -330,6 +335,113 @@ public sealed class MySongsLoader(
         {
             ListsSongs = updatedListsSongs,
             CachedAtUtc = DateTime.UtcNow
+        });
+    }
+
+    public async Task AddSongToCachedListAsync(SingerListKind kind, RepertoireSongDto song)
+    {
+        await PatchMySongsListAsync(kind, songs =>
+        {
+            if (songs.Any(s => s.SongId == song.SongId))
+            {
+                return songs;
+            }
+
+            songs.Add(song);
+            return songs;
+        });
+
+        await PatchLogCatalogListMembershipAsync(kind, song.SongId, added: true, song);
+    }
+
+    public async Task RemoveSongFromCachedListAsync(SingerListKind kind, int songId)
+    {
+        await PatchMySongsListAsync(kind, songs => songs.Where(s => s.SongId != songId).ToList());
+        await PatchLogCatalogListMembershipAsync(kind, songId, added: false, song: null);
+    }
+
+    private async Task PatchMySongsListAsync(
+        SingerListKind kind,
+        Func<List<RepertoireSongDto>, List<RepertoireSongDto>> update)
+    {
+        var cached = await store.GetCachedListsAsync();
+        if (cached is null || cached.ListsSongs.Count == 0)
+        {
+            return;
+        }
+
+        var updatedListsSongs = cached.ListsSongs
+            .Select(entry =>
+            {
+                if (entry.Kind != kind)
+                {
+                    return entry;
+                }
+
+                return new CachedListSongsEntry(kind, update(entry.Songs.ToList()));
+            })
+            .ToList();
+
+        await store.SaveCachedListsAsync(cached with { ListsSongs = updatedListsSongs });
+    }
+
+    private async Task PatchLogCatalogListMembershipAsync(
+        SingerListKind kind,
+        int songId,
+        bool added,
+        RepertoireSongDto? song)
+    {
+        if (kind is not (SingerListKind.WorkingUp or SingerListKind.MyRepertoire))
+        {
+            return;
+        }
+
+        var logCached = await logStore.GetCachedCatalogAsync();
+        if (logCached is null)
+        {
+            return;
+        }
+
+        if (kind == SingerListKind.WorkingUp)
+        {
+            var workingUpIds = (logCached.WorkingUpSongIds ?? []).ToHashSet();
+            if (added)
+            {
+                workingUpIds.Add(songId);
+            }
+            else
+            {
+                workingUpIds.Remove(songId);
+            }
+
+            await logStore.SaveCachedCatalogAsync(logCached with
+            {
+                WorkingUpSongIds = workingUpIds.ToList()
+            });
+            return;
+        }
+
+        var repertoireIds = logCached.RepertoireSongIds.ToHashSet();
+        var stats = logCached.RepertoireStats?.ToList() ?? [];
+
+        if (added && song is not null)
+        {
+            repertoireIds.Add(songId);
+            if (stats.All(s => s.SongId != songId))
+            {
+                stats.Add(MyListsLoader.MapRepertoireStatsEntry(song));
+            }
+        }
+        else
+        {
+            repertoireIds.Remove(songId);
+            stats.RemoveAll(s => s.SongId == songId);
+        }
+
+        await logStore.SaveCachedCatalogAsync(logCached with
+        {
+            RepertoireSongIds = repertoireIds.ToList(),
+            RepertoireStats = stats
         });
     }
 }

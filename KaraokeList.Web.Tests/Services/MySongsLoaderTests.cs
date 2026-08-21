@@ -20,7 +20,7 @@ public sealed class MySongsLoaderTests
             log,
             versionService ?? new NullVersion(),
             new TicklerSettingsLocalStore(new InMemoryLocalStorage()));
-        return new MySongsLoader(myListsLoader, store);
+        return new MySongsLoader(myListsLoader, store, log);
     }
 
     [Fact]
@@ -337,6 +337,122 @@ public sealed class MySongsLoaderTests
         Assert.Null(song.LastPerformedOn);
         Assert.Equal("Old Song", song.Title);
         Assert.Equal("Old Artist", song.ArtistName);
+    }
+
+    [Fact]
+    public async Task RemoveSongFromCachedListAsync_removes_from_want_to_sing_cache()
+    {
+        var store = new MySongsLocalStore(new InMemoryLocalStorage());
+        await store.SaveCachedListsAsync(new CachedMySongsLists(
+            [
+                new SingerListDto { Id = 2, Kind = SingerListKind.WantToSing, DisplayName = "Want to sing" },
+                new SingerListDto { Id = 3, Kind = SingerListKind.WorkingUp, DisplayName = "Working up" }
+            ],
+            [
+                new CachedListSongsEntry(
+                    SingerListKind.WantToSing,
+                    [
+                        new RepertoireSongDto { SongId = 5, Title = "Want Song", ArtistName = "Artist A" },
+                        new RepertoireSongDto { SongId = 6, Title = "Keep Song", ArtistName = "Artist B" }
+                    ]),
+                new CachedListSongsEntry(
+                    SingerListKind.WorkingUp,
+                    [new RepertoireSongDto { SongId = 5, Title = "Want Song", ArtistName = "Artist A" }])
+            ],
+            DateTime.UtcNow));
+
+        var loader = CreateLoader(new ListsApiStub(), store);
+        await loader.RemoveSongFromCachedListAsync(SingerListKind.WantToSing, 5);
+
+        var cached = await store.GetCachedListsAsync();
+        var wantSongs = cached!.ListsSongs.Single(e => e.Kind == SingerListKind.WantToSing).Songs;
+        Assert.Single(wantSongs);
+        Assert.Equal(6, wantSongs[0].SongId);
+
+        var workingUpSongs = cached.ListsSongs.Single(e => e.Kind == SingerListKind.WorkingUp).Songs;
+        Assert.Single(workingUpSongs);
+        Assert.Equal(5, workingUpSongs[0].SongId);
+    }
+
+    [Fact]
+    public async Task RemoveSongFromCachedListAsync_removes_from_working_up_and_log_cache()
+    {
+        var store = new MySongsLocalStore(new InMemoryLocalStorage());
+        var logStore = new LogPerformanceLocalStore(new InMemoryLocalStorage());
+        await store.SaveCachedListsAsync(new CachedMySongsLists(
+            [new SingerListDto { Id = 3, Kind = SingerListKind.WorkingUp, DisplayName = "Working up" }],
+            [new CachedListSongsEntry(
+                SingerListKind.WorkingUp,
+                [
+                    new RepertoireSongDto { SongId = 5, Title = "Working Song", ArtistName = "Artist A" },
+                    new RepertoireSongDto { SongId = 6, Title = "Keep Song", ArtistName = "Artist B" }
+                ])],
+            DateTime.UtcNow));
+        await logStore.SaveCachedCatalogAsync(new CachedLogCatalog(
+            [new CachedSongEntry(5, "Working Song", "Artist A"), new CachedSongEntry(6, "Keep Song", "Artist B")],
+            [],
+            [],
+            DateTime.UtcNow.AddHours(-1),
+            WorkingUpSongIds: [5, 6]));
+
+        var loader = CreateLoader(new ListsApiStub(), store, logStore);
+        await loader.RemoveSongFromCachedListAsync(SingerListKind.WorkingUp, 5);
+
+        var cached = await store.GetCachedListsAsync();
+        var workingUpSongs = cached!.ListsSongs.Single(e => e.Kind == SingerListKind.WorkingUp).Songs;
+        Assert.Single(workingUpSongs);
+        Assert.Equal(6, workingUpSongs[0].SongId);
+
+        var logCache = await logStore.GetCachedCatalogAsync();
+        Assert.NotNull(logCache);
+        Assert.Single(logCache!.WorkingUpSongIds ?? []);
+        Assert.Equal(6, logCache.WorkingUpSongIds![0]);
+    }
+
+    [Fact]
+    public async Task AddSongToCachedListAsync_adds_to_working_up_and_log_cache()
+    {
+        var store = new MySongsLocalStore(new InMemoryLocalStorage());
+        var logStore = new LogPerformanceLocalStore(new InMemoryLocalStorage());
+        await store.SaveCachedListsAsync(new CachedMySongsLists(
+            [new SingerListDto { Id = 3, Kind = SingerListKind.WorkingUp, DisplayName = "Working up" }],
+            [new CachedListSongsEntry(
+                SingerListKind.WorkingUp,
+                [new RepertoireSongDto { SongId = 6, Title = "Existing", ArtistName = "Artist B" }])],
+            DateTime.UtcNow));
+        await logStore.SaveCachedCatalogAsync(new CachedLogCatalog(
+            [new CachedSongEntry(7, "New Song", "Artist C")],
+            [],
+            [],
+            DateTime.UtcNow.AddHours(-1),
+            WorkingUpSongIds: [6]));
+
+        var loader = CreateLoader(new ListsApiStub(), store, logStore);
+        var newSong = new RepertoireSongDto { SongId = 7, Title = "New Song", ArtistName = "Artist C" };
+        await loader.AddSongToCachedListAsync(SingerListKind.WorkingUp, newSong);
+
+        var cached = await store.GetCachedListsAsync();
+        var workingUpSongs = cached!.ListsSongs.Single(e => e.Kind == SingerListKind.WorkingUp).Songs;
+        Assert.Equal(2, workingUpSongs.Count);
+        Assert.Contains(workingUpSongs, s => s.SongId == 7);
+
+        var logCache = await logStore.GetCachedCatalogAsync();
+        Assert.NotNull(logCache);
+        Assert.Equal(2, logCache!.WorkingUpSongIds?.Count);
+        Assert.Contains(7, logCache.WorkingUpSongIds ?? []);
+    }
+
+    [Fact]
+    public async Task RemoveSongFromCachedListAsync_no_op_when_cache_missing()
+    {
+        var store = new MySongsLocalStore(new InMemoryLocalStorage());
+        var logStore = new LogPerformanceLocalStore(new InMemoryLocalStorage());
+        var loader = CreateLoader(new ListsApiStub(), store, logStore);
+
+        await loader.RemoveSongFromCachedListAsync(SingerListKind.WorkingUp, 5);
+
+        Assert.Null(await store.GetCachedListsAsync());
+        Assert.Null(await logStore.GetCachedCatalogAsync());
     }
 
     private static IReadOnlyList<GenreGroupDto> CreateSampleGenreGroups() =>
