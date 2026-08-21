@@ -207,8 +207,7 @@
     {
         try
         {
-            await MySongsStore.ClearCatalogCacheAsync();
-            await MyListsLoader.LoadAsync(forceRefresh: true);
+            await MyListsLoader.InvalidateAndReloadAsync();
         }
         catch
         {

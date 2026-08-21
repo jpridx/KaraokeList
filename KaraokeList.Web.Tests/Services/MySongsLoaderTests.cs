@@ -478,6 +478,27 @@ public sealed class MySongsLoaderTests
     }
 
     [Fact]
+    public async Task AddSongToCachedListAsync_creates_entry_when_lists_songs_empty()
+    {
+        var store = new MySongsLocalStore(new InMemoryLocalStorage());
+        await store.SaveCachedListsAsync(new CachedMySongsLists(
+            [new SingerListDto { Id = 2, Kind = SingerListKind.WantToSing, DisplayName = "Want to sing" }],
+            [],
+            DateTime.UtcNow));
+
+        var loader = CreateLoader(new ListsApiStub(), store);
+        await loader.AddSongToCachedListAsync(
+            SingerListKind.WantToSing,
+            new RepertoireSongDto { SongId = 9, Title = "New Want", ArtistName = "Artist" });
+
+        var cached = await store.GetCachedListsAsync();
+        var wantEntry = Assert.Single(cached!.ListsSongs);
+        Assert.Equal(SingerListKind.WantToSing, wantEntry.Kind);
+        var song = Assert.Single(wantEntry.Songs);
+        Assert.Equal(9, song.SongId);
+    }
+
+    [Fact]
     public async Task AddSongToCachedListAsync_preserves_null_repertoire_stats_in_log_cache()
     {
         var store = new MySongsLocalStore(new InMemoryLocalStorage());

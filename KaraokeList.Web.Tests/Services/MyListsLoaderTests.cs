@@ -175,6 +175,46 @@ public sealed class MyListsLoaderTests
     }
 
     [Fact]
+    public async Task LoadAsync_force_refresh_does_not_join_non_force_in_flight_fetch()
+    {
+        var mySongsStore = new MySongsLocalStore(new InMemoryLocalStorage());
+        var logStore = new LogPerformanceLocalStore(new InMemoryLocalStorage());
+        var api = new GatedListsApiStub();
+        var loader = CreateLoader(api, mySongsStore, logStore);
+
+        var first = loader.LoadAsync();
+        await Task.Delay(50);
+        var second = loader.LoadAsync(forceRefresh: true);
+        await Task.Delay(50);
+        api.ReleaseGate();
+        await Task.WhenAll(first, second);
+
+        Assert.Equal(2, api.MyListsCallCount);
+        Assert.Equal(6, api.ListSongsCallCount);
+    }
+
+    [Fact]
+    public async Task InvalidateAndReloadAsync_waits_for_in_flight_then_fetches_again()
+    {
+        var mySongsStore = new MySongsLocalStore(new InMemoryLocalStorage());
+        var logStore = new LogPerformanceLocalStore(new InMemoryLocalStorage());
+        var api = new GatedListsApiStub();
+        var loader = CreateLoader(api, mySongsStore, logStore);
+
+        var first = loader.LoadAsync();
+        await Task.Delay(50);
+        var second = loader.InvalidateAndReloadAsync();
+        await Task.Delay(50);
+        api.ReleaseGate();
+        await Task.WhenAll(first, second);
+
+        Assert.Equal(2, api.MyListsCallCount);
+        var cached = await mySongsStore.GetCachedListsAsync();
+        Assert.NotNull(cached);
+        Assert.Equal(3, cached!.ListsSongs.Count);
+    }
+
+    [Fact]
     public async Task LoadAsync_caches_tickler_settings_from_api()
     {
         var mySongsStore = new MySongsLocalStore(new InMemoryLocalStorage());

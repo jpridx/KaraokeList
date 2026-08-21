@@ -105,15 +105,28 @@
 
     private Task LoadSongDetailAsync(int singerId) => ReloadSongDetailAsync();
 
-    private async Task OnPerformanceSavedAsync(string? _)
+    private async Task OnPerformanceSavedAsync(PerformanceSavedEventArgs args)
     {
-        try
+        if (args.SavedOnServer)
         {
-            await MySongsLoader.RemoveSongFromCachedListAsync(SingerListKind.WantToSing, SongId);
-        }
-        catch
-        {
-            // Best-effort cache patch after logging removes want-to-sing membership.
+            try
+            {
+                if (songMeta is not null)
+                {
+                    await MySongsLoader.PatchSongPerformanceAsync(
+                        SongId,
+                        songMeta.Title,
+                        songMeta.ArtistName,
+                        string.IsNullOrWhiteSpace(songMeta.ArtistDisplay) ? songMeta.ArtistName : songMeta.ArtistDisplay,
+                        args.PerformedOn);
+                }
+
+                await MySongsLoader.RemoveSongFromCachedListAsync(SingerListKind.WantToSing, SongId);
+            }
+            catch
+            {
+                // Best-effort cache patch after logging removes want-to-sing membership.
+            }
         }
 
         await ReloadSongDetailAsync();

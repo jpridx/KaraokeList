@@ -411,7 +411,7 @@ public partial class Log
     private string? saveMessage;
     private string? saveError;
 
-    private async Task OnPerformanceSavedAsync(string? message)
+    private async Task OnPerformanceSavedAsync(PerformanceSavedEventArgs args)
     {
         var savedSong = SelectedSong;
         var savedSongId = selectedSongId;
@@ -420,7 +420,7 @@ public partial class Log
         selectedSongId = null;
         songHint = null;
         selectedSongSummary = null;
-        saveMessage = message;
+        saveMessage = args.Message;
         saveError = null;
         recentLogs = await LogStore.GetRecentLogsAsync();
 
@@ -439,13 +439,16 @@ public partial class Log
                 savedSong.ArtistName,
                 recentEntry.PerformedOn);
 
-            try
+            if (args.SavedOnServer)
             {
-                await MySongsLoader.RemoveSongFromCachedListAsync(SingerListKind.WantToSing, songId);
-            }
-            catch
-            {
-                // Best-effort cache patch after logging removes want-to-sing membership.
+                try
+                {
+                    await MySongsLoader.RemoveSongFromCachedListAsync(SingerListKind.WantToSing, songId);
+                }
+                catch
+                {
+                    // Best-effort cache patch after logging removes want-to-sing membership.
+                }
             }
 
             catalogState.RepertoireSongIds.Add(songId);
@@ -468,27 +471,37 @@ public partial class Log
         catalogState.WorkingUpSongIds.Add(songId);
         PatchCatalogPickItemMarkers(songId);
 
-        var song = SelectedSong;
-        if (song is null)
-        {
-            return;
-        }
-
         try
         {
-            await MySongsLoader.AddSongToCachedListAsync(
-                SingerListKind.WorkingUp,
-                new RepertoireSongDto
-                {
-                    SongId = songId,
-                    Title = song.Title,
-                    ArtistName = song.ArtistName,
-                    ArtistDisplay = song.ArtistName
-                });
+            await MyListsLoader.LoadAsync(forceRefresh: true);
+            var cached = await CatalogLoader.TryGetCachedAsync();
+            if (cached is not null)
+            {
+                catalogState.Apply(cached);
+                catalogState.MarkOnline();
+                catalogState.WorkingUpSongIds.Add(songId);
+                PatchCatalogPickItemMarkers(songId);
+            }
         }
         catch
         {
-            // Best-effort cache patch after adding to working up.
+            var song = SelectedSong;
+            try
+            {
+                await MySongsLoader.AddSongToCachedListAsync(
+                    SingerListKind.WorkingUp,
+                    new RepertoireSongDto
+                    {
+                        SongId = songId,
+                        Title = song?.Title ?? string.Empty,
+                        ArtistName = song?.ArtistName ?? string.Empty,
+                        ArtistDisplay = song?.ArtistName ?? string.Empty
+                    });
+            }
+            catch
+            {
+                // Best-effort cache patch after adding to working up.
+            }
         }
     }
 

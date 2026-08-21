@@ -376,8 +376,22 @@ public sealed class MySongsLoader(
         bool createIfMissing = false)
     {
         var cached = await store.GetCachedListsAsync();
-        if (cached is null || cached.ListsSongs.Count == 0)
+        if (cached is null)
         {
+            return;
+        }
+
+        if (cached.ListsSongs.Count == 0)
+        {
+            if (!createIfMissing)
+            {
+                return;
+            }
+
+            await store.SaveCachedListsAsync(cached with
+            {
+                ListsSongs = [new CachedListSongsEntry(kind, update([]))]
+            });
             return;
         }
 
