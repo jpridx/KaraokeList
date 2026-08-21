@@ -239,6 +239,35 @@ public sealed class TonightDashboardTests : AuthPageTestContext
         Assert.DoesNotContain("Old Venue", cut.Markup);
     }
 
+    [Fact]
+    public async Task Default_venue_hidden_when_stored_default_is_from_yesterday()
+    {
+        var store = (LogPerformanceLocalStore)Services.GetRequiredService<ILogPerformanceLocalStore>();
+        var yesterday = DateOnly.FromDateTime(DateTime.Today.AddDays(-1));
+        await store.SaveFormDefaultsAsync(new LogFormDefaults(3, yesterday));
+        await store.AddRecentLogAsync(new RecentLoggedPerformance(
+            SongId: 1,
+            Title: "Tonight Song",
+            ArtistName: "Artist",
+            VenueName: "Main Stage",
+            PerformedOn: DateTime.Today,
+            KeyChangeSemitones: null,
+            LoggedAt: DateTime.Now));
+
+        catalogLoader.Setup(loader => loader.LoadVenuesAsync())
+            .ReturnsAsync(new VenueLoadResult(
+                [new VenueDto { Id = 3, VenueName = "Main Stage" }],
+                FromCache: false));
+
+        var cut = Render<TonightDashboard>();
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Contains("Tonight Song", cut.Markup);
+            Assert.DoesNotContain("Default venue:", cut.Markup);
+        });
+    }
+
     private sealed class TestPerformanceCacheCoordinator : IPerformanceCacheCoordinator
     {
         public event Action? RecentLogsChanged;

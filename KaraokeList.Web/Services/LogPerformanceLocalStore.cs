@@ -3,7 +3,17 @@ using KaraokeList.Shared;
 
 namespace KaraokeList.Web.Services;
 
-public sealed record LogFormDefaults(int? VenueId);
+public sealed record LogFormDefaults(int? VenueId, DateOnly? SavedOnLocalDate = null)
+{
+    public static LogFormDefaults ForToday(int? venueId) =>
+        new(venueId, DateOnly.FromDateTime(DateTime.Today));
+
+    public bool IsEffectiveToday() =>
+        VenueId is not null
+        && (SavedOnLocalDate is null || SavedOnLocalDate == DateOnly.FromDateTime(DateTime.Today));
+
+    public int? EffectiveVenueIdToday() => IsEffectiveToday() ? VenueId : null;
+}
 
 public sealed record RecentLoggedPerformance(
     int SongId,
