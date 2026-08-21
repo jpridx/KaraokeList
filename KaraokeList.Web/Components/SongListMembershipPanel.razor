@@ -126,19 +126,32 @@
         errorMessage = null;
         statusMessage = null;
 
-        var result = await SingerListActions.AddSongAsync(Api, singerLists, kind, SongId);
-        if (!result.Succeeded)
+        try
         {
-            errorMessage = result.ErrorMessage;
-            isBusy = false;
-            return;
-        }
+            var result = await SingerListActions.AddSongAsync(Api, singerLists, kind, SongId);
+            if (!result.Succeeded)
+            {
+                errorMessage = result.ErrorMessage;
+                return;
+            }
 
-        statusMessage = result.SuccessMessage;
-        await LoadAsync();
-        await PatchCachedListAsync(kind, added: true);
-        await OnMembershipChanged.InvokeAsync();
-        isBusy = false;
+            statusMessage = result.SuccessMessage;
+            await PatchCachedListBestEffortAsync(kind, added: true);
+
+            try
+            {
+                await LoadAsync();
+                await OnMembershipChanged.InvokeAsync();
+            }
+            catch
+            {
+                // Membership refresh is best-effort after the cache patch.
+            }
+        }
+        finally
+        {
+            isBusy = false;
+        }
     }
 
     private async Task RemoveFromListAsync(SingerListKind kind)
@@ -147,31 +160,51 @@
         errorMessage = null;
         statusMessage = null;
 
-        var result = await SingerListActions.RemoveSongAsync(Api, singerLists, kind, SongId);
-        if (!result.Succeeded)
+        try
         {
-            errorMessage = result.ErrorMessage;
-            isBusy = false;
-            return;
-        }
+            var result = await SingerListActions.RemoveSongAsync(Api, singerLists, kind, SongId);
+            if (!result.Succeeded)
+            {
+                errorMessage = result.ErrorMessage;
+                return;
+            }
 
-        statusMessage = result.SuccessMessage;
-        await LoadAsync();
-        await PatchCachedListAsync(kind, added: false);
-        await OnMembershipChanged.InvokeAsync();
-        isBusy = false;
+            statusMessage = result.SuccessMessage;
+            await PatchCachedListBestEffortAsync(kind, added: false);
+
+            try
+            {
+                await LoadAsync();
+                await OnMembershipChanged.InvokeAsync();
+            }
+            catch
+            {
+                // Membership refresh is best-effort after the cache patch.
+            }
+        }
+        finally
+        {
+            isBusy = false;
+        }
     }
 
-    private async Task PatchCachedListAsync(SingerListKind kind, bool added)
+    private async Task PatchCachedListBestEffortAsync(SingerListKind kind, bool added)
     {
-        if (added)
+        try
         {
-            var song = SongMeta ?? new RepertoireSongDto { SongId = SongId };
-            await MySongsLoader.AddSongToCachedListAsync(kind, song);
+            if (added)
+            {
+                var song = SongMeta ?? new RepertoireSongDto { SongId = SongId };
+                await MySongsLoader.AddSongToCachedListAsync(kind, song);
+            }
+            else
+            {
+                await MySongsLoader.RemoveSongFromCachedListAsync(kind, SongId);
+            }
         }
-        else
+        catch
         {
-            await MySongsLoader.RemoveSongFromCachedListAsync(kind, SongId);
+            // Cache patching is best-effort after a successful API mutation.
         }
     }
 }

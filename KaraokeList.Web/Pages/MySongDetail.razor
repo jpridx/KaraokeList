@@ -2,6 +2,7 @@
 @attribute [Authorize]
 @inject IKaraokeApiClient Api
 @inject IScrollRestoreJs ScrollRestoreJs
+@inject IMySongsLoader MySongsLoader
 
 <SingerGatedPage DocumentTitle="Song history"
                  Title="@(songMeta?.Title ?? "Song history")"
@@ -104,7 +105,19 @@
 
     private Task LoadSongDetailAsync(int singerId) => ReloadSongDetailAsync();
 
-    private async Task OnPerformanceSavedAsync(string? _) => await ReloadSongDetailAsync();
+    private async Task OnPerformanceSavedAsync(string? _)
+    {
+        try
+        {
+            await MySongsLoader.RemoveSongFromCachedListAsync(SingerListKind.WantToSing, SongId);
+        }
+        catch
+        {
+            // Best-effort cache patch after logging removes want-to-sing membership.
+        }
+
+        await ReloadSongDetailAsync();
+    }
 
     private async Task OnHistoryChangedAsync() => await ReloadSongDetailAsync();
 

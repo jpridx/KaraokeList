@@ -439,6 +439,15 @@ public partial class Log
                 savedSong.ArtistName,
                 recentEntry.PerformedOn);
 
+            try
+            {
+                await MySongsLoader.RemoveSongFromCachedListAsync(SingerListKind.WantToSing, songId);
+            }
+            catch
+            {
+                // Best-effort cache patch after logging removes want-to-sing membership.
+            }
+
             catalogState.RepertoireSongIds.Add(songId);
             var cached = await CatalogLoader.TryGetCachedAsync();
             if (cached is not null && selectedSongId is null)
@@ -449,14 +458,54 @@ public partial class Log
         }
     }
 
-    private Task OnAddedToWorkingUpAsync()
+    private async Task OnAddedToWorkingUpAsync()
     {
-        if (selectedSongId is int songId)
+        if (selectedSongId is not int songId)
         {
-            catalogState.WorkingUpSongIds.Add(songId);
+            return;
         }
 
-        return Task.CompletedTask;
+        catalogState.WorkingUpSongIds.Add(songId);
+        PatchCatalogPickItemMarkers(songId);
+
+        var song = SelectedSong;
+        if (song is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await MySongsLoader.AddSongToCachedListAsync(
+                SingerListKind.WorkingUp,
+                new RepertoireSongDto
+                {
+                    SongId = songId,
+                    Title = song.Title,
+                    ArtistName = song.ArtistName,
+                    ArtistDisplay = song.ArtistName
+                });
+        }
+        catch
+        {
+            // Best-effort cache patch after adding to working up.
+        }
+    }
+
+    private void PatchCatalogPickItemMarkers(int songId)
+    {
+        var index = catalogState.SongPickerItems.FindIndex(s => s.Id == songId);
+        if (index < 0)
+        {
+            return;
+        }
+
+        var existing = catalogState.SongPickerItems[index];
+        catalogState.SongPickerItems[index] = existing with
+        {
+            InRepertoire = catalogState.RepertoireSongIds.Contains(songId),
+            InWorkingUp = catalogState.WorkingUpSongIds.Contains(songId)
+        };
     }
 
     private async Task OnNewSongAddedAsync(SongAddedEventArgs args)

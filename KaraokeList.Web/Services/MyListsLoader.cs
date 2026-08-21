@@ -7,6 +7,7 @@ public interface IMyListsLoader
     Task<MyListsBundle> LoadAsync(Action<string>? onProgress = null, bool forceRefresh = false);
     Task<MyListsBundle?> TryGetCachedAsync();
     Task<bool> NeedsRefreshAsync();
+    Task RunExclusiveAsync(Func<Task> action);
 }
 
 public sealed record MyListsBundle(
@@ -103,6 +104,31 @@ public sealed class MyListsLoader(
             {
                 inFlightLoad = null;
             }
+        }
+    }
+
+    public async Task RunExclusiveAsync(Func<Task> action)
+    {
+        var existing = inFlightLoad;
+        if (existing is not null)
+        {
+            await existing;
+        }
+
+        await loadGate.WaitAsync();
+        try
+        {
+            existing = inFlightLoad;
+            if (existing is not null)
+            {
+                await existing;
+            }
+
+            await action();
+        }
+        finally
+        {
+            loadGate.Release();
         }
     }
 

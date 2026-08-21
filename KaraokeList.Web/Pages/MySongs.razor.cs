@@ -71,7 +71,7 @@ public partial class MySongs
         await LoadCatalogAsync();
     }
 
-    private async Task ReloadListsAsync()
+    private async Task ReloadListsAsync(bool forceRefresh = false)
     {
         isLoading = true;
         loadingStep = null;
@@ -81,7 +81,7 @@ public partial class MySongs
         listsCachedAt = null;
 
         var loadTask = MySongsLoader.LoadAsync(listKind, sortBy, sortDir, filterGenreId, filterGroupName,
-            step => { loadingStep = step; StateHasChanged(); });
+            step => { loadingStep = step; StateHasChanged(); }, forceRefresh);
 
         if (await Task.WhenAny(loadTask, Task.Delay(ApiSlowRequestNotifier.PageLoadTimeout)) != loadTask)
         {
@@ -480,22 +480,7 @@ public partial class MySongs
         }
 
         PatchCatalogPickItemMarkers(args.SongId);
-
-        var pickItem = catalogState.SongPickerItems.FirstOrDefault(s => s.Id == args.SongId);
-        var songDto = new RepertoireSongDto
-        {
-            SongId = args.SongId,
-            Title = pickItem?.Title ?? string.Empty,
-            ArtistName = pickItem?.ArtistName ?? string.Empty,
-            ArtistDisplay = pickItem?.ArtistName ?? string.Empty
-        };
-
-        foreach (var kind in args.AddedLists)
-        {
-            await MySongsLoader.AddSongToCachedListAsync(kind, songDto);
-        }
-
-        await ReloadListsAsync();
+        await ReloadListsAsync(forceRefresh: true);
     }
 
     private void PatchCatalogPickItemMarkers(int songId)

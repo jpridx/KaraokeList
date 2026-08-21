@@ -455,6 +455,57 @@ public sealed class MySongsLoaderTests
         Assert.Null(await logStore.GetCachedCatalogAsync());
     }
 
+    [Fact]
+    public async Task AddSongToCachedListAsync_creates_missing_list_entry()
+    {
+        var store = new MySongsLocalStore(new InMemoryLocalStorage());
+        await store.SaveCachedListsAsync(new CachedMySongsLists(
+            [new SingerListDto { Id = 1, Kind = SingerListKind.MyRepertoire, DisplayName = "My repertoire" }],
+            [new CachedListSongsEntry(
+                SingerListKind.MyRepertoire,
+                [new RepertoireSongDto { SongId = 1, Title = "Existing", ArtistName = "Artist" }])],
+            DateTime.UtcNow));
+
+        var loader = CreateLoader(new ListsApiStub(), store);
+        await loader.AddSongToCachedListAsync(
+            SingerListKind.WantToSing,
+            new RepertoireSongDto { SongId = 9, Title = "New Want", ArtistName = "Artist" });
+
+        var cached = await store.GetCachedListsAsync();
+        var wantEntry = cached!.ListsSongs.Single(e => e.Kind == SingerListKind.WantToSing);
+        var song = Assert.Single(wantEntry.Songs);
+        Assert.Equal(9, song.SongId);
+    }
+
+    [Fact]
+    public async Task AddSongToCachedListAsync_preserves_null_repertoire_stats_in_log_cache()
+    {
+        var store = new MySongsLocalStore(new InMemoryLocalStorage());
+        var logStore = new LogPerformanceLocalStore(new InMemoryLocalStorage());
+        await store.SaveCachedListsAsync(new CachedMySongsLists(
+            [new SingerListDto { Id = 1, Kind = SingerListKind.MyRepertoire, DisplayName = "My repertoire" }],
+            [new CachedListSongsEntry(
+                SingerListKind.MyRepertoire,
+                [new RepertoireSongDto { SongId = 1, Title = "Existing", ArtistName = "Artist" }])],
+            DateTime.UtcNow));
+        await logStore.SaveCachedCatalogAsync(new CachedLogCatalog(
+            [new CachedSongEntry(5, "New Song", "Artist")],
+            [1],
+            [],
+            DateTime.UtcNow.AddHours(-1),
+            RepertoireStats: null));
+
+        var loader = CreateLoader(new ListsApiStub(), store, logStore);
+        await loader.AddSongToCachedListAsync(
+            SingerListKind.MyRepertoire,
+            new RepertoireSongDto { SongId = 5, Title = "New Song", ArtistName = "Artist" });
+
+        var logCache = await logStore.GetCachedCatalogAsync();
+        Assert.NotNull(logCache);
+        Assert.Null(logCache!.RepertoireStats);
+        Assert.Contains(5, logCache.RepertoireSongIds);
+    }
+
     private static IReadOnlyList<GenreGroupDto> CreateSampleGenreGroups() =>
     [
         new()

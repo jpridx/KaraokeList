@@ -10,7 +10,8 @@ public interface IMySongsLoader
         string sortDir,
         int? genreId,
         string? groupName = null,
-        Action<string>? onProgress = null);
+        Action<string>? onProgress = null,
+        bool forceRefresh = false);
 
     Task<MySongsLoadResult?> TryGetCachedAsync(
         SingerListKind listKind,
@@ -52,9 +53,10 @@ public sealed class MySongsLoader(
         string sortDir,
         int? genreId,
         string? groupName = null,
-        Action<string>? onProgress = null)
+        Action<string>? onProgress = null,
+        bool forceRefresh = false)
     {
-        var bundle = await myListsLoader.LoadAsync(onProgress);
+        var bundle = await myListsLoader.LoadAsync(onProgress, forceRefresh);
         if (!bundle.Succeeded)
         {
             return ToLoadResult(
@@ -340,29 +342,38 @@ public sealed class MySongsLoader(
 
     public async Task AddSongToCachedListAsync(SingerListKind kind, RepertoireSongDto song)
     {
-        await PatchMySongsListAsync(kind, songs =>
+        await myListsLoader.RunExclusiveAsync(async () =>
         {
-            if (songs.Any(s => s.SongId == song.SongId))
+            await PatchMySongsListAsync(kind, songs =>
             {
+                if (songs.Any(s => s.SongId == song.SongId))
+                {
+                    return songs;
+                }
+
+                songs.Add(song);
                 return songs;
-            }
+            }, createIfMissing: true);
 
-            songs.Add(song);
-            return songs;
+            await PatchLogCatalogListMembershipAsync(kind, song.SongId, added: true, song);
         });
-
-        await PatchLogCatalogListMembershipAsync(kind, song.SongId, added: true, song);
     }
 
     public async Task RemoveSongFromCachedListAsync(SingerListKind kind, int songId)
     {
-        await PatchMySongsListAsync(kind, songs => songs.Where(s => s.SongId != songId).ToList());
-        await PatchLogCatalogListMembershipAsync(kind, songId, added: false, song: null);
+        await myListsLoader.RunExclusiveAsync(async () =>
+        {
+            await PatchMySongsListAsync(
+                kind,
+                songs => songs.Where(s => s.SongId != songId).ToList());
+            await PatchLogCatalogListMembershipAsync(kind, songId, added: false, song: null);
+        });
     }
 
     private async Task PatchMySongsListAsync(
         SingerListKind kind,
-        Func<List<RepertoireSongDto>, List<RepertoireSongDto>> update)
+        Func<List<RepertoireSongDto>, List<RepertoireSongDto>> update,
+        bool createIfMissing = false)
     {
         var cached = await store.GetCachedListsAsync();
         if (cached is null || cached.ListsSongs.Count == 0)
@@ -370,17 +381,29 @@ public sealed class MySongsLoader(
             return;
         }
 
-        var updatedListsSongs = cached.ListsSongs
-            .Select(entry =>
-            {
-                if (entry.Kind != kind)
-                {
-                    return entry;
-                }
+        var hasEntry = cached.ListsSongs.Any(entry => entry.Kind == kind);
+        List<CachedListSongsEntry> updatedListsSongs;
 
-                return new CachedListSongsEntry(kind, update(entry.Songs.ToList()));
-            })
-            .ToList();
+        if (!hasEntry && createIfMissing)
+        {
+            updatedListsSongs = cached.ListsSongs
+                .Append(new CachedListSongsEntry(kind, update([])))
+                .ToList();
+        }
+        else
+        {
+            updatedListsSongs = cached.ListsSongs
+                .Select(entry =>
+                {
+                    if (entry.Kind != kind)
+                    {
+                        return entry;
+                    }
+
+                    return new CachedListSongsEntry(kind, update(entry.Songs.ToList()));
+                })
+                .ToList();
+        }
 
         await store.SaveCachedListsAsync(cached with { ListsSongs = updatedListsSongs });
     }
@@ -422,20 +445,20 @@ public sealed class MySongsLoader(
         }
 
         var repertoireIds = logCached.RepertoireSongIds.ToHashSet();
-        var stats = logCached.RepertoireStats?.ToList() ?? [];
+        var stats = logCached.RepertoireStats?.ToList();
 
         if (added && song is not null)
         {
             repertoireIds.Add(songId);
-            if (stats.All(s => s.SongId != songId))
+            if (stats is not null && stats.All(s => s.SongId != songId))
             {
                 stats.Add(MyListsLoader.MapRepertoireStatsEntry(song));
             }
         }
-        else
+        else if (!added)
         {
             repertoireIds.Remove(songId);
-            stats.RemoveAll(s => s.SongId == songId);
+            stats?.RemoveAll(s => s.SongId == songId);
         }
 
         await logStore.SaveCachedCatalogAsync(logCached with
