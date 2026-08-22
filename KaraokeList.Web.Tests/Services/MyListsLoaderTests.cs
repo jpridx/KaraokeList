@@ -215,6 +215,27 @@ public sealed class MyListsLoaderTests
     }
 
     [Fact]
+    public async Task LoadAsync_force_refresh_continues_after_non_force_in_flight_fails()
+    {
+        var mySongsStore = new MySongsLocalStore(new InMemoryLocalStorage());
+        var logStore = new LogPerformanceLocalStore(new InMemoryLocalStorage());
+        var api = new GatedFailFirstListsApiStub();
+        var loader = CreateLoader(api, mySongsStore, logStore);
+
+        var first = loader.LoadAsync();
+        await Task.Delay(50);
+        var second = loader.LoadAsync(forceRefresh: true);
+        await Task.Delay(50);
+        api.ReleaseGate();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(async () => await first);
+        var refreshed = await second;
+
+        Assert.True(refreshed.Succeeded);
+        Assert.Equal(2, api.MyListsCallCount);
+    }
+
+    [Fact]
     public async Task LoadAsync_caches_tickler_settings_from_api()
     {
         var mySongsStore = new MySongsLocalStore(new InMemoryLocalStorage());
@@ -341,6 +362,27 @@ public sealed class MyListsLoaderTests
         {
             ListSongsCallCount++;
             return base.GetListSongsAsync(listId, sortBy, sortDir, genreId);
+        }
+    }
+
+    private class GatedFailFirstListsApiStub : ListsApiStub
+    {
+        private readonly TaskCompletionSource gate = new();
+
+        public int MyListsCallCount { get; private set; }
+
+        public void ReleaseGate() => gate.TrySetResult();
+
+        public override async Task<SingerListsResult> GetMyListsAsync()
+        {
+            MyListsCallCount++;
+            await gate.Task;
+            if (MyListsCallCount == 1)
+            {
+                throw new InvalidOperationException("boom");
+            }
+
+            return await base.GetMyListsAsync();
         }
     }
 }

@@ -251,7 +251,16 @@ public sealed class LogCatalogLoader(
         return MapCacheToSnapshot(cached);
     }
 
-    public async Task PatchRepertoireStatsAfterLogAsync(
+    public Task PatchRepertoireStatsAfterLogAsync(
+        int songId,
+        string title,
+        string artistName,
+        string artistDisplay,
+        DateTime performedOn) =>
+        myListsLoader.RunExclusiveAsync(() =>
+            PatchRepertoireStatsAfterLogCoreAsync(songId, title, artistName, artistDisplay, performedOn));
+
+    private async Task PatchRepertoireStatsAfterLogCoreAsync(
         int songId,
         string title,
         string artistName,

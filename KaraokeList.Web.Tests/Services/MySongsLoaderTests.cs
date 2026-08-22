@@ -499,6 +499,71 @@ public sealed class MySongsLoaderTests
     }
 
     [Fact]
+    public async Task NeedsRefreshAsync_returns_true_when_cached_list_kinds_are_incomplete()
+    {
+        var store = new MySongsLocalStore(new InMemoryLocalStorage());
+        await store.SaveCachedListsAsync(new CachedMySongsLists(
+            [
+                new SingerListDto { Id = 1, Kind = SingerListKind.MyRepertoire, DisplayName = "My repertoire" },
+                new SingerListDto { Id = 2, Kind = SingerListKind.WantToSing, DisplayName = "Want to sing" }
+            ],
+            [new CachedListSongsEntry(
+                SingerListKind.WantToSing,
+                [new RepertoireSongDto { SongId = 9, Title = "New Want", ArtistName = "Artist" }])],
+            DateTime.UtcNow,
+            CacheTag: "tag",
+            SchemaVersion: 2));
+
+        var loader = CreateLoader(new ListsApiStub(), store);
+        Assert.True(await loader.NeedsRefreshAsync());
+    }
+
+    [Fact]
+    public async Task PatchCachesAfterPerformanceAsync_creates_missing_repertoire_and_removes_want_to_sing()
+    {
+        var store = new MySongsLocalStore(new InMemoryLocalStorage());
+        var logStore = new LogPerformanceLocalStore(new InMemoryLocalStorage());
+        await store.SaveCachedListsAsync(new CachedMySongsLists(
+            [
+                new SingerListDto { Id = 2, Kind = SingerListKind.WantToSing, DisplayName = "Want to sing" }
+            ],
+            [new CachedListSongsEntry(
+                SingerListKind.WantToSing,
+                [new RepertoireSongDto { SongId = 5, Title = "Want Song", ArtistName = "Artist" }])],
+            DateTime.UtcNow,
+            CacheTag: "tag",
+            SchemaVersion: 2));
+        await logStore.SaveCachedCatalogAsync(new CachedLogCatalog(
+            [new CachedSongEntry(5, "Want Song", "Artist")],
+            [],
+            [],
+            DateTime.UtcNow.AddHours(-1)));
+
+        var loader = CreateLoader(new ListsApiStub(), store, logStore);
+        var performedOn = new DateTime(2026, 8, 21);
+
+        await loader.PatchCachesAfterPerformanceAsync(
+            5,
+            "Want Song",
+            "Artist",
+            "Artist",
+            performedOn,
+            removeFromWantToSing: true);
+
+        var cached = await store.GetCachedListsAsync();
+        var wantSongs = cached!.ListsSongs.Single(e => e.Kind == SingerListKind.WantToSing).Songs;
+        Assert.Empty(wantSongs);
+        var repertoire = cached.ListsSongs.Single(e => e.Kind == SingerListKind.MyRepertoire).Songs;
+        var song = Assert.Single(repertoire);
+        Assert.Equal(5, song.SongId);
+        Assert.Equal(1, song.PerformanceCount);
+
+        var logCache = await logStore.GetCachedCatalogAsync();
+        Assert.Contains(5, logCache!.RepertoireSongIds);
+        Assert.Contains(logCache.RepertoireStats!, s => s.SongId == 5);
+    }
+
+    [Fact]
     public async Task AddSongToCachedListAsync_preserves_null_repertoire_stats_in_log_cache()
     {
         var store = new MySongsLocalStore(new InMemoryLocalStorage());

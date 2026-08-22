@@ -37,6 +37,14 @@ public interface IMySongsLoader
         DateTime? lastPerformedOn,
         int performanceCount);
 
+    Task PatchCachesAfterPerformanceAsync(
+        int songId,
+        string title,
+        string artistName,
+        string artistDisplay,
+        DateTime performedOn,
+        bool removeFromWantToSing);
+
     Task AddSongToCachedListAsync(SingerListKind kind, RepertoireSongDto song);
 
     Task RemoveSongFromCachedListAsync(SingerListKind kind, int songId);
@@ -183,7 +191,10 @@ public sealed class MySongsLoader(
         return MySongsGenreFilter.ApplyGroupFilter(songs, groupName, genreGroups);
     }
 
-    public async Task PatchCachedSongGenreAsync(int songId, int? genreId, string genreName)
+    public Task PatchCachedSongGenreAsync(int songId, int? genreId, string genreName) =>
+        myListsLoader.RunExclusiveAsync(() => PatchCachedSongGenreCoreAsync(songId, genreId, genreName));
+
+    private async Task PatchCachedSongGenreCoreAsync(int songId, int? genreId, string genreName)
     {
         var cached = await store.GetCachedListsAsync();
         if (cached is null || cached.ListsSongs.Count == 0)
@@ -212,7 +223,38 @@ public sealed class MySongsLoader(
         await store.SaveCachedListsAsync(cached with { ListsSongs = updatedListsSongs });
     }
 
-    public async Task PatchSongPerformanceAsync(
+    public Task PatchSongPerformanceAsync(
+        int songId,
+        string title,
+        string artistName,
+        string artistDisplay,
+        DateTime performedOn) =>
+        myListsLoader.RunExclusiveAsync(() =>
+            PatchSongPerformanceCoreAsync(songId, title, artistName, artistDisplay, performedOn));
+
+    public async Task PatchCachesAfterPerformanceAsync(
+        int songId,
+        string title,
+        string artistName,
+        string artistDisplay,
+        DateTime performedOn,
+        bool removeFromWantToSing)
+    {
+        await myListsLoader.RunExclusiveAsync(async () =>
+        {
+            await PatchSongPerformanceCoreAsync(songId, title, artistName, artistDisplay, performedOn);
+            if (removeFromWantToSing)
+            {
+                await PatchMySongsListAsync(
+                    SingerListKind.WantToSing,
+                    songs => songs.Where(s => s.SongId != songId).ToList());
+            }
+
+            await PatchLogCatalogAfterPerformanceAsync(songId, title, artistName, artistDisplay, performedOn);
+        });
+    }
+
+    private async Task PatchSongPerformanceCoreAsync(
         int songId,
         string title,
         string artistName,
@@ -220,12 +262,36 @@ public sealed class MySongsLoader(
         DateTime performedOn)
     {
         var cached = await store.GetCachedListsAsync();
-        if (cached is null || cached.ListsSongs.Count == 0)
+        if (cached is null)
         {
             return;
         }
 
         var performedDate = performedOn.Date;
+        var addedSong = new RepertoireSongDto
+        {
+            SongId = songId,
+            Title = title,
+            ArtistName = artistName,
+            ArtistDisplay = artistDisplay,
+            LastPerformedOn = performedDate,
+            PerformanceCount = 1
+        };
+
+        if (cached.ListsSongs.Count == 0
+            || cached.ListsSongs.All(entry => entry.Kind != SingerListKind.MyRepertoire))
+        {
+            var listsSongs = cached.ListsSongs
+                .Append(new CachedListSongsEntry(SingerListKind.MyRepertoire, [addedSong]))
+                .ToList();
+            await store.SaveCachedListsAsync(cached with
+            {
+                ListsSongs = listsSongs,
+                CachedAtUtc = DateTime.UtcNow
+            });
+            return;
+        }
+
         var updatedListsSongs = cached.ListsSongs
             .Select(entry =>
             {
@@ -253,15 +319,7 @@ public sealed class MySongsLoader(
                 }
                 else
                 {
-                    songs.Add(new RepertoireSongDto
-                    {
-                        SongId = songId,
-                        Title = title,
-                        ArtistName = artistName,
-                        ArtistDisplay = artistDisplay,
-                        LastPerformedOn = performedDate,
-                        PerformanceCount = 1
-                    });
+                    songs.Add(addedSong);
                 }
 
                 return new CachedListSongsEntry(entry.Kind, songs);
@@ -275,7 +333,18 @@ public sealed class MySongsLoader(
         });
     }
 
-    public async Task SetSongPerformanceStatsAsync(
+    public Task SetSongPerformanceStatsAsync(
+        int songId,
+        string title,
+        string artistName,
+        string artistDisplay,
+        DateTime? lastPerformedOn,
+        int performanceCount) =>
+        myListsLoader.RunExclusiveAsync(() =>
+            SetSongPerformanceStatsCoreAsync(
+                songId, title, artistName, artistDisplay, lastPerformedOn, performanceCount));
+
+    private async Task SetSongPerformanceStatsCoreAsync(
         int songId,
         string title,
         string artistName,
@@ -479,6 +548,56 @@ public sealed class MySongsLoader(
         {
             RepertoireSongIds = repertoireIds.ToList(),
             RepertoireStats = stats
+        });
+    }
+
+    private async Task PatchLogCatalogAfterPerformanceAsync(
+        int songId,
+        string title,
+        string artistName,
+        string artistDisplay,
+        DateTime performedOn)
+    {
+        var cached = await logStore.GetCachedCatalogAsync();
+        if (cached is null)
+        {
+            return;
+        }
+
+        var performedDate = performedOn.Date;
+        var stats = cached.RepertoireStats?.ToList() ?? [];
+        var existingIndex = stats.FindIndex(s => s.SongId == songId);
+        if (existingIndex >= 0)
+        {
+            var existing = stats[existingIndex];
+            stats[existingIndex] = existing with
+            {
+                Title = title,
+                ArtistName = artistName,
+                ArtistDisplay = artistDisplay,
+                LastPerformedOn = performedDate,
+                PerformanceCount = existing.PerformanceCount + 1
+            };
+        }
+        else
+        {
+            stats.Add(new CachedRepertoireStatsEntry(
+                songId,
+                title,
+                artistName,
+                artistDisplay,
+                performedDate,
+                PerformanceCount: 1));
+        }
+
+        var repertoireIds = cached.RepertoireSongIds.ToHashSet();
+        repertoireIds.Add(songId);
+
+        await logStore.SaveCachedCatalogAsync(cached with
+        {
+            RepertoireStats = stats,
+            RepertoireSongIds = repertoireIds.ToList(),
+            CachedAtUtc = DateTime.UtcNow
         });
     }
 }

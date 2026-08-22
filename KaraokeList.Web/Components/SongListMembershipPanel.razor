@@ -136,12 +136,13 @@
             }
 
             statusMessage = result.SuccessMessage;
+            membership.Add(kind);
             await PatchCachedListBestEffortAsync(kind, added: true);
+            await OnMembershipChanged.InvokeAsync();
 
             try
             {
                 await LoadAsync();
-                await OnMembershipChanged.InvokeAsync();
             }
             catch
             {
@@ -170,12 +171,13 @@
             }
 
             statusMessage = result.SuccessMessage;
+            membership.Remove(kind);
             await PatchCachedListBestEffortAsync(kind, added: false);
+            await OnMembershipChanged.InvokeAsync();
 
             try
             {
                 await LoadAsync();
-                await OnMembershipChanged.InvokeAsync();
             }
             catch
             {

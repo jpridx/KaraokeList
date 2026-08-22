@@ -426,29 +426,19 @@ public partial class Log
 
         if (savedSongId is int songId && savedSong is not null && recentEntry?.SongId == songId)
         {
-            await CatalogLoader.PatchRepertoireStatsAfterLogAsync(
-                songId,
-                savedSong.Title,
-                savedSong.ArtistName,
-                savedSong.ArtistName,
-                recentEntry.PerformedOn);
-            await MySongsLoader.PatchSongPerformanceAsync(
-                songId,
-                savedSong.Title,
-                savedSong.ArtistName,
-                savedSong.ArtistName,
-                recentEntry.PerformedOn);
-
-            if (args.SavedOnServer)
+            try
             {
-                try
-                {
-                    await MySongsLoader.RemoveSongFromCachedListAsync(SingerListKind.WantToSing, songId);
-                }
-                catch
-                {
-                    // Best-effort cache patch after logging removes want-to-sing membership.
-                }
+                await MySongsLoader.PatchCachesAfterPerformanceAsync(
+                    songId,
+                    savedSong.Title,
+                    savedSong.ArtistName,
+                    savedSong.ArtistName,
+                    recentEntry.PerformedOn,
+                    removeFromWantToSing: args.SavedOnServer);
+            }
+            catch
+            {
+                // Best-effort cache patch after logging a performance.
             }
 
             catalogState.RepertoireSongIds.Add(songId);
@@ -471,9 +461,32 @@ public partial class Log
         catalogState.WorkingUpSongIds.Add(songId);
         PatchCatalogPickItemMarkers(songId);
 
+        var song = SelectedSong;
+        var songDto = new RepertoireSongDto
+        {
+            SongId = songId,
+            Title = song?.Title ?? string.Empty,
+            ArtistName = song?.ArtistName ?? string.Empty,
+            ArtistDisplay = song?.ArtistName ?? string.Empty
+        };
+
         try
         {
-            await MyListsLoader.LoadAsync(forceRefresh: true);
+            await MySongsLoader.AddSongToCachedListAsync(SingerListKind.WorkingUp, songDto);
+        }
+        catch
+        {
+            // Incremental patch is best-effort; a successful refresh still updates caches.
+        }
+
+        try
+        {
+            var bundle = await MyListsLoader.LoadAsync(forceRefresh: true);
+            if (!bundle.Succeeded || bundle.FromCache)
+            {
+                return;
+            }
+
             var cached = await CatalogLoader.TryGetCachedAsync();
             if (cached is not null)
             {
@@ -485,23 +498,7 @@ public partial class Log
         }
         catch
         {
-            var song = SelectedSong;
-            try
-            {
-                await MySongsLoader.AddSongToCachedListAsync(
-                    SingerListKind.WorkingUp,
-                    new RepertoireSongDto
-                    {
-                        SongId = songId,
-                        Title = song?.Title ?? string.Empty,
-                        ArtistName = song?.ArtistName ?? string.Empty,
-                        ArtistDisplay = song?.ArtistName ?? string.Empty
-                    });
-            }
-            catch
-            {
-                // Best-effort cache patch after adding to working up.
-            }
+            // Refresh is best-effort after the incremental cache patch.
         }
     }
 

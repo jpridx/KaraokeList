@@ -51,7 +51,7 @@ public sealed class MyListsLoader(
 
             if (existing is not null)
             {
-                await existing;
+                await IgnoreFaultedAsync(existing);
                 continue;
             }
 
@@ -71,7 +71,7 @@ public sealed class MyListsLoader(
                 {
                     gateReleased = true;
                     loadGate.Release();
-                    await existing;
+                    await IgnoreFaultedAsync(existing);
                     continue;
                 }
                 else if (!forceRefresh && !await NeedsRefreshAsync())
@@ -128,7 +128,7 @@ public sealed class MyListsLoader(
         var existing = inFlightLoad;
         if (existing is not null)
         {
-            await existing;
+            await IgnoreFaultedAsync(existing);
         }
 
         await loadGate.WaitAsync();
@@ -137,7 +137,7 @@ public sealed class MyListsLoader(
             existing = inFlightLoad;
             if (existing is not null)
             {
-                await existing;
+                await IgnoreFaultedAsync(existing);
             }
 
             await mySongsStore.ClearCatalogCacheAsync();
@@ -166,12 +166,24 @@ public sealed class MyListsLoader(
     private bool ShouldJoinInFlight(bool forceRefresh) =>
         !forceRefresh || inFlightIsForceRefresh;
 
+    private static async Task IgnoreFaultedAsync(Task task)
+    {
+        try
+        {
+            await task;
+        }
+        catch
+        {
+            // A failed in-flight load must not block a forced refetch.
+        }
+    }
+
     public async Task RunExclusiveAsync(Func<Task> action)
     {
         var existing = inFlightLoad;
         if (existing is not null)
         {
-            await existing;
+            await IgnoreFaultedAsync(existing);
         }
 
         await loadGate.WaitAsync();
@@ -180,7 +192,7 @@ public sealed class MyListsLoader(
             existing = inFlightLoad;
             if (existing is not null)
             {
-                await existing;
+                await IgnoreFaultedAsync(existing);
             }
 
             await action();
@@ -211,6 +223,11 @@ public sealed class MyListsLoader(
         }
 
         if (cached.SchemaVersion < CurrentCacheSchemaVersion)
+        {
+            return true;
+        }
+
+        if (HasMissingListKinds(cached))
         {
             return true;
         }
@@ -365,6 +382,17 @@ public sealed class MyListsLoader(
             Succeeded: true,
             FromCache: fromCache,
             cached.CachedAtUtc);
+
+    internal static bool HasMissingListKinds(CachedMySongsLists cached)
+    {
+        if (cached.Lists.Count == 0)
+        {
+            return false;
+        }
+
+        var present = cached.ListsSongs.Select(entry => entry.Kind).ToHashSet();
+        return cached.Lists.Any(list => !present.Contains(list.Kind));
+    }
 
     internal static CachedRepertoireStatsEntry MapRepertoireStatsEntry(RepertoireSongDto song) =>
         new(

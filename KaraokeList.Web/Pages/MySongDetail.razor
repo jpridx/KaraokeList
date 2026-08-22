@@ -111,21 +111,19 @@
         {
             try
             {
-                if (songMeta is not null)
-                {
-                    await MySongsLoader.PatchSongPerformanceAsync(
-                        SongId,
-                        songMeta.Title,
-                        songMeta.ArtistName,
-                        string.IsNullOrWhiteSpace(songMeta.ArtistDisplay) ? songMeta.ArtistName : songMeta.ArtistDisplay,
-                        args.PerformedOn);
-                }
-
-                await MySongsLoader.RemoveSongFromCachedListAsync(SingerListKind.WantToSing, SongId);
+                await MySongsLoader.PatchCachesAfterPerformanceAsync(
+                    SongId,
+                    songMeta?.Title ?? string.Empty,
+                    songMeta?.ArtistName ?? string.Empty,
+                    string.IsNullOrWhiteSpace(songMeta?.ArtistDisplay)
+                        ? songMeta?.ArtistName ?? string.Empty
+                        : songMeta.ArtistDisplay,
+                    args.PerformedOn,
+                    removeFromWantToSing: true);
             }
             catch
             {
-                // Best-effort cache patch after logging removes want-to-sing membership.
+                // Best-effort cache patch after logging a performance.
             }
         }
 
