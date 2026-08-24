@@ -19,8 +19,8 @@
     <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.11" />
     <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.9.0" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.22.0" />
-    <PackageReference Include="Syncfusion.Blazor.Grid" Version="34.2.3" />
-    <PackageReference Include="Syncfusion.Blazor.DropDowns" Version="34.2.3" />
+    <PackageReference Include="Syncfusion.Blazor.Grid" Version="34.2.4" />
+    <PackageReference Include="Syncfusion.Blazor.DropDowns" Version="34.2.4" />
   </ItemGroup>
 
   <ItemGroup>
