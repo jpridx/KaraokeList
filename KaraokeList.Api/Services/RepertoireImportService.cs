@@ -33,7 +33,7 @@ public sealed class RepertoireImportService(ApplicationDbContext db, SingerListS
             .ToListAsync();
 
         var songByKey = catalog
-            .GroupBy(s => MakeMatchKey(s.Title, s.ArtistName))
+            .GroupBy(s => SongMatchKey.Make(s.Title, s.ArtistName))
             .ToDictionary(g => g.Key, g => g.First().Id);
 
         var response = new ImportSingerListFromFileResponse { TotalRows = rows.Count };
@@ -62,7 +62,7 @@ public sealed class RepertoireImportService(ApplicationDbContext db, SingerListS
                 continue;
             }
 
-            var key = MakeMatchKey(row.Title, row.Artist);
+            var key = SongMatchKey.Make(row.Title, row.Artist);
             if (!songByKey.TryGetValue(key, out var songId))
             {
                 response.NotFound++;
@@ -98,6 +98,4 @@ public sealed class RepertoireImportService(ApplicationDbContext db, SingerListS
         return (true, null, response);
     }
 
-    private static string MakeMatchKey(string title, string artist) =>
-        $"{title.Trim().ToLowerInvariant()}|{artist.Trim().ToLowerInvariant()}";
 }

@@ -50,14 +50,14 @@ public sealed class SingerListActionsTests
 
         Assert.False(result.Succeeded);
         Assert.Contains("Working up", result.ErrorMessage);
-        api.Verify(client => client.AddListSongAsync(It.IsAny<int>(), It.IsAny<int>()), Times.Never);
+        api.Verify(client => client.AddListSongAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<bool>()), Times.Never);
     }
 
     [Fact]
     public async Task AddSongAsync_calls_api_when_list_found()
     {
         var api = new Mock<IKaraokeApiClient>();
-        api.Setup(client => client.AddListSongAsync(3, 5))
+        api.Setup(client => client.AddListSongAsync(3, 5, It.IsAny<bool>()))
             .ReturnsAsync(ListSongActionResult.Ok());
 
         var lists = new List<SingerListDto>
@@ -73,5 +73,34 @@ public sealed class SingerListActionsTests
 
         Assert.True(result.Succeeded);
         Assert.Contains("working up", result.SuccessMessage);
+    }
+
+    [Fact]
+    public async Task CheckTitleArtistCollisionsAsync_returns_collision_when_api_finds_match()
+    {
+        var api = new Mock<IKaraokeApiClient>();
+        api.Setup(client => client.GetTitleArtistCollisionAsync(3, 5))
+            .ReturnsAsync(TitleArtistCollisionResult.Found(new TitleArtistCollisionDto
+            {
+                ExistingSongId = 9,
+                Title = "Jeopardy",
+                ArtistName = "The Greg Kihn Band"
+            }));
+
+        var lists = new List<SingerListDto>
+        {
+            new() { Id = 3, Kind = SingerListKind.WorkingUp, DisplayName = "Working up" }
+        };
+
+        var result = await SingerListActions.CheckTitleArtistCollisionsAsync(
+            api.Object,
+            lists,
+            songId: 5,
+            [SingerListKind.WorkingUp]);
+
+        Assert.True(result.Succeeded);
+        Assert.True(result.HasCollisions);
+        Assert.Equal(SingerListKind.WorkingUp, result.Collisions[0].Kind);
+        Assert.Equal("Jeopardy", result.Collisions[0].Collision.Title);
     }
 }

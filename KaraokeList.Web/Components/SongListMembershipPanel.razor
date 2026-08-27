@@ -26,6 +26,14 @@
         </div>
     }
 
+    @if (pendingCollisions.Count > 0)
+    {
+        <TitleArtistDuplicateConfirm Collisions="@pendingCollisions"
+                                     Disabled="@isBusy"
+                                     OnCancel="CancelDuplicateConfirmAsync"
+                                     OnConfirm="ConfirmDuplicateAddAsync" />
+    }
+
     <div class="d-flex flex-wrap gap-2">
         @if (CanAddToWantToSing)
         {
@@ -82,6 +90,8 @@
     private bool isBusy;
     private string? statusMessage;
     private string? errorMessage;
+    private List<(SingerListKind Kind, TitleArtistCollisionDto Collision)> pendingCollisions = [];
+    private SingerListKind? pendingAddKind;
 
     private bool CanAddToWantToSing =>
         !membership.Contains(SingerListKind.WantToSing)
@@ -125,33 +135,85 @@
         isBusy = true;
         errorMessage = null;
         statusMessage = null;
+        pendingCollisions = [];
+        pendingAddKind = null;
 
         try
         {
-            var result = await SingerListActions.AddSongAsync(Api, singerLists, kind, SongId);
-            if (!result.Succeeded)
+            var collisionCheck = await SingerListActions.CheckTitleArtistCollisionsAsync(
+                Api, singerLists, SongId, [kind]);
+            if (!collisionCheck.Succeeded)
             {
-                errorMessage = result.ErrorMessage;
+                errorMessage = collisionCheck.ErrorMessage;
                 return;
             }
 
-            statusMessage = result.SuccessMessage;
-            membership.Add(kind);
-            await PatchCachedListBestEffortAsync(kind, added: true);
-            await OnMembershipChanged.InvokeAsync();
+            if (collisionCheck.HasCollisions)
+            {
+                pendingCollisions = collisionCheck.Collisions;
+                pendingAddKind = kind;
+                return;
+            }
 
-            try
-            {
-                await LoadAsync();
-            }
-            catch
-            {
-                // Membership refresh is best-effort after the cache patch.
-            }
+            await ExecuteAddAsync(kind, allowTitleArtistDuplicate: false);
         }
         finally
         {
             isBusy = false;
+        }
+    }
+
+    private Task CancelDuplicateConfirmAsync()
+    {
+        pendingCollisions = [];
+        pendingAddKind = null;
+        return Task.CompletedTask;
+    }
+
+    private async Task ConfirmDuplicateAddAsync()
+    {
+        if (pendingAddKind is not SingerListKind kind)
+        {
+            return;
+        }
+
+        isBusy = true;
+        errorMessage = null;
+
+        try
+        {
+            await ExecuteAddAsync(kind, allowTitleArtistDuplicate: true);
+        }
+        finally
+        {
+            isBusy = false;
+            pendingCollisions = [];
+            pendingAddKind = null;
+        }
+    }
+
+    private async Task ExecuteAddAsync(SingerListKind kind, bool allowTitleArtistDuplicate)
+    {
+        var result = await SingerListActions.AddSongAsync(
+            Api, singerLists, kind, SongId, allowTitleArtistDuplicate);
+        if (!result.Succeeded)
+        {
+            errorMessage = result.ErrorMessage;
+            return;
+        }
+
+        statusMessage = result.SuccessMessage;
+        membership.Add(kind);
+        await PatchCachedListBestEffortAsync(kind, added: true);
+        await OnMembershipChanged.InvokeAsync();
+
+        try
+        {
+            await LoadAsync();
+        }
+        catch
+        {
+            // Membership refresh is best-effort after the cache patch.
         }
     }
 

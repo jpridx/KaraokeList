@@ -28,6 +28,17 @@ public class SingerListDto
 public class AddSingerListSongRequest
 {
     public int SongId { get; set; }
+
+    public bool AllowTitleArtistDuplicate { get; set; }
+}
+
+public class TitleArtistCollisionDto
+{
+    public int ExistingSongId { get; set; }
+
+    public string Title { get; set; } = string.Empty;
+
+    public string ArtistName { get; set; } = string.Empty;
 }
 
 public class ImportSingerListSongsRequest

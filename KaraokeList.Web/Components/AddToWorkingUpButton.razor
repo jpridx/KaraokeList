@@ -1,4 +1,5 @@
 @inject IKaraokeApiClient Api
+@using KaraokeList.Shared
 
 @if (Visible)
 {
@@ -6,6 +7,13 @@
             @onclick="AddAsync">
         Add to working up
     </button>
+    @if (pendingCollisions.Count > 0)
+    {
+        <TitleArtistDuplicateConfirm Collisions="@pendingCollisions"
+                                     Disabled="@isAdding"
+                                     OnCancel="CancelDuplicateConfirmAsync"
+                                     OnConfirm="ConfirmDuplicateAddAsync" />
+    }
     @if (!string.IsNullOrEmpty(successMessage))
     {
         <p class="small text-success mt-1 mb-0">@successMessage</p>
@@ -32,6 +40,7 @@
     private bool isAdding;
     private string? successMessage;
     private string? errorMessage;
+    private List<(SingerListKind Kind, TitleArtistCollisionDto Collision)> pendingCollisions = [];
 
     private bool Visible => !AlreadyOnWorkingUp && SingerLists.Count > 0;
 
@@ -49,12 +58,53 @@
         isAdding = true;
         errorMessage = null;
         successMessage = null;
+        pendingCollisions = [];
 
+        var collisionCheck = await SingerListActions.CheckTitleArtistCollisionsAsync(
+            Api,
+            SingerLists,
+            SongId,
+            [SingerListKind.WorkingUp]);
+        if (!collisionCheck.Succeeded)
+        {
+            errorMessage = collisionCheck.ErrorMessage;
+            isAdding = false;
+            return;
+        }
+
+        if (collisionCheck.HasCollisions)
+        {
+            pendingCollisions = collisionCheck.Collisions;
+            isAdding = false;
+            return;
+        }
+
+        await ExecuteAddAsync(allowTitleArtistDuplicate: false);
+    }
+
+    private Task CancelDuplicateConfirmAsync()
+    {
+        pendingCollisions = [];
+        return Task.CompletedTask;
+    }
+
+    private async Task ConfirmDuplicateAddAsync()
+    {
+        isAdding = true;
+        errorMessage = null;
+        pendingCollisions = [];
+
+        await ExecuteAddAsync(allowTitleArtistDuplicate: true);
+    }
+
+    private async Task ExecuteAddAsync(bool allowTitleArtistDuplicate)
+    {
         var result = await SingerListActions.AddSongAsync(
             Api,
             SingerLists,
             SingerListKind.WorkingUp,
-            SongId);
+            SongId,
+            allowTitleArtistDuplicate);
 
         if (result.Succeeded)
         {

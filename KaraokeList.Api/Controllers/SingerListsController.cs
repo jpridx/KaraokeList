@@ -309,6 +309,30 @@ public class SingerListsController(
         return Ok(result.Result);
     }
 
+    [HttpGet("{listId:int}/songs/title-artist-collision")]
+    public async Task<ActionResult<TitleArtistCollisionDto>> GetTitleArtistCollision(int listId, [FromQuery] int songId)
+    {
+        var singerId = await RequireSingerIdAsync();
+        if (singerId.Result is not null)
+        {
+            return singerId.Result;
+        }
+
+        var list = await singerListService.GetOwnedListAsync(singerId.Value!.Value, listId);
+        if (list is null)
+        {
+            return NotFound();
+        }
+
+        if (!await singerListService.SongExistsAsync(songId))
+        {
+            return NotFound(new ApiErrorResponse { Message = "Song was not found." });
+        }
+
+        var collision = await singerListService.FindTitleArtistCollisionOnListAsync(listId, songId);
+        return collision is null ? NoContent() : Ok(collision);
+    }
+
     [HttpPost("{listId:int}/songs")]
     public async Task<IActionResult> AddSong(int listId, [FromBody] AddSingerListSongRequest request)
     {
@@ -318,13 +342,22 @@ public class SingerListsController(
             return singerId.Result;
         }
 
-        var result = await singerListService.TryAddSongAsync(singerId.Value!.Value, listId, request.SongId);
+        var result = await singerListService.TryAddSongAsync(
+            singerId.Value!.Value,
+            listId,
+            request.SongId,
+            request.AllowTitleArtistDuplicate);
         if (!result.Succeeded)
         {
             var list = await singerListService.GetOwnedListAsync(singerId.Value.Value, listId);
             if (list is null)
             {
                 return NotFound();
+            }
+
+            if (result.Error?.StartsWith("This list already has", StringComparison.Ordinal) == true)
+            {
+                return Conflict(new ApiErrorResponse { Message = result.Error });
             }
 
             return BadRequest(new ApiErrorResponse { Message = result.Error ?? "Could not add song to list." });

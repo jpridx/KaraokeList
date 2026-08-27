@@ -130,7 +130,46 @@ public sealed class SingerListService(
         return songs;
     }
 
-    public async Task<(bool Succeeded, string? Error)> TryAddSongAsync(int singerId, int listId, int songId)
+    public async Task<TitleArtistCollisionDto?> FindTitleArtistCollisionOnListAsync(int listId, int songId)
+    {
+        var songKey = await GetSongMatchKeyAsync(songId);
+        if (songKey is null)
+        {
+            return null;
+        }
+
+        var listSongs = await (
+            from sls in db.SingerListSongs
+            join s in db.Songs on sls.SongId equals s.Id
+            join sa in db.SongArtists on s.Id equals sa.SongId
+            join a in db.Artists on sa.ArtistId equals a.Id
+            where sls.ListId == listId
+                  && sls.SongId != songId
+                  && sa.DisplayOrder == 0
+            select new { s.Id, s.Title, ArtistName = a.Name })
+            .ToListAsync();
+
+        foreach (var candidate in listSongs)
+        {
+            if (SongMatchKey.Make(candidate.Title, candidate.ArtistName) == songKey)
+            {
+                return new TitleArtistCollisionDto
+                {
+                    ExistingSongId = candidate.Id,
+                    Title = candidate.Title,
+                    ArtistName = candidate.ArtistName
+                };
+            }
+        }
+
+        return null;
+    }
+
+    public async Task<(bool Succeeded, string? Error)> TryAddSongAsync(
+        int singerId,
+        int listId,
+        int songId,
+        bool allowTitleArtistDuplicate = false)
     {
         var list = await GetOwnedListAsync(singerId, listId);
         if (list is null)
@@ -153,6 +192,15 @@ public sealed class SingerListService(
         if (exists)
         {
             return (true, null);
+        }
+
+        if (!allowTitleArtistDuplicate)
+        {
+            var collision = await FindTitleArtistCollisionOnListAsync(listId, songId);
+            if (collision is not null)
+            {
+                return (false, FormatTitleArtistCollisionMessage(collision));
+            }
         }
 
         db.SingerListSongs.Add(new SingerListSong
@@ -227,6 +275,13 @@ public sealed class SingerListService(
                 continue;
             }
 
+            var titleArtistCollision = await FindTitleArtistCollisionOnListAsync(list.Id, songId);
+            if (titleArtistCollision is not null)
+            {
+                response.Skipped++;
+                continue;
+            }
+
             var result = await TryAddSongAsync(singerId, list.Id, songId);
             if (result.Succeeded)
             {
@@ -254,6 +309,12 @@ public sealed class SingerListService(
 
         var exists = await db.SingerListSongs.AnyAsync(s => s.ListId == list.Id && s.SongId == songId);
         if (exists)
+        {
+            return;
+        }
+
+        var collision = await FindTitleArtistCollisionOnListAsync(list.Id, songId);
+        if (collision is not null)
         {
             return;
         }
@@ -330,4 +391,20 @@ public sealed class SingerListService(
         var result = await command.ExecuteScalarAsync();
         return result is not null;
     }
+
+    private async Task<string?> GetSongMatchKeyAsync(int songId)
+    {
+        var info = await (
+            from s in db.Songs
+            join sa in db.SongArtists on s.Id equals sa.SongId
+            join a in db.Artists on sa.ArtistId equals a.Id
+            where s.Id == songId && sa.DisplayOrder == 0
+            select new { s.Title, ArtistName = a.Name })
+            .FirstOrDefaultAsync();
+
+        return info is null ? null : SongMatchKey.Make(info.Title, info.ArtistName);
+    }
+
+    private static string FormatTitleArtistCollisionMessage(TitleArtistCollisionDto collision) =>
+        $"This list already has \"{collision.Title}\" by {collision.ArtistName}.";
 }

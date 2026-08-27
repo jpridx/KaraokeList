@@ -77,9 +77,10 @@ public interface IKaraokeApiClient
     Task<SingerListImportResult> ImportListSongsAsync(ImportSingerListSongsRequest request);
     Task<SingerListFileImportResult> ImportListSongsFromFileAsync(Stream fileStream, string fileName, SingerListKind listKind);
     Task<SingerListFileImportResult> ImportListSongsFromGSheetAsync(ImportSingerListFromGSheetRequest request);
-    Task<ListSongActionResult> AddListSongAsync(int listId, int songId);
+    Task<ListSongActionResult> AddListSongAsync(int listId, int songId, bool allowTitleArtistDuplicate = false);
     Task<ListSongActionResult> RemoveListSongAsync(int listId, int songId);
     Task<SongListMembershipResult> GetSongListMembershipAsync(int songId);
+    Task<TitleArtistCollisionResult> GetTitleArtistCollisionAsync(int listId, int songId);
     Task<SongTicklerExclusionResult> GetSongTicklerExclusionAsync(int songId);
     Task<TicklerExclusionActionResult> SetSongTicklerExclusionAsync(int songId, UpdateSongTicklerExclusionRequest request);
     Task<TicklerExclusionActionResult> RemoveSongTicklerExclusionAsync(int songId);
@@ -695,11 +696,15 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
         }
     }
 
-    public async Task<ListSongActionResult> AddListSongAsync(int listId, int songId)
+    public async Task<ListSongActionResult> AddListSongAsync(int listId, int songId, bool allowTitleArtistDuplicate = false)
     {
         var response = await http.PostAsJsonAsync(
             $"api/singers/me/lists/{listId}/songs",
-            new AddSingerListSongRequest { SongId = songId });
+            new AddSingerListSongRequest
+            {
+                SongId = songId,
+                AllowTitleArtistDuplicate = allowTitleArtistDuplicate
+            });
         if (response.IsSuccessStatusCode)
         {
             return ListSongActionResult.Ok();
@@ -739,6 +744,27 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
 
         var message = await ReadApiErrorMessageAsync(response);
         return SongListMembershipResult.Fail(message ?? "Could not load list membership.");
+    }
+
+    public async Task<TitleArtistCollisionResult> GetTitleArtistCollisionAsync(int listId, int songId)
+    {
+        var response = await http.GetAsync(
+            $"api/singers/me/lists/{listId}/songs/title-artist-collision?songId={songId}");
+        if (response.StatusCode == System.Net.HttpStatusCode.NoContent)
+        {
+            return TitleArtistCollisionResult.None();
+        }
+
+        if (response.IsSuccessStatusCode)
+        {
+            var collision = await response.Content.ReadFromJsonAsync<TitleArtistCollisionDto>(JsonOptions);
+            return collision is null
+                ? TitleArtistCollisionResult.Fail("Unexpected empty response from the server.")
+                : TitleArtistCollisionResult.Found(collision);
+        }
+
+        var message = await ReadApiErrorMessageAsync(response);
+        return TitleArtistCollisionResult.Fail(message ?? "Could not check for duplicate songs.");
     }
 
     public async Task<SongTicklerExclusionResult> GetSongTicklerExclusionAsync(int songId)

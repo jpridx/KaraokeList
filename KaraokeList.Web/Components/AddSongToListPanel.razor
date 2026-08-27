@@ -75,7 +75,14 @@
                 <p class="small text-danger mt-2 mb-0">@localError</p>
             }
 
-            @if (selectedSongId is not null)
+            @if (pendingCollisions.Count > 0)
+            {
+                <TitleArtistDuplicateConfirm Collisions="@pendingCollisions"
+                                             Disabled="@isBusy"
+                                             OnCancel="CancelDuplicateConfirmAsync"
+                                             OnConfirm="ConfirmDuplicateAddAsync" />
+            }
+            else if (selectedSongId is not null)
             {
                 <div class="d-flex flex-wrap gap-2 mt-3">
                     <button type="button" class="btn btn-primary btn-sm" disabled="@(!CanConfirm)"
@@ -124,6 +131,8 @@
     private bool isBusy;
     private readonly HashSet<SingerListKind> selectedLists = [];
     private readonly HashSet<SingerListKind> alreadyOnLists = [];
+    private List<(SingerListKind Kind, TitleArtistCollisionDto Collision)> pendingCollisions = [];
+    private List<SingerListKind>? pendingTargetLists;
 
     private bool IsOffline => Disabled || UsingOfflineCatalog;
 
@@ -274,47 +283,99 @@
 
         isBusy = true;
         localError = null;
+        pendingCollisions = [];
+        pendingTargetLists = null;
 
         var targets = selectedLists.Except(alreadyOnLists).ToList();
-        var added = new List<SingerListKind>();
-        var failures = new List<string>();
-
         try
         {
-            foreach (var kind in targets)
+            var collisionCheck = await SingerListActions.CheckTitleArtistCollisionsAsync(
+                Api, SingerLists, songId, targets);
+            if (!collisionCheck.Succeeded)
             {
-                var result = await SingerListActions.AddSongAsync(Api, SingerLists, kind, songId);
-                if (result.Succeeded)
-                {
-                    added.Add(kind);
-                }
-                else
-                {
-                    failures.Add($"{SingerListKindNames.DisplayName(kind)}: {result.ErrorMessage}");
-                }
-            }
-
-            if (added.Count == 0)
-            {
-                localError = failures.Count > 0
-                    ? string.Join(" ", failures)
-                    : "Could not add song to any list.";
+                localError = collisionCheck.ErrorMessage;
                 return;
             }
 
-            var title = CatalogItems.FirstOrDefault(s => s.Id == songId)?.Title ?? "Song";
-            var listNames = string.Join(", ", added.Select(SingerListKindNames.DisplayName));
-            var message = failures.Count > 0
-                ? $"\"{title}\" added to {listNames}. {string.Join(" ", failures)}"
-                : $"\"{title}\" added to {listNames}.";
+            if (collisionCheck.HasCollisions)
+            {
+                pendingCollisions = collisionCheck.Collisions;
+                pendingTargetLists = targets;
+                return;
+            }
 
-            await OnSongAdded.InvokeAsync(new SongAddedToListEventArgs(message, songId, added));
-            Reset();
+            await ExecuteAddAsync(songId, targets, allowTitleArtistDuplicate: false);
         }
         finally
         {
             isBusy = false;
         }
+    }
+
+    private Task CancelDuplicateConfirmAsync()
+    {
+        pendingCollisions = [];
+        pendingTargetLists = null;
+        return Task.CompletedTask;
+    }
+
+    private async Task ConfirmDuplicateAddAsync()
+    {
+        if (selectedSongId is not int songId || pendingTargetLists is not { Count: > 0 })
+        {
+            return;
+        }
+
+        isBusy = true;
+        localError = null;
+
+        try
+        {
+            await ExecuteAddAsync(songId, pendingTargetLists, allowTitleArtistDuplicate: true);
+        }
+        finally
+        {
+            isBusy = false;
+            pendingCollisions = [];
+            pendingTargetLists = null;
+        }
+    }
+
+    private async Task ExecuteAddAsync(int songId, IReadOnlyList<SingerListKind> targets, bool allowTitleArtistDuplicate)
+    {
+        var added = new List<SingerListKind>();
+        var failures = new List<string>();
+
+        foreach (var kind in targets)
+        {
+            var result = await SingerListActions.AddSongAsync(
+                Api, SingerLists, kind, songId, allowTitleArtistDuplicate);
+            if (result.Succeeded)
+            {
+                added.Add(kind);
+            }
+            else
+            {
+                failures.Add($"{SingerListKindNames.DisplayName(kind)}: {result.ErrorMessage}");
+            }
+        }
+
+        if (added.Count == 0)
+        {
+            localError = failures.Count > 0
+                ? string.Join(" ", failures)
+                : "Could not add song to any list.";
+            return;
+        }
+
+        var title = CatalogItems.FirstOrDefault(s => s.Id == songId)?.Title ?? "Song";
+        var listNames = string.Join(", ", added.Select(SingerListKindNames.DisplayName));
+        var message = failures.Count > 0
+            ? $"\"{title}\" added to {listNames}. {string.Join(" ", failures)}"
+            : $"\"{title}\" added to {listNames}.";
+
+        await OnSongAdded.InvokeAsync(new SongAddedToListEventArgs(message, songId, added));
+        Reset();
     }
 
     private void Reset()
@@ -325,5 +386,7 @@
         localError = null;
         selectedLists.Clear();
         alreadyOnLists.Clear();
+        pendingCollisions = [];
+        pendingTargetLists = null;
     }
 }

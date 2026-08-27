@@ -1,0 +1,34 @@
+@using KaraokeList.Shared
+
+<div class="title-artist-duplicate-confirm alert alert-warning small mb-0 mt-3" role="alert">
+    @foreach (var entry in Collisions)
+    {
+        <p class="mb-2">
+            <strong>@SingerListKindNames.DisplayName(entry.Kind)</strong> already has
+            &ldquo;@entry.Collision.Title&rdquo; by @entry.Collision.ArtistName.
+        </p>
+    }
+    <p class="mb-2">Add this version anyway?</p>
+    <div class="d-flex flex-wrap gap-2">
+        <button type="button" class="btn btn-primary btn-sm" disabled="@Disabled" @onclick="OnCancel">
+            Cancel
+        </button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" disabled="@Disabled" @onclick="OnConfirm">
+            Add anyway
+        </button>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyList<(SingerListKind Kind, TitleArtistCollisionDto Collision)> Collisions { get; set; } = [];
+
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    [Parameter, EditorRequired]
+    public EventCallback OnCancel { get; set; }
+
+    [Parameter, EditorRequired]
+    public EventCallback OnConfirm { get; set; }
+}

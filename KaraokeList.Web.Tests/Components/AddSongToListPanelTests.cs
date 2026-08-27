@@ -32,6 +32,8 @@ public sealed class AddSongToListPanelTests : AuthPageTestContext
         Services.AddSingleton(catalogLoader.Object);
         Api.Setup(client => client.GetArtistLookupsAsync()).ReturnsAsync([]);
         Api.Setup(client => client.GetGenresAsync()).ReturnsAsync([]);
+        Api.Setup(client => client.GetTitleArtistCollisionAsync(It.IsAny<int>(), It.IsAny<int>()))
+            .ReturnsAsync(TitleArtistCollisionResult.None());
     }
 
     [Fact]
@@ -85,9 +87,9 @@ public sealed class AddSongToListPanelTests : AuthPageTestContext
 
         Api.Setup(client => client.GetSongListMembershipAsync(99))
             .ReturnsAsync(SongListMembershipResult.Ok([]));
-        Api.Setup(client => client.AddListSongAsync(1, 99))
+        Api.Setup(client => client.AddListSongAsync(1, 99, It.IsAny<bool>()))
             .ReturnsAsync(ListSongActionResult.Ok());
-        Api.Setup(client => client.AddListSongAsync(3, 99))
+        Api.Setup(client => client.AddListSongAsync(3, 99, It.IsAny<bool>()))
             .ReturnsAsync(ListSongActionResult.Ok());
 
         SongAddedToListEventArgs? added = null;
@@ -114,8 +116,8 @@ public sealed class AddSongToListPanelTests : AuthPageTestContext
 
         cut.WaitForAssertion(() =>
         {
-            Api.Verify(client => client.AddListSongAsync(1, 99), Times.Once);
-            Api.Verify(client => client.AddListSongAsync(3, 99), Times.Once);
+            Api.Verify(client => client.AddListSongAsync(1, 99, false), Times.Once);
+            Api.Verify(client => client.AddListSongAsync(3, 99, false), Times.Once);
             Assert.NotNull(added);
             Assert.Contains("Brand New", added!.Message);
             Assert.Contains("My repertoire", added.Message);
@@ -177,7 +179,7 @@ public sealed class AddSongToListPanelTests : AuthPageTestContext
 
         Api.Setup(client => client.GetSongListMembershipAsync(99))
             .ReturnsAsync(SongListMembershipResult.Ok([]));
-        Api.Setup(client => client.AddListSongAsync(3, 99))
+        Api.Setup(client => client.AddListSongAsync(3, 99, It.IsAny<bool>()))
             .ReturnsAsync(ListSongActionResult.Ok());
 
         SongAddedToListEventArgs? added = null;
@@ -213,9 +215,105 @@ public sealed class AddSongToListPanelTests : AuthPageTestContext
 
         cut.WaitForAssertion(() =>
         {
-            Api.Verify(client => client.AddListSongAsync(3, 99), Times.Once);
+            Api.Verify(client => client.AddListSongAsync(3, 99, false), Times.Once);
             Assert.NotNull(added);
             Assert.Contains("Working up", added!.Message);
+        });
+    }
+
+    [Fact]
+    public async Task Confirm_shows_duplicate_warning_and_cancel_skips_add()
+    {
+        var catalogItems = new List<LogSongPickItem>
+        {
+            new(99, "Bohemian Rhapsody", "Queen", false, false)
+        };
+
+        Api.Setup(client => client.GetSongListMembershipAsync(99))
+            .ReturnsAsync(SongListMembershipResult.Ok([]));
+        Api.Setup(client => client.GetTitleArtistCollisionAsync(3, 99))
+            .ReturnsAsync(TitleArtistCollisionResult.Found(new TitleArtistCollisionDto
+            {
+                ExistingSongId = 12,
+                Title = "Bohemian Rhapsody",
+                ArtistName = "Queen"
+            }));
+
+        var cut = RenderPanel(
+            catalogItems: catalogItems,
+            defaultListKind: SingerListKind.WorkingUp);
+
+        cut.Instance.Expand();
+        cut.Render();
+
+        await cut.InvokeAsync(() => cut.FindComponent<CatalogSongPicker>().Instance
+            .SelectedSongIdChanged.InvokeAsync(99));
+        cut.Render();
+
+        var confirmButton = cut.FindAll("button.btn-primary")
+            .First(button => button.TextContent?.Contains("Add to selected lists", StringComparison.Ordinal) == true);
+        confirmButton.Click();
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Contains("Add this version anyway?", cut.Markup);
+            Assert.Contains("Bohemian Rhapsody", cut.Markup);
+        });
+
+        var cancelButton = cut.FindAll("button.btn-primary")
+            .First(button => button.TextContent?.Contains("Cancel", StringComparison.Ordinal) == true);
+        cancelButton.Click();
+
+        Api.Verify(client => client.AddListSongAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<bool>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Confirm_duplicate_add_anyway_posts_with_override_flag()
+    {
+        var catalogItems = new List<LogSongPickItem>
+        {
+            new(99, "Bohemian Rhapsody", "Queen", false, false)
+        };
+
+        Api.Setup(client => client.GetSongListMembershipAsync(99))
+            .ReturnsAsync(SongListMembershipResult.Ok([]));
+        Api.Setup(client => client.GetTitleArtistCollisionAsync(3, 99))
+            .ReturnsAsync(TitleArtistCollisionResult.Found(new TitleArtistCollisionDto
+            {
+                ExistingSongId = 12,
+                Title = "Bohemian Rhapsody",
+                ArtistName = "Queen"
+            }));
+        Api.Setup(client => client.AddListSongAsync(3, 99, true))
+            .ReturnsAsync(ListSongActionResult.Ok());
+
+        SongAddedToListEventArgs? added = null;
+        var cut = RenderPanel(
+            catalogItems: catalogItems,
+            defaultListKind: SingerListKind.WorkingUp,
+            onSongAdded: args => added = args);
+
+        cut.Instance.Expand();
+        cut.Render();
+
+        await cut.InvokeAsync(() => cut.FindComponent<CatalogSongPicker>().Instance
+            .SelectedSongIdChanged.InvokeAsync(99));
+        cut.Render();
+
+        var confirmButton = cut.FindAll("button.btn-primary")
+            .First(button => button.TextContent?.Contains("Add to selected lists", StringComparison.Ordinal) == true);
+        confirmButton.Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("Add this version anyway?", cut.Markup));
+
+        var addAnywayButton = cut.FindAll("button.btn-outline-secondary")
+            .First(button => button.TextContent?.Contains("Add anyway", StringComparison.Ordinal) == true);
+        addAnywayButton.Click();
+
+        cut.WaitForAssertion(() =>
+        {
+            Api.Verify(client => client.AddListSongAsync(3, 99, true), Times.Once);
+            Assert.NotNull(added);
         });
     }
 
