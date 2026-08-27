@@ -92,6 +92,14 @@
     private string? errorMessage;
     private List<(SingerListKind Kind, TitleArtistCollisionDto Collision)> pendingCollisions = [];
     private SingerListKind? pendingAddKind;
+    private int? pendingSongId;
+
+    private void ClearPendingDuplicateConfirm()
+    {
+        pendingCollisions = [];
+        pendingAddKind = null;
+        pendingSongId = null;
+    }
 
     private bool CanAddToWantToSing =>
         !membership.Contains(SingerListKind.WantToSing)
@@ -106,6 +114,7 @@
     {
         statusMessage = null;
         errorMessage = null;
+        ClearPendingDuplicateConfirm();
 
         var listsResult = await SingerListResolver.LoadListsAsync(Api);
         if (!listsResult.Succeeded)
@@ -135,8 +144,7 @@
         isBusy = true;
         errorMessage = null;
         statusMessage = null;
-        pendingCollisions = [];
-        pendingAddKind = null;
+        ClearPendingDuplicateConfirm();
 
         try
         {
@@ -152,6 +160,7 @@
             {
                 pendingCollisions = collisionCheck.Collisions;
                 pendingAddKind = kind;
+                pendingSongId = SongId;
                 return;
             }
 
@@ -165,15 +174,16 @@
 
     private Task CancelDuplicateConfirmAsync()
     {
-        pendingCollisions = [];
-        pendingAddKind = null;
+        ClearPendingDuplicateConfirm();
         return Task.CompletedTask;
     }
 
     private async Task ConfirmDuplicateAddAsync()
     {
-        if (pendingAddKind is not SingerListKind kind)
+        if (pendingAddKind is not SingerListKind kind
+            || pendingSongId != SongId)
         {
+            ClearPendingDuplicateConfirm();
             return;
         }
 
@@ -187,8 +197,7 @@
         finally
         {
             isBusy = false;
-            pendingCollisions = [];
-            pendingAddKind = null;
+            ClearPendingDuplicateConfirm();
         }
     }
 

@@ -41,15 +41,30 @@
     private string? successMessage;
     private string? errorMessage;
     private List<(SingerListKind Kind, TitleArtistCollisionDto Collision)> pendingCollisions = [];
+    private int? pendingSongId;
+    private int lastSongId;
+
+    private void ClearPendingDuplicateConfirm()
+    {
+        pendingCollisions = [];
+        pendingSongId = null;
+    }
 
     private bool Visible => !AlreadyOnWorkingUp && SingerLists.Count > 0;
 
     protected override void OnParametersSet()
     {
+        if (SongId != lastSongId)
+        {
+            lastSongId = SongId;
+            ClearPendingDuplicateConfirm();
+        }
+
         if (AlreadyOnWorkingUp)
         {
             successMessage = null;
             errorMessage = null;
+            ClearPendingDuplicateConfirm();
         }
     }
 
@@ -58,7 +73,7 @@
         isAdding = true;
         errorMessage = null;
         successMessage = null;
-        pendingCollisions = [];
+        ClearPendingDuplicateConfirm();
 
         var collisionCheck = await SingerListActions.CheckTitleArtistCollisionsAsync(
             Api,
@@ -75,6 +90,7 @@
         if (collisionCheck.HasCollisions)
         {
             pendingCollisions = collisionCheck.Collisions;
+            pendingSongId = SongId;
             isAdding = false;
             return;
         }
@@ -84,15 +100,21 @@
 
     private Task CancelDuplicateConfirmAsync()
     {
-        pendingCollisions = [];
+        ClearPendingDuplicateConfirm();
         return Task.CompletedTask;
     }
 
     private async Task ConfirmDuplicateAddAsync()
     {
+        if (pendingSongId != SongId)
+        {
+            ClearPendingDuplicateConfirm();
+            return;
+        }
+
         isAdding = true;
         errorMessage = null;
-        pendingCollisions = [];
+        ClearPendingDuplicateConfirm();
 
         await ExecuteAddAsync(allowTitleArtistDuplicate: true);
     }

@@ -334,12 +334,17 @@ public class SingerListsController(
     }
 
     [HttpPost("{listId:int}/songs")]
-    public async Task<IActionResult> AddSong(int listId, [FromBody] AddSingerListSongRequest request)
+    public async Task<IActionResult> AddSong(int listId, [FromBody] AddSingerListSongRequest? request)
     {
         var singerId = await RequireSingerIdAsync();
         if (singerId.Result is not null)
         {
             return singerId.Result;
+        }
+
+        if (request is null)
+        {
+            return BadRequest(new ApiErrorResponse { Message = "Request body is required." });
         }
 
         var result = await singerListService.TryAddSongAsync(
@@ -355,7 +360,7 @@ public class SingerListsController(
                 return NotFound();
             }
 
-            if (result.Error?.StartsWith("This list already has", StringComparison.Ordinal) == true)
+            if (result.IsTitleArtistCollision)
             {
                 return Conflict(new ApiErrorResponse { Message = result.Error });
             }

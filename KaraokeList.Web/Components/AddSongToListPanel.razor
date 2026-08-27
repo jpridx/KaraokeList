@@ -133,6 +133,14 @@
     private readonly HashSet<SingerListKind> alreadyOnLists = [];
     private List<(SingerListKind Kind, TitleArtistCollisionDto Collision)> pendingCollisions = [];
     private List<SingerListKind>? pendingTargetLists;
+    private int? pendingSongId;
+
+    private void ClearPendingDuplicateConfirm()
+    {
+        pendingCollisions = [];
+        pendingTargetLists = null;
+        pendingSongId = null;
+    }
 
     private bool IsOffline => Disabled || UsingOfflineCatalog;
 
@@ -169,6 +177,7 @@
     {
         selectedSongId = songId;
         localError = null;
+        ClearPendingDuplicateConfirm();
         await ResetListSelectionAsync();
     }
 
@@ -183,6 +192,7 @@
         }
 
         selectedSongId = args.SongId;
+        ClearPendingDuplicateConfirm();
         await ResetListSelectionAsync();
     }
 
@@ -283,14 +293,18 @@
 
         isBusy = true;
         localError = null;
-        pendingCollisions = [];
-        pendingTargetLists = null;
+        ClearPendingDuplicateConfirm();
 
         var targets = selectedLists.Except(alreadyOnLists).ToList();
         try
         {
             var collisionCheck = await SingerListActions.CheckTitleArtistCollisionsAsync(
                 Api, SingerLists, songId, targets);
+            if (selectedSongId != songId)
+            {
+                return;
+            }
+
             if (!collisionCheck.Succeeded)
             {
                 localError = collisionCheck.ErrorMessage;
@@ -301,6 +315,7 @@
             {
                 pendingCollisions = collisionCheck.Collisions;
                 pendingTargetLists = targets;
+                pendingSongId = songId;
                 return;
             }
 
@@ -314,15 +329,17 @@
 
     private Task CancelDuplicateConfirmAsync()
     {
-        pendingCollisions = [];
-        pendingTargetLists = null;
+        ClearPendingDuplicateConfirm();
         return Task.CompletedTask;
     }
 
     private async Task ConfirmDuplicateAddAsync()
     {
-        if (selectedSongId is not int songId || pendingTargetLists is not { Count: > 0 })
+        if (pendingSongId is not int songId
+            || pendingTargetLists is not { Count: > 0 }
+            || selectedSongId != songId)
         {
+            ClearPendingDuplicateConfirm();
             return;
         }
 
@@ -336,8 +353,7 @@
         finally
         {
             isBusy = false;
-            pendingCollisions = [];
-            pendingTargetLists = null;
+            ClearPendingDuplicateConfirm();
         }
     }
 
@@ -356,7 +372,7 @@
             }
             else
             {
-                failures.Add($"{SingerListKindNames.DisplayName(kind)}: {result.ErrorMessage}");
+                failures.Add($"{SingerListKindNames.DisplayName(kind)}: {result.ErrorMessage ?? "Unknown error"}");
             }
         }
 
@@ -386,7 +402,6 @@
         localError = null;
         selectedLists.Clear();
         alreadyOnLists.Clear();
-        pendingCollisions = [];
-        pendingTargetLists = null;
+        ClearPendingDuplicateConfirm();
     }
 }
