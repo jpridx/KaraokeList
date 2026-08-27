@@ -16,5 +16,5 @@
     public int SingerId { get; set; }
 
     [Parameter, EditorRequired]
-    public EventCallback<string?> OnPerformanceSaved { get; set; }
+    public EventCallback<PerformanceSavedEventArgs> OnPerformanceSaved { get; set; }
 }

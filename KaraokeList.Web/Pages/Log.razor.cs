@@ -411,7 +411,7 @@ public partial class Log
     private string? saveMessage;
     private string? saveError;
 
-    private async Task OnPerformanceSavedAsync(string? message)
+    private async Task OnPerformanceSavedAsync(PerformanceSavedEventArgs args)
     {
         var savedSong = SelectedSong;
         var savedSongId = selectedSongId;
@@ -420,24 +420,26 @@ public partial class Log
         selectedSongId = null;
         songHint = null;
         selectedSongSummary = null;
-        saveMessage = message;
+        saveMessage = args.Message;
         saveError = null;
         recentLogs = await LogStore.GetRecentLogsAsync();
 
         if (savedSongId is int songId && savedSong is not null && recentEntry?.SongId == songId)
         {
-            await CatalogLoader.PatchRepertoireStatsAfterLogAsync(
-                songId,
-                savedSong.Title,
-                savedSong.ArtistName,
-                savedSong.ArtistName,
-                recentEntry.PerformedOn);
-            await MySongsLoader.PatchSongPerformanceAsync(
-                songId,
-                savedSong.Title,
-                savedSong.ArtistName,
-                savedSong.ArtistName,
-                recentEntry.PerformedOn);
+            try
+            {
+                await MySongsLoader.PatchCachesAfterPerformanceAsync(
+                    songId,
+                    savedSong.Title,
+                    savedSong.ArtistName,
+                    savedSong.ArtistName,
+                    recentEntry.PerformedOn,
+                    removeFromWantToSing: args.SavedOnServer);
+            }
+            catch
+            {
+                // Best-effort cache patch after logging a performance.
+            }
 
             catalogState.RepertoireSongIds.Add(songId);
             var cached = await CatalogLoader.TryGetCachedAsync();
@@ -449,14 +451,71 @@ public partial class Log
         }
     }
 
-    private Task OnAddedToWorkingUpAsync()
+    private async Task OnAddedToWorkingUpAsync()
     {
-        if (selectedSongId is int songId)
+        if (selectedSongId is not int songId)
         {
-            catalogState.WorkingUpSongIds.Add(songId);
+            return;
         }
 
-        return Task.CompletedTask;
+        catalogState.WorkingUpSongIds.Add(songId);
+        PatchCatalogPickItemMarkers(songId);
+
+        var song = SelectedSong;
+        var songDto = new RepertoireSongDto
+        {
+            SongId = songId,
+            Title = song?.Title ?? string.Empty,
+            ArtistName = song?.ArtistName ?? string.Empty,
+            ArtistDisplay = song?.ArtistName ?? string.Empty
+        };
+
+        try
+        {
+            await MySongsLoader.AddSongToCachedListAsync(SingerListKind.WorkingUp, songDto);
+        }
+        catch
+        {
+            // Incremental patch is best-effort; a successful refresh still updates caches.
+        }
+
+        try
+        {
+            var bundle = await MyListsLoader.LoadAsync(forceRefresh: true);
+            if (!bundle.Succeeded || bundle.FromCache)
+            {
+                return;
+            }
+
+            var cached = await CatalogLoader.TryGetCachedAsync();
+            if (cached is not null)
+            {
+                catalogState.Apply(cached);
+                catalogState.MarkOnline();
+                catalogState.WorkingUpSongIds.Add(songId);
+                PatchCatalogPickItemMarkers(songId);
+            }
+        }
+        catch
+        {
+            // Refresh is best-effort after the incremental cache patch.
+        }
+    }
+
+    private void PatchCatalogPickItemMarkers(int songId)
+    {
+        var index = catalogState.SongPickerItems.FindIndex(s => s.Id == songId);
+        if (index < 0)
+        {
+            return;
+        }
+
+        var existing = catalogState.SongPickerItems[index];
+        catalogState.SongPickerItems[index] = existing with
+        {
+            InRepertoire = catalogState.RepertoireSongIds.Contains(songId),
+            InWorkingUp = catalogState.WorkingUpSongIds.Contains(songId)
+        };
     }
 
     private async Task OnNewSongAddedAsync(SongAddedEventArgs args)

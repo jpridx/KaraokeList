@@ -64,5 +64,5 @@
     public EventCallback OnHistoryChanged { get; set; }
 
     [Parameter, EditorRequired]
-    public EventCallback<string?> OnPerformanceSaved { get; set; }
+    public EventCallback<PerformanceSavedEventArgs> OnPerformanceSaved { get; set; }
 }

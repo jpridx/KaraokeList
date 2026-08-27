@@ -65,11 +65,17 @@
     [Parameter]
     public int PerformanceCount { get; set; }
 
+    [Parameter]
+    public RepertoireSongDto? SongMeta { get; set; }
+
     [Parameter, EditorRequired]
     public EventCallback OnMembershipChanged { get; set; }
 
     [Inject]
     private IKaraokeApiClient Api { get; set; } = default!;
+
+    [Inject]
+    private IMySongsLoader MySongsLoader { get; set; } = default!;
 
     private readonly HashSet<SingerListKind> membership = [];
     private List<SingerListDto> singerLists = [];
@@ -120,18 +126,33 @@
         errorMessage = null;
         statusMessage = null;
 
-        var result = await SingerListActions.AddSongAsync(Api, singerLists, kind, SongId);
-        if (!result.Succeeded)
+        try
         {
-            errorMessage = result.ErrorMessage;
-            isBusy = false;
-            return;
-        }
+            var result = await SingerListActions.AddSongAsync(Api, singerLists, kind, SongId);
+            if (!result.Succeeded)
+            {
+                errorMessage = result.ErrorMessage;
+                return;
+            }
 
-        statusMessage = result.SuccessMessage;
-        await LoadAsync();
-        await OnMembershipChanged.InvokeAsync();
-        isBusy = false;
+            statusMessage = result.SuccessMessage;
+            membership.Add(kind);
+            await PatchCachedListBestEffortAsync(kind, added: true);
+            await OnMembershipChanged.InvokeAsync();
+
+            try
+            {
+                await LoadAsync();
+            }
+            catch
+            {
+                // Membership refresh is best-effort after the cache patch.
+            }
+        }
+        finally
+        {
+            isBusy = false;
+        }
     }
 
     private async Task RemoveFromListAsync(SingerListKind kind)
@@ -140,17 +161,52 @@
         errorMessage = null;
         statusMessage = null;
 
-        var result = await SingerListActions.RemoveSongAsync(Api, singerLists, kind, SongId);
-        if (!result.Succeeded)
+        try
         {
-            errorMessage = result.ErrorMessage;
-            isBusy = false;
-            return;
-        }
+            var result = await SingerListActions.RemoveSongAsync(Api, singerLists, kind, SongId);
+            if (!result.Succeeded)
+            {
+                errorMessage = result.ErrorMessage;
+                return;
+            }
 
-        statusMessage = result.SuccessMessage;
-        await LoadAsync();
-        await OnMembershipChanged.InvokeAsync();
-        isBusy = false;
+            statusMessage = result.SuccessMessage;
+            membership.Remove(kind);
+            await PatchCachedListBestEffortAsync(kind, added: false);
+            await OnMembershipChanged.InvokeAsync();
+
+            try
+            {
+                await LoadAsync();
+            }
+            catch
+            {
+                // Membership refresh is best-effort after the cache patch.
+            }
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    private async Task PatchCachedListBestEffortAsync(SingerListKind kind, bool added)
+    {
+        try
+        {
+            if (added)
+            {
+                var song = SongMeta ?? new RepertoireSongDto { SongId = SongId };
+                await MySongsLoader.AddSongToCachedListAsync(kind, song);
+            }
+            else
+            {
+                await MySongsLoader.RemoveSongFromCachedListAsync(kind, SongId);
+            }
+        }
+        catch
+        {
+            // Cache patching is best-effort after a successful API mutation.
+        }
     }
 }

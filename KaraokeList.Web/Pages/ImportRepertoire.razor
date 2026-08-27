@@ -2,6 +2,7 @@
 @attribute [Authorize]
 @inject IKaraokeApiClient Api
 @inject IMySongsLocalStore MySongsStore
+@inject IMyListsLoader MyListsLoader
 @inject NavigationManager Navigation
 @using Microsoft.AspNetCore.Components.Forms
 
@@ -206,11 +207,11 @@
     {
         try
         {
-            await MySongsStore.ClearCatalogCacheAsync();
+            await MyListsLoader.InvalidateAndReloadAsync();
         }
         catch
         {
-            // Cache clear is best-effort after import.
+            // Cache clear/refresh is best-effort after import.
         }
     }
 }

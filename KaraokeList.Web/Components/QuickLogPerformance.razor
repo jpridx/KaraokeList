@@ -88,7 +88,7 @@
     public string SaveButtonText { get; set; } = "Save performance";
 
     [Parameter]
-    public EventCallback<string?> OnPerformanceSaved { get; set; }
+    public EventCallback<PerformanceSavedEventArgs> OnPerformanceSaved { get; set; }
 
     [Parameter]
     public List<CoPerformerInputDto>? OtherPerformers { get; set; }
@@ -304,7 +304,7 @@
             {
                 await SaveLocallyAsync(venueName, queuedOffline: false);
                 saveMessage = "Performance saved.";
-                await OnPerformanceSaved.InvokeAsync(saveMessage);
+                await OnPerformanceSaved.InvokeAsync(new PerformanceSavedEventArgs(true, saveMessage, performedOn));
                 return;
             }
 
@@ -312,7 +312,7 @@
             {
                 await SaveLocallyAsync(venueName, queuedOffline: true);
                 saveWarning = "Saved on this device. Will sync when you're back online.";
-                await OnPerformanceSaved.InvokeAsync(saveWarning);
+                await OnPerformanceSaved.InvokeAsync(new PerformanceSavedEventArgs(false, saveWarning, performedOn));
                 return;
             }
 

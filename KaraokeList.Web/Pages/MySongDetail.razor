@@ -2,6 +2,7 @@
 @attribute [Authorize]
 @inject IKaraokeApiClient Api
 @inject IScrollRestoreJs ScrollRestoreJs
+@inject IMySongsLoader MySongsLoader
 
 <SingerGatedPage DocumentTitle="Song history"
                  Title="@(songMeta?.Title ?? "Song history")"
@@ -44,6 +45,7 @@
                                     OnGenreChanged="OnGenreChangedAsync" />
 
                     <SongListMembershipPanel SongId="@SongId" PerformanceCount="@summary.PerformanceCount"
+                                             SongMeta="@songMeta"
                                              OnMembershipChanged="ReloadSongDetailAsync" />
 
                     <TicklerExclusionPanel SongId="@SongId" OnExclusionChanged="ReloadSongDetailAsync" />
@@ -103,7 +105,30 @@
 
     private Task LoadSongDetailAsync(int singerId) => ReloadSongDetailAsync();
 
-    private async Task OnPerformanceSavedAsync(string? _) => await ReloadSongDetailAsync();
+    private async Task OnPerformanceSavedAsync(PerformanceSavedEventArgs args)
+    {
+        if (args.SavedOnServer)
+        {
+            try
+            {
+                await MySongsLoader.PatchCachesAfterPerformanceAsync(
+                    SongId,
+                    songMeta?.Title ?? string.Empty,
+                    songMeta?.ArtistName ?? string.Empty,
+                    string.IsNullOrWhiteSpace(songMeta?.ArtistDisplay)
+                        ? songMeta?.ArtistName ?? string.Empty
+                        : songMeta.ArtistDisplay,
+                    args.PerformedOn,
+                    removeFromWantToSing: true);
+            }
+            catch
+            {
+                // Best-effort cache patch after logging a performance.
+            }
+        }
+
+        await ReloadSongDetailAsync();
+    }
 
     private async Task OnHistoryChangedAsync() => await ReloadSongDetailAsync();
 

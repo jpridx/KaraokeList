@@ -45,33 +45,50 @@ public sealed class LogCatalogLoader(
             var venues = await api.GetVenuesAsync();
 
             var listsBundle = await myListsLoader.LoadAsync(onProgress);
-            var repertoire = listsBundle.SongsByKind.GetValueOrDefault(SingerListKind.MyRepertoire) ?? [];
-            var workingUp = listsBundle.SongsByKind.GetValueOrDefault(SingerListKind.WorkingUp) ?? [];
-            var repertoireIds = repertoire.Select(s => s.SongId).ToHashSet();
-            var repertoireStats = repertoire.Select(MyListsLoader.MapRepertoireStatsEntry).ToList();
-            var workingUpIds = workingUp.Select(s => s.SongId).ToHashSet();
+            IReadOnlyList<RepertoireSongDto> repertoire = [];
+            IReadOnlyList<RepertoireSongDto> workingUp = [];
+            var repertoireIds = new HashSet<int>();
+            var workingUpIds = new HashSet<int>();
+            List<LogSongPickItem> pickItems = [];
+            DateTime? cachedAt = null;
 
-            var artistNames = artists.ToDictionary(a => a.Id, a => a.Name);
-            var pickItems = CatalogSongMapper.ToPickItems(songs, artistNames, repertoireIds, workingUpIds);
+            await myListsLoader.RunExclusiveAsync(async () =>
+            {
+                var latest = await myListsLoader.TryGetCachedAsync() ?? listsBundle;
+                repertoire = latest.SongsByKind.GetValueOrDefault(SingerListKind.MyRepertoire) ?? [];
+                workingUp = latest.SongsByKind.GetValueOrDefault(SingerListKind.WorkingUp) ?? [];
+                repertoireIds = repertoire.Select(s => s.SongId).ToHashSet();
+                var repertoireStats = repertoire.Select(MyListsLoader.MapRepertoireStatsEntry).ToList();
+                workingUpIds = workingUp.Select(s => s.SongId).ToHashSet();
 
-            onProgress?.Invoke("Loading tickler exclusions...");
-            await RefreshTicklerExclusionsAsync();
+                var artistNames = artists.ToDictionary(a => a.Id, a => a.Name);
+                pickItems = CatalogSongMapper.ToPickItems(songs, artistNames, repertoireIds, workingUpIds);
 
-            onProgress?.Invoke("Saving for offline use...");
-            var cachedAt = DateTime.UtcNow;
-            var cacheTag = await versionService.GetCacheTagAsync();
-            await store.SaveCachedCatalogAsync(new CachedLogCatalog(
-                pickItems.Select(s => new CachedSongEntry(s.Id, s.Title, s.ArtistName)).ToList(),
-                repertoireIds.ToList(),
-                venues.Select(v => new CachedVenueEntry(v.Id, v.VenueName)).ToList(),
-                cachedAt,
-                workingUpIds.ToList(),
-                cacheTag,
-                MapArtistEntries(artists),
-                MapGenreEntries(genres),
-                repertoireStats));
+                onProgress?.Invoke("Loading tickler exclusions...");
+                await RefreshTicklerExclusionsAsync();
 
-            return new LogCatalogSnapshot(pickItems, repertoireIds, workingUpIds, FromCache: false, HasCatalog: pickItems.Count > 0, cachedAt);
+                onProgress?.Invoke("Saving for offline use...");
+                cachedAt = DateTime.UtcNow;
+                var cacheTag = await versionService.GetCacheTagAsync();
+                await store.SaveCachedCatalogAsync(new CachedLogCatalog(
+                    pickItems.Select(s => new CachedSongEntry(s.Id, s.Title, s.ArtistName)).ToList(),
+                    repertoireIds.ToList(),
+                    venues.Select(v => new CachedVenueEntry(v.Id, v.VenueName)).ToList(),
+                    cachedAt.Value,
+                    workingUpIds.ToList(),
+                    cacheTag,
+                    MapArtistEntries(artists),
+                    MapGenreEntries(genres),
+                    repertoireStats));
+            });
+
+            return new LogCatalogSnapshot(
+                pickItems,
+                repertoireIds,
+                workingUpIds,
+                FromCache: false,
+                HasCatalog: pickItems.Count > 0,
+                cachedAt);
         }
         catch (Exception ex) when (ApiTransientFailure.IsTransient(ex))
         {
@@ -234,7 +251,16 @@ public sealed class LogCatalogLoader(
         return MapCacheToSnapshot(cached);
     }
 
-    public async Task PatchRepertoireStatsAfterLogAsync(
+    public Task PatchRepertoireStatsAfterLogAsync(
+        int songId,
+        string title,
+        string artistName,
+        string artistDisplay,
+        DateTime performedOn) =>
+        myListsLoader.RunExclusiveAsync(() =>
+            PatchRepertoireStatsAfterLogCoreAsync(songId, title, artistName, artistDisplay, performedOn));
+
+    private async Task PatchRepertoireStatsAfterLogCoreAsync(
         int songId,
         string title,
         string artistName,

@@ -5,8 +5,10 @@ namespace KaraokeList.Web.Services;
 public interface IMyListsLoader
 {
     Task<MyListsBundle> LoadAsync(Action<string>? onProgress = null, bool forceRefresh = false);
+    Task<MyListsBundle> InvalidateAndReloadAsync(Action<string>? onProgress = null);
     Task<MyListsBundle?> TryGetCachedAsync();
     Task<bool> NeedsRefreshAsync();
+    Task RunExclusiveAsync(Func<Task> action);
 }
 
 public sealed record MyListsBundle(
@@ -35,17 +37,99 @@ public sealed class MyListsLoader(
 
     private readonly SemaphoreSlim loadGate = new(1, 1);
     private Task<MyListsBundle>? inFlightLoad;
+    private bool inFlightIsForceRefresh;
 
     public async Task<MyListsBundle> LoadAsync(Action<string>? onProgress = null, bool forceRefresh = false)
+    {
+        while (true)
+        {
+            var existing = inFlightLoad;
+            if (existing is not null && ShouldJoinInFlight(forceRefresh))
+            {
+                return await existing;
+            }
+
+            if (existing is not null)
+            {
+                await IgnoreFaultedAsync(existing);
+                continue;
+            }
+
+            Task<MyListsBundle>? taskToAwait = null;
+            MyListsBundle? cachedResult = null;
+            var gateReleased = false;
+
+            await loadGate.WaitAsync();
+            try
+            {
+                existing = inFlightLoad;
+                if (existing is not null && ShouldJoinInFlight(forceRefresh))
+                {
+                    taskToAwait = existing;
+                }
+                else if (existing is not null)
+                {
+                    gateReleased = true;
+                    loadGate.Release();
+                    await IgnoreFaultedAsync(existing);
+                    continue;
+                }
+                else if (!forceRefresh && !await NeedsRefreshAsync())
+                {
+                    cachedResult = await TryGetCachedAsync();
+                }
+
+                if (taskToAwait is null && cachedResult is null)
+                {
+                    taskToAwait = LoadCoreAsync(onProgress);
+                    inFlightLoad = taskToAwait;
+                    inFlightIsForceRefresh = forceRefresh;
+                }
+            }
+            finally
+            {
+                if (!gateReleased)
+                {
+                    loadGate.Release();
+                }
+            }
+
+            if (cachedResult is not null)
+            {
+                // Fresh online cache hit — still refresh tickler settings best-effort.
+                try
+                {
+                    await RefreshTicklerSettingsAsync();
+                }
+                catch (Exception ex) when (ApiTransientFailure.IsTransient(ex))
+                {
+                }
+
+                return cachedResult with { FromCache = false };
+            }
+
+            try
+            {
+                return await taskToAwait!;
+            }
+            finally
+            {
+                if (ReferenceEquals(inFlightLoad, taskToAwait))
+                {
+                    inFlightLoad = null;
+                    inFlightIsForceRefresh = false;
+                }
+            }
+        }
+    }
+
+    public async Task<MyListsBundle> InvalidateAndReloadAsync(Action<string>? onProgress = null)
     {
         var existing = inFlightLoad;
         if (existing is not null)
         {
-            return await existing;
+            await IgnoreFaultedAsync(existing);
         }
-
-        Task<MyListsBundle>? taskToAwait = null;
-        MyListsBundle? cachedResult = null;
 
         await loadGate.WaitAsync();
         try
@@ -53,24 +137,23 @@ public sealed class MyListsLoader(
             existing = inFlightLoad;
             if (existing is not null)
             {
-                taskToAwait = existing;
-            }
-            else if (!forceRefresh && !await NeedsRefreshAsync())
-            {
-                cachedResult = await TryGetCachedAsync();
+                await IgnoreFaultedAsync(existing);
             }
 
-            if (taskToAwait is null && cachedResult is null)
+            await mySongsStore.ClearCatalogCacheAsync();
+            var task = LoadCoreAsync(onProgress);
+            inFlightLoad = task;
+            inFlightIsForceRefresh = true;
+            try
             {
-                existing = inFlightLoad;
-                if (existing is not null)
+                return await task;
+            }
+            finally
+            {
+                if (ReferenceEquals(inFlightLoad, task))
                 {
-                    taskToAwait = existing;
-                }
-                else
-                {
-                    taskToAwait = LoadCoreAsync(onProgress);
-                    inFlightLoad = taskToAwait;
+                    inFlightLoad = null;
+                    inFlightIsForceRefresh = false;
                 }
             }
         }
@@ -78,31 +161,45 @@ public sealed class MyListsLoader(
         {
             loadGate.Release();
         }
+    }
 
-        if (cachedResult is not null)
-        {
-            // Fresh online cache hit — still refresh tickler settings best-effort.
-            try
-            {
-                await RefreshTicklerSettingsAsync();
-            }
-            catch (Exception ex) when (ApiTransientFailure.IsTransient(ex))
-            {
-            }
+    private bool ShouldJoinInFlight(bool forceRefresh) =>
+        !forceRefresh || inFlightIsForceRefresh;
 
-            return cachedResult with { FromCache = false };
-        }
-
+    private static async Task IgnoreFaultedAsync(Task task)
+    {
         try
         {
-            return await taskToAwait!;
+            await task;
+        }
+        catch
+        {
+            // A failed in-flight load must not block a forced refetch.
+        }
+    }
+
+    public async Task RunExclusiveAsync(Func<Task> action)
+    {
+        var existing = inFlightLoad;
+        if (existing is not null)
+        {
+            await IgnoreFaultedAsync(existing);
+        }
+
+        await loadGate.WaitAsync();
+        try
+        {
+            existing = inFlightLoad;
+            if (existing is not null)
+            {
+                await IgnoreFaultedAsync(existing);
+            }
+
+            await action();
         }
         finally
         {
-            if (ReferenceEquals(inFlightLoad, taskToAwait))
-            {
-                inFlightLoad = null;
-            }
+            loadGate.Release();
         }
     }
 
@@ -126,6 +223,11 @@ public sealed class MyListsLoader(
         }
 
         if (cached.SchemaVersion < CurrentCacheSchemaVersion)
+        {
+            return true;
+        }
+
+        if (HasMissingListKinds(cached))
         {
             return true;
         }
@@ -280,6 +382,17 @@ public sealed class MyListsLoader(
             Succeeded: true,
             FromCache: fromCache,
             cached.CachedAtUtc);
+
+    internal static bool HasMissingListKinds(CachedMySongsLists cached)
+    {
+        if (cached.Lists.Count == 0)
+        {
+            return false;
+        }
+
+        var present = cached.ListsSongs.Select(entry => entry.Kind).ToHashSet();
+        return cached.Lists.Any(list => !present.Contains(list.Kind));
+    }
 
     internal static CachedRepertoireStatsEntry MapRepertoireStatsEntry(RepertoireSongDto song) =>
         new(
