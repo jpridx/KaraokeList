@@ -1,4 +1,5 @@
 @inject IKaraokeApiClient Api
+@using KaraokeList.Shared
 
 @if (Visible)
 {
@@ -6,6 +7,13 @@
             @onclick="AddAsync">
         Add to working up
     </button>
+    @if (pendingCollisions.Count > 0)
+    {
+        <TitleArtistDuplicateConfirm Collisions="@pendingCollisions"
+                                     Disabled="@isAdding"
+                                     OnCancel="CancelDuplicateConfirmAsync"
+                                     OnConfirm="ConfirmDuplicateAddAsync" />
+    }
     @if (!string.IsNullOrEmpty(successMessage))
     {
         <p class="small text-success mt-1 mb-0">@successMessage</p>
@@ -32,15 +40,31 @@
     private bool isAdding;
     private string? successMessage;
     private string? errorMessage;
+    private List<(SingerListKind Kind, TitleArtistCollisionDto Collision)> pendingCollisions = [];
+    private int? pendingSongId;
+    private int lastSongId;
+
+    private void ClearPendingDuplicateConfirm()
+    {
+        pendingCollisions = [];
+        pendingSongId = null;
+    }
 
     private bool Visible => !AlreadyOnWorkingUp && SingerLists.Count > 0;
 
     protected override void OnParametersSet()
     {
+        if (SongId != lastSongId)
+        {
+            lastSongId = SongId;
+            ClearPendingDuplicateConfirm();
+        }
+
         if (AlreadyOnWorkingUp)
         {
             successMessage = null;
             errorMessage = null;
+            ClearPendingDuplicateConfirm();
         }
     }
 
@@ -49,12 +73,67 @@
         isAdding = true;
         errorMessage = null;
         successMessage = null;
+        ClearPendingDuplicateConfirm();
 
+        var requestedSongId = SongId;
+        var collisionCheck = await SingerListActions.CheckTitleArtistCollisionsAsync(
+            Api,
+            SingerLists,
+            requestedSongId,
+            [SingerListKind.WorkingUp]);
+        if (requestedSongId != SongId)
+        {
+            isAdding = false;
+            return;
+        }
+
+        if (!collisionCheck.Succeeded)
+        {
+            errorMessage = collisionCheck.ErrorMessage;
+            isAdding = false;
+            return;
+        }
+
+        if (collisionCheck.HasCollisions)
+        {
+            pendingCollisions = collisionCheck.Collisions;
+            pendingSongId = requestedSongId;
+            isAdding = false;
+            return;
+        }
+
+        await ExecuteAddAsync(requestedSongId, allowTitleArtistDuplicate: false);
+    }
+
+    private Task CancelDuplicateConfirmAsync()
+    {
+        ClearPendingDuplicateConfirm();
+        return Task.CompletedTask;
+    }
+
+    private async Task ConfirmDuplicateAddAsync()
+    {
+        if (pendingSongId is not int songId || songId != SongId)
+        {
+            ClearPendingDuplicateConfirm();
+            return;
+        }
+
+        isAdding = true;
+        errorMessage = null;
+        ClearPendingDuplicateConfirm();
+
+        await ExecuteAddAsync(songId, allowTitleArtistDuplicate: true);
+    }
+
+    private async Task ExecuteAddAsync(int songId, bool allowTitleArtistDuplicate)
+    {
         var result = await SingerListActions.AddSongAsync(
             Api,
             SingerLists,
             SingerListKind.WorkingUp,
-            SongId);
+            songId,
+            allowTitleArtistDuplicate);
 
         if (result.Succeeded)
         {

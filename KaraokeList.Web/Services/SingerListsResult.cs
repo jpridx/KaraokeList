@@ -52,6 +52,24 @@ public sealed class ListSongActionResult
         new() { Succeeded = false, ErrorMessage = message };
 }
 
+public sealed class TitleArtistCollisionResult
+{
+    public bool Succeeded { get; init; }
+
+    public string? ErrorMessage { get; init; }
+
+    public TitleArtistCollisionDto? Collision { get; init; }
+
+    public static TitleArtistCollisionResult None() =>
+        new() { Succeeded = true };
+
+    public static TitleArtistCollisionResult Found(TitleArtistCollisionDto collision) =>
+        new() { Succeeded = true, Collision = collision };
+
+    public static TitleArtistCollisionResult Fail(string message) =>
+        new() { Succeeded = false, ErrorMessage = message };
+}
+
 public sealed class SongListMembershipResult
 {
     public bool Succeeded { get; init; }

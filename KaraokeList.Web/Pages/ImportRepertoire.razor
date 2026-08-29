@@ -15,6 +15,7 @@
         Upload a spreadsheet of songs you've sung or want to track.
         Each row is matched to the shared catalog by <strong>title</strong> and <strong>artist</strong>.
         Songs not in the catalog are skipped — ask an admin to import them first.
+        Rows that match a song already on the list (same title and artist) are also skipped.
     </p>
 
     @if (!string.IsNullOrEmpty(pageError))

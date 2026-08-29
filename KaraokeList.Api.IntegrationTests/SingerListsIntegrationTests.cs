@@ -190,6 +190,113 @@ public sealed class SingerListsIntegrationTests(KaraokeApiFactory factory)
     }
 
     [SkippableFact]
+    public async Task AddSong_BlocksTitleArtistDuplicateWithoutOverride()
+    {
+        Skip.IfNot(factory.IsDatabaseAvailable, IntegrationTestConnection.SkipReason);
+
+        var client = await CreateAuthedClientAsync();
+        var lists = await GetListsAsync(client);
+        var workingUpListId = lists.Single(l => l.Kind == SingerListKind.WorkingUp).Id;
+
+        var (firstSongId, secondSongId) = await CreateDuplicateTitleArtistSongsAsync(client);
+        var addFirst = await client.PostAsJsonAsync(
+            $"/api/singers/me/lists/{workingUpListId}/songs",
+            new AddSingerListSongRequest { SongId = firstSongId });
+        Assert.Equal(HttpStatusCode.NoContent, addFirst.StatusCode);
+
+        var addSecond = await client.PostAsJsonAsync(
+            $"/api/singers/me/lists/{workingUpListId}/songs",
+            new AddSingerListSongRequest { SongId = secondSongId });
+        Assert.Equal(HttpStatusCode.Conflict, addSecond.StatusCode);
+    }
+
+    [SkippableFact]
+    public async Task GetTitleArtistCollision_ReturnsExistingSong()
+    {
+        Skip.IfNot(factory.IsDatabaseAvailable, IntegrationTestConnection.SkipReason);
+
+        var client = await CreateAuthedClientAsync();
+        var lists = await GetListsAsync(client);
+        var workingUpListId = lists.Single(l => l.Kind == SingerListKind.WorkingUp).Id;
+
+        var (firstSongId, secondSongId) = await CreateDuplicateTitleArtistSongsAsync(client);
+        var addFirst = await client.PostAsJsonAsync(
+            $"/api/singers/me/lists/{workingUpListId}/songs",
+            new AddSingerListSongRequest { SongId = firstSongId });
+        Assert.Equal(HttpStatusCode.NoContent, addFirst.StatusCode);
+
+        var response = await client.GetAsync(
+            $"/api/singers/me/lists/{workingUpListId}/songs/title-artist-collision?songId={secondSongId}");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var collision = await response.Content.ReadFromJsonAsync<TitleArtistCollisionDto>();
+        Assert.NotNull(collision);
+        Assert.Equal(firstSongId, collision!.ExistingSongId);
+    }
+
+    [SkippableFact]
+    public async Task AddSong_AllowsTitleArtistDuplicateWhenOverrideSet()
+    {
+        Skip.IfNot(factory.IsDatabaseAvailable, IntegrationTestConnection.SkipReason);
+
+        var client = await CreateAuthedClientAsync();
+        var lists = await GetListsAsync(client);
+        var workingUpListId = lists.Single(l => l.Kind == SingerListKind.WorkingUp).Id;
+
+        var (firstSongId, secondSongId) = await CreateDuplicateTitleArtistSongsAsync(client);
+        var addFirst = await client.PostAsJsonAsync(
+            $"/api/singers/me/lists/{workingUpListId}/songs",
+            new AddSingerListSongRequest { SongId = firstSongId });
+        Assert.Equal(HttpStatusCode.NoContent, addFirst.StatusCode);
+
+        var addSecond = await client.PostAsJsonAsync(
+            $"/api/singers/me/lists/{workingUpListId}/songs",
+            new AddSingerListSongRequest
+            {
+                SongId = secondSongId,
+                AllowTitleArtistDuplicate = true
+            });
+        Assert.Equal(HttpStatusCode.NoContent, addSecond.StatusCode);
+
+        var songs = await client.GetFromJsonAsync<List<RepertoireSongDto>>(
+            $"/api/singers/me/lists/{workingUpListId}/songs");
+        Assert.NotNull(songs);
+        Assert.Contains(songs, s => s.SongId == firstSongId);
+        Assert.Contains(songs, s => s.SongId == secondSongId);
+    }
+
+    [SkippableFact]
+    public async Task ImportListSongs_SkipsTitleArtistDuplicate()
+    {
+        Skip.IfNot(factory.IsDatabaseAvailable, IntegrationTestConnection.SkipReason);
+
+        var client = await CreateAuthedClientAsync();
+        var (firstSongId, secondSongId) = await CreateDuplicateTitleArtistSongsAsync(client);
+
+        var addFirst = await client.PostAsJsonAsync(
+            "/api/singers/me/lists/import",
+            new ImportSingerListSongsRequest
+            {
+                ListKind = SingerListKind.WorkingUp,
+                SongIds = [firstSongId]
+            });
+        Assert.Equal(HttpStatusCode.OK, addFirst.StatusCode);
+
+        var importSecond = await client.PostAsJsonAsync(
+            "/api/singers/me/lists/import",
+            new ImportSingerListSongsRequest
+            {
+                ListKind = SingerListKind.WorkingUp,
+                SongIds = [secondSongId]
+            });
+        Assert.Equal(HttpStatusCode.OK, importSecond.StatusCode);
+        var body = await importSecond.Content.ReadFromJsonAsync<ImportSingerListSongsResponse>();
+        Assert.NotNull(body);
+        Assert.Equal(0, body!.Added);
+        Assert.Equal(1, body.Skipped);
+    }
+
+    [SkippableFact]
     public async Task GetListSongs_SortByLastPerformedDesc_PutsUnperformedSongsLast()
     {
         Skip.IfNot(factory.IsDatabaseAvailable, IntegrationTestConnection.SkipReason);
@@ -228,6 +335,43 @@ public sealed class SingerListsIntegrationTests(KaraokeApiFactory factory)
         var lists = await client.GetFromJsonAsync<List<SingerListDto>>("/api/singers/me/lists");
         Assert.NotNull(lists);
         return lists;
+    }
+
+    private static async Task<(int FirstSongId, int SecondSongId)> CreateDuplicateTitleArtistSongsAsync(HttpClient client)
+    {
+        var artistName = $"Artist {Guid.NewGuid():N}";
+        var createArtist = await client.PostAsJsonAsync("/api/artists", new ArtistDto { Name = artistName });
+        Assert.Equal(HttpStatusCode.NoContent, createArtist.StatusCode);
+
+        var artists = await client.GetFromJsonAsync<List<ArtistDto>>("/api/artists");
+        Assert.NotNull(artists);
+        var artistId = Assert.Single(artists, a => a.Name == artistName).Id;
+
+        var songTitle = $"Song {Guid.NewGuid():N}";
+        var credits = new List<SongArtistDto>
+        {
+            new() { ArtistId = artistId, DisplayOrder = 0, Name = artistName }
+        };
+
+        var createFirst = await client.PostAsJsonAsync("/api/songs", new SongDto
+        {
+            Title = songTitle,
+            Artists = credits
+        });
+        Assert.Equal(HttpStatusCode.Created, createFirst.StatusCode);
+        var firstSong = await createFirst.Content.ReadFromJsonAsync<SongDto>();
+        Assert.NotNull(firstSong);
+
+        var createSecond = await client.PostAsJsonAsync("/api/songs", new SongDto
+        {
+            Title = songTitle,
+            Artists = credits
+        });
+        Assert.Equal(HttpStatusCode.Created, createSecond.StatusCode);
+        var secondSong = await createSecond.Content.ReadFromJsonAsync<SongDto>();
+        Assert.NotNull(secondSong);
+
+        return (firstSong!.Id, secondSong!.Id);
     }
 
     private async Task<HttpClient> CreateAuthedClientAsync()

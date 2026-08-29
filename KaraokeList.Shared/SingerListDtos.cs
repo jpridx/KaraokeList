@@ -28,6 +28,39 @@ public class SingerListDto
 public class AddSingerListSongRequest
 {
     public int SongId { get; set; }
+
+    public bool AllowTitleArtistDuplicate { get; set; }
+}
+
+public class TitleArtistCollisionDto
+{
+    public int ExistingSongId { get; set; }
+
+    public string Title { get; set; } = string.Empty;
+
+    public string ArtistName { get; set; } = string.Empty;
+}
+
+public enum AddListSongFailureKind
+{
+    None,
+    NotFound,
+    Validation,
+    TitleArtistCollision,
+    MissingPrimaryArtist
+}
+
+public readonly record struct AddListSongResult(
+    bool Succeeded,
+    string? Error = null,
+    AddListSongFailureKind FailureKind = AddListSongFailureKind.None)
+{
+    public static AddListSongResult Ok() => new(true);
+
+    public static AddListSongResult Fail(string error, AddListSongFailureKind kind) =>
+        new(false, error, kind);
+
+    public bool IsTitleArtistCollision => FailureKind == AddListSongFailureKind.TitleArtistCollision;
 }
 
 public class ImportSingerListSongsRequest

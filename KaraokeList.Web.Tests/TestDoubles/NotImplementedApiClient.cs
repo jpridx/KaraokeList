@@ -81,9 +81,10 @@ public class NotImplementedApiClient : IKaraokeApiClient
     public virtual Task<SingerListImportResult> ImportListSongsAsync(ImportSingerListSongsRequest request) => Throw<SingerListImportResult>();
     public virtual Task<SingerListFileImportResult> ImportListSongsFromFileAsync(Stream fileStream, string fileName, SingerListKind listKind) => Throw<SingerListFileImportResult>();
     public virtual Task<SingerListFileImportResult> ImportListSongsFromGSheetAsync(ImportSingerListFromGSheetRequest request) => Throw<SingerListFileImportResult>();
-    public virtual Task<ListSongActionResult> AddListSongAsync(int listId, int songId) => Throw<ListSongActionResult>();
+    public virtual Task<ListSongActionResult> AddListSongAsync(int listId, int songId, bool allowTitleArtistDuplicate = false) => Throw<ListSongActionResult>();
     public virtual Task<ListSongActionResult> RemoveListSongAsync(int listId, int songId) => Throw<ListSongActionResult>();
     public virtual Task<SongListMembershipResult> GetSongListMembershipAsync(int songId) => Throw<SongListMembershipResult>();
+    public virtual Task<TitleArtistCollisionResult> GetTitleArtistCollisionAsync(int listId, int songId) => Throw<TitleArtistCollisionResult>();
     public virtual Task<SongTicklerExclusionResult> GetSongTicklerExclusionAsync(int songId) => Throw<SongTicklerExclusionResult>();
     public virtual Task<TicklerExclusionActionResult> SetSongTicklerExclusionAsync(int songId, UpdateSongTicklerExclusionRequest request) => Throw<TicklerExclusionActionResult>();
     public virtual Task<TicklerExclusionActionResult> RemoveSongTicklerExclusionAsync(int songId) => Throw<TicklerExclusionActionResult>();
