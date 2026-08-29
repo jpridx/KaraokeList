@@ -46,7 +46,7 @@
 
             @if (selectedSongId is not null)
             {
-                <fieldset class="mt-3 mb-0" disabled="@(isBusy || UsingOfflineCatalog)">
+                <fieldset class="mt-3 mb-0" disabled="@(isBusy || UsingOfflineCatalog || IsDuplicateConfirmPending)">
                     <legend class="form-label fs-6 mb-2">Add to lists</legend>
                     @foreach (var kind in AllListKinds)
                     {
@@ -141,6 +141,8 @@
         pendingTargetLists = null;
         pendingSongId = null;
     }
+
+    private bool IsDuplicateConfirmPending => pendingCollisions.Count > 0;
 
     private bool IsOffline => Disabled || UsingOfflineCatalog;
 
@@ -272,6 +274,8 @@
         {
             return;
         }
+
+        ClearPendingDuplicateConfirm();
 
         var isChecked = checkedValue is bool value && value;
         if (isChecked)

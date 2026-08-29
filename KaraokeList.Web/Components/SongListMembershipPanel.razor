@@ -148,8 +148,14 @@
 
         try
         {
+            var requestedSongId = SongId;
             var collisionCheck = await SingerListActions.CheckTitleArtistCollisionsAsync(
-                Api, singerLists, SongId, [kind]);
+                Api, singerLists, requestedSongId, [kind]);
+            if (requestedSongId != SongId)
+            {
+                return;
+            }
+
             if (!collisionCheck.Succeeded)
             {
                 errorMessage = collisionCheck.ErrorMessage;
@@ -160,11 +166,11 @@
             {
                 pendingCollisions = collisionCheck.Collisions;
                 pendingAddKind = kind;
-                pendingSongId = SongId;
+                pendingSongId = requestedSongId;
                 return;
             }
 
-            await ExecuteAddAsync(kind, allowTitleArtistDuplicate: false);
+            await ExecuteAddAsync(kind, requestedSongId, allowTitleArtistDuplicate: false);
         }
         finally
         {
@@ -192,7 +198,7 @@
 
         try
         {
-            await ExecuteAddAsync(kind, allowTitleArtistDuplicate: true);
+            await ExecuteAddAsync(kind, pendingSongId ?? SongId, allowTitleArtistDuplicate: true);
         }
         finally
         {
@@ -201,10 +207,10 @@
         }
     }
 
-    private async Task ExecuteAddAsync(SingerListKind kind, bool allowTitleArtistDuplicate)
+    private async Task ExecuteAddAsync(SingerListKind kind, int songId, bool allowTitleArtistDuplicate)
     {
         var result = await SingerListActions.AddSongAsync(
-            Api, singerLists, kind, SongId, allowTitleArtistDuplicate);
+            Api, singerLists, kind, songId, allowTitleArtistDuplicate);
         if (!result.Succeeded)
         {
             errorMessage = result.ErrorMessage;

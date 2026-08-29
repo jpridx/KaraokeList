@@ -170,7 +170,8 @@ public sealed class SingerListService(
         int singerId,
         int listId,
         int songId,
-        bool allowTitleArtistDuplicate = false)
+        bool allowTitleArtistDuplicate = false,
+        HashSet<string>? listMatchKeys = null)
     {
         var list = await GetOwnedListAsync(singerId, listId);
         if (list is null)
@@ -189,51 +190,68 @@ public sealed class SingerListService(
             return AddListSongResult.Fail(validationError, AddListSongFailureKind.Validation);
         }
 
-        await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
-        try
+        var strategy = db.Database.CreateExecutionStrategy();
+        return await strategy.ExecuteAsync(async () =>
         {
-            var exists = await db.SingerListSongs.AnyAsync(s => s.ListId == listId && s.SongId == songId);
-            if (exists)
+            await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+            try
             {
+                var exists = await db.SingerListSongs.AnyAsync(s => s.ListId == listId && s.SongId == songId);
+                if (exists)
+                {
+                    await transaction.CommitAsync();
+                    return AddListSongResult.Ok();
+                }
+
+                string? addedMatchKey = null;
+                if (!allowTitleArtistDuplicate)
+                {
+                    addedMatchKey = await GetSongMatchKeyAsync(songId);
+                    if (addedMatchKey is null)
+                    {
+                        await transaction.RollbackAsync();
+                        return AddListSongResult.Fail(
+                            "This song has no primary artist credit, so duplicate title/artist checks cannot run.",
+                            AddListSongFailureKind.MissingPrimaryArtist);
+                    }
+
+                    if (await HasTitleArtistCollisionOnListAsync(listId, songId, addedMatchKey, listMatchKeys))
+                    {
+                        await transaction.RollbackAsync();
+                        var collision = await FindTitleArtistCollisionOnListAsync(listId, songId);
+                        var message = collision is not null
+                            ? FormatTitleArtistCollisionMessage(collision)
+                            : "This list already has a song with the same title and artist.";
+                        return AddListSongResult.Fail(message, AddListSongFailureKind.TitleArtistCollision);
+                    }
+                }
+
+                db.SingerListSongs.Add(new SingerListSong
+                {
+                    ListId = listId,
+                    SongId = songId,
+                    AddedUtc = DateTime.UtcNow
+                });
+                await db.SaveChangesAsync();
                 await transaction.CommitAsync();
+
+                if (listMatchKeys is not null)
+                {
+                    addedMatchKey ??= await GetSongMatchKeyAsync(songId);
+                    if (addedMatchKey is not null)
+                    {
+                        listMatchKeys.Add(addedMatchKey);
+                    }
+                }
+
                 return AddListSongResult.Ok();
             }
-
-            if (!allowTitleArtistDuplicate)
+            catch
             {
-                if (await GetSongMatchKeyAsync(songId) is null)
-                {
-                    await transaction.RollbackAsync();
-                    return AddListSongResult.Fail(
-                        "This song has no primary artist credit, so duplicate title/artist checks cannot run.",
-                        AddListSongFailureKind.MissingPrimaryArtist);
-                }
-
-                var collision = await FindTitleArtistCollisionOnListAsync(listId, songId);
-                if (collision is not null)
-                {
-                    await transaction.RollbackAsync();
-                    return AddListSongResult.Fail(
-                        FormatTitleArtistCollisionMessage(collision),
-                        AddListSongFailureKind.TitleArtistCollision);
-                }
+                await transaction.RollbackAsync();
+                throw;
             }
-
-            db.SingerListSongs.Add(new SingerListSong
-            {
-                ListId = listId,
-                SongId = songId,
-                AddedUtc = DateTime.UtcNow
-            });
-            await db.SaveChangesAsync();
-            await transaction.CommitAsync();
-            return AddListSongResult.Ok();
-        }
-        catch
-        {
-            await transaction.RollbackAsync();
-            throw;
-        }
+        });
     }
 
     public async Task<bool> RemoveSongAsync(int singerId, int listId, int songId)
@@ -282,6 +300,7 @@ public sealed class SingerListService(
 
         var response = new ImportSingerListSongsResponse();
         var seen = new HashSet<int>();
+        var listMatchKeys = await LoadListMatchKeysAsync(list.Id);
         foreach (var songId in songIds)
         {
             if (!seen.Add(songId))
@@ -298,17 +317,21 @@ public sealed class SingerListService(
                 continue;
             }
 
-            var titleArtistCollision = await FindTitleArtistCollisionOnListAsync(list.Id, songId);
-            if (titleArtistCollision is not null)
+            var songKey = await GetSongMatchKeyAsync(songId);
+            if (songKey is not null && listMatchKeys.Contains(songKey))
             {
                 response.Skipped++;
                 continue;
             }
 
-            var result = await TryAddSongAsync(singerId, list.Id, songId);
+            var result = await TryAddSongAsync(singerId, list.Id, songId, listMatchKeys: listMatchKeys);
             if (result.Succeeded)
             {
                 response.Added++;
+            }
+            else if (result.FailureKind == AddListSongFailureKind.TitleArtistCollision)
+            {
+                response.Skipped++;
             }
             else
             {
@@ -332,12 +355,6 @@ public sealed class SingerListService(
 
         var exists = await db.SingerListSongs.AnyAsync(s => s.ListId == list.Id && s.SongId == songId);
         if (exists)
-        {
-            return;
-        }
-
-        var collision = await FindTitleArtistCollisionOnListAsync(list.Id, songId);
-        if (collision is not null)
         {
             return;
         }
@@ -426,6 +443,36 @@ public sealed class SingerListService(
             .FirstOrDefaultAsync();
 
         return info is null ? null : SongMatchKey.Make(info.Title, info.ArtistName);
+    }
+
+    private async Task<HashSet<string>> LoadListMatchKeysAsync(int listId)
+    {
+        var listSongs = await (
+            from sls in db.SingerListSongs
+            join s in db.Songs on sls.SongId equals s.Id
+            join sa in db.SongArtists on s.Id equals sa.SongId
+            join a in db.Artists on sa.ArtistId equals a.Id
+            where sls.ListId == listId && sa.DisplayOrder == 0
+            select new { s.Title, ArtistName = a.Name })
+            .ToListAsync();
+
+        return listSongs
+            .Select(song => SongMatchKey.Make(song.Title, song.ArtistName))
+            .ToHashSet();
+    }
+
+    private async Task<bool> HasTitleArtistCollisionOnListAsync(
+        int listId,
+        int songId,
+        string songKey,
+        HashSet<string>? listMatchKeys)
+    {
+        if (listMatchKeys is not null)
+        {
+            return listMatchKeys.Contains(songKey);
+        }
+
+        return await FindTitleArtistCollisionOnListAsync(listId, songId) is not null;
     }
 
     private static string FormatTitleArtistCollisionMessage(TitleArtistCollisionDto collision) =>

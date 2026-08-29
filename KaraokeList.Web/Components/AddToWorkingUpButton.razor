@@ -75,11 +75,18 @@
         successMessage = null;
         ClearPendingDuplicateConfirm();
 
+        var requestedSongId = SongId;
         var collisionCheck = await SingerListActions.CheckTitleArtistCollisionsAsync(
             Api,
             SingerLists,
-            SongId,
+            requestedSongId,
             [SingerListKind.WorkingUp]);
+        if (requestedSongId != SongId)
+        {
+            isAdding = false;
+            return;
+        }
+
         if (!collisionCheck.Succeeded)
         {
             errorMessage = collisionCheck.ErrorMessage;
@@ -90,12 +97,12 @@
         if (collisionCheck.HasCollisions)
         {
             pendingCollisions = collisionCheck.Collisions;
-            pendingSongId = SongId;
+            pendingSongId = requestedSongId;
             isAdding = false;
             return;
         }
 
-        await ExecuteAddAsync(allowTitleArtistDuplicate: false);
+        await ExecuteAddAsync(requestedSongId, allowTitleArtistDuplicate: false);
     }
 
     private Task CancelDuplicateConfirmAsync()
@@ -106,7 +113,7 @@
 
     private async Task ConfirmDuplicateAddAsync()
     {
-        if (pendingSongId != SongId)
+        if (pendingSongId is not int songId || songId != SongId)
         {
             ClearPendingDuplicateConfirm();
             return;
@@ -116,16 +123,16 @@
         errorMessage = null;
         ClearPendingDuplicateConfirm();
 
-        await ExecuteAddAsync(allowTitleArtistDuplicate: true);
+        await ExecuteAddAsync(songId, allowTitleArtistDuplicate: true);
     }
 
-    private async Task ExecuteAddAsync(bool allowTitleArtistDuplicate)
+    private async Task ExecuteAddAsync(int songId, bool allowTitleArtistDuplicate)
     {
         var result = await SingerListActions.AddSongAsync(
             Api,
             SingerLists,
             SingerListKind.WorkingUp,
-            SongId,
+            songId,
             allowTitleArtistDuplicate);
 
         if (result.Succeeded)

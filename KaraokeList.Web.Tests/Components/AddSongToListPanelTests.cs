@@ -300,9 +300,9 @@ public sealed class AddSongToListPanelTests : AuthPageTestContext
             .SelectedSongIdChanged.InvokeAsync(99));
         cut.Render();
 
-        var confirmButton = cut.FindAll("button.btn-primary")
-            .First(button => button.TextContent?.Contains("Add to selected lists", StringComparison.Ordinal) == true);
-        confirmButton.Click();
+        cut.FindAll("button.btn-primary")
+            .First(button => button.TextContent?.Contains("Add to selected lists", StringComparison.Ordinal) == true)
+            .Click();
 
         cut.WaitForAssertion(() =>
         {
@@ -310,11 +310,51 @@ public sealed class AddSongToListPanelTests : AuthPageTestContext
             Assert.Contains("Bohemian Rhapsody", cut.Markup);
         });
 
-        var cancelButton = cut.FindAll("button.btn-primary")
-            .First(button => button.TextContent?.Contains("Cancel", StringComparison.Ordinal) == true);
-        cancelButton.Click();
+        cut.FindAll("button.btn-primary")
+            .First(button => button.TextContent?.Contains("Cancel", StringComparison.Ordinal) == true)
+            .Click();
 
         Api.Verify(client => client.AddListSongAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<bool>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Changing_list_selection_clears_duplicate_confirm()
+    {
+        var catalogItems = new List<LogSongPickItem>
+        {
+            new(99, "Bohemian Rhapsody", "Queen", false, false)
+        };
+
+        Api.Setup(client => client.GetSongListMembershipAsync(99))
+            .ReturnsAsync(SongListMembershipResult.Ok([]));
+        Api.Setup(client => client.GetTitleArtistCollisionAsync(3, 99))
+            .ReturnsAsync(TitleArtistCollisionResult.Found(new TitleArtistCollisionDto
+            {
+                ExistingSongId = 12,
+                Title = "Bohemian Rhapsody",
+                ArtistName = "Queen"
+            }));
+
+        var cut = RenderPanel(
+            catalogItems: catalogItems,
+            defaultListKind: SingerListKind.WorkingUp);
+
+        cut.Instance.Expand();
+        cut.Render();
+
+        await cut.InvokeAsync(() => cut.FindComponent<CatalogSongPicker>().Instance
+            .SelectedSongIdChanged.InvokeAsync(99));
+        cut.Render();
+
+        cut.FindAll("button.btn-primary")
+            .First(button => button.TextContent?.Contains("Add to selected lists", StringComparison.Ordinal) == true)
+            .Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("Add this version anyway?", cut.Markup));
+
+        cut.Find("#add-song-list-WorkingUp").Change(false);
+
+        cut.WaitForAssertion(() => Assert.DoesNotContain("Add this version anyway?", cut.Markup));
     }
 
     [Fact]
