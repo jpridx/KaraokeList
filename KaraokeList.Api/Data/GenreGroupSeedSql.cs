@@ -9,51 +9,51 @@ public static class GenreGroupSeedSql
         """
         INSERT INTO GenreGroups (GroupName, SortOrder)
         SELECT src.GroupName, src.SortOrder
-        FROM (VALUES
-            (N'Rock', 1),
-            (N'Pop', 2),
-            (N'Country', 3),
-            (N'Christian', 4),
-            (N'R&B / Soul', 5),
-            (N'Standards & Show Tunes', 6)
-        ) AS src(GroupName, SortOrder)
+        FROM (
+            SELECT 'Rock' AS GroupName, 1 AS SortOrder
+            UNION ALL SELECT 'Pop', 2
+            UNION ALL SELECT 'Country', 3
+            UNION ALL SELECT 'Christian', 4
+            UNION ALL SELECT 'R&B / Soul', 5
+            UNION ALL SELECT 'Standards & Show Tunes', 6
+        ) AS src
         WHERE NOT EXISTS (
             SELECT 1 FROM GenreGroups gg WHERE gg.GroupName = src.GroupName);
         """;
 
     public const string MappingsSql =
         """
-        ;WITH Mapping (GenreName, GroupName, IsPrimary) AS (
-            SELECT N'Alternative Rock', N'Rock', 1 UNION ALL
-            SELECT N'Arena Rock', N'Rock', 1 UNION ALL
-            SELECT N'Blues Rock', N'Rock', 1 UNION ALL
-            SELECT N'Classic Rock', N'Rock', 1 UNION ALL
-            SELECT N'Folk Rock', N'Rock', 1 UNION ALL
-            SELECT N'Glam Rock', N'Rock', 1 UNION ALL
-            SELECT N'Hair Metal', N'Rock', 1 UNION ALL
-            SELECT N'Hard Rock', N'Rock', 1 UNION ALL
-            SELECT N'New Wave', N'Rock', 1 UNION ALL
-            SELECT N'Rock', N'Rock', 1 UNION ALL
-            SELECT N'Rockabilly', N'Rock', 1 UNION ALL
-            SELECT N'Rockabilly', N'Country', 0 UNION ALL
-            SELECT N'Soft Rock', N'Rock', 1 UNION ALL
-            SELECT N'Southern Rock', N'Rock', 1 UNION ALL
-            SELECT N'Country Rock', N'Rock', 1 UNION ALL
-            SELECT N'Country Rock', N'Country', 0 UNION ALL
-            SELECT N'Pop Rock', N'Rock', 1 UNION ALL
-            SELECT N'Pop Rock', N'Pop', 0 UNION ALL
-            SELECT N'Country', N'Country', 1 UNION ALL
-            SELECT N'Outlaw Country', N'Country', 1 UNION ALL
-            SELECT N'Country Pop', N'Country', 1 UNION ALL
-            SELECT N'Country Pop', N'Pop', 0 UNION ALL
-            SELECT N'Adult Contemporary', N'Pop', 1 UNION ALL
-            SELECT N'Easy Listening', N'Pop', 1 UNION ALL
-            SELECT N'Pop', N'Pop', 1 UNION ALL
-            SELECT N'Synth-Pop', N'Pop', 1 UNION ALL
-            SELECT N'Disco', N'R&B / Soul', 1 UNION ALL
-            SELECT N'R&B', N'R&B / Soul', 1 UNION ALL
-            SELECT N'Soul', N'R&B / Soul', 1 UNION ALL
-            SELECT N'Show Tunes', N'Standards & Show Tunes', 1
+        WITH Mapping (GenreName, GroupName, IsPrimary) AS (
+            SELECT 'Alternative Rock', 'Rock', 1 UNION ALL
+            SELECT 'Arena Rock', 'Rock', 1 UNION ALL
+            SELECT 'Blues Rock', 'Rock', 1 UNION ALL
+            SELECT 'Classic Rock', 'Rock', 1 UNION ALL
+            SELECT 'Folk Rock', 'Rock', 1 UNION ALL
+            SELECT 'Glam Rock', 'Rock', 1 UNION ALL
+            SELECT 'Hair Metal', 'Rock', 1 UNION ALL
+            SELECT 'Hard Rock', 'Rock', 1 UNION ALL
+            SELECT 'New Wave', 'Rock', 1 UNION ALL
+            SELECT 'Rock', 'Rock', 1 UNION ALL
+            SELECT 'Rockabilly', 'Rock', 1 UNION ALL
+            SELECT 'Rockabilly', 'Country', 0 UNION ALL
+            SELECT 'Soft Rock', 'Rock', 1 UNION ALL
+            SELECT 'Southern Rock', 'Rock', 1 UNION ALL
+            SELECT 'Country Rock', 'Rock', 1 UNION ALL
+            SELECT 'Country Rock', 'Country', 0 UNION ALL
+            SELECT 'Pop Rock', 'Rock', 1 UNION ALL
+            SELECT 'Pop Rock', 'Pop', 0 UNION ALL
+            SELECT 'Country', 'Country', 1 UNION ALL
+            SELECT 'Outlaw Country', 'Country', 1 UNION ALL
+            SELECT 'Country Pop', 'Country', 1 UNION ALL
+            SELECT 'Country Pop', 'Pop', 0 UNION ALL
+            SELECT 'Adult Contemporary', 'Pop', 1 UNION ALL
+            SELECT 'Easy Listening', 'Pop', 1 UNION ALL
+            SELECT 'Pop', 'Pop', 1 UNION ALL
+            SELECT 'Synth-Pop', 'Pop', 1 UNION ALL
+            SELECT 'Disco', 'R&B / Soul', 1 UNION ALL
+            SELECT 'R&B', 'R&B / Soul', 1 UNION ALL
+            SELECT 'Soul', 'R&B / Soul', 1 UNION ALL
+            SELECT 'Show Tunes', 'Standards & Show Tunes', 1
         )
         INSERT INTO GenreGroupGenres (GenreGroupId, GenreId, IsPrimary)
         SELECT gg.Id, g.Id, m.IsPrimary

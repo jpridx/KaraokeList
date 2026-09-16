@@ -1,15 +1,9 @@
-using Microsoft.Data.SqlClient;
-
 namespace KaraokeList.Api.IntegrationTests;
 
 internal static class IntegrationTestConnection
 {
     public const string SkipReason =
-        "SQL Server not available. Install LocalDB or set KARAOKE_TEST_SQL_CONNECTION.";
-
-    private static readonly TimeSpan DefaultReadyTimeout = TimeSpan.FromMinutes(2);
-    private static readonly TimeSpan DefaultPollInterval = TimeSpan.FromSeconds(5);
-    private const int ConnectTimeoutSeconds = 30;
+        "Unable to initialize the SQLite integration test database.";
 
     public static bool IntegrationTestsRequired =>
         string.Equals(
@@ -25,94 +19,24 @@ internal static class IntegrationTestConnection
             return fromEnv;
         }
 
-        return "Server=(localdb)\\MSSQLLocalDB;Database=KaraokeList_IntegrationTest;Trusted_Connection=True;TrustServerCertificate=True";
+        var path = Path.Combine(Path.GetTempPath(), "KaraokeList_IntegrationTest.db");
+        return $"Data Source={path}";
     }
 
-    /// <summary>
-    /// Probes SQL Server reachability. Uses master because the app database may not exist until MigrateAsync runs.
-    /// </summary>
-    public static bool ShouldSkipIntegrationTests()
-    {
-        if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("KARAOKE_TEST_SQL_CONNECTION")))
-        {
-            return false;
-        }
+    public static bool ShouldSkipIntegrationTests() => false;
 
-        // GitHub-hosted Linux runners have no LocalDB; do not probe Azure SQL from appsettings.
-        return string.Equals(
-            Environment.GetEnvironmentVariable("GITHUB_ACTIONS"),
-            "true",
-            StringComparison.OrdinalIgnoreCase);
-    }
+    public static bool CanConnect(string connectionString) => TryPrepareDatabase(connectionString);
 
-    public static bool CanConnect(string connectionString) =>
-        !ShouldSkipIntegrationTests() && TryConnectOnce(connectionString);
+    public static bool WaitUntilReady(string connectionString, TimeSpan? timeout = null, TimeSpan? pollInterval = null) =>
+        TryPrepareDatabase(connectionString);
 
-    public static bool WaitUntilReady(
-        string connectionString,
-        TimeSpan? timeout = null,
-        TimeSpan? pollInterval = null)
-    {
-        if (ShouldSkipIntegrationTests())
-        {
-            return false;
-        }
+    public static bool EnsureDatabaseReady() => TryPrepareDatabase(Resolve());
 
-        var deadline = DateTime.UtcNow + (timeout ?? ResolveReadyTimeout());
-        var interval = pollInterval ?? DefaultPollInterval;
-
-        while (DateTime.UtcNow < deadline)
-        {
-            if (TryConnectOnce(connectionString))
-            {
-                return true;
-            }
-
-            var remaining = deadline - DateTime.UtcNow;
-            if (remaining <= TimeSpan.Zero)
-            {
-                break;
-            }
-
-            Thread.Sleep(remaining < interval ? remaining : interval);
-        }
-
-        return false;
-    }
-
-    public static bool EnsureDatabaseReady()
-    {
-        var connectionString = Resolve();
-        if (IntegrationTestsRequired)
-        {
-            return WaitUntilReady(connectionString);
-        }
-
-        return CanConnect(connectionString);
-    }
-
-    private static TimeSpan ResolveReadyTimeout()
-    {
-        var fromEnv = Environment.GetEnvironmentVariable("KARAOKE_TEST_SQL_READY_TIMEOUT_SECONDS");
-        if (int.TryParse(fromEnv, out var seconds) && seconds > 0)
-        {
-            return TimeSpan.FromSeconds(seconds);
-        }
-
-        return DefaultReadyTimeout;
-    }
-
-    private static bool TryConnectOnce(string connectionString)
+    private static bool TryPrepareDatabase(string connectionString)
     {
         try
         {
-            var builder = new SqlConnectionStringBuilder(connectionString)
-            {
-                InitialCatalog = "master",
-                ConnectTimeout = ConnectTimeoutSeconds
-            };
-            using var connection = new SqlConnection(builder.ConnectionString);
-            connection.Open();
+            KaraokeList.Data.KaraokeDbPaths.EnsureDataSourceDirectory(connectionString);
             return true;
         }
         catch

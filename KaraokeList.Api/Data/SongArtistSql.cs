@@ -7,7 +7,7 @@ public static class SongArtistSql
         LEFT JOIN Artists a ON a.Id = sa.ArtistId
         """;
 
-    public const string PrimaryArtistName = "ISNULL(a.Name, N'')";
+    public const string PrimaryArtistName = "COALESCE(a.Name, '')";
 
-    public const string ArtistDisplay = "COALESCE(NULLIF(s.ArtistCreditDisplay, N''), ISNULL(a.Name, N''))";
+    public const string ArtistDisplay = "COALESCE(NULLIF(s.ArtistCreditDisplay, ''), COALESCE(a.Name, ''))";
 }

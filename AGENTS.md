@@ -14,7 +14,7 @@ KaraokeList is a karaoke catalog and performance app on .NET 10:
 | **KaraokeList.Web.Tests** | xUnit + bUnit + Moq |
 | **KaraokeList.E2E** | Playwright browser tests (WASM + API) |
 
-Data: **Azure SQL / SQL Server** — catalog tables + `Performances` + EF Identity.
+Data: **SQLite** (single `.db` file; Azure App Service uses `/home/data/`) — catalog tables + `Performances` + EF Identity. See [docs/sqlite-production.md](docs/sqlite-production.md).
 
 ### Running locally (primary path)
 
@@ -69,8 +69,8 @@ Details: `docs/Performances.md`.
 
 ### Database
 
-- Connection string: `ConnectionStrings:DefaultConnection` (LocalDB by default).
-- Schema: EF migrations (`dotnet ef database update --project KaraokeList.Api`). Seed: `scripts/MigrateSqliteToSqlServer` or `scripts/seed-catalog.sql`. See `docs/database.md`.
+- Connection string: `ConnectionStrings:DefaultConnection` (`Data Source=Data/karaokelist.dev.db` in Development).
+- Schema: EF migrations (`dotnet ef database update --project KaraokeList.Api`) or API startup `MigrateAsync()`. Catalog seed: import in app or adapt `scripts/seed-catalog.sql`. See `docs/database.md` and `docs/sqlite-production.md`.
 - Azure: `docs/azure-deployment.md`.
 - Migrate legacy SQLite: `scripts/MigrateSqliteToSqlServer` with `KARAOKE_SQL_CONNECTION` (pass `.sqlite3` path or use `scripts/data/Karaoke.sqlite3`).
 

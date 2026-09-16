@@ -32,7 +32,7 @@ namespace KaraokeList.Data
                 entity.Property(u => u.PreferredMusicService).HasDefaultValue(MusicService.None);
                 entity.HasIndex(u => u.SingerId)
                     .IsUnique()
-                    .HasFilter("[SingerId] IS NOT NULL");
+                    .HasFilter("SingerId IS NOT NULL");
 
                 entity.HasOne(u => u.Singer)
                     .WithMany()

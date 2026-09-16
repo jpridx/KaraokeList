@@ -1,6 +1,6 @@
 using System.Data;
 using KaraokeList.Shared;
-using Microsoft.Data.SqlClient;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
 namespace KaraokeList.Data;
@@ -70,8 +70,8 @@ public sealed class SingerListService(
         var orderColumn = sortBy.ToLowerInvariant() switch
         {
             "title" => "s.Title",
-            "artist" => "ISNULL(a.SortableName, a.Name)",
-            "genre" => "ISNULL(g.GenreName, N'')",
+            "artist" => "COALESCE(a.SortableName, a.Name)",
+            "genre" => "COALESCE(g.GenreName, '')",
             _ => "MAX(p.PerformedOn)"
         };
 
@@ -81,11 +81,11 @@ public sealed class SingerListService(
             ? $"CASE WHEN MAX(p.PerformedOn) IS NULL THEN {(nullsFirst ? 0 : 1)} ELSE {(nullsFirst ? 1 : 0)} END, MAX(p.PerformedOn) {direction}"
             : $"{orderColumn} {direction}";
         var tiebreaker = sortBy.Equals("title", StringComparison.OrdinalIgnoreCase)
-            ? "ISNULL(a.SortableName, a.Name) ASC"
+            ? "COALESCE(a.SortableName, a.Name) ASC"
             : "s.Title ASC";
         var orderClause = $"{orderBy}, {tiebreaker}";
 
-        await using var connection = new SqlConnection(connectionString);
+        await using var connection = new SqliteConnection(connectionString);
         await connection.OpenAsync();
         await using var command = connection.CreateCommand();
         command.CommandText = $"""
@@ -94,7 +94,7 @@ public sealed class SingerListService(
                    {SongArtistSql.PrimaryArtistName} AS ArtistName,
                    {SongArtistSql.ArtistDisplay} AS ArtistDisplay,
                    g.Id AS GenreId,
-                   ISNULL(g.GenreName, N'') AS GenreName,
+                   COALESCE(g.GenreName, '') AS GenreName,
                    MAX(p.PerformedOn) AS LastPerformedOn,
                    COUNT(p.Id) AS PerformanceCount
             FROM SingerListSongs sls
@@ -422,7 +422,7 @@ public sealed class SingerListService(
 
     private async Task<bool> HasPerformanceForSingerSongAsync(int singerId, int songId)
     {
-        await using var connection = new SqlConnection(connectionString);
+        await using var connection = new SqliteConnection(connectionString);
         await connection.OpenAsync();
         await using var command = connection.CreateCommand();
         command.CommandText = "SELECT 1 FROM Performances WHERE Singer = @SingerId AND Song = @SongId";

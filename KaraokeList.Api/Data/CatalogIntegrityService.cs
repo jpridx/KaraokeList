@@ -1,4 +1,4 @@
-using Microsoft.Data.SqlClient;
+using Microsoft.Data.Sqlite;
 
 namespace KaraokeList.Data;
 
@@ -33,7 +33,7 @@ public class CatalogIntegrityService(string connectionString)
 
     private async Task<bool> ExistsAsync(string sql, int id)
     {
-        await using var connection = new SqlConnection(connectionString);
+        await using var connection = new SqliteConnection(connectionString);
         await connection.OpenAsync();
         await using var command = connection.CreateCommand();
         command.CommandText = sql;
