@@ -74,7 +74,7 @@ Both deploy jobs always wait for the `test` job to pass first.
 | `.github/workflows/ci.yml` | PR + push to `master` | Build + all test projects |
 | `.github/workflows/deploy-azure.yml` | Weekly schedule (Sundays 12:00 UTC), manual | Test → deploy API and/or WASM → smoke test |
 
-Integration tests use `[SkippableFact]` and **skip** on `ubuntu-latest` when LocalDB is unavailable. Unit tests must pass for deploy to proceed.
+Integration tests run against a **SQLite file** on `ubuntu-latest` (`KARAOKE_TEST_SQL_CONNECTION` in CI). Unit tests must pass for deploy to proceed.
 
 ### Deploy workflow jobs
 
