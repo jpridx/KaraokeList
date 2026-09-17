@@ -25,9 +25,9 @@ The API creates the directory for the file on startup (`KaraokeDbPaths.EnsureDat
 2. Set the connection string (Configuration → Connection strings or environment variables):
    - `ConnectionStrings__DefaultConnection` = `Data Source=/home/data/karaokelist.db`
 3. Deploy the API as today (`dotnet publish` / GitHub Actions). On first start, the app creates `/home/data/karaokelist.db` and runs migrations.
-4. **Load catalog data** after the empty database exists:
-   - Import from a legacy `.sqlite3` with a one-time tool (see below), or
-   - Run catalog seed steps adapted for SQLite (export from [scripts/seed-catalog.sql](../scripts/seed-catalog.sql) or use admin import in the app).
+4. **Load data** after the empty database exists — see [sqlite-local-verification.md](sqlite-local-verification.md):
+   - Full copy from Azure SQL / SQL Server: [scripts/MigrateSqlServerToSqlite](../scripts/MigrateSqlServerToSqlite)
+   - Legacy `.sqlite3` only: adapt [scripts/MigrateSqliteToSqlServer](../scripts/MigrateSqliteToSqlServer) flow in reverse manually, or export via SQL Server as intermediate
 
 ### Scale and availability
 
@@ -42,9 +42,7 @@ If you choose **SQLite instead**:
 
 1. Take a final backup of Azure SQL (BACPAC or SSMS script with schema + data).
 2. Deploy this API build with the SQLite connection string on App Service (above).
-3. Copy catalog + user data into the new `.db` file (one-time). Options:
-   - Re-seed catalog from [scripts/seed-catalog.sql](../scripts/seed-catalog.sql) (translate `USE` / T-SQL to SQLite or use in-app catalog import), then have friends re-register; or
-   - Use [scripts/MigrateSqliteToSqlServer](../scripts/MigrateSqliteToSqlServer) in reverse only if you export Azure SQL to a compatible `.sqlite3` first (not automated in-repo yet).
+3. Copy catalog + user data into the new `.db` file (one-time) with [MigrateSqlServerToSqlite](../scripts/MigrateSqlServerToSqlite) — walkthrough in [sqlite-local-verification.md](sqlite-local-verification.md).
 4. Point production traffic at the API, verify `GET /api/version` (`databaseAvailable`, song counts).
 5. After verification, delete the Azure SQL database resource to stop billing.
 

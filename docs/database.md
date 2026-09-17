@@ -1,6 +1,6 @@
 # Database schema and seed data
 
-KaraokeList uses **SQLite** (single file) with **EF Core migrations** for all tables (ASP.NET Identity + catalog). Production on Azure App Service: [sqlite-production.md](sqlite-production.md). Seed data for the catalog is a **separate, explicit step** — not applied on API startup (genre groups are seeded automatically after migrations).
+KaraokeList uses **SQLite** (single file) with **EF Core migrations** for all tables (ASP.NET Identity + catalog). Local cutover and production: [sqlite-local-verification.md](sqlite-local-verification.md), [sqlite-production.md](sqlite-production.md). Seed data for the catalog is a **separate, explicit step** — not applied on API startup (genre groups are seeded automatically after migrations).
 
 ## Schema (EF migrations)
 

@@ -70,7 +70,7 @@ Details: `docs/Performances.md`.
 ### Database
 
 - Connection string: `ConnectionStrings:DefaultConnection` (`Data Source=Data/karaokelist.dev.db` in Development).
-- Schema: EF migrations (`dotnet ef database update --project KaraokeList.Api`) or API startup `MigrateAsync()`. Catalog seed: import in app or adapt `scripts/seed-catalog.sql`. See `docs/database.md` and `docs/sqlite-production.md`.
+- Schema: EF migrations (`dotnet ef database update --project KaraokeList.Api`) or API startup `MigrateAsync()`. Full data copy from SQL Server: `scripts/MigrateSqlServerToSqlite` — see `docs/sqlite-local-verification.md`, `docs/sqlite-production.md`, `docs/database.md`.
 - Azure: `docs/azure-deployment.md`.
 - Migrate legacy SQLite: `scripts/MigrateSqliteToSqlServer` with `KARAOKE_SQL_CONNECTION` (pass `.sqlite3` path or use `scripts/data/Karaoke.sqlite3`).
 

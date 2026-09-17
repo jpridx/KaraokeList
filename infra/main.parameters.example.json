@@ -5,6 +5,9 @@
     "baseName": {
       "value": "karaokelist"
     },
+    "useAzureSql": {
+      "value": false
+    },
     "sqlAdminLogin": {
       "value": "karaokeadmin"
     },
