@@ -36,8 +36,10 @@ internal static class IntegrationTestConnection
     {
         try
         {
-            KaraokeList.Data.KaraokeDbPaths.EnsureDataSourceDirectory(connectionString);
-            return true;
+KaraokeList.Data.KaraokeDbPaths.EnsureDataSourceDirectory(connectionString);
+using var connection = new Microsoft.Data.Sqlite.SqliteConnection(connectionString);
+connection.Open();
+return true;
         }
         catch
         {
