@@ -15,6 +15,11 @@ on:
           - both
           - api
           - wasm
+      use_azure_sql:
+        description: 'Use Azure SQL instead of the default SQLite app settings for API deploys'
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   id-token: write   # OIDC token for azure/login
@@ -98,7 +103,8 @@ jobs:
           echo "api_app_name=${API_APP_NAME}" >> "$GITHUB_OUTPUT"
           echo "api_base_url=${API_BASE_URL}" >> "$GITHUB_OUTPUT"
 
-      - name: Ensure SQLite settings on API App Service
+      - name: Ensure default SQLite settings on API App Service
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.use_azure_sql == false }}
         run: |
           az webapp config appsettings set \
             --resource-group "${AZURE_RESOURCE_GROUP}" \
