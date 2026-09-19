@@ -160,11 +160,41 @@ static async Task UpdateSqliteSequenceAsync(SqliteConnection sqlite, string tabl
         return;
     }
 
+    // AspNetUsers / AspNetRoles use string GUID Ids — no sqlite_sequence entry.
+    if (!TryConvertToInt64(max, out var seq))
+    {
+        return;
+    }
+
     cmd.CommandText = "INSERT OR REPLACE INTO sqlite_sequence (name, seq) VALUES (@name, @seq)";
     cmd.Parameters.Clear();
     cmd.Parameters.AddWithValue("@name", table);
-    cmd.Parameters.AddWithValue("@seq", Convert.ToInt64(max));
+    cmd.Parameters.AddWithValue("@seq", seq);
     await cmd.ExecuteNonQueryAsync();
+}
+
+static bool TryConvertToInt64(object value, out long result)
+{
+    switch (value)
+    {
+        case long l:
+            result = l;
+            return true;
+        case int i:
+            result = i;
+            return true;
+        case short s:
+            result = s;
+            return true;
+        case byte b:
+            result = b;
+            return true;
+        case string s when long.TryParse(s, out result):
+            return true;
+        default:
+            result = 0;
+            return false;
+    }
 }
 
 static async Task<bool> SqlServerTableExistsAsync(SqlConnection sql, string table)

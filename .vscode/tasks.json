@@ -17,16 +17,12 @@
     },
     {
       "label": "ef-database-update (SQLite dev)",
-      "type": "process",
-      "command": "dotnet",
+      "type": "shell",
+      "command": "powershell.exe",
       "args": [
-        "ef",
-        "database",
-        "update",
-        "--project",
-        "${workspaceFolder}/KaraokeList.Api/KaraokeList.Api.csproj",
-        "--connection",
-        "Data Source=KaraokeList.Api/Data/karaokelist.dev.db"
+        "-NoProfile",
+        "-Command",
+        "New-Item -ItemType Directory -Force -Path '${workspaceFolder}/KaraokeList.Api/Data' | Out-Null; dotnet ef database update --project '${workspaceFolder}/KaraokeList.Api/KaraokeList.Api.csproj' --connection \"Data Source=${workspaceFolder}/KaraokeList.Api/Data/karaokelist.dev.db\""
       ],
       "options": {
         "cwd": "${workspaceFolder}"

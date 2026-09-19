@@ -13,10 +13,13 @@ Use this checklist before switching production to SQLite. Goal: a local `.db` fi
 From repo root, pick a target file (Development default shown):
 
 ```powershell
+New-Item -ItemType Directory -Force -Path "KaraokeList.Api\Data" | Out-Null
 $dest = "KaraokeList.Api/Data/karaokelist.dev.db"
 Remove-Item $dest -ErrorAction SilentlyContinue
 dotnet ef database update --project KaraokeList.Api/KaraokeList.Api.csproj --connection "Data Source=$dest"
 ```
+
+SQLite error **14** (`unable to open database file`) usually means the **`Data` folder is missing** (SQLite does not create parent directories). The `New-Item` line above fixes that.
 
 **Cursor / VS Code (no user secrets):** That is fine on the SQLite branch — `appsettings.Development.json` already points at `Data/karaokelist.dev.db`. The `SqlClient` + error **53** path almost always means the checkout is still **`master`**, which uses `UseSqlServer` and LocalDB in Development config. Check out PR **#320** / `cursor/sqlite-api-rewire-aa2f`, or run **Terminal → Run Task → `ef-database-update (SQLite dev)`** (see `.vscode/tasks.json`).
 
@@ -29,6 +32,7 @@ dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Data Source=Data/
 Linux / cloud agent:
 
 ```bash
+mkdir -p KaraokeList.Api/Data
 dest="KaraokeList.Api/Data/karaokelist.dev.db"
 rm -f "$dest"
 dotnet ef database update --project KaraokeList.Api/KaraokeList.Api.csproj --connection "Data Source=$dest"
