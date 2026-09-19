@@ -18,7 +18,9 @@ Remove-Item $dest -ErrorAction SilentlyContinue
 dotnet ef database update --project KaraokeList.Api/KaraokeList.Api.csproj --connection "Data Source=$dest"
 ```
 
-**If `dotnet ef` tries SQL Server / LocalDB** (`Microsoft.Data.SqlClient`, error 53): you are on **`master`** (pre-SQLite) or **user secrets** still override `DefaultConnection` with `(localdb)` or Azure SQL. Use PR branch **#320** / `cursor/sqlite-api-rewire-aa2f`, then either pass `--connection` as above or reset secrets:
+**Cursor / VS Code (no user secrets):** That is fine on the SQLite branch — `appsettings.Development.json` already points at `Data/karaokelist.dev.db`. The `SqlClient` + error **53** path almost always means the checkout is still **`master`**, which uses `UseSqlServer` and LocalDB in Development config. Check out PR **#320** / `cursor/sqlite-api-rewire-aa2f`, or run **Terminal → Run Task → `ef-database-update (SQLite dev)`** (see `.vscode/tasks.json`).
+
+**If `dotnet ef` still tries SQL Server / LocalDB** after switching branches: **user secrets** may override `DefaultConnection` with `(localdb)` or Azure SQL. Pass `--connection` as above or reset secrets:
 
 ```powershell
 dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Data Source=Data/karaokelist.dev.db" --project KaraokeList.Api

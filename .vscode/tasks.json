@@ -14,6 +14,24 @@
       "command": "dotnet",
       "args": ["build", "${workspaceFolder}/KaraokeList.Web/KaraokeList.Web.csproj"],
       "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "ef-database-update (SQLite dev)",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "ef",
+        "database",
+        "update",
+        "--project",
+        "${workspaceFolder}/KaraokeList.Api/KaraokeList.Api.csproj",
+        "--connection",
+        "Data Source=KaraokeList.Api/Data/karaokelist.dev.db"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
     }
   ]
 }
