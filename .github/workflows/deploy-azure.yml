@@ -15,8 +15,10 @@ on:
           - both
           - api
           - wasm
-      use_azure_sql:
-        description: 'Use Azure SQL instead of the default SQLite app settings for API deploys'
+      apply_sqlite_connection:
+        description: >-
+          Opt in to set ConnectionStrings__DefaultConnection to SQLite (/home/data/karaokelist.db).
+          Upload a populated DB first. After cutover, weekly deploys keep SQLite if already configured.
         required: false
         default: false
         type: boolean
@@ -103,15 +105,50 @@ jobs:
           echo "api_app_name=${API_APP_NAME}" >> "$GITHUB_OUTPUT"
           echo "api_base_url=${API_BASE_URL}" >> "$GITHUB_OUTPUT"
 
-      - name: Ensure default SQLite settings on API App Service
-        if: ${{ github.event_name != 'workflow_dispatch' || inputs.use_azure_sql == false }}
+      - name: Enable App Service persistent storage (SQLite)
         run: |
           az webapp config appsettings set \
             --resource-group "${AZURE_RESOURCE_GROUP}" \
             --name "${{ steps.azure.outputs.api_app_name }}" \
-            --settings \
-              WEBSITES_ENABLE_APP_SERVICE_STORAGE=true \
-              ConnectionStrings__DefaultConnection='Data Source=/home/data/karaokelist.db' \
+            --settings WEBSITES_ENABLE_APP_SERVICE_STORAGE=true \
+            --output none
+
+      - name: Apply or keep SQLite connection string
+        env:
+          APPLY_SQLITE_CONNECTION: ${{ github.event_name == 'workflow_dispatch' && inputs.apply_sqlite_connection == true }}
+        run: |
+          set -euo pipefail
+          SQLITE_CS='Data Source=/home/data/karaokelist.db'
+          CURRENT=$(az webapp config appsettings list \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --name "${{ steps.azure.outputs.api_app_name }}" \
+            --query "[?name=='ConnectionStrings__DefaultConnection'].value | [0]" -o tsv)
+          CURRENT="${CURRENT:-}"
+
+          already_sqlite=false
+          if [[ "$CURRENT" == *"karaokelist.db"* ]]; then
+            already_sqlite=true
+          elif [[ "$CURRENT" == *"Data Source="* ]] \
+            && [[ "$CURRENT" != *"Server="* ]] \
+            && [[ "$CURRENT" != *".database.windows.net"* ]]; then
+            already_sqlite=true
+          fi
+
+          if [[ "${APPLY_SQLITE_CONNECTION}" == "true" ]]; then
+            echo "apply_sqlite_connection=true — setting SQLite connection string (upload /home/data/karaokelist.db first)."
+          elif [[ "$already_sqlite" == "true" ]]; then
+            echo "App Service already uses SQLite — refreshing connection string."
+          else
+            echo "::warning::Skipping SQLite connection cutover (current DefaultConnection is not SQLite)."
+            echo "Upload a populated /home/data/karaokelist.db, then re-run Deploy Azure with apply_sqlite_connection=true."
+            echo "Current: ${CURRENT:-<unset>}"
+            exit 0
+          fi
+
+          az webapp config appsettings set \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --name "${{ steps.azure.outputs.api_app_name }}" \
+            --settings "ConnectionStrings__DefaultConnection=${SQLITE_CS}" \
             --output none
           echo "API uses SQLite at /home/data/karaokelist.db (EF MigrateAsync on startup)."
 
@@ -309,5 +346,5 @@ jobs:
             echo "| WASM | ${WASM_PUBLIC_ORIGIN%/} |"
             echo "| Register | ${WASM_PUBLIC_ORIGIN%/}/register?invite=YOUR_CODE |"
             echo ""
-            echo "Upload migrated \`karaokelist.db\` to /home/data if needed — see docs/sqlite-local-verification.md."
+            echo "SQLite cutover: upload populated \`/home/data/karaokelist.db\` before \`apply_sqlite_connection\` — see docs/sqlite-production.md."
           } >> "$GITHUB_STEP_SUMMARY"

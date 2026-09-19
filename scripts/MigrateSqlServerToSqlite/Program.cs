@@ -72,11 +72,12 @@ foreach (var table in tables)
 {
     var sourceCount = await CountSqlServerAsync(sql, table);
     var targetCount = await CountSqliteAsync(sqlite, table);
-var mark = sourceCount == targetCount ? "OK" : "MISMATCH";
+    var mark = sourceCount == targetCount ? "OK" : "MISMATCH";
     Console.WriteLine($"  {table,-32} {sourceCount,6} → {targetCount,6}  {mark}");
     if (sourceCount != targetCount)
     {
-        throw new InvalidOperationException($"Row count mismatch for {table}: {sourceCount} source row(s), {targetCount} target row(s).");
+        throw new InvalidOperationException(
+            $"Row count mismatch for {table}: {sourceCount} source row(s), {targetCount} target row(s).");
     }
 }
 

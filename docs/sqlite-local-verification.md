@@ -99,7 +99,7 @@ After local verification:
 4. Smoke: `GET https://api-….azurewebsites.net/api/version` and sign-in on WASM.
 5. Delete Azure SQL resources when satisfied (stops SQL billing).
 
-**Infra:** New Bicep deployments default to SQLite (`useAzureSql: false`). Existing stacks can keep SQL resources until you delete them; only the App Service connection string must match SQLite for the app to work.
+**Infra:** Bicep provisions SQLite-only App Service settings. Existing Azure SQL resources are left in place until you delete them. Deploy will not flip an Azure SQL connection string to SQLite unless you opt in (`apply_sqlite_connection`) after uploading `/home/data/karaokelist.db` — see [sqlite-production.md](sqlite-production.md).
 
 ## 6. Automated tests (optional)
 

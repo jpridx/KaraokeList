@@ -1,32 +1,24 @@
 # Database schema and seed data
 
-KaraokeList uses **SQLite** (single file) with **EF Core migrations** for all tables (ASP.NET Identity + catalog). Local cutover and production: [sqlite-local-verification.md](sqlite-local-verification.md), [sqlite-production.md](sqlite-production.md). Seed data for the catalog is a **separate, explicit step** — not applied on API startup (genre groups are seeded automatically after migrations).
+KaraokeList uses **SQLite** (single file) with **EF Core migrations** for all tables (ASP.NET Identity + catalog). Local cutover and production: [sqlite-local-verification.md](sqlite-local-verification.md), [sqlite-production.md](sqlite-production.md).
 
 ## Schema (EF migrations)
 
-Migrations live in `KaraokeList.Api/Data/Migrations/`:
+Migrations live in `KaraokeList.Api/Data/Migrations/`. The SQL Server migration chain was replaced by a single SQLite baseline:
 
 | Migration | Creates |
 |-----------|---------|
-| `20260608030430_InitialCreate` | Identity tables + `Genres`, `Artists`, `Singers`, `Venues`, `Songs`, `Performances` |
-| `20260608031358_AddDbSetsAndRelations` | `AspNetUsers.SingerId` → `Singers` foreign key |
-| `20260616033911_UniqueArtistName` | Unique index on `Artists.Name` |
-| `20260623235540_AddCatalogForeignKeys` | Performance/song/singer/venue FKs; song→artist FKs; `Performances.Song`/`Singer` NOT NULL |
-| `20260711012300_AddGenreGroups` | `GenreGroups`, `GenreGroupGenres`; seeds six fixed groups + genre mappings |
-| `20260713010358_AddSongArtists` | `SongArtists` junction; backfill from legacy `Songs.Artist` / `SecondaryArtist` |
-| `20260713011029_AddArtistCreditDisplayAndDropLegacySongArtists` | `ArtistCreditDisplay`; drop legacy artist columns |
+| `20260915235636_SqliteInitial` | Identity + catalog + performances + singer lists + genre groups + `SongArtists` (full current schema) |
 
 ### Apply schema
 
-From repo root (uses connection string from API config / user secrets):
+From repo root (design-time resolves `Data/…` under `KaraokeList.Api/` regardless of cwd):
 
 ```powershell
 dotnet ef database update --project KaraokeList.Api
 ```
 
-Or start the API once — `Program.cs` calls `MigrateAsync()` on startup (schema only, no seed).
-
-`dotnet ef database update` and API startup both apply pending migrations. You do **not** need to deploy or run SQL DDL scripts for catalog tables.
+Or start the API once — `Program.cs` calls `MigrateAsync()` on startup, then seeds **genre groups / mappings** (not catalog songs/artists).
 
 ### Add a new schema change
 
@@ -35,81 +27,40 @@ dotnet ef migrations add YourMigrationName --project KaraokeList.Api
 dotnet ef database update --project KaraokeList.Api
 ```
 
-## Seed data (explicit)
+## Seed data
 
-The API does **not** insert catalog rows at startup. Choose one:
+| What | When |
+|------|------|
+| Genre groups + genre↔group mappings | Automatic after migrations (`Program.cs` + `GenreGroupSeedSql`) |
+| Catalog (genres, artists, songs, venues) and users/performances | Explicit — copy from SQL Server or run a seed script |
 
-### Option 1 — SQLite / existing SQL Server → target database
-
-```powershell
-$env:KARAOKE_SQL_CONNECTION = "Server=...;Database=KaraokeList-Dev;..."
-dotnet run --project scripts/MigrateSqliteToSqlServer/MigrateSqliteToSqlServer.csproj -- scripts/data/Karaoke.sqlite3
-```
-
-Pass your `.sqlite3` path as the first argument, or place the file at `scripts/data/Karaoke.sqlite3` before running without arguments.
-
-Migrates `Genres`, `Artists`, `Singers`, `Venues`, `Songs`, and optionally `Performances`. See [deployment-roadmap.md](deployment-roadmap.md) Phase 1.
-
-### Option 2 — Catalog seed SQL (primary)
-
-The repo includes your catalog seed at [scripts/seed-catalog.sql](../scripts/seed-catalog.sql) (`Genres`, `Artists`, `Songs`, `Venues` with fixed IDs).
-
-1. Apply schema first: `dotnet ef database update --project KaraokeList.Api`
-2. Edit the `USE […]` line at the top of `seed-catalog.sql` if your database name differs (default: `KaraokeList-Dev`).
-3. Run on **empty** catalog tables (first load). To re-seed, delete catalog rows first (order: `Performances`, `Songs`, `Artists`, `Venues`, `Genres` — skip tables you did not seed).
-
-**SSMS / Azure Data Studio:** open `scripts/seed-catalog.sql`, connect to your server, execute.
-
-**sqlcmd (PowerShell helper):**
+### Preferred — copy from Azure SQL / SQL Server
 
 ```powershell
-.\scripts\Invoke-SeedCatalog.ps1 -Server "karaokelist.database.windows.net" -Database "KaraokeList-Dev" -UseAzureActiveDirectory
+# 1. Empty schema
+New-Item -ItemType Directory -Force -Path "KaraokeList.Api\Data" | Out-Null
+$dest = "KaraokeList.Api/Data/karaokelist.dev.db"
+dotnet ef database update --project KaraokeList.Api/KaraokeList.Api.csproj --connection "Data Source=$dest"
+
+# 2. Full data + Identity
+$env:KARAOKE_SQL_CONNECTION = "Server=tcp:YOUR-SERVER.database.windows.net,1433;Database=KaraokeList;Authentication=Active Directory Default;Encrypt=True;"
+dotnet run --project scripts/MigrateSqlServerToSqlite/MigrateSqlServerToSqlite.csproj -- $dest
 ```
 
-Or with a full connection string:
+Details: [sqlite-local-verification.md](sqlite-local-verification.md).
 
-```powershell
-$env:KARAOKE_SQL_CONNECTION = "Server=tcp:....database.windows.net,1433;Database=KaraokeList-Dev;Authentication=Active Directory Default;Encrypt=True;"
-.\scripts\Invoke-SeedCatalog.ps1
-```
+### Legacy — catalog SQL / old `.sqlite3` → SQL Server
 
-### Genre group classification
-
-After catalog genres exist, classify them into broad karaoke groups (Rock, Pop, Country, etc.):
-
-```bash
-sqlcmd -S "(localdb)\MSSQLLocalDB" -d KaraokeList -i scripts/seed-genre-groups.sql
-```
-
-Fresh installs that run `dotnet ef database update` get groups and mappings from migration `AddGenreGroups`. Re-run the script after adding new leaf genres. See [Genres.md](Genres.md).
-
-### Option 3 — EF seed migration (future)
-
-For repeatable dev fixtures, add a migration with `migrationBuilder.InsertData(...)` or SQL in `Up()`. Keep seed migrations separate from schema migrations.
-
-## Legacy SQL scripts
-
-Files under `scripts/azure-sql/` are **reference only** and are **not** executed by the API. Schema source of truth is EF migrations.
+[scripts/seed-catalog.sql](../scripts/seed-catalog.sql) and [scripts/MigrateSqliteToSqlServer](../scripts/MigrateSqliteToSqlServer) target **SQL Server**. Prefer `MigrateSqlServerToSqlite` when the API is on SQLite.
 
 ## Test database alignment
 
-If `__EFMigrationsHistory__` already contains:
+Fresh SQLite files should contain only:
 
-- `20260608030430_InitialCreate`
-- `20260608031358_AddDbSetsAndRelations`
+- `20260915235636_SqliteInitial`
 
-…you are aligned with the repo. No history rewrite needed.
-
-If it contains older identity-only migration IDs (`00000000000000_CreateIdentitySchema`, etc.), replace them with the two rows above or run `dotnet ef database update` on a fresh database.
+in `__EFMigrationsHistory`. Older SQL Server migration IDs are obsolete; recreate the file rather than rewriting history.
 
 ## Data integrity & account lifecycle
 
 Referential integrity analysis, delete policy, anonymization plan, and phased rollout: **[data-integrity.md](data-integrity.md)**.
-
-Summary backlog:
-
-| Item | Notes |
-|------|--------|
-| **Account anonymization (quit app)** | Anonymize PII and revoke login; retain `Singers` + `Performances`. |
-| **Catalog foreign keys** | EF migration with explicit `ON DELETE` rules; block admin deletes when referenced. |
-| **Stop performance hard-delete** | Soft-delete or disallow once account policy is settled. |

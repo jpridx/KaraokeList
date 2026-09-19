@@ -4,15 +4,6 @@
   "parameters": {
     "baseName": {
       "value": "karaokelist"
-    },
-    "useAzureSql": {
-      "value": false
-    },
-    "sqlAdminLogin": {
-      "value": "karaokeadmin"
-    },
-    "sqlAdminPassword": {
-      "value": "REPLACE_WITH_STRONG_PASSWORD"
     }
   }
 }
