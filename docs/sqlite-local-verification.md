@@ -18,6 +18,12 @@ Remove-Item $dest -ErrorAction SilentlyContinue
 dotnet ef database update --project KaraokeList.Api/KaraokeList.Api.csproj --connection "Data Source=$dest"
 ```
 
+**If `dotnet ef` tries SQL Server / LocalDB** (`Microsoft.Data.SqlClient`, error 53): you are on **`master`** (pre-SQLite) or **user secrets** still override `DefaultConnection` with `(localdb)` or Azure SQL. Use PR branch **#320** / `cursor/sqlite-api-rewire-aa2f`, then either pass `--connection` as above or reset secrets:
+
+```powershell
+dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Data Source=Data/karaokelist.dev.db" --project KaraokeList.Api
+```
+
 Linux / cloud agent:
 
 ```bash
