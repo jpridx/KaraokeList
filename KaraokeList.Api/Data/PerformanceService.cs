@@ -1,5 +1,6 @@
+using System.Data.Common;
 using KaraokeList.Shared;
-using Microsoft.Data.SqlClient;
+using Microsoft.Data.Sqlite;
 
 namespace KaraokeList.Data;
 
@@ -143,7 +144,7 @@ public class PerformanceService(string connectionString)
     public async Task<List<Performance>> GetPerformancesAsync(int? singerId = null, int? songId = null)
     {
         var performances = new List<Performance>();
-        await using var connection = new SqlConnection(connectionString);
+        await using var connection = new SqliteConnection(connectionString);
         await connection.OpenAsync();
         await using var command = connection.CreateCommand();
         var sql = $"SELECT {SelectColumns} FROM Performances WHERE 1=1";
@@ -177,12 +178,12 @@ public class PerformanceService(string connectionString)
     {
         var direction = string.Equals(sortDir, "asc", StringComparison.OrdinalIgnoreCase) ? "ASC" : "DESC";
         var performances = new List<MyPerformanceEntry>();
-        await using var connection = new SqlConnection(connectionString);
+        await using var connection = new SqliteConnection(connectionString);
         await connection.OpenAsync();
         await using var command = connection.CreateCommand();
         var sql = $"""
             SELECT p.Id, p.Song, s.Title, {SongArtistSql.PrimaryArtistName}, {SongArtistSql.ArtistDisplay}, p.PerformedOn,
-                   p.Venue, ISNULL(v.VenueName, N''), p.KeyChangeSemitones
+                   p.Venue, COALESCE(v.VenueName, ''), p.KeyChangeSemitones
             FROM Performances p
             INNER JOIN Songs s ON s.Id = p.Song
             {SongArtistSql.PrimaryArtistJoin}
@@ -236,12 +237,12 @@ public class PerformanceService(string connectionString)
             return result;
         }
 
-        await using var connection = new SqlConnection(connectionString);
+        await using var connection = new SqliteConnection(connectionString);
         await connection.OpenAsync();
         await using var command = connection.CreateCommand();
         var idList = string.Join(",", performanceIds);
         command.CommandText = $"""
-            SELECT pp.PerformanceId, pp.SingerId, ISNULL(s.Name, N''), ISNULL(pp.DisplayName, N''), pp.SortOrder
+            SELECT pp.PerformanceId, pp.SingerId, COALESCE(s.Name, ''), COALESCE(pp.DisplayName, ''), pp.SortOrder
             FROM PerformanceParticipants pp
             LEFT JOIN Singers s ON s.Id = pp.SingerId
             WHERE pp.PerformanceId IN ({idList})
@@ -273,7 +274,7 @@ public class PerformanceService(string connectionString)
 
     public async Task SetCoPerformersAsync(int performanceId, IReadOnlyList<CoPerformerInputDto> performers)
     {
-        await using var connection = new SqlConnection(connectionString);
+        await using var connection = new SqliteConnection(connectionString);
         await connection.OpenAsync();
 
         await using (var deleteCommand = connection.CreateCommand())
@@ -305,7 +306,7 @@ public class PerformanceService(string connectionString)
 
     public async Task<Performance?> GetPerformanceByIdAsync(int id)
     {
-        await using var connection = new SqlConnection(connectionString);
+        await using var connection = new SqliteConnection(connectionString);
         await connection.OpenAsync();
         await using var command = connection.CreateCommand();
         command.CommandText = $"SELECT {SelectColumns} FROM Performances WHERE Id = @Id;";
@@ -324,8 +325,8 @@ public class PerformanceService(string connectionString)
         var orderColumn = sortBy.ToLowerInvariant() switch
         {
             "title" => "s.Title",
-            "artist" => "ISNULL(a.SortableName, a.Name)",
-            "genre" => "ISNULL(g.GenreName, N'')",
+            "artist" => "COALESCE(a.SortableName, a.Name)",
+            "genre" => "COALESCE(g.GenreName, '')",
             _ => "MAX(p.PerformedOn)"
         };
 
@@ -335,11 +336,11 @@ public class PerformanceService(string connectionString)
             ? $"CASE WHEN MAX(p.PerformedOn) IS NULL THEN {(nullsFirst ? 0 : 1)} ELSE {(nullsFirst ? 1 : 0)} END, MAX(p.PerformedOn) {direction}"
             : $"{orderColumn} {direction}";
         var tiebreaker = sortBy.Equals("title", StringComparison.OrdinalIgnoreCase)
-            ? "ISNULL(a.SortableName, a.Name) ASC"
+            ? "COALESCE(a.SortableName, a.Name) ASC"
             : "s.Title ASC";
         var orderClause = $"{orderBy}, {tiebreaker}";
 
-        await using var connection = new SqlConnection(connectionString);
+        await using var connection = new SqliteConnection(connectionString);
         await connection.OpenAsync();
         await using var command = connection.CreateCommand();
 
@@ -351,7 +352,7 @@ public class PerformanceService(string connectionString)
                        {SongArtistSql.PrimaryArtistName} AS ArtistName,
                        {SongArtistSql.ArtistDisplay} AS ArtistDisplay,
                        s.Genre,
-                       ISNULL(g.GenreName, N'') AS GenreName,
+                       COALESCE(g.GenreName, '') AS GenreName,
                        MAX(p.PerformedOn) AS LastPerformedOn,
                        COUNT(p.Id) AS PerformanceCount
                 FROM Songs s
@@ -371,7 +372,7 @@ public class PerformanceService(string connectionString)
                        {SongArtistSql.PrimaryArtistName} AS ArtistName,
                        {SongArtistSql.ArtistDisplay} AS ArtistDisplay,
                        s.Genre,
-                       ISNULL(g.GenreName, N'') AS GenreName,
+                       COALESCE(g.GenreName, '') AS GenreName,
                        MAX(p.PerformedOn) AS LastPerformedOn,
                        COUNT(*) AS PerformanceCount
                 FROM Performances p
@@ -415,12 +416,11 @@ public class PerformanceService(string connectionString)
         DateTime asOfDate)
     {
         var cutoff = PerformanceRelativeDate.StaleCutoff(staleAfterDays, asOfDate);
-        await using var connection = new SqlConnection(connectionString);
+        await using var connection = new SqliteConnection(connectionString);
         await connection.OpenAsync();
         await using var command = connection.CreateCommand();
         command.CommandText = $"""
-            SELECT TOP (@Limit)
-                   SongId,
+            SELECT SongId,
                    Title,
                    ArtistName,
                    ArtistDisplay,
@@ -451,7 +451,7 @@ public class PerformanceService(string connectionString)
                        s.Title,
                        {SongArtistSql.PrimaryArtistName} AS ArtistName,
                        {SongArtistSql.ArtistDisplay} AS ArtistDisplay,
-                       CAST(NULL AS datetime2) AS LastPerformedOn,
+                       NULL AS LastPerformedOn,
                        0 AS PerformanceCount
                 FROM SingerListSongs sls
                 INNER JOIN SingerLists sl ON sl.Id = sls.ListId
@@ -470,7 +470,8 @@ public class PerformanceService(string connectionString)
                       WHERE ex.SingerId = @Singer
                         AND ex.SongId = s.Id)
             ) AS candidates
-            ORDER BY NEWID()
+            ORDER BY RANDOM()
+            LIMIT @Limit
             """;
         command.Parameters.AddWithValue("@Singer", singerId);
         command.Parameters.AddWithValue("@Cutoff", cutoff);
@@ -507,7 +508,7 @@ public class PerformanceService(string connectionString)
         var monthStart = new DateTime(today.Year, today.Month, 1);
         var yearStart = new DateTime(today.Year, 1, 1);
 
-        await using var connection = new SqlConnection(connectionString);
+        await using var connection = new SqliteConnection(connectionString);
         await connection.OpenAsync();
 
         var stats = new SingerStats();
@@ -542,11 +543,12 @@ public class PerformanceService(string connectionString)
         await using (var lastCommand = connection.CreateCommand())
         {
             lastCommand.CommandText = """
-                SELECT TOP (1) p.PerformedOn, ISNULL(v.VenueName, N'')
+                SELECT p.PerformedOn, COALESCE(v.VenueName, '')
                 FROM Performances p
                 LEFT JOIN Venues v ON v.Id = p.Venue
                 WHERE p.Singer = @Singer
                 ORDER BY p.PerformedOn DESC, p.Id DESC
+                LIMIT 1
                 """;
             lastCommand.Parameters.AddWithValue("@Singer", singerId);
             await using var reader = await lastCommand.ExecuteReaderAsync();
@@ -563,13 +565,14 @@ public class PerformanceService(string connectionString)
             if (topVenueLimit > 0)
             {
                 venuesCommand.CommandText = """
-                    SELECT TOP (@Limit) ISNULL(v.VenueName, N'Unknown venue') AS VenueName,
+                    SELECT COALESCE(v.VenueName, 'Unknown venue') AS VenueName,
                            COUNT(*) AS PerformanceCount
                     FROM Performances p
                     LEFT JOIN Venues v ON v.Id = p.Venue
                     WHERE p.Singer = @Singer
                     GROUP BY v.VenueName
-                    ORDER BY COUNT(*) DESC, ISNULL(v.VenueName, N'') ASC
+                    ORDER BY COUNT(*) DESC, COALESCE(v.VenueName, '') ASC
+                    LIMIT @Limit
                     """;
                 venuesCommand.Parameters.AddWithValue("@Singer", singerId);
                 venuesCommand.Parameters.AddWithValue("@Limit", topVenueLimit);
@@ -589,13 +592,14 @@ public class PerformanceService(string connectionString)
         {
             await using var songsCommand = connection.CreateCommand();
             songsCommand.CommandText = $"""
-                SELECT TOP (@Limit) s.Id, s.Title, {SongArtistSql.PrimaryArtistName}, {SongArtistSql.ArtistDisplay}, COUNT(*) AS PerformanceCount
+                SELECT s.Id, s.Title, {SongArtistSql.PrimaryArtistName}, {SongArtistSql.ArtistDisplay}, COUNT(*) AS PerformanceCount
                 FROM Performances p
                 INNER JOIN Songs s ON s.Id = p.Song
                 {SongArtistSql.PrimaryArtistJoin}
                 WHERE p.Singer = @Singer
                 GROUP BY s.Id, s.Title, s.ArtistCreditDisplay, a.Name
                 ORDER BY COUNT(*) DESC, s.Title ASC
+                LIMIT @Limit
                 """;
             songsCommand.Parameters.AddWithValue("@Singer", singerId);
             songsCommand.Parameters.AddWithValue("@Limit", topSongLimit);
@@ -617,7 +621,7 @@ public class PerformanceService(string connectionString)
         {
             await using var artistsCommand = connection.CreateCommand();
             artistsCommand.CommandText = """
-                SELECT TOP (@Limit) a.Id, a.Name, COUNT(*) AS PerformanceCount
+                SELECT a.Id, a.Name, COUNT(*) AS PerformanceCount
                 FROM Performances p
                 INNER JOIN Songs s ON s.Id = p.Song
                 INNER JOIN SongArtists sa ON sa.SongId = s.Id
@@ -625,6 +629,7 @@ public class PerformanceService(string connectionString)
                 WHERE p.Singer = @Singer
                 GROUP BY a.Id, a.Name
                 ORDER BY COUNT(*) DESC, a.Name ASC
+                LIMIT @Limit
                 """;
             artistsCommand.Parameters.AddWithValue("@Singer", singerId);
             artistsCommand.Parameters.AddWithValue("@Limit", topArtistLimit);
@@ -676,7 +681,7 @@ public class PerformanceService(string connectionString)
 
     public async Task<List<RepertoireGenre>> GetMyRepertoireGenresAsync(int singerId)
     {
-        await using var connection = new SqlConnection(connectionString);
+        await using var connection = new SqliteConnection(connectionString);
         await connection.OpenAsync();
         await using var command = connection.CreateCommand();
         command.CommandText = """
@@ -705,7 +710,7 @@ public class PerformanceService(string connectionString)
 
     public async Task<SongPerformanceSummary?> GetSongPerformanceSummaryAsync(int singerId, int songId)
     {
-        await using var connection = new SqlConnection(connectionString);
+        await using var connection = new SqliteConnection(connectionString);
         await connection.OpenAsync();
 
         await using var countCommand = connection.CreateCommand();
@@ -716,7 +721,7 @@ public class PerformanceService(string connectionString)
             """;
         countCommand.Parameters.AddWithValue("@Singer", singerId);
         countCommand.Parameters.AddWithValue("@Song", songId);
-        var count = (int)(await countCommand.ExecuteScalarAsync() ?? 0);
+        var count = Convert.ToInt32(await countCommand.ExecuteScalarAsync() ?? 0);
         if (count == 0)
         {
             return new SongPerformanceSummary { SongId = songId, PerformanceCount = 0 };
@@ -724,11 +729,12 @@ public class PerformanceService(string connectionString)
 
         await using var lastCommand = connection.CreateCommand();
         lastCommand.CommandText = """
-            SELECT TOP (1) p.PerformedOn, p.KeyChangeSemitones, v.VenueName
+            SELECT p.PerformedOn, p.KeyChangeSemitones, v.VenueName
             FROM Performances p
             LEFT JOIN Venues v ON v.Id = p.Venue
             WHERE p.Singer = @Singer AND p.Song = @Song
             ORDER BY p.PerformedOn DESC, p.Id DESC
+            LIMIT 1
             """;
         lastCommand.Parameters.AddWithValue("@Singer", singerId);
         lastCommand.Parameters.AddWithValue("@Song", songId);
@@ -748,7 +754,7 @@ public class PerformanceService(string connectionString)
         var history = new List<PerformanceHistoryEntry>();
         await using var historyCommand = connection.CreateCommand();
         historyCommand.CommandText = """
-            SELECT p.Id, p.PerformedOn, ISNULL(v.VenueName, ''), p.KeyChangeSemitones, p.Venue
+            SELECT p.Id, p.PerformedOn, COALESCE(v.VenueName, ''), p.KeyChangeSemitones, p.Venue
             FROM Performances p
             LEFT JOIN Venues v ON v.Id = p.Venue
             WHERE p.Singer = @Singer AND p.Song = @Song
@@ -792,21 +798,22 @@ public class PerformanceService(string connectionString)
 
     public async Task<int> AddPerformanceAsync(Performance performance)
     {
-        await using var connection = new SqlConnection(connectionString);
+        await using var connection = new SqliteConnection(connectionString);
         await connection.OpenAsync();
         await using var command = connection.CreateCommand();
         command.CommandText = """
             INSERT INTO Performances (Singer, Song, Venue, PerformedOn, KeyChangeSemitones)
-            OUTPUT INSERTED.Id
             VALUES (@Singer, @Song, @Venue, @PerformedOn, @KeyChangeSemitones);
+            SELECT last_insert_rowid();
             """;
         AddParameters(command, performance);
-        return (int)(await command.ExecuteScalarAsync() ?? 0);
+        var id = await command.ExecuteScalarAsync();
+        return Convert.ToInt32(id ?? 0);
     }
 
     public async Task UpdatePerformanceAsync(Performance performance)
     {
-        await using var connection = new SqlConnection(connectionString);
+        await using var connection = new SqliteConnection(connectionString);
         await connection.OpenAsync();
         await using var command = connection.CreateCommand();
         command.CommandText = """
@@ -822,7 +829,7 @@ public class PerformanceService(string connectionString)
 
     public async Task DeletePerformanceAsync(int id)
     {
-        await using var connection = new SqlConnection(connectionString);
+        await using var connection = new SqliteConnection(connectionString);
         await connection.OpenAsync();
         await using var command = connection.CreateCommand();
         command.CommandText = "DELETE FROM Performances WHERE Id = @Id;";
@@ -830,7 +837,7 @@ public class PerformanceService(string connectionString)
         await command.ExecuteNonQueryAsync();
     }
 
-    private static void AddParameters(SqlCommand command, Performance performance)
+    private static void AddParameters(SqliteCommand command, Performance performance)
     {
         command.Parameters.AddWithValue("@Singer", performance.Singer);
         command.Parameters.AddWithValue("@Song", performance.Song);
@@ -839,7 +846,7 @@ public class PerformanceService(string connectionString)
         command.Parameters.AddWithValue("@KeyChangeSemitones", (object?)performance.KeyChangeSemitones ?? DBNull.Value);
     }
 
-    private static Performance ReadPerformance(SqlDataReader reader) => new()
+    private static Performance ReadPerformance(DbDataReader reader) => new()
     {
         Id = reader.GetInt32(0),
         Singer = reader.GetInt32(1),

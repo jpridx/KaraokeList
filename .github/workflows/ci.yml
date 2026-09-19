@@ -14,23 +14,12 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  INTEGRATION_TEST_SQL_PASSWORD: IntegrationTest_Passw0rd123!
-  KARAOKE_TEST_SQL_CONNECTION: Server=localhost,1433;Database=KaraokeList_IntegrationTest;User Id=sa;Password=IntegrationTest_Passw0rd123!;TrustServerCertificate=True;Encrypt=False
+  KARAOKE_TEST_SQL_CONNECTION: Data Source=KaraokeList_IntegrationTest.db
   KARAOKE_INTEGRATION_TESTS_REQUIRED: "true"
-  KARAOKE_TEST_SQL_READY_TIMEOUT_SECONDS: "180"
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-
-    services:
-      sqlserver:
-        image: mcr.microsoft.com/mssql/server:2022-latest
-        env:
-          ACCEPT_EULA: Y
-          MSSQL_SA_PASSWORD: IntegrationTest_Passw0rd123!
-        ports:
-          - 1433:1433
 
     steps:
       - name: Checkout
@@ -43,20 +32,6 @@ jobs:
 
       - name: Restore
         run: dotnet restore KaraokeList.sln
-
-      - name: Wait for SQL Server port
-        shell: bash
-        run: |
-          for attempt in $(seq 1 60); do
-            if (echo > /dev/tcp/127.0.0.1/1433) 2>/dev/null; then
-              echo "SQL Server port is open"
-              exit 0
-            fi
-            echo "Waiting for SQL Server port ($attempt/60)..."
-            sleep 2
-          done
-          echo "SQL Server port did not open"
-          exit 1
 
       - name: Build
         env:

@@ -1,4 +1,4 @@
-using Microsoft.Data.SqlClient;
+using Microsoft.Data.Sqlite;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -24,7 +24,7 @@ namespace KaraokeList.Data
 
         public async Task<bool> UpdateSongGenreAsync(int songId, int? genreId)
         {
-            using var connection = new SqlConnection(_connectionString);
+            using var connection = new SqliteConnection(_connectionString);
             await connection.OpenAsync();
             var command = connection.CreateCommand();
             command.CommandText = "UPDATE Songs SET Genre = @Genre WHERE Id = @Id;";

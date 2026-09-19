@@ -75,17 +75,17 @@ Full setup (Syncfusion license, auth, CORS): [docs/wasm-api-local-dev.md](docs/w
 
 ## Database
 
-Catalog and Identity share one SQL Server database via `ConnectionStrings:DefaultConnection`.
+Catalog and Identity share one **SQLite** database file via `ConnectionStrings:DefaultConnection`.
 
-**Local default (LocalDB):**
+**Local default:**
 
 ```
-Server=(localdb)\mssqllocaldb;Database=KaraokeList;Trusted_Connection=True;MultipleActiveResultSets=true;TrustServerCertificate=True
+Data Source=Data/karaokelist.dev.db
 ```
 
-All tables (Identity + catalog) are created by **EF Core migrations** — see [docs/database.md](docs/database.md). Seed data is a separate explicit step. Performance history: [docs/Performances.md](docs/Performances.md).
+All tables (Identity + catalog) are created by **EF Core migrations** on API startup — see [docs/database.md](docs/database.md). Catalog seed data is a separate explicit step. Performance history: [docs/Performances.md](docs/Performances.md).
 
-**Azure (primary):** [docs/azure-deployment.md](docs/azure-deployment.md) — Static Web Apps + API App Service + SQL
+**Azure (primary):** [docs/azure-deployment.md](docs/azure-deployment.md) — Static Web Apps + API App Service; database: [docs/sqlite-production.md](docs/sqlite-production.md) (no Azure SQL required)
 
 ### Tables
 

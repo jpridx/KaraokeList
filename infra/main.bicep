@@ -7,12 +7,15 @@ param location string = 'centralus'
 @description('Region for Static Web App (Free tier: centralus, westus2, westeurope, eastasia).')
 param staticWebAppLocation string = 'centralus'
 
-@description('SQL admin login name.')
-param sqlAdminLogin string
+@description('When true, provision Azure SQL and wire the API to it. When false (default), API uses SQLite on persistent App Service storage.')
+param useAzureSql bool = false
+
+@description('SQL admin login name (only when useAzureSql is true).')
+param sqlAdminLogin string = ''
 
 @secure()
-@description('SQL admin password.')
-param sqlAdminPassword string
+@description('SQL admin password (only when useAzureSql is true).')
+param sqlAdminPassword string = ''
 
 @description('App Service plan SKU (B1 is a low-cost starting tier).')
 param appServicePlanSku string = 'B1'
@@ -25,7 +28,9 @@ var staticWebAppName = 'stapp-${baseName}'
 var logAnalyticsWorkspaceName = 'law-${baseName}'
 var appInsightsName = 'appi-${baseName}'
 
-resource sqlServer 'Microsoft.Sql/servers@2023-05-01-preview' = {
+var sqliteConnectionString = 'Data Source=/home/data/karaokelist.db'
+
+resource sqlServer 'Microsoft.Sql/servers@2023-05-01-preview' = if (useAzureSql) {
   name: sqlServerName
   location: location
   properties: {
@@ -37,7 +42,7 @@ resource sqlServer 'Microsoft.Sql/servers@2023-05-01-preview' = {
   }
 }
 
-resource firewallAzure 'Microsoft.Sql/servers/firewallRules@2023-05-01-preview' = {
+resource firewallAzure 'Microsoft.Sql/servers/firewallRules@2023-05-01-preview' = if (useAzureSql) {
   parent: sqlServer
   name: 'AllowAzureServices'
   properties: {
@@ -46,7 +51,7 @@ resource firewallAzure 'Microsoft.Sql/servers/firewallRules@2023-05-01-preview' 
   }
 }
 
-resource database 'Microsoft.Sql/servers/databases@2023-05-01-preview' = {
+resource database 'Microsoft.Sql/servers/databases@2023-05-01-preview' = if (useAzureSql) {
   parent: sqlServer
   name: databaseName
   location: location
@@ -110,14 +115,16 @@ resource apiWebApp 'Microsoft.Web/sites@2023-12-01' = {
       alwaysOn: false
       ftpsState: 'Disabled'
       minTlsVersion: '1.2'
-      appSettings: [
+      appSettings: concat([
         {
           name: 'ASPNETCORE_ENVIRONMENT'
           value: 'Production'
         }
         {
           name: 'ConnectionStrings__DefaultConnection'
-          value: 'Server=tcp:${sqlServer.properties.fullyQualifiedDomainName},1433;Database=${databaseName};User ID=${sqlAdminLogin};Password=${sqlAdminPassword};Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;MultipleActiveResultSets=true'
+          value: useAzureSql
+            ? 'Server=tcp:${sqlServer.properties.fullyQualifiedDomainName},1433;Database=${databaseName};User ID=${sqlAdminLogin};Password=${sqlAdminPassword};Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;MultipleActiveResultSets=true'
+            : sqliteConnectionString
         }
         {
           name: 'Jwt__Issuer'
@@ -139,7 +146,12 @@ resource apiWebApp 'Microsoft.Web/sites@2023-12-01' = {
           name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
           value: appInsights.properties.ConnectionString
         }
-      ]
+      ], useAzureSql ? [] : [
+        {
+          name: 'WEBSITES_ENABLE_APP_SERVICE_STORAGE'
+          value: 'true'
+        }
+      ])
     }
   }
 }
@@ -163,7 +175,8 @@ output staticWebAppName string = staticWebApp.name
 output staticWebAppDefaultHostName string = staticWebApp.properties.defaultHostname
 @secure()
 output staticWebAppDeploymentToken string = staticWebApp.listSecrets().properties.apiKey
-output sqlServerFqdn string = sqlServer.properties.fullyQualifiedDomainName
-output databaseName string = database.name
+output sqlServerFqdn string = useAzureSql ? sqlServer.properties.fullyQualifiedDomainName : ''
+output databaseName string = useAzureSql ? database.name : ''
 output appInsightsName string = appInsights.name
 output appInsightsConnectionString string = appInsights.properties.ConnectionString
+output useAzureSql bool = useAzureSql
