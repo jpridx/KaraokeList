@@ -30,11 +30,9 @@ builder.Services.AddControllers();
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 
+KaraokeDbPaths.EnsureDataSourceDirectory(connectionString);
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(connectionString, sql => sql.EnableRetryOnFailure(
-        maxRetryCount: 5,
-        maxRetryDelay: TimeSpan.FromSeconds(30),
-        errorNumbersToAdd: null)));
+    options.UseSqlite(connectionString));
 builder.Services.AddKaraokeDataServices(connectionString);
 builder.Services.Configure<RegistrationSettings>(builder.Configuration.GetSection(RegistrationSettings.SectionName));
 builder.Services.Configure<AppSettings>(builder.Configuration.GetSection(AppSettings.SectionName));
@@ -144,6 +142,11 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     await db.Database.MigrateAsync();
+    await db.Database.ExecuteSqlRawAsync(GenreGroupSeedSql.GroupsSql);
+    if (await db.Genres.AnyAsync())
+    {
+        await db.Database.ExecuteSqlRawAsync(GenreGroupSeedSql.MappingsSql);
+    }
 
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
     if (!await roleManager.RoleExistsAsync(KaraokeList.Shared.KaraokeRoles.Admin))

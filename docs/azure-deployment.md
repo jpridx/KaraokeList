@@ -5,11 +5,11 @@ This guide deploys the **WASM + API** stack to Azure:
 | Component | Azure service |
 |-----------|----------------|
 | **KaraokeList.Web** (Blazor WASM) | **Azure Static Web Apps** (Free tier) |
-| **KaraokeList.Api** (JWT + SQL) | **App Service** (Linux, .NET 10) |
-| Database | **Azure SQL** (General Purpose serverless) |
+| **KaraokeList.Api** (JWT + REST) | **App Service** (Linux, .NET 10) |
+| Database | **SQLite** on App Service persistent storage (`/home/data`) — see [sqlite-production.md](sqlite-production.md) |
 | Telemetry | **Application Insights** + Log Analytics workspace |
 
-Friends sign in on the WASM app; the API validates JWTs and stores catalog + performances in SQL. See [wasm-api-local-dev.md](wasm-api-local-dev.md) and [security-private-access.md](security-private-access.md).
+Friends sign in on the WASM app; the API validates JWTs and stores catalog + performances in SQLite. See [wasm-api-local-dev.md](wasm-api-local-dev.md) and [security-private-access.md](security-private-access.md).
 
 ## Why Azure instead of nested subdomains on shared hosting
 
@@ -39,7 +39,7 @@ $location = "eastus"   # SQL + API App Service
 az group create --name $rg --location $location
 
 Copy-Item infra/main.parameters.example.json infra/main.parameters.json
-# Edit infra/main.parameters.json — set baseName and sqlAdminPassword
+# Edit infra/main.parameters.json — set baseName
 
 az deployment group create `
   --resource-group $rg `
@@ -54,19 +54,21 @@ Note the outputs:
 | `apiWebAppDefaultHostName` | API URL → `https://<name>/` |
 | `staticWebAppDefaultHostName` | WASM URL → `https://<name>/` |
 | `staticWebAppDeploymentToken` | WASM deploy (store in password manager) |
-| `sqlServerFqdn` | Migration + SSMS |
+| `sqliteDataPath` | SQLite file path on the API (`/home/data/karaokelist.db`) |
 | `appInsightsName` | Portal navigation |
 | `appInsightsConnectionString` | Auto-injected into API App Service; also shown here for reference |
 
-`baseName` must be globally unique (e.g. `karaokelist-jp`). Resources created:
+`baseName` must be unique enough for App Service / SWA names (e.g. `karaokelist`). Resources created:
 
-- `sql-<baseName>` — Azure SQL server
-- `api-<baseName>` — API App Service
-- `stapp-<baseName>` — Static Web App (in `eastus2` by default)
+- `api-<baseName>` — API App Service (SQLite + persistent storage)
+- `stapp-<baseName>` — Static Web App
+- Application Insights + Log Analytics
+
+Existing Azure SQL servers from older deployments are **not** deleted by this template — remove them manually after cutover ([sqlite-production.md](sqlite-production.md)).
 
 ## 2. Configure API secrets (portal)
 
-Bicep sets SQL connection string, JWT issuer/audience, and Application Insights connection string automatically. Add **production secrets** in the API App Service → **Configuration** → Application settings:
+Bicep sets the SQLite connection string, JWT issuer/audience, persistent storage, and Application Insights automatically. Add **production secrets** in the API App Service → **Configuration** → Application settings:
 
 | Setting | Value |
 |---------|--------|
@@ -104,76 +106,28 @@ After custom domains:
 
 Optional later: move secrets to **Key Vault** ([deployment-roadmap.md](deployment-roadmap.md) Phase 2a).
 
-## 3. Allow your IP for SQL (one-time admin)
+## 3. SQLite data on App Service
 
-```powershell
-az sql server firewall-rule create `
-  --resource-group $rg `
-  --server sql-<baseName> `
-  --name AllowMyIp `
-  --start-ip-address <your-public-ip> `
-  --end-ip-address <your-public-ip>
-```
+Bicep does **not** upload catalog data. Follow [sqlite-production.md](sqlite-production.md) / [sqlite-local-verification.md](sqlite-local-verification.md):
 
-App Service → SQL is allowed via the `AllowAzureServices` rule in Bicep.
+1. Copy from Azure SQL (or another SQL Server) into a local `.db` with `MigrateSqlServerToSqlite`.
+2. Enable persistent storage; upload the file to `/home/data/karaokelist.db`.
+3. Point the App Service connection string at SQLite (portal or Deploy Azure with `apply_sqlite_connection=true`).
 
-## 4. Migrate catalog data (optional)
-
-If you have a legacy SQLite export, pass its path to the migration tool or place it at `scripts/data/Karaoke.sqlite3`:
-
-```powershell
-$env:KARAOKE_SQL_CONNECTION = "Server=tcp:<server>.database.windows.net,1433;Database=KaraokeList;User ID=<admin>;Password=<password>;Encrypt=True;TrustServerCertificate=False;MultipleActiveResultSets=true;"
-dotnet run --project scripts/MigrateSqliteToSqlServer/MigrateSqliteToSqlServer.csproj
-```
+If you still need temporary SSMS access to an **existing** Azure SQL server during cutover, whitelist your IP on that server (portal → Networking) — Bicep no longer manages SQL firewall rules.
 
 On first API startup (or after `dotnet ef database update --project KaraokeList.Api`):
 
-1. EF Core migrations apply (Identity + catalog tables)
-2. Seed catalog separately if needed — see [database.md](database.md)
+1. EF Core migrations apply (`SqliteInitial` + any later migrations)
+2. Genre groups are seeded automatically; catalog rows come from the uploaded/migrated file
 
-### Production schema migrations (breaking changes)
+### Production schema migrations
 
-The **Deploy Azure** workflow applies pending EF migrations **before** publishing a new API build (see [github-actions.md](github-actions.md)). `Program.cs` still calls `MigrateAsync()` on startup as a safety net for local dev and fresh databases.
+`Program.cs` calls `MigrateAsync()` on startup. There is no remote Azure SQL EF step in the deploy workflow.
 
-If a deploy leaves the API **Stopped** / `SiteStartupCancelled`, or `/api/version` shows `databaseAvailable: false`, apply migrations manually from your machine:
+If `/api/version` shows `databaseAvailable: false`, check that `/home/data/karaokelist.db` exists, the connection string points at it, and App Service storage is enabled.
 
-```powershell
-# 1. Allow your IP on the SQL server (one-time per IP change)
-$myIp = (Invoke-RestMethod https://api.ipify.org).Trim()
-az sql server firewall-rule create `
-  -g rg-karaokelist -s sql-karaokelist `
-  -n MyDevMachine --start-ip-address $myIp --end-ip-address $myIp
-
-# 2. Use the App Service SQL connection string (not an AAD/SSMS string).
-# Bicep stores this as an app setting; fall back to the Connection strings blade if needed.
-$conn = (az webapp config appsettings list `
-  -g rg-karaokelist -n api-karaokelist `
-  --query "[?name=='ConnectionStrings__DefaultConnection'].value | [0]" -o tsv)
-if (-not $conn) {
-  $conn = (az webapp config connection-string list `
-    -g rg-karaokelist -n api-karaokelist `
-    --query "[?name=='DefaultConnection'].value | [0]" -o tsv)
-}
-if (-not $conn) { throw "DefaultConnection not found on api-karaokelist." }
-
-dotnet ef database update --project KaraokeList.Api/KaraokeList.Api.csproj --connection $conn
-
-# 3. Restart once — do not restart repeatedly during migration
-az webapp restart -g rg-karaokelist -n api-karaokelist
-```
-
-Verify: `GET https://api-karaokelist.azurewebsites.net/api/version` → `databaseAvailable: true` and the expected `latestMigration`.
-
-**Orphan artist ids** (only if migration fails on `SongArtists` backfill and legacy columns still exist):
-
-```sql
-UPDATE Songs SET Artist = NULL WHERE Artist IS NOT NULL AND Artist NOT IN (SELECT Id FROM Artists);
-UPDATE Songs SET SecondaryArtist = NULL
-WHERE SecondaryArtist IS NOT NULL AND SecondaryArtist <> 0
-  AND SecondaryArtist NOT IN (SELECT Id FROM Artists);
-```
-
-## 5. Publish and deploy
+## 4. Publish and deploy
 
 ### Option A — helper script (recommended)
 
@@ -269,8 +223,8 @@ After Azure resources exist, configure OIDC and secrets per [github-actions.md](
 ## Cost notes
 
 - **Static Web Apps Free** — sufficient for a friends group.
-- **App Service B1** — modest always-on API (~$13/mo region-dependent).
-- **Azure SQL serverless** — pauses after 60 min idle; `minCapacity` 0.5 vCore keeps cost low.
+- **App Service B1** — modest always-on API (~$13/mo region-dependent); keep **one instance** for SQLite.
+- Delete leftover **Azure SQL** after cutover to stop SQL billing.
 - **Catalog cache TTL** — Log and My Songs background refresh is skipped for 4 hours when the server catalog version tag is unchanged (`CatalogCachePolicy.RefreshThreshold`).
 
 ## Troubleshooting
