@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project>
+  <!--
+    Dependabot updates PackageReference versions only. Generate the CDN theme version
+    from Syncfusion.Blazor.Grid so the stylesheet matches that package at build time.
+  -->
+  <Target Name="GenerateSyncfusionCdnVersion" BeforeTargets="ResolveProjectStaticWebAssets">
+    <ItemGroup>
+      <_SfGridPackage Include="@(PackageReference)" Condition="'%(Identity)' == 'Syncfusion.Blazor.Grid'" />
+      <_SfDropDownsPackage Include="@(PackageReference)" Condition="'%(Identity)' == 'Syncfusion.Blazor.DropDowns'" />
+    </ItemGroup>
+
+    <PropertyGroup>
+      <SyncfusionCdnVersion>@(_SfGridPackage->'%(Version)')</SyncfusionCdnVersion>
+      <_SfDropDownsVersion>@(_SfDropDownsPackage->'%(Version)')</_SfDropDownsVersion>
+      <_SfCdnVersionScript>$(MSBuildProjectDirectory)\wwwroot\js\syncfusion-version.js</_SfCdnVersionScript>
+    </PropertyGroup>
+
+    <Error
+      Condition="'$(SyncfusionCdnVersion)' == ''"
+      Text="Syncfusion.Blazor.Grid PackageReference version was not found." />
+    <Error
+      Condition="'$(_SfDropDownsVersion)' != '$(SyncfusionCdnVersion)'"
+      Text="Syncfusion.Blazor.Grid ($(SyncfusionCdnVersion)) and Syncfusion.Blazor.DropDowns ($(_SfDropDownsVersion)) must use the same version so the CDN theme matches." />
+
+    <WriteLinesToFile
+      File="$(_SfCdnVersionScript)"
+      Lines="window.karaokeListSyncfusionVersion = &quot;$(SyncfusionCdnVersion)&quot;%3b"
+      Overwrite="true"
+      WriteOnlyWhenDifferent="true" />
+
+    <!-- The file is created during the build, so the default wwwroot glob may not see it yet. -->
+    <ItemGroup>
+      <Content Remove="wwwroot\js\syncfusion-version.js" />
+      <Content Include="wwwroot\js\syncfusion-version.js" />
+      <FileWrites Include="$(_SfCdnVersionScript)" />
+    </ItemGroup>
+
+    <Message
+      Importance="high"
+      Text="Syncfusion CDN theme version is $(SyncfusionCdnVersion) from Syncfusion.Blazor.Grid." />
+  </Target>
+</Project>

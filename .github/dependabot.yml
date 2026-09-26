@@ -32,9 +32,18 @@ updates:
           - "Azure.*"
           - "Syncfusion.*"
 
-    # Syncfusion license key must be updated with package version; upgrade manually.
+      # Keep Grid and DropDowns on the same 34.x build.
+      syncfusion:
+        patterns:
+          - "Syncfusion.*"
+
+    # License covers any Syncfusion 34.x.x release (patch and minor).
+    # Major upgrades (35+) need a new key; do those by hand.
+    # The CDN theme URL is stamped at build from the package version (not edited here).
     ignore:
       - dependency-name: "Syncfusion.*"
+        update-types:
+          - "version-update:semver-major"
 
   - package-ecosystem: "github-actions"
     directory: "/"

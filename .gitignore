@@ -367,6 +367,7 @@ FodyWeavers.xsd
 infra/main.parameters.json
 
 # Local secrets — never commit license keys or personal config
+**/wwwroot/js/syncfusion-version.js
 **/wwwroot/appsettings.local.json
 **/wwwroot/appsettings.secrets.json
 **/appsettings.local.json

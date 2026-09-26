@@ -1,7 +1,7 @@
 // Light/dark theme switching for KaraokeList (Bootstrap + Syncfusion Fluent 2).
 window.karaokeListTheme = {
     storageKey: 'karaoke.theme.preference',
-    syncfusionVersion: '34.1.29',
+    syncfusionVersion: window.karaokeListSyncfusionVersion,
     mediaQuery: null,
     mediaHandler: null,
 
@@ -38,12 +38,18 @@ window.karaokeListTheme = {
         var effective = this.resolveEffectiveTheme(preference);
         document.documentElement.setAttribute('data-bs-theme', effective);
 
+        var href = effective === 'dark'
+            ? 'https://cdn.syncfusion.com/blazor/' + this.syncfusionVersion + '/styles/fluent2-dark.css'
+            : 'https://cdn.syncfusion.com/blazor/' + this.syncfusionVersion + '/styles/fluent2-lite.css';
         var link = document.getElementById('syncfusion-theme');
-        if (link) {
-            link.href = effective === 'dark'
-                ? 'https://cdn.syncfusion.com/blazor/' + this.syncfusionVersion + '/styles/fluent2-dark.css'
-                : 'https://cdn.syncfusion.com/blazor/' + this.syncfusionVersion + '/styles/fluent2-lite.css';
+        if (!link) {
+            link = document.createElement('link');
+            link.id = 'syncfusion-theme';
+            link.rel = 'stylesheet';
+            document.head.appendChild(link);
         }
+
+        link.href = href;
 
         var meta = document.querySelector('meta[name="theme-color"]');
         if (meta) {
