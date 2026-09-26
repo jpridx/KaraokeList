@@ -218,7 +218,7 @@ After Azure resources exist, configure OIDC and secrets per [github-actions.md](
 - Compiled into WASM at **publish** time (`/p:SyncfusionKey=...`), not a server secret.
 - Local: user secrets or `-SyncfusionKey` on the deploy script.
 - CI: GitHub secret → pipeline publish ([deployment-roadmap.md](deployment-roadmap.md)).
-- Theme CSS: Syncfusion CDN (`fluent2-lite.css` in `index.html`). Bump the CDN version when you upgrade `Syncfusion.Blazor.*` packages.
+- Theme CSS: Syncfusion CDN (`fluent2-lite.css`). Build writes `wwwroot/js/syncfusion-version.js` from the `Syncfusion.Blazor.Grid` package version; that file is gitignored.
 
 ## Cost notes
 
