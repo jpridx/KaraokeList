@@ -13,7 +13,8 @@
         <li class="@ItemClass">
             @if (editingId == entry.Id)
             {
-                <PerformanceEditForm SingerId="@SingerId"
+                <PerformanceEditForm @key="editSession"
+                                     SingerId="@SingerId"
                                      Venues="@venues"
                                      KeyOptions="@keyOptions"
                                      @bind-PerformedOn="editPerformedOn"
@@ -109,6 +110,7 @@
     private List<SingerDto> singers = [];
     private IReadOnlyList<PerformanceKeyOption> keyOptions = PerformanceKeyOption.Choices;
     private int? editingId;
+    private int editSession;
     private int? deleteConfirmId;
     private PerformanceEditSnapshot? editBeforeSnapshot;
     private DateTime editPerformedOn = DateTime.Today;
@@ -163,6 +165,7 @@
         statusMessage = null;
         errorMessage = null;
         editingId = entry.Id;
+        editSession++;
         editBeforeSnapshot = ToSnapshot(entry);
         editPerformedOn = entry.PerformedOn;
         editVenueId = entry.VenueId;

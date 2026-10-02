@@ -23,6 +23,7 @@ public partial class MyPerformances
     private string sortDir = "desc";
     private int? filterVenueId;
     private int visibleLimit = PageSize;
+    private int loadGeneration;
 
     private const int PageSize = 40;
 
@@ -62,15 +63,26 @@ public partial class MyPerformances
 
     private async Task RefreshPerformancesAfterEditAsync()
     {
+        var generation = ++loadGeneration;
+
         var cached = await PerformancesLoader.TryGetCachedAsync();
         if (cached is not null)
         {
-            ApplyLoadResult(cached);
+            ApplyLoadResultIfCurrent(cached, generation);
             usingOfflinePerformances = false;
             await InvokeAsync(StateHasChanged);
         }
 
-        _ = RefreshPerformancesInBackgroundAsync();
+        try
+        {
+            var refreshed = await PerformancesLoader.LoadAsync();
+            ApplyLoadResultIfCurrent(refreshed, generation);
+            await InvokeAsync(StateHasChanged);
+        }
+        catch
+        {
+            // Post-edit refresh failures are silent; patched cache remains visible.
+        }
     }
 
     private async Task ReloadPerformancesAsync()
@@ -81,6 +93,7 @@ public partial class MyPerformances
         hasCachedPerformances = false;
         performancesCachedAt = null;
 
+        var generation = loadGeneration;
         var loadTask = PerformancesLoader.LoadAsync();
 
         if (await Task.WhenAny(loadTask, Task.Delay(ApiSlowRequestNotifier.PageLoadTimeout)) != loadTask)
@@ -88,7 +101,7 @@ public partial class MyPerformances
             var cached = await PerformancesLoader.TryGetCachedAsync();
             if (cached is not null)
             {
-                ApplyLoadResult(cached);
+                ApplyLoadResultIfCurrent(cached, generation);
             }
             else
             {
@@ -104,7 +117,7 @@ public partial class MyPerformances
                 {
                     await InvokeAsync(() =>
                     {
-                        ApplyLoadResult(t.Result);
+                        ApplyLoadResultIfCurrent(t.Result, generation);
                         isLoading = false;
                         StateHasChanged();
                     });
@@ -114,8 +127,18 @@ public partial class MyPerformances
         }
 
         var result = await loadTask;
-        ApplyLoadResult(result);
+        ApplyLoadResultIfCurrent(result, generation);
         isLoading = false;
+    }
+
+    private void ApplyLoadResultIfCurrent(MyPerformancesLoadResult result, int generationAtStart)
+    {
+        if (generationAtStart != loadGeneration)
+        {
+            return;
+        }
+
+        ApplyLoadResult(result);
     }
 
     private void ApplyLoadResult(MyPerformancesLoadResult result)
@@ -160,10 +183,11 @@ public partial class MyPerformances
 
     private async Task RefreshPerformancesInBackgroundAsync()
     {
+        var generation = loadGeneration;
         try
         {
             var refreshed = await PerformancesLoader.LoadAsync();
-            ApplyLoadResult(refreshed);
+            ApplyLoadResultIfCurrent(refreshed, generation);
             await InvokeAsync(StateHasChanged);
         }
         catch

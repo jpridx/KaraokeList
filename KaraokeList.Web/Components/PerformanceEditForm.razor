@@ -4,21 +4,23 @@
         @HeaderContent
     }
     <label class="form-label small text-muted mb-1">Date</label>
-    <InputDate class="form-control form-control-sm mb-2" @bind-Value="PerformedOn" />
+    <InputDate class="form-control form-control-sm mb-2" @bind-Value="_performedOn" />
     <label class="form-label small text-muted mb-1">Venue</label>
-    <SfDropDownList TValue="int?" TItem="VenueDto" DataSource="@Venues" @bind-Value="VenueId"
+    <SfDropDownList TValue="int?" TItem="VenueDto" DataSource="@Venues" Value="@_venueId"
+                    ValueChanged="@(value => _venueId = value)"
                     Placeholder="Select venue" AllowFiltering="true"
                     FilterType="Syncfusion.Blazor.DropDowns.FilterType.Contains">
         <DropDownListFieldSettings Value="Id" Text="VenueName" />
     </SfDropDownList>
     <label class="form-label small text-muted mb-1 mt-2">Key</label>
     <SfDropDownList TValue="int?" TItem="PerformanceKeyOption" DataSource="@KeyOptions"
-                    @bind-Value="KeyChangeSemitones">
+                    Value="@_keyChangeSemitones"
+                    ValueChanged="@(value => _keyChangeSemitones = value)">
         <DropDownListFieldSettings Value="Semitones" Text="Label" />
     </SfDropDownList>
     <CoPerformersEditor PrimarySingerId="@SingerId" @bind-OtherPerformers="OtherPerformers" />
     <div class="d-flex gap-2 mt-3">
-        <button type="button" class="btn btn-primary btn-sm flex-fill" disabled="@IsSaving" @onclick="OnSave">
+        <button type="button" class="btn btn-primary btn-sm flex-fill" disabled="@IsSaving" @onclick="HandleSaveAsync">
             Save
         </button>
         <button type="button" class="btn btn-outline-secondary btn-sm flex-fill" disabled="@IsSaving" @onclick="OnCancel">
@@ -72,4 +74,24 @@
 
     [Parameter]
     public RenderFragment? HeaderContent { get; set; }
+
+    private DateTime _performedOn;
+    private int? _venueId;
+    private int? _keyChangeSemitones;
+
+    protected override void OnParametersSet()
+    {
+        _performedOn = PerformedOn;
+        _venueId = VenueId;
+        _keyChangeSemitones = KeyChangeSemitones;
+    }
+
+    private async Task HandleSaveAsync()
+    {
+        await PerformedOnChanged.InvokeAsync(_performedOn);
+        await VenueIdChanged.InvokeAsync(_venueId);
+        await KeyChangeSemitonesChanged.InvokeAsync(_keyChangeSemitones);
+        await OtherPerformersChanged.InvokeAsync(OtherPerformers);
+        await OnSave.InvokeAsync();
+    }
 }
