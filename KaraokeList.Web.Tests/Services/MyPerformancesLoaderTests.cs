@@ -1,6 +1,7 @@
 using KaraokeList.Shared;
 using KaraokeList.Web.Services;
 using KaraokeList.Web.Tests.TestDoubles;
+using Moq;
 
 namespace KaraokeList.Web.Tests.Services;
 
@@ -57,6 +58,78 @@ public sealed class MyPerformancesLoaderTests
     }
 
     [Fact]
+    public async Task TryGetCachedAsync_returns_empty_snapshot_when_cache_is_empty()
+    {
+        var store = new MyPerformancesLocalStore(new InMemoryLocalStorage());
+        await store.SaveCachedAsync(new CachedMyPerformances([], DateTime.UtcNow));
+
+        var loader = new MyPerformancesLoader(new PerformancesApiStub(), store);
+        var result = await loader.TryGetCachedAsync();
+
+        Assert.NotNull(result);
+        Assert.Empty(result!.Performances);
+        Assert.True(result.FromCache);
+    }
+
+    [Fact]
+    public async Task LoadAsync_returns_empty_stored_cache_when_invalidated_after_delete()
+    {
+        var store = new MyPerformancesLocalStore(new InMemoryLocalStorage());
+        await store.SaveCachedAsync(new CachedMyPerformances(
+        [
+            new MyPerformanceEntryDto
+            {
+                Id = 3,
+                SongId = 7,
+                Title = "Stored Song",
+                VenueName = "Old Venue",
+                PerformedOn = DateTime.Today
+            }
+        ],
+            DateTime.UtcNow));
+
+        var api = new Mock<IKaraokeApiClient>();
+        api.Setup(client => client.GetMyPerformancesAsync(null, "desc"))
+            .ReturnsAsync(MyPerformancesResult.Ok(
+            [
+                new MyPerformanceEntryDto
+                {
+                    Id = 3,
+                    SongId = 7,
+                    Title = "Stored Song",
+                    VenueName = "Old Venue",
+                    PerformedOn = DateTime.Today
+                }
+            ]));
+
+        var loader = new MyPerformancesLoader(api.Object, store);
+        await loader.RemovePerformanceAsync(3);
+
+        var apiResultStarted = new TaskCompletionSource<MyPerformancesResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        api.Setup(client => client.GetMyPerformancesAsync(null, "desc"))
+            .Returns(apiResultStarted.Task);
+
+        var loadTask = loader.LoadAsync();
+        loader.InvalidateInFlightLoads();
+        apiResultStarted.SetResult(MyPerformancesResult.Ok(
+        [
+            new MyPerformanceEntryDto
+            {
+                Id = 3,
+                SongId = 7,
+                Title = "Stored Song",
+                VenueName = "Resurrected From Api",
+                PerformedOn = DateTime.Today
+            }
+        ]));
+
+        var result = await loadTask;
+
+        Assert.Empty(result.Performances);
+        Assert.True(result.FromCache);
+    }
+
+    [Fact]
     public async Task TryGetCachedAsync_returns_cached_performances()
     {
         var store = new MyPerformancesLocalStore(new InMemoryLocalStorage());
@@ -101,6 +174,158 @@ public sealed class MyPerformancesLoaderTests
         });
 
         var cached = await loader.TryGetCachedAsync();
+        Assert.NotNull(cached);
+        Assert.Equal("New Venue", cached.Performances[0].VenueName);
+    }
+
+    [Fact]
+    public async Task LoadAsync_does_not_overwrite_cache_when_invalidated_before_persist()
+    {
+        var store = new MyPerformancesLocalStore(new InMemoryLocalStorage());
+        await store.SaveCachedAsync(new CachedMyPerformances(
+        [
+            new MyPerformanceEntryDto
+            {
+                Id = 3,
+                SongId = 7,
+                Title = "Stored Song",
+                VenueName = "New Venue",
+                PerformedOn = DateTime.Today
+            }
+        ],
+            DateTime.UtcNow));
+
+        var apiResultStarted = new TaskCompletionSource<MyPerformancesResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var api = new Mock<IKaraokeApiClient>();
+        api.Setup(client => client.GetMyPerformancesAsync(null, "desc"))
+            .Returns(apiResultStarted.Task);
+
+        var loader = new MyPerformancesLoader(api.Object, store);
+        var loadTask = loader.LoadAsync();
+        loader.InvalidateInFlightLoads();
+        apiResultStarted.SetResult(MyPerformancesResult.Ok(
+        [
+            new MyPerformanceEntryDto
+            {
+                Id = 3,
+                SongId = 7,
+                Title = "Stored Song",
+                VenueName = "Old Venue",
+                PerformedOn = DateTime.Today
+            }
+        ]));
+
+        await loadTask;
+
+        var cached = await store.GetCachedAsync();
+        Assert.NotNull(cached);
+        Assert.Equal("New Venue", cached.Performances[0].VenueName);
+    }
+
+    [Fact]
+    public async Task PatchPerformanceAsync_invalidates_in_flight_load_before_writing()
+    {
+        var store = new MyPerformancesLocalStore(new InMemoryLocalStorage());
+        await store.SaveCachedAsync(new CachedMyPerformances(
+        [
+            new MyPerformanceEntryDto
+            {
+                Id = 3,
+                SongId = 7,
+                Title = "Stored Song",
+                VenueName = "Old Venue",
+                PerformedOn = DateTime.Today
+            }
+        ],
+            DateTime.UtcNow));
+
+        var apiResultStarted = new TaskCompletionSource<MyPerformancesResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var api = new Mock<IKaraokeApiClient>();
+        api.Setup(client => client.GetMyPerformancesAsync(null, "desc"))
+            .Returns(apiResultStarted.Task);
+
+        var loader = new MyPerformancesLoader(api.Object, store);
+        var loadTask = loader.LoadAsync();
+
+        await loader.PatchPerformanceAsync(new MyPerformanceEntryDto
+        {
+            Id = 3,
+            SongId = 7,
+            Title = "Stored Song",
+            VenueName = "New Venue",
+            PerformedOn = DateTime.Today
+        });
+
+        apiResultStarted.SetResult(MyPerformancesResult.Ok(
+        [
+            new MyPerformanceEntryDto
+            {
+                Id = 3,
+                SongId = 7,
+                Title = "Stored Song",
+                VenueName = "Old Venue",
+                PerformedOn = DateTime.Today
+            }
+        ]));
+        await loadTask;
+
+        var cached = await store.GetCachedAsync();
+        Assert.NotNull(cached);
+        Assert.Equal("New Venue", cached.Performances[0].VenueName);
+    }
+
+    [Fact]
+    public async Task Patch_waits_for_in_flight_load_save_then_keeps_patched_cache()
+    {
+        var inner = new MyPerformancesLocalStore(new InMemoryLocalStorage());
+        var gatedStore = new GatedMyPerformancesLocalStore(inner);
+        await gatedStore.SaveCachedAsync(new CachedMyPerformances(
+        [
+            new MyPerformanceEntryDto
+            {
+                Id = 3,
+                SongId = 7,
+                Title = "Stored Song",
+                VenueName = "Old Venue",
+                PerformedOn = DateTime.Today
+            }
+        ],
+            DateTime.UtcNow));
+
+        var releaseLoadSave = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        gatedStore.PauseNextSaveUntil(releaseLoadSave);
+
+        var api = new Mock<IKaraokeApiClient>();
+        api.Setup(client => client.GetMyPerformancesAsync(null, "desc"))
+            .ReturnsAsync(MyPerformancesResult.Ok(
+            [
+                new MyPerformanceEntryDto
+                {
+                    Id = 3,
+                    SongId = 7,
+                    Title = "Stored Song",
+                    VenueName = "Stale From Api",
+                    PerformedOn = DateTime.Today
+                }
+            ]));
+
+        var loader = new MyPerformancesLoader(api.Object, gatedStore);
+        var loadTask = loader.LoadAsync();
+
+        var patchTask = loader.PatchPerformanceAsync(new MyPerformanceEntryDto
+        {
+            Id = 3,
+            SongId = 7,
+            Title = "Stored Song",
+            VenueName = "New Venue",
+            PerformedOn = DateTime.Today
+        });
+
+        await Task.Delay(50);
+        releaseLoadSave.SetResult();
+        await Task.WhenAll(loadTask, patchTask);
+
+        var cached = await gatedStore.GetCachedAsync();
         Assert.NotNull(cached);
         Assert.Equal("New Venue", cached.Performances[0].VenueName);
     }
