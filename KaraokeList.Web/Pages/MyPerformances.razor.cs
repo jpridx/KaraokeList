@@ -64,6 +64,7 @@ public partial class MyPerformances
     private async Task RefreshPerformancesAfterEditAsync()
     {
         var generation = ++loadGeneration;
+        PerformancesLoader.InvalidateInFlightLoads();
 
         var cached = await PerformancesLoader.TryGetCachedAsync();
         if (cached is not null)

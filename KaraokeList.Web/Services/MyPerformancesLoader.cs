@@ -4,6 +4,11 @@ namespace KaraokeList.Web.Services;
 
 public interface IMyPerformancesLoader
 {
+    /// <summary>
+    /// Prevents in-flight <see cref="LoadAsync"/> calls from persisting API snapshots to local storage.
+    /// </summary>
+    void InvalidateInFlightLoads();
+
     Task<MyPerformancesLoadResult> LoadAsync();
 
     Task<MyPerformancesLoadResult?> TryGetCachedAsync();
@@ -18,9 +23,13 @@ public sealed class MyPerformancesLoader(
     IMyPerformancesLocalStore store) : IMyPerformancesLoader
 {
     private const int CurrentCacheSchemaVersion = 1;
+    private int loadCommitGeneration;
+
+    public void InvalidateInFlightLoads() => Interlocked.Increment(ref loadCommitGeneration);
 
     public async Task<MyPerformancesLoadResult> LoadAsync()
     {
+        var commitGeneration = Volatile.Read(ref loadCommitGeneration);
         try
         {
             var result = await api.GetMyPerformancesAsync(venueId: null, sortDir: "desc");
@@ -29,6 +38,11 @@ public sealed class MyPerformancesLoader(
                 return await LoadOfflineOrFailAsync(
                     result.ErrorMessage,
                     result.ErrorMessage?.Contains("not linked", StringComparison.OrdinalIgnoreCase) == true);
+            }
+
+            if (commitGeneration != Volatile.Read(ref loadCommitGeneration))
+            {
+                return await PreferCachedOrTransientApiResultAsync(result.Performances);
             }
 
             var cachedAt = DateTime.UtcNow;
@@ -43,6 +57,18 @@ public sealed class MyPerformancesLoader(
         {
             return await LoadOfflineOrFailAsync(null, needsSingerLink: false);
         }
+    }
+
+    private async Task<MyPerformancesLoadResult> PreferCachedOrTransientApiResultAsync(
+        IReadOnlyList<MyPerformanceEntryDto> apiPerformances)
+    {
+        var cached = await TryGetCachedAsync();
+        if (cached is not null)
+        {
+            return cached;
+        }
+
+        return BuildResult(apiPerformances, FromCache: false, DateTime.UtcNow);
     }
 
     public async Task<MyPerformancesLoadResult?> TryGetCachedAsync()
@@ -88,6 +114,8 @@ public sealed class MyPerformancesLoader(
 
     public async Task PatchPerformanceAsync(MyPerformanceEntryDto updated)
     {
+        InvalidateInFlightLoads();
+
         var cached = await store.GetCachedAsync();
         if (cached is null)
         {
@@ -110,6 +138,8 @@ public sealed class MyPerformancesLoader(
 
     public async Task RemovePerformanceAsync(int performanceId)
     {
+        InvalidateInFlightLoads();
+
         var cached = await store.GetCachedAsync();
         if (cached is null)
         {

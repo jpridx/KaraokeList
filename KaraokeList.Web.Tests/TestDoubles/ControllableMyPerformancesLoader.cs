@@ -9,6 +9,9 @@ namespace KaraokeList.Web.Tests.TestDoubles;
 public sealed class ControllableMyPerformancesLoader(IMyPerformancesLocalStore store) : IMyPerformancesLoader
 {
     private readonly Queue<Func<Task<MyPerformancesLoadResult>>> loadQueue = new();
+    private int loadCommitGeneration;
+
+    public void InvalidateInFlightLoads() => Interlocked.Increment(ref loadCommitGeneration);
 
     public void EnqueueLoad(Func<Task<MyPerformancesLoadResult>> behavior) => loadQueue.Enqueue(behavior);
 
@@ -41,6 +44,8 @@ public sealed class ControllableMyPerformancesLoader(IMyPerformancesLocalStore s
 
     public async Task PatchPerformanceAsync(MyPerformanceEntryDto updated)
     {
+        InvalidateInFlightLoads();
+
         var cached = await store.GetCachedAsync();
         if (cached is null)
         {

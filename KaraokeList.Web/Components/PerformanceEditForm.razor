@@ -79,7 +79,7 @@
     private int? _venueId;
     private int? _keyChangeSemitones;
 
-    protected override void OnParametersSet()
+    protected override void OnInitialized()
     {
         _performedOn = PerformedOn;
         _venueId = VenueId;

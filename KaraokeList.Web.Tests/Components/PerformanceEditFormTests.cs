@@ -60,4 +60,36 @@ public sealed class PerformanceEditFormTests : BunitTestContext
         Assert.Equal(2, venueSentToParent);
         Assert.True(callbackOrder.IndexOf("venue") < callbackOrder.IndexOf("save"));
     }
+
+    [Fact]
+    public void Parent_rerender_does_not_reset_local_venue_selection()
+    {
+        var cut = Render<PerformanceEditForm>(parameters => parameters
+            .Add(p => p.SingerId, 1)
+            .Add(p => p.Venues,
+            [
+                new VenueDto { Id = 1, VenueName = "Old Venue" },
+                new VenueDto { Id = 2, VenueName = "New Venue" }
+            ])
+            .Add(p => p.PerformedOn, DateTime.Today)
+            .Add(p => p.VenueId, 1)
+            .Add(p => p.OnSave, EventCallback.Factory.Create(this, () => { }))
+            .Add(p => p.OnCancel, EventCallback.Factory.Create(this, () => { })));
+
+        var venueField = typeof(PerformanceEditForm).GetField("_venueId", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(venueField);
+        venueField.SetValue(cut.Instance, 2);
+
+        cut.Render(parameters => parameters
+            .Add(p => p.SingerId, 1)
+            .Add(p => p.Venues,
+            [
+                new VenueDto { Id = 1, VenueName = "Old Venue" },
+                new VenueDto { Id = 2, VenueName = "New Venue" }
+            ])
+            .Add(p => p.PerformedOn, DateTime.Today)
+            .Add(p => p.VenueId, 1));
+
+        Assert.Equal(2, venueField.GetValue(cut.Instance));
+    }
 }
