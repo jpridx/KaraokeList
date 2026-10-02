@@ -203,6 +203,62 @@ public sealed class MyPerformancesLoaderTests
     }
 
     [Fact]
+    public async Task Patch_waits_for_in_flight_load_save_then_keeps_patched_cache()
+    {
+        var inner = new MyPerformancesLocalStore(new InMemoryLocalStorage());
+        var gatedStore = new GatedMyPerformancesLocalStore(inner);
+        await gatedStore.SaveCachedAsync(new CachedMyPerformances(
+        [
+            new MyPerformanceEntryDto
+            {
+                Id = 3,
+                SongId = 7,
+                Title = "Stored Song",
+                VenueName = "Old Venue",
+                PerformedOn = DateTime.Today
+            }
+        ],
+            DateTime.UtcNow));
+
+        var releaseLoadSave = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        gatedStore.PauseNextSaveUntil(releaseLoadSave);
+
+        var api = new Mock<IKaraokeApiClient>();
+        api.Setup(client => client.GetMyPerformancesAsync(null, "desc"))
+            .ReturnsAsync(MyPerformancesResult.Ok(
+            [
+                new MyPerformanceEntryDto
+                {
+                    Id = 3,
+                    SongId = 7,
+                    Title = "Stored Song",
+                    VenueName = "Stale From Api",
+                    PerformedOn = DateTime.Today
+                }
+            ]));
+
+        var loader = new MyPerformancesLoader(api.Object, gatedStore);
+        var loadTask = loader.LoadAsync();
+
+        var patchTask = loader.PatchPerformanceAsync(new MyPerformanceEntryDto
+        {
+            Id = 3,
+            SongId = 7,
+            Title = "Stored Song",
+            VenueName = "New Venue",
+            PerformedOn = DateTime.Today
+        });
+
+        await Task.Delay(50);
+        releaseLoadSave.SetResult();
+        await Task.WhenAll(loadTask, patchTask);
+
+        var cached = await gatedStore.GetCachedAsync();
+        Assert.NotNull(cached);
+        Assert.Equal("New Venue", cached.Performances[0].VenueName);
+    }
+
+    [Fact]
     public async Task RemovePerformanceAsync_removes_matching_entry_from_cache()
     {
         var store = new MyPerformancesLocalStore(new InMemoryLocalStorage());

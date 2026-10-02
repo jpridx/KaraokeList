@@ -24,6 +24,7 @@ public sealed class MyPerformancesLoader(
 {
     private const int CurrentCacheSchemaVersion = 1;
     private int loadCommitGeneration;
+    private readonly SemaphoreSlim cacheCommitLock = new(1, 1);
 
     public void InvalidateInFlightLoads() => Interlocked.Increment(ref loadCommitGeneration);
 
@@ -40,18 +41,26 @@ public sealed class MyPerformancesLoader(
                     result.ErrorMessage?.Contains("not linked", StringComparison.OrdinalIgnoreCase) == true);
             }
 
-            if (commitGeneration != Volatile.Read(ref loadCommitGeneration))
+            await cacheCommitLock.WaitAsync();
+            try
             {
-                return await PreferCachedOrTransientApiResultAsync(result.Performances);
+                if (commitGeneration != Volatile.Read(ref loadCommitGeneration))
+                {
+                    return await PreferCachedOrTransientApiResultAsync(result.Performances);
+                }
+
+                var cachedAt = DateTime.UtcNow;
+                await store.SaveCachedAsync(new CachedMyPerformances(
+                    result.Performances,
+                    cachedAt,
+                    CurrentCacheSchemaVersion));
+
+                return BuildResult(result.Performances, FromCache: false, cachedAt);
             }
-
-            var cachedAt = DateTime.UtcNow;
-            await store.SaveCachedAsync(new CachedMyPerformances(
-                result.Performances,
-                cachedAt,
-                CurrentCacheSchemaVersion));
-
-            return BuildResult(result.Performances, FromCache: false, cachedAt);
+            finally
+            {
+                cacheCommitLock.Release();
+            }
         }
         catch (Exception ex) when (ApiTransientFailure.IsTransient(ex))
         {
@@ -116,46 +125,62 @@ public sealed class MyPerformancesLoader(
     {
         InvalidateInFlightLoads();
 
-        var cached = await store.GetCachedAsync();
-        if (cached is null)
+        await cacheCommitLock.WaitAsync();
+        try
         {
-            return;
-        }
+            var cached = await store.GetCachedAsync();
+            if (cached is null)
+            {
+                return;
+            }
 
-        var performances = cached.Performances.ToList();
-        var index = performances.FindIndex(p => p.Id == updated.Id);
-        if (index < 0)
+            var performances = cached.Performances.ToList();
+            var index = performances.FindIndex(p => p.Id == updated.Id);
+            if (index < 0)
+            {
+                return;
+            }
+
+            performances[index] = updated;
+            await store.SaveCachedAsync(new CachedMyPerformances(
+                performances,
+                DateTime.UtcNow,
+                cached.SchemaVersion));
+        }
+        finally
         {
-            return;
+            cacheCommitLock.Release();
         }
-
-        performances[index] = updated;
-        await store.SaveCachedAsync(new CachedMyPerformances(
-            performances,
-            DateTime.UtcNow,
-            cached.SchemaVersion));
     }
 
     public async Task RemovePerformanceAsync(int performanceId)
     {
         InvalidateInFlightLoads();
 
-        var cached = await store.GetCachedAsync();
-        if (cached is null)
+        await cacheCommitLock.WaitAsync();
+        try
         {
-            return;
-        }
+            var cached = await store.GetCachedAsync();
+            if (cached is null)
+            {
+                return;
+            }
 
-        var performances = cached.Performances.Where(p => p.Id != performanceId).ToList();
-        if (performances.Count == cached.Performances.Count)
+            var performances = cached.Performances.Where(p => p.Id != performanceId).ToList();
+            if (performances.Count == cached.Performances.Count)
+            {
+                return;
+            }
+
+            await store.SaveCachedAsync(new CachedMyPerformances(
+                performances,
+                DateTime.UtcNow,
+                cached.SchemaVersion));
+        }
+        finally
         {
-            return;
+            cacheCommitLock.Release();
         }
-
-        await store.SaveCachedAsync(new CachedMyPerformances(
-            performances,
-            DateTime.UtcNow,
-            cached.SchemaVersion));
     }
 
     private static MyPerformancesLoadResult BuildResult(
