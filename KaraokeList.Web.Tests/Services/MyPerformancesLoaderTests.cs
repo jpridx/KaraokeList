@@ -58,6 +58,78 @@ public sealed class MyPerformancesLoaderTests
     }
 
     [Fact]
+    public async Task TryGetCachedAsync_returns_empty_snapshot_when_cache_is_empty()
+    {
+        var store = new MyPerformancesLocalStore(new InMemoryLocalStorage());
+        await store.SaveCachedAsync(new CachedMyPerformances([], DateTime.UtcNow));
+
+        var loader = new MyPerformancesLoader(new PerformancesApiStub(), store);
+        var result = await loader.TryGetCachedAsync();
+
+        Assert.NotNull(result);
+        Assert.Empty(result!.Performances);
+        Assert.True(result.FromCache);
+    }
+
+    [Fact]
+    public async Task LoadAsync_returns_empty_stored_cache_when_invalidated_after_delete()
+    {
+        var store = new MyPerformancesLocalStore(new InMemoryLocalStorage());
+        await store.SaveCachedAsync(new CachedMyPerformances(
+        [
+            new MyPerformanceEntryDto
+            {
+                Id = 3,
+                SongId = 7,
+                Title = "Stored Song",
+                VenueName = "Old Venue",
+                PerformedOn = DateTime.Today
+            }
+        ],
+            DateTime.UtcNow));
+
+        var api = new Mock<IKaraokeApiClient>();
+        api.Setup(client => client.GetMyPerformancesAsync(null, "desc"))
+            .ReturnsAsync(MyPerformancesResult.Ok(
+            [
+                new MyPerformanceEntryDto
+                {
+                    Id = 3,
+                    SongId = 7,
+                    Title = "Stored Song",
+                    VenueName = "Old Venue",
+                    PerformedOn = DateTime.Today
+                }
+            ]));
+
+        var loader = new MyPerformancesLoader(api.Object, store);
+        await loader.RemovePerformanceAsync(3);
+
+        var apiResultStarted = new TaskCompletionSource<MyPerformancesResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        api.Setup(client => client.GetMyPerformancesAsync(null, "desc"))
+            .Returns(apiResultStarted.Task);
+
+        var loadTask = loader.LoadAsync();
+        loader.InvalidateInFlightLoads();
+        apiResultStarted.SetResult(MyPerformancesResult.Ok(
+        [
+            new MyPerformanceEntryDto
+            {
+                Id = 3,
+                SongId = 7,
+                Title = "Stored Song",
+                VenueName = "Resurrected From Api",
+                PerformedOn = DateTime.Today
+            }
+        ]));
+
+        var result = await loadTask;
+
+        Assert.Empty(result.Performances);
+        Assert.True(result.FromCache);
+    }
+
+    [Fact]
     public async Task TryGetCachedAsync_returns_cached_performances()
     {
         var store = new MyPerformancesLocalStore(new InMemoryLocalStorage());

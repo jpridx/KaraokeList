@@ -28,7 +28,7 @@ public sealed class ControllableMyPerformancesLoader(IMyPerformancesLocalStore s
     public async Task<MyPerformancesLoadResult?> TryGetCachedAsync()
     {
         var cached = await store.GetCachedAsync();
-        if (cached is null || cached.Performances.Count == 0)
+        if (cached is null)
         {
             return null;
         }

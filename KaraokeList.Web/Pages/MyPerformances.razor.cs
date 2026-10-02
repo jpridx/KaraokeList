@@ -74,16 +74,8 @@ public partial class MyPerformances
             await InvokeAsync(StateHasChanged);
         }
 
-        try
-        {
-            var refreshed = await PerformancesLoader.LoadAsync();
-            ApplyLoadResultIfCurrent(refreshed, generation);
-            await InvokeAsync(StateHasChanged);
-        }
-        catch
-        {
-            // Post-edit refresh failures are silent; patched cache remains visible.
-        }
+        // Cache is already patched; refresh from API in the background so Save/Cancel is not blocked.
+        _ = RefreshPerformancesInBackgroundAsync();
     }
 
     private async Task ReloadPerformancesAsync()

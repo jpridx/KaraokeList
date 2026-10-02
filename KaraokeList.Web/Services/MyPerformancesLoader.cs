@@ -69,26 +69,27 @@ public sealed class MyPerformancesLoader(
     }
 
     private async Task<MyPerformancesLoadResult> PreferCachedOrTransientApiResultAsync(
-        IReadOnlyList<MyPerformanceEntryDto> apiPerformances)
+        IReadOnlyList<MyPerformanceEntryDto> _)
     {
-        var cached = await TryGetCachedAsync();
-        if (cached is not null)
+        var stored = await store.GetCachedAsync();
+        if (stored is not null)
         {
-            return cached;
+            return BuildStoredCacheResult(stored);
         }
 
-        return BuildResult(apiPerformances, FromCache: false, DateTime.UtcNow);
+        // Do not return a stale API snapshot when this load was invalidated and nothing is stored.
+        return BuildResult([], FromCache: false, null);
     }
 
     public async Task<MyPerformancesLoadResult?> TryGetCachedAsync()
     {
         var cached = await store.GetCachedAsync();
-        if (cached is null || cached.Performances.Count == 0)
+        if (cached is null)
         {
             return null;
         }
 
-        return BuildResult(cached.Performances, FromCache: true, cached.CachedAtUtc);
+        return BuildStoredCacheResult(cached);
     }
 
     private async Task<MyPerformancesLoadResult> LoadOfflineOrFailAsync(
@@ -96,7 +97,7 @@ public sealed class MyPerformancesLoader(
         bool needsSingerLink)
     {
         var cached = await store.GetCachedAsync();
-        if (cached is null || cached.Performances.Count == 0)
+        if (cached is null)
         {
             if (needsSingerLink)
             {
@@ -118,7 +119,7 @@ public sealed class MyPerformancesLoader(
                 false);
         }
 
-        return BuildResult(cached.Performances, FromCache: true, cached.CachedAtUtc);
+        return BuildStoredCacheResult(cached);
     }
 
     public async Task PatchPerformanceAsync(MyPerformanceEntryDto updated)
@@ -192,6 +193,15 @@ public sealed class MyPerformancesLoader(
             FromCache,
             HasCache: performances.Count > 0,
             cachedAt,
+            null,
+            false);
+
+    private static MyPerformancesLoadResult BuildStoredCacheResult(CachedMyPerformances cached) =>
+        new(
+            cached.Performances,
+            FromCache: true,
+            HasCache: true,
+            cached.CachedAtUtc,
             null,
             false);
 
