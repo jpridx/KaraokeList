@@ -44,10 +44,13 @@ public static class RecentLogsHydrator
             .Where(log => RecentLogsRefreshPolicy.ShouldUseLocalRecentLogs(log.LoggedAt, now))
             .ToList();
 
+        var localSourceKeys = localByKey.Keys.ToHashSet();
+
         return pendingLocals
             .Concat(freshLocalOnly)
             .Concat(apiEntries)
-            .OrderByDescending(log => log.LoggedAt)
+            .OrderByDescending(log => localSourceKeys.Contains(Key(log)))
+            .ThenByDescending(log => log.LoggedAt)
             .ThenByDescending(log => log.PerformedOn)
             .Take(maxCount)
             .ToList();

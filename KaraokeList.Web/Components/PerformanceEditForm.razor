@@ -6,16 +6,14 @@
     <label class="form-label small text-muted mb-1">Date</label>
     <InputDate class="form-control form-control-sm mb-2" @bind-Value="_performedOn" />
     <label class="form-label small text-muted mb-1">Venue</label>
-    <SfDropDownList TValue="int?" TItem="VenueDto" DataSource="@Venues" Value="@_venueId"
-                    ValueChanged="@(value => _venueId = value)"
+    <SfDropDownList TValue="int?" TItem="VenueDto" DataSource="@Venues" @bind-Value="_venueId"
                     Placeholder="Select venue" AllowFiltering="true"
                     FilterType="Syncfusion.Blazor.DropDowns.FilterType.Contains">
         <DropDownListFieldSettings Value="Id" Text="VenueName" />
     </SfDropDownList>
     <label class="form-label small text-muted mb-1 mt-2">Key</label>
     <SfDropDownList TValue="int?" TItem="PerformanceKeyOption" DataSource="@KeyOptions"
-                    Value="@_keyChangeSemitones"
-                    ValueChanged="@(value => _keyChangeSemitones = value)">
+                    @bind-Value="_keyChangeSemitones">
         <DropDownListFieldSettings Value="Semitones" Text="Label" />
     </SfDropDownList>
     <CoPerformersEditor PrimarySingerId="@SingerId" @bind-OtherPerformers="OtherPerformers" />
