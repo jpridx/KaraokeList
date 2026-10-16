@@ -61,7 +61,7 @@
     public EventCallback<int?> KeyChangeSemitonesChanged { get; set; }
 
     [Parameter, EditorRequired]
-    public EventCallback OnHistoryChanged { get; set; }
+    public EventCallback<PerformanceChangeInfo> OnHistoryChanged { get; set; }
 
     [Parameter, EditorRequired]
     public EventCallback<PerformanceSavedEventArgs> OnPerformanceSaved { get; set; }

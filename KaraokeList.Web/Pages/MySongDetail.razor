@@ -130,7 +130,7 @@
         await ReloadSongDetailAsync();
     }
 
-    private async Task OnHistoryChangedAsync() => await ReloadSongDetailAsync();
+    private async Task OnHistoryChangedAsync(PerformanceChangeInfo _) => await ReloadSongDetailAsync();
 
     private Task OnGenreChangedAsync(SongGenreChangedEventArgs args)
     {

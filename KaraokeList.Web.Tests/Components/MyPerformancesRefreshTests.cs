@@ -1,6 +1,7 @@
 using System.Reflection;
 using Blazored.LocalStorage;
 using KaraokeList.Shared;
+using KaraokeList.Web.Components;
 using KaraokeList.Web.Pages;
 using KaraokeList.Web.Services;
 using KaraokeList.Web.Tests.Pages;
@@ -120,7 +121,9 @@ public sealed class MyPerformancesRefreshTests : AuthPageTestContext
             "RefreshPerformancesAfterEditAsync",
             BindingFlags.Instance | BindingFlags.NonPublic);
         Assert.NotNull(refreshMethod);
-        await cut.InvokeAsync(async () => await (Task)refreshMethod.Invoke(cut.Instance, null)!);
+        await cut.InvokeAsync(async () => await (Task)refreshMethod.Invoke(
+            cut.Instance,
+            [new PerformanceChangeInfo(null, DeletedPerformanceId: null)])!);
 
         cut.WaitForAssertion(() => Assert.Contains("New Venue", cut.Markup));
 
@@ -129,6 +132,51 @@ public sealed class MyPerformancesRefreshTests : AuthPageTestContext
         cut.Render();
 
         Assert.Contains("New Venue", cut.Markup);
+        Assert.DoesNotContain("Old Venue", cut.Markup);
+    }
+
+    [Fact]
+    public async Task Optimistic_change_updates_venue_before_cache_is_read()
+    {
+        await performancesLocalStorage.SetItemAsync("karaoke.myPerformances.cached", new CachedMyPerformances(
+        [
+            new MyPerformanceEntryDto
+            {
+                Id = 7,
+                SongId = 10,
+                Title = "Race Song",
+                ArtistName = "Artist",
+                VenueId = 1,
+                VenueName = "Old Venue",
+                PerformedOn = DateTime.Today
+            }
+        ],
+            DateTime.UtcNow));
+
+        var cut = Render<MyPerformances>();
+        cut.WaitForAssertion(() => Assert.Contains("Old Venue", cut.Markup));
+
+        var refreshMethod = typeof(MyPerformances).GetMethod(
+            "RefreshPerformancesAfterEditAsync",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(refreshMethod);
+
+        var after = new PerformanceEditSnapshot(
+            7,
+            10,
+            "Race Song",
+            "Artist",
+            "Artist",
+            DateTime.Today,
+            2,
+            "New Venue",
+            null);
+
+        await cut.InvokeAsync(async () => await (Task)refreshMethod.Invoke(
+            cut.Instance,
+            [new PerformanceChangeInfo(after, DeletedPerformanceId: null)])!);
+
+        cut.WaitForAssertion(() => Assert.Contains("New Venue", cut.Markup));
         Assert.DoesNotContain("Old Venue", cut.Markup);
     }
 }

@@ -101,7 +101,7 @@
     public IReadOnlyList<EditablePerformanceEntry> Entries { get; set; } = [];
 
     [Parameter]
-    public EventCallback OnChanged { get; set; }
+    public EventCallback<PerformanceChangeInfo> OnChanged { get; set; }
 
     [Parameter]
     public bool AllowMutations { get; set; } = true;
@@ -207,17 +207,17 @@
 
         if (result.Succeeded)
         {
+            PerformanceEditSnapshot? afterSnapshot = null;
             if (editBeforeSnapshot is not null)
             {
-                await PerformanceCache.PatchAfterUpdateAsync(
-                    editBeforeSnapshot,
-                    BuildAfterSnapshot(entry, editBeforeSnapshot));
+                afterSnapshot = BuildAfterSnapshot(entry, editBeforeSnapshot);
+                await PerformanceCache.PatchAfterUpdateAsync(editBeforeSnapshot, afterSnapshot);
             }
 
             editingId = null;
             editBeforeSnapshot = null;
             statusMessage = "Performance updated.";
-            await OnChanged.InvokeAsync();
+            await OnChanged.InvokeAsync(new PerformanceChangeInfo(afterSnapshot, DeletedPerformanceId: null));
         }
         else
         {
@@ -244,7 +244,9 @@
 
             deleteConfirmId = null;
             statusMessage = "Performance deleted.";
-            await OnChanged.InvokeAsync();
+            await OnChanged.InvokeAsync(new PerformanceChangeInfo(
+                Updated: null,
+                DeletedPerformanceId: performanceId));
         }
         else
         {

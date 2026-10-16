@@ -61,7 +61,7 @@ public partial class MyPerformances
         await ReloadPerformancesAsync();
     }
 
-    private async Task RefreshPerformancesAfterEditAsync()
+    private async Task RefreshPerformancesAfterEditAsync(PerformanceChangeInfo change)
     {
         var generation = ++loadGeneration;
         PerformancesLoader.InvalidateInFlightLoads();
@@ -71,11 +71,43 @@ public partial class MyPerformances
         {
             ApplyLoadResultIfCurrent(cached, generation);
             usingOfflinePerformances = false;
-            await InvokeAsync(StateHasChanged);
         }
+
+        // Apply after cache so a stale snapshot cannot overwrite a successful save.
+        ApplyOptimisticChange(change);
+
+        await InvokeAsync(StateHasChanged);
 
         // Cache is already patched; refresh from API in the background so Save/Cancel is not blocked.
         _ = RefreshPerformancesInBackgroundAsync();
+    }
+
+    private void ApplyOptimisticChange(PerformanceChangeInfo change)
+    {
+        if (change.DeletedPerformanceId is int deletedId)
+        {
+            allPerformances.RemoveAll(p => p.Id == deletedId);
+            ApplyClientFilters();
+            return;
+        }
+
+        if (change.Updated is not { } after)
+        {
+            return;
+        }
+
+        var index = allPerformances.FindIndex(p => p.Id == after.PerformanceId);
+        if (index < 0)
+        {
+            return;
+        }
+
+        var entry = allPerformances[index];
+        entry.PerformedOn = after.PerformedOn;
+        entry.VenueId = after.VenueId;
+        entry.VenueName = after.VenueName;
+        entry.KeyChangeSemitones = after.KeyChangeSemitones == 0 ? null : after.KeyChangeSemitones;
+        ApplyClientFilters();
     }
 
     private async Task ReloadPerformancesAsync()
