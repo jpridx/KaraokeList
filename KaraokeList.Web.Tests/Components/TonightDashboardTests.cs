@@ -149,6 +149,75 @@ public sealed class TonightDashboardTests : AuthPageTestContext
     }
 
     [Fact]
+    public async Task Recently_logged_loads_api_when_fresh_local_and_performance_cache_is_stale()
+    {
+        var store = (LogPerformanceLocalStore)Services.GetRequiredService<ILogPerformanceLocalStore>();
+        var loggedAt = DateTime.Now.AddMinutes(-30);
+        await store.AddRecentLogAsync(new RecentLoggedPerformance(
+            SongId: 10,
+            Title: "La Fiesta Today",
+            ArtistName: "Artist",
+            VenueName: "La Fiesta",
+            PerformedOn: DateTime.Today,
+            KeyChangeSemitones: null,
+            LoggedAt: loggedAt));
+
+        var staleCacheUtc = DateTime.UtcNow.AddDays(-3);
+        performancesLoader.Setup(loader => loader.TryGetCachedAsync())
+            .ReturnsAsync(new MyPerformancesLoadResult(
+            [
+                new MyPerformanceEntryDto
+                {
+                    SongId = 99,
+                    Title = "Stale Cache Song",
+                    ArtistName = "Artist",
+                    VenueName = "Old Venue",
+                    PerformedOn = DateTime.Today.AddDays(-5)
+                }
+            ],
+            FromCache: true,
+            HasCache: true,
+            staleCacheUtc,
+            null,
+            false));
+
+        performancesLoader.Setup(loader => loader.LoadAsync())
+            .ReturnsAsync(new MyPerformancesLoadResult(
+            [
+                new MyPerformanceEntryDto
+                {
+                    SongId = 10,
+                    Title = "La Fiesta Today",
+                    ArtistName = "Artist",
+                    VenueName = "La Fiesta",
+                    PerformedOn = DateTime.Today
+                },
+                new MyPerformanceEntryDto
+                {
+                    SongId = 20,
+                    Title = "Silver Sevens Song",
+                    ArtistName = "Artist",
+                    VenueName = "Silver Sevens",
+                    PerformedOn = DateTime.Today.AddDays(-2)
+                }
+            ],
+            FromCache: false,
+            HasCache: true,
+            DateTime.UtcNow,
+            null,
+            false));
+
+        var cut = Render<TonightDashboard>();
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Contains("La Fiesta Today", cut.Markup);
+            Assert.Contains("Silver Sevens Song", cut.Markup);
+        });
+        performancesLoader.Verify(loader => loader.LoadAsync(), Times.Once);
+    }
+
+    [Fact]
     public async Task Recently_logged_refreshes_from_api_when_local_storage_is_stale()
     {
         var store = (LogPerformanceLocalStore)Services.GetRequiredService<ILogPerformanceLocalStore>();

@@ -44,6 +44,7 @@
 @code {
     private string? defaultVenueName;
     private IReadOnlyList<RecentLoggedPerformance> recentLogs = [];
+    private readonly SemaphoreSlim recentLogsRefreshLock = new(1, 1);
 
     private sealed record PerformancesHydrationSource(
         IReadOnlyList<MyPerformanceEntryDto> Performances,
@@ -105,6 +106,7 @@
 
     private async Task RefreshRecentLogsIfNeededAsync()
     {
+        await recentLogsRefreshLock.WaitAsync();
         try
         {
             var localLogs = await LogStore.GetRecentLogsAsync();
@@ -154,6 +156,10 @@
         {
             // Non-fatal; stale local recent logs remain until the next successful refresh.
         }
+        finally
+        {
+            recentLogsRefreshLock.Release();
+        }
     }
 
     private async Task<PerformancesHydrationSource?> GetCachedPerformancesForHydrationAsync()
@@ -161,7 +167,8 @@
         var cached = await PerformancesLoader.TryGetCachedAsync();
         if (cached is null
             || cached.Performances.Count == 0
-            || cached.CachedAtUtc is not DateTime cachedAtUtc)
+            || cached.CachedAtUtc is not DateTime cachedAtUtc
+            || DateTime.UtcNow - cachedAtUtc >= CatalogCachePolicy.RefreshThreshold)
         {
             return null;
         }

@@ -247,6 +247,26 @@ public sealed class RecentLogsHydratorTests
     }
 
     [Fact]
+    public void Merge_prioritizes_device_local_logs_over_backfilled_hydration_timestamps()
+    {
+        var now = new DateTime(2026, 10, 16, 20, 0, 0);
+        var localLoggedAt = now.AddMinutes(-30);
+        var hydratedAt = now;
+        var api = Enumerable.Range(1, 4)
+            .Select(i => CreateApiEntry(i, $"Server {i}", now.Date.AddDays(-i)))
+            .ToList();
+        var local = new List<RecentLoggedPerformance>
+        {
+            new(99, "Just Logged", "Artist", "La Fiesta", now.Date, null, localLoggedAt)
+        };
+
+        var merged = RecentLogsHydrator.Merge(api, local, [], hydratedAt: hydratedAt, now: now);
+
+        Assert.Equal(LogPerformanceLocalStore.MaxRecentLogs, merged.Count);
+        Assert.Equal("Just Logged", merged[0].Title);
+    }
+
+    [Fact]
     public void Merge_prefers_api_venue_when_local_has_same_song_and_date()
     {
         var performedOn = new DateTime(2026, 8, 2);
