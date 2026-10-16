@@ -76,6 +76,7 @@
         if (string.IsNullOrEmpty(relativePath) || relativePath == "/")
         {
             await RefreshRecentLogsFromStoreAsync();
+            BackgroundWork.Schedule(RefreshRecentLogsIfNeededAsync);
         }
     }
 
@@ -108,12 +109,19 @@
         {
             var localLogs = await LogStore.GetRecentLogsAsync();
             var newestLoggedAt = localLogs.Count > 0 ? localLogs.Max(l => l.LoggedAt) : (DateTime?)null;
-            if (RecentLogsRefreshPolicy.ShouldUseLocalRecentLogs(newestLoggedAt))
+            var localIsFresh = RecentLogsRefreshPolicy.ShouldUseLocalRecentLogs(newestLoggedAt);
+
+            // When local logs are fresh we still merge from cached my-performances (no API load)
+            // so older nights (e.g. Saturday at another venue) can fill the three slots.
+            var source = localIsFresh
+                ? await GetCachedPerformancesForHydrationAsync()
+                : await GetPerformancesForHydrationAsync();
+            if (localIsFresh && source is null)
             {
-                return;
+                // My Performances cache not warmed yet — allow one load to backfill older nights.
+                source = await GetPerformancesForHydrationAsync();
             }
 
-            var source = await GetPerformancesForHydrationAsync();
             if (source is null || source.Performances.Count == 0)
             {
                 return;
@@ -122,7 +130,7 @@
             localLogs = await LogStore.GetRecentLogsAsync();
             var pending = await LogStore.GetPendingPerformancesAsync();
             newestLoggedAt = localLogs.Count > 0 ? localLogs.Max(l => l.LoggedAt) : null;
-            if (RecentLogsRefreshPolicy.ShouldUseLocalRecentLogs(newestLoggedAt))
+            if (!localIsFresh && RecentLogsRefreshPolicy.ShouldUseLocalRecentLogs(newestLoggedAt))
             {
                 recentLogs = localLogs;
                 await InvokeAsync(StateHasChanged);
@@ -146,6 +154,19 @@
         {
             // Non-fatal; stale local recent logs remain until the next successful refresh.
         }
+    }
+
+    private async Task<PerformancesHydrationSource?> GetCachedPerformancesForHydrationAsync()
+    {
+        var cached = await PerformancesLoader.TryGetCachedAsync();
+        if (cached is null
+            || cached.Performances.Count == 0
+            || cached.CachedAtUtc is not DateTime cachedAtUtc)
+        {
+            return null;
+        }
+
+        return new PerformancesHydrationSource(cached.Performances, ToLocalTime(cachedAtUtc));
     }
 
     private async Task<PerformancesHydrationSource?> GetPerformancesForHydrationAsync()

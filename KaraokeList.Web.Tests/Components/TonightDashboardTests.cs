@@ -56,7 +56,7 @@ public sealed class TonightDashboardTests : AuthPageTestContext
     }
 
     [Fact]
-    public async Task Recently_logged_skips_my_history_when_local_logs_are_fresh()
+    public async Task Recently_logged_skips_api_load_when_local_logs_are_fresh()
     {
         var store = (LogPerformanceLocalStore)Services.GetRequiredService<ILogPerformanceLocalStore>();
         var loggedAt = DateTime.Now.AddMinutes(-30);
@@ -69,11 +69,83 @@ public sealed class TonightDashboardTests : AuthPageTestContext
             KeyChangeSemitones: null,
             LoggedAt: loggedAt));
 
+        performancesLoader.Setup(loader => loader.TryGetCachedAsync())
+            .ReturnsAsync(new MyPerformancesLoadResult(
+            [
+                new MyPerformanceEntryDto
+                {
+                    SongId = 1,
+                    Title = "Tonight Song",
+                    ArtistName = "Artist",
+                    VenueName = "Main Stage",
+                    PerformedOn = loggedAt.Date
+                }
+            ],
+            FromCache: true,
+            HasCache: true,
+            DateTime.UtcNow.AddHours(-1),
+            null,
+            false));
+
         var cut = Render<TonightDashboard>();
 
         Assert.Contains("Tonight Song", cut.Markup);
         performancesLoader.Verify(loader => loader.LoadAsync(), Times.Never);
-        performancesLoader.Verify(loader => loader.TryGetCachedAsync(), Times.Never);
+    }
+
+    [Fact]
+    public async Task Recently_logged_merges_cached_performances_when_local_logs_are_fresh()
+    {
+        var store = (LogPerformanceLocalStore)Services.GetRequiredService<ILogPerformanceLocalStore>();
+        var today = DateTime.Today;
+        var saturday = today.AddDays(-2);
+        var loggedAt = DateTime.Now.AddMinutes(-30);
+        await store.AddRecentLogAsync(new RecentLoggedPerformance(
+            SongId: 10,
+            Title: "La Fiesta Today",
+            ArtistName: "Artist",
+            VenueName: "La Fiesta",
+            PerformedOn: today,
+            KeyChangeSemitones: null,
+            LoggedAt: loggedAt));
+
+        var cacheTimeUtc = DateTime.UtcNow.AddHours(-1);
+        performancesLoader.Setup(loader => loader.TryGetCachedAsync())
+            .ReturnsAsync(new MyPerformancesLoadResult(
+            [
+                new MyPerformanceEntryDto
+                {
+                    SongId = 10,
+                    Title = "La Fiesta Today",
+                    ArtistName = "Artist",
+                    VenueName = "La Fiesta",
+                    PerformedOn = today
+                },
+                new MyPerformanceEntryDto
+                {
+                    SongId = 20,
+                    Title = "Silver Sevens Song",
+                    ArtistName = "Artist",
+                    VenueName = "Silver Sevens",
+                    PerformedOn = saturday
+                }
+            ],
+            FromCache: true,
+            HasCache: true,
+            cacheTimeUtc,
+            null,
+            false));
+
+        var cut = Render<TonightDashboard>();
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Contains("La Fiesta Today", cut.Markup);
+            Assert.Contains("Silver Sevens Song", cut.Markup);
+            Assert.Contains("Silver Sevens", cut.Markup);
+        });
+        performancesLoader.Verify(loader => loader.LoadAsync(), Times.Never);
+        performancesLoader.Verify(loader => loader.TryGetCachedAsync(), Times.AtLeastOnce);
     }
 
     [Fact]
