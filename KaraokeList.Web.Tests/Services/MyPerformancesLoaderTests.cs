@@ -371,6 +371,7 @@ public sealed class MyPerformancesLoaderTests
         var loader = new MyPerformancesLoader(new PerformancesApiStub(), store);
         await loader.AddPerformanceAsync(new MyPerformanceEntryDto
         {
+            Id = 10,
             SongId = 42,
             Title = "Jeopardy",
             ArtistName = "The Greg Kihn Band",
@@ -386,7 +387,7 @@ public sealed class MyPerformancesLoaderTests
         var ordered = MyPerformancesQuery.Apply(cached.Performances, venueId: null, sortDir: "desc");
         Assert.Equal("Jeopardy", ordered[0].Title);
         Assert.Equal("Earlier Tonight", ordered[1].Title);
-        Assert.True(ordered[0].Id > ordered[1].Id);
+        Assert.Equal(10, ordered[0].Id);
     }
 
     [Fact]
@@ -413,7 +414,7 @@ public sealed class MyPerformancesLoaderTests
         Assert.NotNull(cached);
         var ordered = MyPerformancesQuery.Apply(cached.Performances, venueId: null, sortDir: "desc");
         Assert.Equal(["Second", "First"], ordered.Select(p => p.Title));
-        Assert.Equal(2, ordered.Select(p => p.Id).Distinct().Count());
+        Assert.Equal([-1, -2], ordered.Select(p => p.Id));
     }
 
     [Fact]
@@ -482,7 +483,7 @@ public sealed class MyPerformancesLoaderTests
     }
 
     [Fact]
-    public async Task LoadAsync_keeps_pending_logs_that_are_not_on_the_server_yet()
+    public async Task LoadAsync_merges_pending_logs_after_server_history_load()
     {
         var localStorage = new InMemoryLocalStorage();
         var logStore = new LogPerformanceLocalStore(localStorage);
@@ -505,7 +506,7 @@ public sealed class MyPerformancesLoaderTests
 
         var result = await loader.LoadAsync();
 
-        Assert.Contains(result.Performances, p => p.Title == "Queued Song");
+        Assert.Contains(result.Performances, p => p.Title == "Queued Song" && p.Id == -1);
         Assert.Contains(result.Performances, p => p.Title == "Newer Song");
         Assert.Equal(1, result.Performances.Count(p => p.Title == "Queued Song"));
     }

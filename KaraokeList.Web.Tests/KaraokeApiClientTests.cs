@@ -483,12 +483,16 @@ public sealed class KaraokeApiClientTests
     [Fact]
     public async Task TryCreatePerformanceAsync_WhenSuccess_ReturnsSucceeded()
     {
-        var client = CreateClient(new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.Created)));
+        var client = CreateClient(new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.Created)
+        {
+            Content = new StringContent("""{"id":42}""", Encoding.UTF8, "application/json")
+        }));
 
         var result = await client.TryCreatePerformanceAsync(new PerformanceDto { Singer = 1, Song = 2, Venue = 3 });
 
         Assert.True(result.Succeeded);
         Assert.False(result.IsTransient);
+        Assert.Equal(42, result.PerformanceId);
     }
 
     [Fact]

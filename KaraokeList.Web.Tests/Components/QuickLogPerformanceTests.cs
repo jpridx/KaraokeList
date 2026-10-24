@@ -112,7 +112,7 @@ public sealed class QuickLogPerformanceTests : AuthPageTestContext
             DateTime.UtcNow));
         await logStore.SaveFormDefaultsAsync(LogFormDefaults.ForToday(3));
         Api.Setup(client => client.TryCreatePerformanceAsync(It.IsAny<PerformanceDto>()))
-            .ReturnsAsync(new PerformanceCreateResult(true, false, null));
+            .ReturnsAsync(new PerformanceCreateResult(true, false, null, PerformanceId: 99));
 
         var cut = Render<QuickLogPerformance>(parameters => parameters
             .Add(p => p.SongId, 42)
@@ -138,5 +138,6 @@ public sealed class QuickLogPerformanceTests : AuthPageTestContext
         Assert.NotNull(cached);
         var ordered = MyPerformancesQuery.Apply(cached.Performances, venueId: null, sortDir: "desc");
         Assert.Equal(["Jeopardy", "Earlier Tonight"], ordered.Select(p => p.Title));
+        Assert.Equal(99, ordered[0].Id);
     }
 }

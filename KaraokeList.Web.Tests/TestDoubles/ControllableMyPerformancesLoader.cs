@@ -76,13 +76,17 @@ public sealed class ControllableMyPerformancesLoader(IMyPerformancesLocalStore s
             return;
         }
 
+        var performances = cached.Performances.ToList();
         if (created.Id <= 0)
         {
-            var maxId = cached.Performances.Count == 0 ? 0 : cached.Performances.Max(p => p.Id);
-            created.Id = maxId + 1;
+            foreach (var performance in performances.Where(p => p.Id < 0))
+            {
+                performance.Id--;
+            }
+
+            created.Id = -1;
         }
 
-        var performances = cached.Performances.ToList();
         performances.Insert(0, created);
         await store.SaveCachedAsync(new CachedMyPerformances(
             performances,

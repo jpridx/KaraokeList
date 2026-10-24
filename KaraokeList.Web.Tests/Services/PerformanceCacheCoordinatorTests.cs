@@ -35,6 +35,7 @@ public sealed class PerformanceCacheCoordinatorTests
 
         await coordinator.PatchAfterCreateAsync(new MyPerformanceEntryDto
         {
+            Id = 11,
             SongId = 9,
             Title = "Just Logged",
             ArtistName = "Artist",
@@ -48,6 +49,7 @@ public sealed class PerformanceCacheCoordinatorTests
         var ordered = MyPerformancesQuery.Apply(performances.Performances, venueId: null, sortDir: "desc");
         Assert.Equal("Just Logged", ordered[0].Title);
         Assert.Equal("Older Song", ordered[1].Title);
+        Assert.Equal(11, ordered[0].Id);
         Assert.True(notified);
     }
 

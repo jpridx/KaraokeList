@@ -226,7 +226,7 @@ public class PerformancesController(
             }
         }
 
-        return NoContent();
+        return Created($"/api/performances/{performanceId}", new PerformanceCreatedDto { Id = performanceId });
     }
 
     [HttpPut("{id:int}")]

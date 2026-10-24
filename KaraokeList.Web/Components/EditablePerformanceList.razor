@@ -55,7 +55,7 @@
                     </button>
                     <div class="performance-browse-actions">
                         <a class="btn btn-link btn-sm p-0" href="@($"log?songId={entry.SongId}")">Log</a>
-                        @if (AllowMutations)
+                        @if (AllowMutations && entry.Id > 0)
                         {
                             <button type="button" class="btn btn-link btn-sm p-0" @onclick="() => BeginEdit(entry)">Edit</button>
                             <button type="button" class="btn btn-link btn-sm p-0 text-danger" @onclick="() => BeginDelete(entry.Id)">Delete</button>
@@ -78,7 +78,7 @@
                         }
                     </div>
                     <div class="history-row-actions">
-                        @if (AllowMutations)
+                        @if (AllowMutations && entry.Id > 0)
                         {
                             <button type="button" class="btn btn-link btn-sm p-0" @onclick="() => BeginEdit(entry)">Edit</button>
                             <button type="button" class="btn btn-link btn-sm p-0 text-danger" @onclick="() => BeginDelete(entry.Id)">Delete</button>

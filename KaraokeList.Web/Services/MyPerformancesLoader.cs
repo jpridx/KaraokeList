@@ -176,15 +176,17 @@ public sealed class MyPerformancesLoader(
                 return;
             }
 
+            var performances = cached.Performances.ToList();
             if (created.Id <= 0)
             {
-                var maxId = cached.Performances.Count == 0
-                    ? 0
-                    : cached.Performances.Max(p => p.Id);
-                created.Id = maxId + 1;
+                foreach (var performance in performances.Where(p => p.Id < 0))
+                {
+                    performance.Id--;
+                }
+
+                created.Id = -1;
             }
 
-            var performances = cached.Performances.ToList();
             performances.Insert(0, created);
             await store.SaveCachedAsync(new CachedMyPerformances(
                 performances,
@@ -242,25 +244,12 @@ public sealed class MyPerformancesLoader(
         }
 
         var merged = performances.ToList();
-        var unmatchedOnServer = performances
-            .GroupBy(p => (p.SongId, p.PerformedOn.Date, p.VenueId))
-            .ToDictionary(group => group.Key, group => group.Count());
-        var maxId = merged.Count == 0 ? 0 : merged.Max(p => p.Id);
-
-        for (var i = pending.Count - 1; i >= 0; i--)
+        for (var i = 0; i < pending.Count; i++)
         {
             var entry = pending[i];
-            var key = (entry.SongId, entry.PerformedOn.Date, (int?)entry.VenueId);
-            if (unmatchedOnServer.TryGetValue(key, out var remaining) && remaining > 0)
-            {
-                unmatchedOnServer[key] = remaining - 1;
-                continue;
-            }
-
-            maxId++;
             merged.Insert(0, new MyPerformanceEntryDto
             {
-                Id = maxId,
+                Id = -(pending.Count - i),
                 SongId = entry.SongId,
                 Title = entry.Title,
                 ArtistName = entry.ArtistName,

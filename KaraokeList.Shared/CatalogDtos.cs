@@ -119,6 +119,11 @@ public class CoPerformerInputDto
         performers.Select(p => p.Clone()).ToList();
 }
 
+public class PerformanceCreatedDto
+{
+    public int Id { get; set; }
+}
+
 public class PerformanceDto
 {
     public int Id { get; set; }

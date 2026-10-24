@@ -53,6 +53,7 @@ public sealed class MyPerformancesPageTests : AuthPageTestContext
         var loader = new MyPerformancesLoader(Api.Object, store);
         await loader.AddPerformanceAsync(new MyPerformanceEntryDto
         {
+            Id = 42,
             SongId = 42,
             Title = "Jeopardy",
             ArtistName = "The Greg Kihn Band",

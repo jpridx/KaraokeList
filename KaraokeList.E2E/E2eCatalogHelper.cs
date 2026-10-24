@@ -125,10 +125,13 @@ internal static class E2eCatalogHelper
             throw new InvalidOperationException($"Create performance failed ({(int)create.StatusCode}): {body}");
         }
 
-        var performances = await apiClient.GetFromJsonAsync<List<PerformanceDto>>("/api/performances")
-            ?? throw new InvalidOperationException("Performances list returned null.");
-        var created = performances.FirstOrDefault(p => p.Song == songId && p.PerformedOn == performed)
-            ?? throw new InvalidOperationException("Created performance was not found.");
+        var created = await create.Content.ReadFromJsonAsync<PerformanceCreatedDto>()
+            ?? throw new InvalidOperationException("Create performance returned no body.");
+        if (created.Id <= 0)
+        {
+            throw new InvalidOperationException("Create performance returned an invalid id.");
+        }
+
         return created.Id;
     }
 

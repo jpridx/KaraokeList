@@ -20,6 +20,18 @@ public sealed class PerformancesScopingTests(KaraokeApiFactory factory)
     }
 
     [SkippableFact]
+    public async Task CreatePerformance_ReturnsCreatedPerformanceId()
+    {
+        Skip.IfNot(factory.IsDatabaseAvailable, IntegrationTestConnection.SkipReason);
+
+        var client = await CreateAuthedClientAsync();
+        var (songId, venueId) = await PerformanceTestDataHelper.CreateCatalogAsync(client);
+        var performanceId = await PerformanceTestDataHelper.CreatePerformanceAsync(client, songId, venueId);
+
+        Assert.True(performanceId > 0);
+    }
+
+    [SkippableFact]
     public async Task GetPerformances_ReturnsOnlyCurrentSingerPerformances()
     {
         Skip.IfNot(factory.IsDatabaseAvailable, IntegrationTestConnection.SkipReason);
@@ -284,12 +296,10 @@ internal static class PerformanceTestDataHelper
             KeyChangeSemitones = keyChangeSemitones,
             OtherPerformers = otherPerformers?.ToList()
         });
-        Assert.Equal(HttpStatusCode.NoContent, create.StatusCode);
-
-        var performances = await client.GetFromJsonAsync<List<PerformanceDto>>("/api/performances");
-        Assert.NotNull(performances);
-        var created = Assert.Single(performances, p => p.Song == songId && p.PerformedOn == performed);
-        Assert.True(created.Id > 0);
-        return created.Id;
+        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
+        var createdBody = await create.Content.ReadFromJsonAsync<PerformanceCreatedDto>();
+        Assert.NotNull(createdBody);
+        Assert.True(createdBody.Id > 0);
+        return createdBody.Id;
     }
 }
