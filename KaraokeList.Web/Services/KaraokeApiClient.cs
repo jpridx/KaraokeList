@@ -1101,14 +1101,16 @@ public sealed class KaraokeApiClient(HttpClient http) : IKaraokeApiClient
             var response = await http.PostAsJsonAsync("api/performances", dto);
             if (response.IsSuccessStatusCode)
             {
-                int? performanceId = null;
                 var created = await response.Content.ReadFromJsonAsync<PerformanceCreatedDto>();
-                if (created?.Id > 0)
+                if (created?.Id is not > 0)
                 {
-                    performanceId = created.Id;
+                    return new PerformanceCreateResult(
+                        false,
+                        IsTransient: false,
+                        "Could not save performance: server did not return a performance id.");
                 }
 
-                return new PerformanceCreateResult(true, false, null, performanceId);
+                return new PerformanceCreateResult(true, false, null, created.Id);
             }
 
             var message = await ReadApiErrorMessageAsync(response);
