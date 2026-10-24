@@ -350,6 +350,166 @@ public sealed class MyPerformancesLoaderTests
         Assert.Equal(4, cached.Performances[0].Id);
     }
 
+    [Fact]
+    public async Task AddPerformanceAsync_prepends_and_sorts_ahead_of_same_day_rows()
+    {
+        var store = new MyPerformancesLocalStore(new InMemoryLocalStorage());
+        var today = DateTime.Today;
+        await store.SaveCachedAsync(new CachedMyPerformances(
+        [
+            new MyPerformanceEntryDto
+            {
+                Id = 8,
+                SongId = 7,
+                Title = "Earlier Tonight",
+                VenueName = "Main Stage",
+                PerformedOn = today
+            }
+        ],
+            DateTime.UtcNow.AddMinutes(-30)));
+
+        var loader = new MyPerformancesLoader(new PerformancesApiStub(), store);
+        await loader.AddPerformanceAsync(new MyPerformanceEntryDto
+        {
+            SongId = 42,
+            Title = "Jeopardy",
+            ArtistName = "The Greg Kihn Band",
+            ArtistDisplay = "The Greg Kihn Band",
+            VenueName = "Main Stage",
+            PerformedOn = today
+        });
+
+        var cached = await store.GetCachedAsync();
+        Assert.NotNull(cached);
+        Assert.Equal(2, cached.Performances.Count);
+
+        var ordered = MyPerformancesQuery.Apply(cached.Performances, venueId: null, sortDir: "desc");
+        Assert.Equal("Jeopardy", ordered[0].Title);
+        Assert.Equal("Earlier Tonight", ordered[1].Title);
+        Assert.True(ordered[0].Id > ordered[1].Id);
+    }
+
+    [Fact]
+    public async Task AddPerformanceAsync_keeps_each_new_log_when_several_are_saved()
+    {
+        var store = new MyPerformancesLocalStore(new InMemoryLocalStorage());
+        await store.SaveCachedAsync(new CachedMyPerformances([], DateTime.UtcNow.AddHours(-1)));
+
+        var loader = new MyPerformancesLoader(new PerformancesApiStub(), store);
+        await loader.AddPerformanceAsync(new MyPerformanceEntryDto
+        {
+            SongId = 1,
+            Title = "First",
+            PerformedOn = DateTime.Today
+        });
+        await loader.AddPerformanceAsync(new MyPerformanceEntryDto
+        {
+            SongId = 2,
+            Title = "Second",
+            PerformedOn = DateTime.Today
+        });
+
+        var cached = await store.GetCachedAsync();
+        Assert.NotNull(cached);
+        var ordered = MyPerformancesQuery.Apply(cached.Performances, venueId: null, sortDir: "desc");
+        Assert.Equal(["Second", "First"], ordered.Select(p => p.Title));
+        Assert.Equal(2, ordered.Select(p => p.Id).Distinct().Count());
+    }
+
+    [Fact]
+    public async Task AddPerformanceAsync_does_nothing_when_performances_have_not_been_cached()
+    {
+        var store = new MyPerformancesLocalStore(new InMemoryLocalStorage());
+        var loader = new MyPerformancesLoader(new PerformancesApiStub(), store);
+
+        await loader.AddPerformanceAsync(new MyPerformanceEntryDto
+        {
+            SongId = 42,
+            Title = "Jeopardy",
+            PerformedOn = DateTime.Today
+        });
+
+        Assert.Null(await store.GetCachedAsync());
+    }
+
+    [Fact]
+    public async Task AddPerformanceAsync_invalidates_in_flight_load_before_writing()
+    {
+        var store = new MyPerformancesLocalStore(new InMemoryLocalStorage());
+        await store.SaveCachedAsync(new CachedMyPerformances(
+        [
+            new MyPerformanceEntryDto
+            {
+                Id = 3,
+                SongId = 7,
+                Title = "Stored Song",
+                PerformedOn = DateTime.Today
+            }
+        ],
+            DateTime.UtcNow));
+
+        var apiResultStarted = new TaskCompletionSource<MyPerformancesResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var api = new Mock<IKaraokeApiClient>();
+        api.Setup(client => client.GetMyPerformancesAsync(null, "desc"))
+            .Returns(apiResultStarted.Task);
+
+        var loader = new MyPerformancesLoader(api.Object, store);
+        var loadTask = loader.LoadAsync();
+
+        await loader.AddPerformanceAsync(new MyPerformanceEntryDto
+        {
+            SongId = 42,
+            Title = "Jeopardy",
+            PerformedOn = DateTime.Today
+        });
+
+        apiResultStarted.SetResult(MyPerformancesResult.Ok(
+        [
+            new MyPerformanceEntryDto
+            {
+                Id = 3,
+                SongId = 7,
+                Title = "Stored Song",
+                PerformedOn = DateTime.Today
+            }
+        ]));
+        await loadTask;
+
+        var cached = await store.GetCachedAsync();
+        Assert.NotNull(cached);
+        Assert.Contains(cached.Performances, p => p.Title == "Jeopardy");
+        Assert.Contains(cached.Performances, p => p.Title == "Stored Song");
+    }
+
+    [Fact]
+    public async Task LoadAsync_keeps_pending_logs_that_are_not_on_the_server_yet()
+    {
+        var localStorage = new InMemoryLocalStorage();
+        var logStore = new LogPerformanceLocalStore(localStorage);
+        await logStore.EnqueuePendingPerformanceAsync(new PendingPerformanceEntry(
+            Guid.NewGuid(),
+            SingerId: 1,
+            SongId: 30,
+            VenueId: 2,
+            PerformedOn: DateTime.Today,
+            KeyChangeSemitones: null,
+            Title: "Queued Song",
+            ArtistName: "Artist",
+            VenueName: "Main Stage",
+            QueuedAt: DateTime.Now));
+
+        var loader = new MyPerformancesLoader(
+            new PerformancesApiStub(),
+            new MyPerformancesLocalStore(localStorage),
+            logStore);
+
+        var result = await loader.LoadAsync();
+
+        Assert.Contains(result.Performances, p => p.Title == "Queued Song");
+        Assert.Contains(result.Performances, p => p.Title == "Newer Song");
+        Assert.Equal(1, result.Performances.Count(p => p.Title == "Queued Song"));
+    }
+
     private sealed class PerformancesApiStub : NotImplementedApiClient
     {
         public bool ThrowOffline { get; init; }

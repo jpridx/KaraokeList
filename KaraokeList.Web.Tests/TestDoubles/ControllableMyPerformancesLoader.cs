@@ -66,6 +66,30 @@ public sealed class ControllableMyPerformancesLoader(IMyPerformancesLocalStore s
             cached.SchemaVersion));
     }
 
+    public async Task AddPerformanceAsync(MyPerformanceEntryDto created)
+    {
+        InvalidateInFlightLoads();
+
+        var cached = await store.GetCachedAsync();
+        if (cached is null)
+        {
+            return;
+        }
+
+        if (created.Id <= 0)
+        {
+            var maxId = cached.Performances.Count == 0 ? 0 : cached.Performances.Max(p => p.Id);
+            created.Id = maxId + 1;
+        }
+
+        var performances = cached.Performances.ToList();
+        performances.Insert(0, created);
+        await store.SaveCachedAsync(new CachedMyPerformances(
+            performances,
+            DateTime.UtcNow,
+            cached.SchemaVersion));
+    }
+
     public Task RemovePerformanceAsync(int performanceId) =>
         throw new NotSupportedException();
 }
