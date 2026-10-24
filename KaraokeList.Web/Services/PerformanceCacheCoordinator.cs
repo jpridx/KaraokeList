@@ -23,6 +23,8 @@ public interface IPerformanceCacheCoordinator
 
     Task PatchAfterDeleteAsync(PerformanceEditSnapshot deleted);
 
+    Task PatchAfterCreateAsync(MyPerformanceEntryDto created);
+
     Task RebuildRecentLogsFromPerformancesAsync();
 }
 
@@ -52,6 +54,12 @@ public sealed class PerformanceCacheCoordinator(
             NotifyRepertoireStatsChanged();
         }
 
+        NotifyRecentLogsChanged();
+    }
+
+    public async Task PatchAfterCreateAsync(MyPerformanceEntryDto created)
+    {
+        await performancesLoader.AddPerformanceAsync(created);
         NotifyRecentLogsChanged();
     }
 

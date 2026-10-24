@@ -33,6 +33,51 @@ public sealed class MyPerformancesPageTests : AuthPageTestContext
     }
 
     [Fact]
+    public async Task Shows_a_just_logged_song_ahead_of_other_same_day_performances()
+    {
+        var store = new MyPerformancesLocalStore(performancesLocalStorage);
+        await store.SaveCachedAsync(new CachedMyPerformances(
+        [
+            new MyPerformanceEntryDto
+            {
+                Id = 4,
+                SongId = 7,
+                Title = "Earlier Tonight",
+                ArtistName = "Artist",
+                VenueName = "Main Stage",
+                PerformedOn = DateTime.Today
+            }
+        ],
+            DateTime.UtcNow.AddMinutes(-20)));
+
+        var loader = new MyPerformancesLoader(Api.Object, store);
+        await loader.AddPerformanceAsync(new MyPerformanceEntryDto
+        {
+            Id = 42,
+            SongId = 42,
+            Title = "Jeopardy",
+            ArtistName = "The Greg Kihn Band",
+            ArtistDisplay = "The Greg Kihn Band",
+            VenueName = "Main Stage",
+            PerformedOn = DateTime.Today
+        });
+
+        var refresh = new TaskCompletionSource<MyPerformancesResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        Api.Setup(client => client.GetMyPerformancesAsync(null, "desc"))
+            .Returns(refresh.Task);
+
+        var cut = Render<MyPerformances>();
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Contains("Jeopardy", cut.Markup);
+            Assert.Contains("Earlier Tonight", cut.Markup);
+            Assert.True(cut.Markup.IndexOf("Jeopardy", StringComparison.Ordinal) <
+                        cut.Markup.IndexOf("Earlier Tonight", StringComparison.Ordinal));
+        });
+    }
+
+    [Fact]
     public void Does_not_show_literal_loadError_when_performances_load()
     {
         Api.Setup(client => client.GetMyPerformancesAsync(null, "desc"))

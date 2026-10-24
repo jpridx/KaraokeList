@@ -1,6 +1,7 @@
 @inject IKaraokeApiClient Api
 @inject ILogPerformanceLocalStore LogStore
 @inject ILogCatalogLoader CatalogLoader
+@inject IPerformanceCacheCoordinator PerformanceCache
 
 <StatusAlerts SuccessMessage="@saveMessage" WarningMessage="@saveWarning" ErrorMessage="@saveError" />
 
@@ -303,6 +304,7 @@
             if (result.Succeeded)
             {
                 await SaveLocallyAsync(venueName, queuedOffline: false);
+                await RememberCreatedPerformanceAsync(venueName, result.PerformanceId);
                 saveMessage = "Performance saved.";
                 await OnPerformanceSaved.InvokeAsync(new PerformanceSavedEventArgs(true, saveMessage, performedOn));
                 return;
@@ -311,6 +313,7 @@
             if (result.IsTransient)
             {
                 await SaveLocallyAsync(venueName, queuedOffline: true);
+                await RememberCreatedPerformanceAsync(venueName, performanceId: null);
                 saveWarning = "Saved on this device. Will sync when you're back online.";
                 await OnPerformanceSaved.InvokeAsync(new PerformanceSavedEventArgs(false, saveWarning, performedOn));
                 return;
@@ -321,6 +324,38 @@
         catch (Exception ex)
         {
             saveError = ex.Message;
+        }
+    }
+
+    private async Task RememberCreatedPerformanceAsync(string venueName, int? performanceId)
+    {
+        try
+        {
+            await PerformanceCache.PatchAfterCreateAsync(new MyPerformanceEntryDto
+            {
+                Id = performanceId ?? 0,
+                SongId = SongId,
+                Title = Title,
+                ArtistName = ArtistName,
+                ArtistDisplay = ArtistName,
+                PerformedOn = performedOn,
+                VenueId = selectedVenueId,
+                VenueName = venueName,
+                KeyChangeSemitones = ActiveKeyChangeSemitones == 0 ? null : ActiveKeyChangeSemitones,
+                OtherPerformers = ActiveOtherPerformers
+                    .Select(performer => new CoPerformerDto
+                    {
+                        SingerId = performer.SingerId,
+                        Name = performer.SingerId is int singerId
+                            ? singers.FirstOrDefault(singer => singer.Id == singerId)?.Name ?? performer.DisplayName ?? string.Empty
+                            : performer.DisplayName ?? string.Empty
+                    })
+                    .ToList()
+            });
+        }
+        catch
+        {
+            // Recent logs are already stored; My Performances refresh still repairs the list.
         }
     }
 

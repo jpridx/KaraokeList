@@ -8,6 +8,52 @@ namespace KaraokeList.Web.Tests.Services;
 public sealed class PerformanceCacheCoordinatorTests
 {
     [Fact]
+    public async Task PatchAfterCreateAsync_prepends_performance_to_cache()
+    {
+        var performancesStore = new MyPerformancesLocalStore(new InMemoryLocalStorage());
+        var today = new DateTime(2026, 8, 2);
+        await performancesStore.SaveCachedAsync(new CachedMyPerformances(
+        [
+            new MyPerformanceEntryDto
+            {
+                Id = 10,
+                SongId = 5,
+                Title = "Older Song",
+                ArtistName = "Artist",
+                VenueName = "Main Stage",
+                PerformedOn = today
+            }
+        ],
+            DateTime.UtcNow));
+
+        var notified = false;
+        var coordinator = new PerformanceCacheCoordinator(
+            new MyPerformancesLoader(new NotImplementedApiClient(), performancesStore),
+            new LogPerformanceLocalStore(new InMemoryLocalStorage()),
+            new Mock<IMySongsLoader>().Object);
+        coordinator.RecentLogsChanged += () => notified = true;
+
+        await coordinator.PatchAfterCreateAsync(new MyPerformanceEntryDto
+        {
+            Id = 11,
+            SongId = 9,
+            Title = "Just Logged",
+            ArtistName = "Artist",
+            ArtistDisplay = "Artist",
+            VenueName = "Main Stage",
+            PerformedOn = today
+        });
+
+        var performances = await performancesStore.GetCachedAsync();
+        Assert.NotNull(performances);
+        var ordered = MyPerformancesQuery.Apply(performances.Performances, venueId: null, sortDir: "desc");
+        Assert.Equal("Just Logged", ordered[0].Title);
+        Assert.Equal("Older Song", ordered[1].Title);
+        Assert.Equal(11, ordered[0].Id);
+        Assert.True(notified);
+    }
+
+    [Fact]
     public async Task PatchAfterUpdateAsync_updates_performances_and_recent_logs()
     {
         var performancesStore = new MyPerformancesLocalStore(new InMemoryLocalStorage());
