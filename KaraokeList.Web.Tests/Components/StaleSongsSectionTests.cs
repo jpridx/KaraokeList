@@ -287,6 +287,9 @@ public sealed class StaleSongsSectionTests : BunitTestContext
         public Task PatchAfterDeleteAsync(PerformanceEditSnapshot deleted) =>
             Task.CompletedTask;
 
+        public Task PatchAfterCreateAsync(MyPerformanceEntryDto created) =>
+            Task.CompletedTask;
+
         public Task RebuildRecentLogsFromPerformancesAsync() =>
             Task.CompletedTask;
 

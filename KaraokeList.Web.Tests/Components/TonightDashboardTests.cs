@@ -421,6 +421,9 @@ public sealed class TonightDashboardTests : AuthPageTestContext
         public Task PatchAfterDeleteAsync(PerformanceEditSnapshot deleted) =>
             Task.CompletedTask;
 
+        public Task PatchAfterCreateAsync(MyPerformanceEntryDto created) =>
+            Task.CompletedTask;
+
         public Task RebuildRecentLogsFromPerformancesAsync() =>
             Task.CompletedTask;
 

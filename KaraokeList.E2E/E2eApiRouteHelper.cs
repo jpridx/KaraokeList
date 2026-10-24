@@ -19,4 +19,10 @@ internal static class E2eApiRouteHelper
             }
         });
     }
+
+    public static Task BlockMyHistoryGetsAsync(IPage page)
+    {
+        var pattern = $"{E2eConfiguration.ApiBaseUrl}/api/performances/my-history**";
+        return page.RouteAsync(pattern, route => route.AbortAsync("failed"));
+    }
 }

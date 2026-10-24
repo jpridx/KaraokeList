@@ -15,6 +15,47 @@ public sealed class MobileMyPerformancesTests(E2eServerFixture servers) : PageTe
     };
 
     [SkippableFact]
+    public async Task Logged_song_appears_in_my_performances_from_cache_when_history_refresh_fails()
+    {
+        Skip.IfNot(servers.IsReady, servers.SkipReason);
+        Skip.If(servers.WarmUpToken is null, "Warm-up user was not created.");
+
+        using var apiClient = new HttpClient { BaseAddress = new Uri(E2eConfiguration.ApiBaseUrl) };
+        var earlierTitle = $"E2E Cached Earlier {Guid.NewGuid():N}";
+        var loggedTitle = $"E2E Cached Logged {Guid.NewGuid():N}";
+        var (earlierSongId, _, _) = await E2eCatalogHelper.SeedSongAsync(apiClient, servers.WarmUpToken!, earlierTitle);
+        await E2eCatalogHelper.SeedPerformanceAsync(apiClient, servers.WarmUpToken!, earlierSongId, performedOn: DateTime.Today);
+        var (loggedSongId, _, _) = await E2eCatalogHelper.SeedSongAsync(apiClient, servers.WarmUpToken!, loggedTitle);
+
+        await E2eAuthHelper.SignInViaLocalStorageAsync(Page, servers.WarmUpToken!);
+        await Page.GotoAsync("/my-performances");
+        await Expect(Page.GetByRole(AriaRole.Heading, new() { Name = "My performances" })).ToBeVisibleAsync(new() { Timeout = 60_000 });
+        await Expect(Page.GetByText(earlierTitle)).ToBeVisibleAsync(new() { Timeout = 120_000 });
+
+        await Page.GotoAsync($"/log?songId={loggedSongId}");
+        await Expect(Page.GetByRole(AriaRole.Heading, new() { Name = "Log performance" })).ToBeVisibleAsync(new() { Timeout = 60_000 });
+        await Expect(Page.GetByRole(AriaRole.Button, new() { Name = "Save performance" })).ToBeVisibleAsync(new() { Timeout = 120_000 });
+
+        var venueName = $"E2E Venue {Guid.NewGuid():N}";
+        await Page.GetByRole(AriaRole.Button, new() { Name = "+ New venue" }).ClickAsync();
+        var venueInput = Page.Locator(".border-top.pt-3.mt-2 input.form-control");
+        await venueInput.WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = 60_000 });
+        await venueInput.FillAsync(venueName);
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Add venue" }).ClickAsync();
+        await Expect(Page.GetByText("Venue added.")).ToBeVisibleAsync(new() { Timeout = 60_000 });
+
+        await Page.GetByRole(AriaRole.Button, new() { Name = "Save performance" }).ClickAsync();
+        await Expect(Page.GetByText("Performance saved.")).ToBeVisibleAsync(new() { Timeout = 60_000 });
+
+        await E2eApiRouteHelper.BlockMyHistoryGetsAsync(Page);
+        await Page.GotoAsync("/my-performances");
+        await Expect(Page.GetByRole(AriaRole.Heading, new() { Name = "My performances" })).ToBeVisibleAsync(new() { Timeout = 60_000 });
+        await Expect(Page.GetByText(loggedTitle)).ToBeVisibleAsync(new() { Timeout = 30_000 });
+        await Expect(Page.GetByText(earlierTitle)).ToBeVisibleAsync();
+        await Expect(Page.Locator("#blazor-error-ui")).ToBeHiddenAsync();
+    }
+
+    [SkippableFact]
     public async Task Authenticated_user_can_edit_a_performance_on_my_performances()
     {
         Skip.IfNot(servers.IsReady, servers.SkipReason);

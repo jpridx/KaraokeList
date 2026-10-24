@@ -1,3 +1,4 @@
+using KaraokeList.Shared;
 using KaraokeList.Web.Services;
 
 namespace KaraokeList.Web.Tests.TestDoubles;
@@ -12,6 +13,9 @@ public sealed class NoOpPerformanceCacheCoordinator : IPerformanceCacheCoordinat
         Task.CompletedTask;
 
     public Task PatchAfterDeleteAsync(PerformanceEditSnapshot deleted) =>
+        Task.CompletedTask;
+
+    public Task PatchAfterCreateAsync(MyPerformanceEntryDto created) =>
         Task.CompletedTask;
 
     public Task RebuildRecentLogsFromPerformancesAsync() =>
