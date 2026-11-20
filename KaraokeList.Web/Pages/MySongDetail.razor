@@ -93,7 +93,7 @@
         CoPerformerFormatting.GetDisplayNames(hostCoPerformers, singers);
 
     private IReadOnlyList<EditablePerformanceEntry> historyEntries =>
-        summary?.History.Select(entry => EditablePerformanceEntry.FromHistory(entry, SongId)).ToList() ?? [];
+        summary?.History.Select(entry => EditablePerformanceEntry.FromHistory(entry, SongId, songMeta?.Title, songMeta?.ArtistName)).ToList() ?? [];
 
     protected override async Task OnParametersSetAsync()
     {

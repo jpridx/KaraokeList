@@ -98,6 +98,57 @@ public sealed class PerformanceCacheCoordinatorTests
     }
 
     [Fact]
+    public async Task PatchAfterUpdateAsync_keeps_title_and_artist_when_snapshot_omits_them()
+    {
+        // Song detail history rows (EditablePerformanceEntry.FromHistory) carry no title/artist (issue #347).
+        var performedOn = new DateTime(2026, 11, 19);
+        var performancesStore = new MyPerformancesLocalStore(new InMemoryLocalStorage());
+        await performancesStore.SaveCachedAsync(new CachedMyPerformances(
+        [
+            new MyPerformanceEntryDto
+            {
+                Id = 42,
+                SongId = 7,
+                Title = "All I Ever Wanted",
+                ArtistName = "Santana",
+                ArtistDisplay = "Santana",
+                VenueId = 1,
+                VenueName = "Main Stage",
+                PerformedOn = performedOn
+            }
+        ],
+            DateTime.UtcNow));
+
+        var logStore = new LogPerformanceLocalStore(new InMemoryLocalStorage());
+        var loggedAt = new DateTime(2026, 11, 19, 21, 0, 0);
+        await logStore.AddRecentLogAsync(new RecentLoggedPerformance(
+            7, "All I Ever Wanted", "Santana", "Main Stage", performedOn, 0, loggedAt));
+
+        var coordinator = new PerformanceCacheCoordinator(
+            new MyPerformancesLoader(new NotImplementedApiClient(), performancesStore),
+            logStore,
+            new Mock<IMySongsLoader>().Object);
+
+        var before = new PerformanceEditSnapshot(
+            42, 7, string.Empty, string.Empty, null, performedOn, 1, "Main Stage", null);
+        var after = before with { KeyChangeSemitones = -1 };
+
+        await coordinator.PatchAfterUpdateAsync(before, after);
+
+        var performance = (await performancesStore.GetCachedAsync())!.Performances[0];
+        Assert.Equal("All I Ever Wanted", performance.Title);
+        Assert.Equal("Santana", performance.ArtistName);
+        Assert.Equal("Santana", performance.ArtistDisplay);
+        Assert.Equal(-1, performance.KeyChangeSemitones);
+
+        var recent = (await logStore.GetRecentLogsAsync())[0];
+        Assert.Equal("All I Ever Wanted", recent.Title);
+        Assert.Equal("Santana", recent.ArtistName);
+        Assert.Equal(-1, recent.KeyChangeSemitones);
+        Assert.Equal(loggedAt, recent.LoggedAt);
+    }
+
+    [Fact]
     public async Task RebuildRecentLogsFromPerformancesAsync_replaces_recent_logs_from_cache()
     {
         var performancesStore = new MyPerformancesLocalStore(new InMemoryLocalStorage());

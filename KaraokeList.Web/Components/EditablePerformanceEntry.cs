@@ -31,12 +31,16 @@ public sealed record EditablePerformanceEntry(
             entry.KeyChangeSemitones,
             entry.OtherPerformers);
 
-    public static EditablePerformanceEntry FromHistory(PerformanceHistoryEntryDto entry, int songId) =>
+    public static EditablePerformanceEntry FromHistory(
+        PerformanceHistoryEntryDto entry,
+        int songId,
+        string? title = null,
+        string? artistName = null) =>
         new(
             entry.Id,
             songId,
-            null,
-            null,
+            title,
+            artistName,
             entry.PerformedOn,
             entry.VenueId,
             entry.VenueName,
