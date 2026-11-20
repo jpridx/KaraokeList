@@ -85,7 +85,7 @@ public sealed class PerformanceCacheCoordinator(
             ? hydratedAt.ToLocalTime()
             : hydratedAt;
 
-        var rebuilt = loaded.Performances
+        var rebuilt = MyPerformancesQuery.Apply(loaded.Performances, venueId: null, sortDir: "desc")
             .Take(LogPerformanceLocalStore.MaxRecentLogs)
             .Select(p => RecentLogsHydrator.FromApi(p, localTime))
             .ToList();
@@ -115,13 +115,18 @@ public sealed class PerformanceCacheCoordinator(
             return;
         }
 
+        var sameSong = existing.SongId == after.SongId;
+        var artistName = PreferNonBlank(after.ArtistName, sameSong ? existing.ArtistName : null);
         await performancesLoader.PatchPerformanceAsync(new MyPerformanceEntryDto
         {
             Id = existing.Id,
             SongId = after.SongId,
-            Title = after.Title,
-            ArtistName = after.ArtistName,
-            ArtistDisplay = after.ArtistDisplay ?? after.ArtistName,
+            Title = PreferNonBlank(after.Title, sameSong ? existing.Title : null),
+            ArtistName = artistName,
+            ArtistDisplay = PreferNonBlank(
+                after.ArtistDisplay,
+                sameSong ? existing.ArtistDisplay : null,
+                artistName),
             PerformedOn = after.PerformedOn,
             VenueId = after.VenueId,
             VenueName = after.VenueName,
@@ -145,8 +150,8 @@ public sealed class PerformanceCacheCoordinator(
             before.PerformedOn,
             new RecentLoggedPerformance(
                 after.SongId,
-                after.Title,
-                after.ArtistName,
+                PreferNonBlank(after.Title, after.SongId == matching.SongId ? matching.Title : null),
+                PreferNonBlank(after.ArtistName, after.SongId == matching.SongId ? matching.ArtistName : null),
                 after.VenueName,
                 after.PerformedOn,
                 after.KeyChangeSemitones == 0 ? null : after.KeyChangeSemitones,
@@ -254,6 +259,13 @@ public sealed class PerformanceCacheCoordinator(
             CachedAtUtc = DateTime.UtcNow
         });
     }
+
+    /// <summary>
+    /// Edit snapshots from song-detail history rows have no title/artist; keep the cached values
+    /// rather than blanking them (issue #347).
+    /// </summary>
+    private static string PreferNonBlank(params string?[] candidates) =>
+        candidates.FirstOrDefault(c => !string.IsNullOrWhiteSpace(c)) ?? string.Empty;
 
     private void NotifyRecentLogsChanged() => RecentLogsChanged?.Invoke();
 

@@ -17,13 +17,21 @@ public static class RecentLogsHydrator
         var localByKey = IndexLocalLogsByKey(localLogs);
         var dedupedLocalLogs = localByKey.Values;
 
-        var apiEntries = apiPerformances
-            .Select(performance => FromApi(performance, hydratedAt.Value))
-            .Select(entry => localByKey.TryGetValue(Key(entry), out var local)
-                ? entry with { LoggedAt = local.LoggedAt }
-                : entry)
+        // Rank server rows newest performance first, matching My Performances (date desc, id desc).
+        var apiEntries = MyPerformancesQuery.Apply(apiPerformances, venueId: null, sortDir: "desc")
+            .Select((performance, rank) =>
+            {
+                var entry = FromApi(performance, hydratedAt.Value);
+                // A matching device log keeps its real log time and device-log status.
+                if (localByKey.TryGetValue(Key(entry), out var local))
+                {
+                    entry = entry with { LoggedAt = local.LoggedAt, FromServer = local.FromServer };
+                }
+
+                return (Entry: entry, Rank: rank);
+            })
             .ToList();
-        var apiKeys = apiEntries.Select(Key).ToHashSet();
+        var apiKeys = apiEntries.Select(e => Key(e.Entry)).ToHashSet();
         var apiSongDates = apiPerformances
             .Select(p => (p.SongId, p.PerformedOn.Date))
             .ToHashSet();
@@ -37,21 +45,30 @@ public static class RecentLogsHydrator
             .Where(log => !apiKeys.Contains(Key(log)))
             .ToList();
 
+        // Rows hydrated from the server that are no longer on the server are dropped, not kept as "local".
         var freshLocalOnly = dedupedLocalLogs
+            .Where(log => !log.FromServer)
             .Where(log => !apiKeys.Contains(Key(log)))
             .Where(log => !apiSongDates.Contains((log.SongId, log.PerformedOn.Date)))
             .Where(log => !pendingKeys.Contains((log.SongId, log.PerformedOn.Date, log.VenueName)))
             .Where(log => RecentLogsRefreshPolicy.ShouldUseLocalRecentLogs(log.LoggedAt, now))
             .ToList();
 
-        var localSourceKeys = localByKey.Keys.ToHashSet();
-
-        return pendingLocals
+        // Device logs first (newest log first), then server-filled rows by performance order.
+        // Server rows carry a hydration timestamp, not a real log time, so it must not decide order
+        // (issues #335 / #347: last week's rows outranked and then evicted tonight's logs).
+        var deviceLogs = pendingLocals
             .Concat(freshLocalOnly)
-            .Concat(apiEntries)
-            .OrderByDescending(log => localSourceKeys.Contains(Key(log)))
-            .ThenByDescending(log => log.LoggedAt)
-            .ThenByDescending(log => log.PerformedOn)
+            .Concat(apiEntries.Where(e => !e.Entry.FromServer).Select(e => e.Entry))
+            .OrderByDescending(log => log.LoggedAt)
+            .ThenByDescending(log => log.PerformedOn);
+        var serverRows = apiEntries
+            .Where(e => e.Entry.FromServer)
+            .OrderBy(e => e.Rank)
+            .Select(e => e.Entry);
+
+        return deviceLogs
+            .Concat(serverRows)
             .Take(maxCount)
             .ToList();
     }
@@ -64,7 +81,8 @@ public static class RecentLogsHydrator
             performance.VenueName,
             performance.PerformedOn,
             performance.KeyChangeSemitones,
-            loggedAt);
+            loggedAt,
+            FromServer: true);
 
     private static (int SongId, DateTime Date, string VenueName) Key(RecentLoggedPerformance log) =>
         (log.SongId, log.PerformedOn.Date, log.VenueName);
