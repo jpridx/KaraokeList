@@ -22,7 +22,8 @@ public sealed record RecentLoggedPerformance(
     string VenueName,
     DateTime PerformedOn,
     int? KeyChangeSemitones,
-    DateTime LoggedAt);
+    DateTime LoggedAt,
+    bool FromServer = false);
 
 public sealed record PendingPerformanceEntry(
     Guid Id,
@@ -120,7 +121,7 @@ public sealed class LogPerformanceLocalStore(ILocalStorageService localStorage) 
         }
 
         var existing = logs[index];
-        logs[index] = updated with { LoggedAt = existing.LoggedAt };
+        logs[index] = updated with { LoggedAt = existing.LoggedAt, FromServer = existing.FromServer };
         await localStorage.SetItemAsync(RecentLogsKey, logs);
     }
 

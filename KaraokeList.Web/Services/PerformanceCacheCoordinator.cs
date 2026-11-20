@@ -85,7 +85,7 @@ public sealed class PerformanceCacheCoordinator(
             ? hydratedAt.ToLocalTime()
             : hydratedAt;
 
-        var rebuilt = loaded.Performances
+        var rebuilt = MyPerformancesQuery.Apply(loaded.Performances, venueId: null, sortDir: "desc")
             .Take(LogPerformanceLocalStore.MaxRecentLogs)
             .Select(p => RecentLogsHydrator.FromApi(p, localTime))
             .ToList();

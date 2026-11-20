@@ -295,6 +295,30 @@ public sealed class RecentLogsHydratorTests
         Assert.Equal(hydratedAt, merged[0].LoggedAt);
     }
 
+    [Fact]
+    public void Merge_ranks_server_filled_rows_below_device_logs_and_drops_ones_gone_from_server()
+    {
+        var now = new DateTime(2026, 11, 19, 22, 0, 0);
+        var api = new List<MyPerformanceEntryDto>
+        {
+            CreateApiEntry(2, "Tonight", now.Date),
+            CreateApiEntry(3, "Last Week", now.Date.AddDays(-7)),
+        };
+        var local = new List<RecentLoggedPerformance>
+        {
+            // Hydrated earlier with a later timestamp than the real device log.
+            new(3, "Last Week", "Artist", "Main Stage", now.Date.AddDays(-7), null, now.AddMinutes(-10), FromServer: true),
+            new(9, "Deleted On Server", "Artist", "Main Stage", now.Date.AddDays(-7), null, now.AddMinutes(-10), FromServer: true),
+            new(2, "Tonight", "Artist", "Main Stage", now.Date, null, now.AddMinutes(-60)),
+        };
+
+        var merged = RecentLogsHydrator.Merge(api, local, [], hydratedAt: now, now: now);
+
+        Assert.Equal(["Tonight", "Last Week"], merged.Select(m => m.Title));
+        Assert.False(merged[0].FromServer);
+        Assert.True(merged[1].FromServer);
+    }
+
     private static MyPerformanceEntryDto CreateApiEntry(int songId, string title, DateTime performedOn) =>
         new()
         {
